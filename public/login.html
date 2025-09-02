@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Entrar — MEI Robô</title>
+  <link rel="stylesheet" href="./assets/styles.css" />
+</head>
+<body>
+  <div id="app-header"></div>
+
+  <main class="section">
+    <div class="container form-wrap">
+      <h1 style="color:var(--wa-dark); margin:0 0 6px">Entrar</h1>
+      <div class="form-grid">
+        <form class="form-card full" action="#" method="POST" novalidate>
+          <div class="form-row">
+            <label for="email"><strong>E-mail</strong></label>
+            <input id="email" name="email" class="input" type="email" placeholder="voce@email.com" required />
+          </div>
+          <div class="form-row">
+            <label for="senha"><strong>Senha</strong></label>
+            <input id="senha" name="senha" class="input" type="password" placeholder="********" required />
+          </div>
+          <div class="actions" style="margin-top:12px">
+            <button class="cta" type="submit">Entrar</button>
+            <a class="btn-secondary" href="./cadastro.html">Criar conta</a>
+          </div>
+          <p class="hint" style="margin-top:10px"><a href="#">Esqueci minha senha</a></p>
+        </form>
+      </div>
+    </div>
+  </main>
+
+  <div id="app-footer"></div>
+  <script src="./assets/layout.js"></script>
+</body>
+</html>

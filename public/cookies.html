@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Política de Cookies — MEI Robô</title>
+  <link rel="stylesheet" href="./assets/styles.css" />
+</head>
+<body>
+  <!-- Cabeçalho -->
+  <div id="app-header"></div>
+
+  <main class="section">
+    <div class="container">
+      <h1 style="color:var(--wa-dark); margin:0 0 8px">Política de Cookies</h1>
+      <p class="note" style="margin:0 0 22px">Última atualização: 11/08/2025</p>
+
+      <div class="grid">
+        <div class="card">
+          <h2 style="color:var(--wa-dark)">1) O que são cookies?</h2>
+          <p>Cookies são pequenos arquivos armazenados no seu navegador que ajudam a operar o site e melhorar a experiência. Também podemos usar tecnologias similares (ex.: localStorage).</p>
+        </div>
+
+        <div class="card">
+          <h2 style="color:var(--wa-dark)">2) Como usamos cookies</h2>
+          <ul>
+            <li><strong>Essenciais (obrigatórios):</strong> necessários para que o site funcione (ex.: sessão, segurança, carregamento de cabeçalho/rodapé). Não podem ser desativados.</li>
+            <li><strong>Métricas (analytics):</strong> nos ajudam a entender uso e melhorar desempenho e usabilidade.</li>
+            <li><strong>Marketing:</strong> permitem medir campanhas e personalizar comunicações.</li>
+          </ul>
+        </div>
+
+        <div class="card">
+          <h2 style="color:var(--wa-dark)">3) Seu controle</h2>
+          <p>Você pode gerenciar suas preferências de cookies a qualquer momento:</p>
+          <p><a href="#" class="cta" id="openPrefs">Gerenciar preferências de cookies</a></p>
+          <p class="note">Além disso, seu navegador oferece opções para apagar cookies já armazenados.</p>
+        </div>
+
+        <div class="card">
+          <h2 style="color:var(--wa-dark)">4) Terceiros</h2>
+          <p>Podemos usar serviços de terceiros (ex.: provedor de pagamentos, hospedagem, analytics). Quando integrações de métricas/marketing estiverem ativas, esses serviços poderão definir cookies próprios — apenas com seu consentimento.</p>
+        </div>
+
+        <div class="card">
+          <h2 style="color:var(--wa-dark)">5) Atualizações</h2>
+          <p>Podemos atualizar esta Política para refletir mudanças legais ou técnicas. Mudanças relevantes serão comunicadas quando exigido.</p>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <!-- Rodapé -->
+  <div id="app-footer"></div>
+
+  <script src="./assets/layout.js"></script>
+  <script>
+    // botão da página para abrir o modal de preferências
+    document.addEventListener('DOMContentLoaded', () => {
+      const btn = document.getElementById('openPrefs');
+      btn?.addEventListener('click', (e) => {
+        e.preventDefault();
+        if (window.CookieConsent && typeof window.CookieConsent.openPreferences === 'function') {
+          window.CookieConsent.openPreferences();
+        } else {
+          alert('Preferências de cookies indisponíveis no momento.');
+        }
+      });
+    });
+  </script>
+</body>
+</html>

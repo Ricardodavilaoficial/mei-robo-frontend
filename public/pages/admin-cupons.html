@@ -1,0 +1,155 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <title>ADMIN — Cupons</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="stylesheet" href="../assets/styles.css" />
+  <script defer src="../assets/layout.js"></script>
+</head>
+<body>
+  <div id="app-header"></div>
+
+  <main class="container">
+    <div class="card">
+      <h2>Admin • Cupons</h2>
+      <p class="note">Acesso restrito. Somente administrador.</p>
+
+      <div id="admin-gate" class="card" style="margin-top:12px; background:#0c171d;">
+        <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+          <label>
+            <input type="checkbox" id="toggleAdmin" />
+            Eu sou administrador (dev)
+          </label>
+          <button class="btn secondary" id="saveGate">Aplicar</button>
+          <span class="note">Flag salva em <code>localStorage.isAdmin</code></span>
+        </div>
+      </div>
+
+      <div id="admin-area" style="display:none; margin-top:14px;">
+        <div style="display:flex; gap:10px; flex-wrap:wrap;">
+          <button class="btn" id="gerar">Gerar cupom</button>
+          <button class="btn secondary" id="listar">Listar cupons</button>
+        </div>
+
+        <div class="grid grid-2" style="margin-top:12px">
+          <div>
+            <label for="dias">Dias de validade (opcional)</label>
+            <input id="dias" class="input" type="number" min="1" step="1" placeholder="ex.: 7" />
+          </div>
+          <div>
+            <label for="prefixo">Prefixo (opcional)</label>
+            <input id="prefixo" class="input" placeholder="ex.: MEI" />
+          </div>
+        </div>
+
+        <pre id="out" style="margin-top:12px"></pre>
+
+        <h3 style="margin-top:20px">Cupons</h3>
+        <table class="table" id="tbl">
+          <thead>
+            <tr><th>código</th><th>status</th><th>criadoEm</th><th>expiraEm</th></tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+  </main>
+
+  <div id="app-footer"></div>
+
+  <script>
+    const token = () => localStorage.getItem('idToken');
+
+    function gateApply(){
+      const isAdmin = localStorage.getItem('isAdmin') === 'true';
+      document.getElementById('toggleAdmin').checked = isAdmin;
+      document.getElementById('admin-area').style.display = isAdmin ? '' : 'none';
+    }
+
+    function setOut(msg){
+      const el = document.getElementById('out');
+      if(msg == null || msg === '') { el.textContent = ''; return; }
+      if(typeof msg === 'string') el.textContent = msg;
+      else el.textContent = JSON.stringify(msg, null, 2);
+    }
+
+    async function gerar(){
+      setOut('Gerando cupom...');
+      const dias = Number(document.getElementById('dias').value || 0);
+      const prefixo = document.getElementById('prefixo').value.trim() || null;
+      const body = {};
+      if(dias > 0) body.diasValidade = dias;
+      if(prefixo) body.prefixo = prefixo;
+
+      try{
+        const r = await fetch('/gerar-cupom', {
+          method:'POST',
+          headers:{'Content-Type':'application/json','Authorization':'Bearer '+token()},
+          body: JSON.stringify(body)
+        });
+        const ct = r.headers.get('content-type') || '';
+        if(!r.ok){
+          const txt = await r.text().catch(()=>'(sem corpo)');
+          throw new Error(`POST /gerar-cupom -> ${r.status}: ${txt.slice(0,200)}`);
+        }
+        const j = ct.includes('application/json') ? await r.json() : { ok:true, detalhe:'Cupom gerado (não-JSON)' };
+        setOut(j);
+        await listar();
+      }catch(err){
+        setOut({ erro:'Falha ao gerar cupom', detalhe: err.message });
+      }
+    }
+
+    async function listar(){
+      setOut('Listando cupons...');
+      const tb = document.querySelector('#tbl tbody');
+      tb.innerHTML = '';
+      try{
+        const r = await fetch('/cupons', { headers:{'Authorization':'Bearer '+token()} });
+        const ct = r.headers.get('content-type') || '';
+        if(!r.ok){
+          const txt = await r.text().catch(()=>'(sem corpo)');
+          throw new Error(`GET /cupons -> ${r.status}: ${txt.slice(0,200)}`);
+        }
+        let arr = [];
+        if(ct.includes('application/json')) arr = await r.json();
+        else {
+          const txt = await r.text();
+          setOut('⚠️ Resposta inesperada de /cupons (não-JSON).');
+          console.warn('Resposta /cupons:', txt);
+        }
+
+        (arr||[]).forEach(c => {
+          const tr = document.createElement('tr');
+          tr.innerHTML = `
+            <td>${c.codigo||c.code||'-'}</td>
+            <td>${c.status||'-'}</td>
+            <td>${c.criadoEm||c.createdAt||'-'}</td>
+            <td>${c.expiraEm||c.expiresAt||'-'}</td>`;
+          tb.appendChild(tr);
+        });
+
+        if(!arr || arr.length === 0){
+          setOut('Nenhum cupom cadastrado.');
+        }else{
+          setOut('Lista de cupons atualizada ✅');
+        }
+      }catch(err){
+        setOut({ erro:'Falha ao listar cupons', detalhe: err.message });
+      }
+    }
+
+    window.addEventListener('DOMContentLoaded', () => {
+      gateApply();
+      document.getElementById('saveGate').onclick = () => {
+        const v = document.getElementById('toggleAdmin').checked;
+        localStorage.setItem('isAdmin', v ? 'true' : 'false');
+        gateApply();
+      };
+      document.getElementById('gerar').onclick = gerar;
+      document.getElementById('listar').onclick = listar;
+    });
+  </script>
+</body>
+</html>
