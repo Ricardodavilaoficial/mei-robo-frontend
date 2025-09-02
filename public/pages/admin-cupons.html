@@ -4,8 +4,15 @@
   <meta charset="UTF-8" />
   <title>ADMIN — Cupons</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <link rel="stylesheet" href="../assets/styles.css" />
-  <script defer src="../assets/layout.js"></script>
+
+  <!-- Estilos canônicos -->
+  <link rel="stylesheet" href="/assets/styles.css" />
+
+  <!-- Patch de rotas: garante que /gerar-cupom e /cupons vão ao backend prod -->
+  <script src="/assets/backend-patch.js"></script>
+
+  <!-- Loader de header/footer e demais iniciais do app -->
+  <script defer src="/assets/layout.js"></script>
 </head>
 <body>
   <div id="app-header"></div>
@@ -21,15 +28,15 @@
             <input type="checkbox" id="toggleAdmin" />
             Eu sou administrador (dev)
           </label>
-          <button class="btn secondary" id="saveGate">Aplicar</button>
+          <button class="btn secondary" id="saveGate" type="button">Aplicar</button>
           <span class="note">Flag salva em <code>localStorage.isAdmin</code></span>
         </div>
       </div>
 
       <div id="admin-area" style="display:none; margin-top:14px;">
         <div style="display:flex; gap:10px; flex-wrap:wrap;">
-          <button class="btn" id="gerar">Gerar cupom</button>
-          <button class="btn secondary" id="listar">Listar cupons</button>
+          <button class="btn" id="gerar" type="button">Gerar cupom</button>
+          <button class="btn secondary" id="listar" type="button">Listar cupons</button>
         </div>
 
         <div class="grid grid-2" style="margin-top:12px">
@@ -59,10 +66,14 @@
   <div id="app-footer"></div>
 
   <script>
-    const token = () => localStorage.getItem('idToken');
+    // Acesso "seguro" ao localStorage (alguns navegadores podem bloquear)
+    function lsGet(key) { try { return window.localStorage.getItem(key); } catch { return null; } }
+    function lsSet(key, val) { try { window.localStorage.setItem(key, val); } catch {} }
+
+    const token = () => lsGet('idToken') || ''; // Enviaremos se existir
 
     function gateApply(){
-      const isAdmin = localStorage.getItem('isAdmin') === 'true';
+      const isAdmin = lsGet('isAdmin') === 'true';
       document.getElementById('toggleAdmin').checked = isAdmin;
       document.getElementById('admin-area').style.display = isAdmin ? '' : 'none';
     }
@@ -71,7 +82,10 @@
       const el = document.getElementById('out');
       if(msg == null || msg === '') { el.textContent = ''; return; }
       if(typeof msg === 'string') el.textContent = msg;
-      else el.textContent = JSON.stringify(msg, null, 2);
+      else {
+        try { el.textContent = JSON.stringify(msg, null, 2); }
+        catch { el.textContent = String(msg); }
+      }
     }
 
     async function gerar(){
@@ -83,11 +97,17 @@
       if(prefixo) body.prefixo = prefixo;
 
       try{
+        const headers = { 'Content-Type': 'application/json' };
+        const t = token();
+        if (t) headers['Authorization'] = 'Bearer ' + t;
+
+        // Caminho relativo: backend-patch.js reescreve -> https://mei-robo-prod.onrender.com/licencas/gerar-cupom
         const r = await fetch('/gerar-cupom', {
           method:'POST',
-          headers:{'Content-Type':'application/json','Authorization':'Bearer '+token()},
+          headers,
           body: JSON.stringify(body)
         });
+
         const ct = r.headers.get('content-type') || '';
         if(!r.ok){
           const txt = await r.text().catch(()=>'(sem corpo)');
@@ -106,7 +126,12 @@
       const tb = document.querySelector('#tbl tbody');
       tb.innerHTML = '';
       try{
-        const r = await fetch('/cupons', { headers:{'Authorization':'Bearer '+token()} });
+        const headers = {};
+        const t = token();
+        if (t) headers['Authorization'] = 'Bearer ' + t;
+
+        // Caminho relativo: backend-patch.js reescreve -> https://mei-robo-prod.onrender.com/licencas/cupons (mapeado no patch)
+        const r = await fetch('/cupons', { headers });
         const ct = r.headers.get('content-type') || '';
         if(!r.ok){
           const txt = await r.text().catch(()=>'(sem corpo)');
@@ -144,7 +169,7 @@
       gateApply();
       document.getElementById('saveGate').onclick = () => {
         const v = document.getElementById('toggleAdmin').checked;
-        localStorage.setItem('isAdmin', v ? 'true' : 'false');
+        lsSet('isAdmin', v ? 'true' : 'false');
         gateApply();
       };
       document.getElementById('gerar').onclick = gerar;
