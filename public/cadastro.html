@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cadastro - MEI Robô</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Roboto', sans-serif;
+            background-color: #ECE5DD;
+            color: #075E54;
+            margin: 0;
+            padding: 0;
+            line-height: 1.6;
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 20px;
+        }
+        header {
+            background-color: #FFFFFF;
+            padding: 15px 0;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .whatsapp-business-logo {
+            display: flex;
+            align-items: center;
+        }
+        .whatsapp-business-logo h1 {
+            font-size: 1.8em;
+            font-weight: 700;
+            color: #075E54;
+            margin: 0;
+        }
+        .whatsapp-logo-icon {
+            width: 30px;
+            margin-right: 8px;
+        }
+        nav a {
+            color: #075E54;
+            text-decoration: none;
+            font-weight: 400;
+            margin-left: 20px;
+            transition: color 0.3s;
+        }
+        nav a:hover {
+            color: #25D366;
+        }
+        .main-content {
+            flex: 1;
+            padding: 60px 0;
+            text-align: center;
+        }
+        .form-card {
+            background-color: #FFFFFF;
+            padding: 40px;
+            border-radius: 10px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+            max-width: 600px;
+            margin: 0 auto;
+        }
+        h2 {
+            font-size: 2em;
+            color: #25D366;
+            margin-bottom: 30px;
+        }
+        .form-group {
+            margin-bottom: 20px;
+            text-align: left;
+        }
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 700;
+        }
+        .form-group input, .form-group button {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            box-sizing: border-box;
+            font-size: 1em;
+        }
+        .form-group input:focus {
+            outline: none;
+            border-color: #25D366;
+            box-shadow: 0 0 5px rgba(37, 211, 102, 0.5);
+        }
+        .password-info {
+            font-size: 0.9em;
+            color: #555;
+            margin-top: 5px;
+        }
+        .btn-green {
+            background-color: #25D366;
+            color: #FFFFFF;
+            border: none;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        .btn-green:hover {
+            background-color: #128C7E;
+        }
+        .divider {
+            margin: 30px 0;
+            text-align: center;
+            font-weight: 700;
+        }
+        .btn-stripe {
+            background-color: #6772E5;
+            color: #FFFFFF;
+            border: none;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        .btn-stripe:hover {
+            background-color: #5560b4;
+        }
+        footer {
+            background-color: #075E54;
+            color: #FFFFFF;
+            text-align: center;
+            padding: 20px 0;
+            font-size: 0.9em;
+            margin-top: auto;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="container">
+            <div class="whatsapp-business-logo">
+                <img src="https://upload.wikimedia.org/wikipedia/commons/6/6b/WhatsApp.svg" alt="&Iacute;cone do WhatsApp" class="whatsapp-logo-icon">
+                <h1>WhatsApp Business Oficial + MEI Rob&ocirc;</h1>
+            </div>
+            <nav>
+                <a href="index.html">Voltar para a home</a>
+            </nav>
+        </div>
+    </header>
+
+    <main class="main-content">
+        <div class="form-card">
+            <h2>Cadastre-se</h2>
+            <form action="#" method="POST">
+                <div class="form-group">
+                    <label for="nome">Nome Completo</label>
+                    <input type="text" id="nome" name="nome" required>
+                </div>
+                <div class="form-group">
+                    <label for="email">E-mail</label>
+                    <input type="email" id="email" name="email" required>
+                </div>
+                <div class="form-group">
+                    <label for="cnpj">CNPJ do MEI</label>
+                    <input type="text" id="cnpj" name="cnpj" required>
+                </div>
+                <div class="form-group">
+                    <label for="senha">Criar Senha</label>
+                    <input type="password" id="senha" name="senha" required>
+                    <div class="password-info">A senha deve ter no m&iacute;nimo 8 caracteres, com pelo menos um: letra mai&uacute;scula, letra min&uacute;scula, n&uacute;mero e caractere especial.</div>
+                </div>
+                <div class="form-group">
+                    <label for="repetir-senha">Repetir Senha</label>
+                    <input type="password" id="repetir-senha" name="repetir-senha" required>
+                </div>
+
+                <div class="divider">ou</div>
+
+                <div class="form-group">
+                    <label for="cupom">Cupom Promocional</label>
+                    <input type="text" id="cupom" name="cupom">
+                </div>
+                <div class="form-group">
+                    <button type="submit" class="btn-green">Ativar com Cupom</button>
+                </div>
+
+                <div class="divider">ou</div>
+
+                <div class="form-group">
+                    <button type="submit" class="btn-stripe">Op&ccedil;&otilde;es de Pagamento</button>
+                </div>
+            </form>
+        </div>
+    </main>
+
+    <footer>
+        <div class="container">
+            <p>&copy; 2025 MEI Rob&ocirc;. Todos os direitos reservados.</p>
+        </div>
+    </footer>
+</body>
+</html>
