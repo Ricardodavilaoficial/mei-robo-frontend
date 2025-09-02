@@ -1,0 +1,7 @@
+# MEI Robo Frontend 
+.firebase/
+node_modules/
+dist/
+build/
+npm-debug.log
+*.log
