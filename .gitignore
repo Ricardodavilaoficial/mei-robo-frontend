@@ -1,3 +1,17 @@
-.firebase 
-.cache 
-**/node_modules/ 
+# OS / editor
+.DS_Store
+Thumbs.db
+
+# Firebase
+.firebase/
+.cache/
+
+# Node
+**/node_modules/
+
+# Logs
+npm-debug.log*
+yarn-error.log*
+
+# Misc
+*.local
