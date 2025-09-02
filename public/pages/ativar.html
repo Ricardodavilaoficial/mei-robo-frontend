@@ -1,44 +1,108 @@
 <!doctype html>
-<html>
+<html lang="pt-BR">
 <head>
   <meta charset="UTF-8" />
-  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
-  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Ativar Conta — MEI Robô</title>
+
+  <!-- Estilos canônicos -->
+  <link rel="stylesheet" href="/assets/styles.css" />
+
+  <!-- Patch: garante que rotas de API vão para o backend de produção -->
+  <script src="/assets/backend-patch.js"></script>
+
+  <!-- Loader de header/footer -->
+  <script defer src="/assets/layout.js"></script>
+
   <style>
     body{font-family:system-ui;margin:0;background:#f7f7f7}
     .container{max-width:900px;margin:40px auto;background:#fff;border-radius:12px;box-shadow:0 2px 8px rgba(0,0,0,.06);padding:16px}
     .btn{background:#25d366;border:none;color:#111;padding:10px 14px;border-radius:8px;cursor:pointer}
+    .btn[disabled]{opacity:.6;cursor:not-allowed}
     .input{width:100%;padding:10px;border:1px solid #ddd;border-radius:8px}
     pre{background:#f4f4f4;padding:12px;border-radius:8px;overflow:auto}
     nav a{margin-right:12px}
   </style>
-<link rel="stylesheet" href="/assets/styles.css" />
-<script defer src="/assets/layout.js"></script>
 </head>
 <body>
-<div id="app-header"></div
-  <div class="container">
+  <div id="app-header"></div>
+
+  <main class="container">
     <h2>Ativar Conta</h2>
-    <nav>
+    <nav aria-label="Navegação secundária">
       <a href="/pages/dashboard.html">Dashboard</a>
       <a href="/pages/agenda.html">Agenda</a>
     </nav>
-    <input class="input" id="codigo" placeholder="Código do cupom (ex.: ABCDE-1234)" />
-    <button class="btn" id="ativar">Ativar</button>
-    <pre id="out"></pre>
-  </div>
+
+    <label for="codigo" style="display:block;margin:12px 0 8px;">Código do cupom</label>
+    <input class="input" id="codigo" placeholder="Ex.: RIC-002" />
+
+    <div style="margin-top:12px;">
+      <button class="btn" id="ativar">Ativar</button>
+    </div>
+
+    <pre id="out" aria-live="polite" style="margin-top:16px;"></pre>
+  </main>
+
+  <div id="app-footer"></div>
+
   <script>
-    document.getElementById('ativar').onclick = async () => {
-      const codigo = document.getElementById('codigo').value.trim();
-      const r = await fetch('https://eu-digital.onrender.com/licencas/ativar-cupom', {
-        method:'POST',
-        headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({codigo})
+    (function () {
+      const API_BASE = localStorage.getItem('apiBase') || ''; // ex.: https://mei-robo-prod.onrender.com
+      const UID = localStorage.getItem('uid') || null;
+
+      const $codigo = document.getElementById('codigo');
+      const $btn = document.getElementById('ativar');
+      const $out = document.getElementById('out');
+
+      function log(msg) {
+        if (typeof msg === 'string') {
+          $out.textContent = msg;
+        } else {
+          try { $out.textContent = JSON.stringify(msg, null, 2); }
+          catch { $out.textContent = String(msg); }
+        }
+      }
+
+      async function ativar() {
+        const codigo = ($codigo.value || '').trim();
+        if (!codigo) {
+          log('Digite o código do cupom.');
+          $codigo.focus();
+          return;
+        }
+
+        const url = (API_BASE ? API_BASE : '') + '/licencas/ativar-cupom';
+        const body = UID ? { codigo, uid: UID } : { codigo };
+
+        $btn.disabled = true;
+        $btn.textContent = 'Ativando...';
+        log('Enviando…');
+
+        try {
+          const resp = await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body)
+          });
+
+          const ct = resp.headers.get('content-type') || '';
+          const payload = ct.includes('application/json') ? await resp.json() : { message: await resp.text() };
+
+          log(payload);
+        } catch (e) {
+          log('❌ Erro de rede: ' + (e && e.message ? e.message : e));
+        } finally {
+          $btn.disabled = false;
+          $btn.textContent = 'Ativar';
+        }
+      }
+
+      $btn.addEventListener('click', ativar);
+      $codigo.addEventListener('keydown', (ev) => {
+        if (ev.key === 'Enter') ativar();
       });
-      document.getElementById('out').textContent = JSON.stringify(await r.json(), null, 2);
-    };
+    })();
   </script>
-<div id="app-footer"></div>
 </body>
 </html>
