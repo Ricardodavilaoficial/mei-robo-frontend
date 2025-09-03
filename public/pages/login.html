@@ -68,8 +68,20 @@
         $msg.style.color = ok ? 'var(--ok, #2e7d32)' : 'var(--err, #b00020)';
         $msg.textContent = text || '';
       }
-
       function lsSet(k,v){ try{ localStorage.setItem(k,v); }catch{} }
+
+      // === App nomeado para isolar de qualquer inicialização legada ===
+      function getLoginAuth() {
+        if (!(window.firebase && firebase.app)) {
+          throw new Error('SDK do Firebase não carregado.');
+        }
+        const rootApp = firebase.app();     // app default inicializado em /assets/firebase-init.js
+        const cfg = rootApp.options;        // pega a config correta (mei-robo-prod)
+        const loginApp =
+          (firebase.apps || []).find(a => a.name === 'loginApp') ||
+          firebase.initializeApp(cfg, 'loginApp'); // cria app nomeado
+        return loginApp.auth();             // usa o auth do app nomeado
+      }
 
       async function doLogin(e){
         e.preventDefault();
@@ -77,8 +89,16 @@
         const senha = ($senha.value || '').trim();
         if(!email || !senha){ say('Preencha e-mail e senha.'); return; }
 
-        if(!(window.firebase && firebase.auth)){
-          say('SDK do Firebase não carregado.'); return;
+        let auth;
+        try {
+          auth = getLoginAuth();
+          // logs diagnósticos (opcional)
+          console.log('Default apiKey:', firebase.app().options.apiKey);
+          console.log('loginApp apiKey:', auth.app.options.apiKey);
+        } catch(err) {
+          say(err.message || String(err));
+          console.error(err);
+          return;
         }
 
         $btn.disabled = true;
@@ -87,7 +107,7 @@
         say('Autenticando…', true);
 
         try{
-          const cred = await firebase.auth().signInWithEmailAndPassword(email, senha);
+          const cred = await auth.signInWithEmailAndPassword(email, senha);
           const user = cred.user;
           const idt  = await user.getIdToken(true);
 
@@ -97,7 +117,6 @@
           console.log('Login OK — UID:', user.uid, 'IDToken(ini):', idt.slice(0,25), '...');
           say('Login OK! Redirecionando…', true);
 
-          // redireciona para o dashboard (ajuste se quiser outra primeira página)
           window.location.href = '/pages/dashboard.html';
         }catch(err){
           const code = err && err.code ? String(err.code) : '';
@@ -117,10 +136,10 @@
         e.preventDefault();
         const email = ($email.value || '').trim();
         if(!email){ say('Digite seu e-mail para receber o link de reset.'); return; }
-        if(!(window.firebase && firebase.auth)){ say('SDK do Firebase não carregado.'); return; }
 
         try{
-          await firebase.auth().sendPasswordResetEmail(email);
+          const auth = getLoginAuth();
+          await auth.sendPasswordResetEmail(email);
           say('Enviamos um link de redefinição para o seu e-mail.', true);
         }catch(err){
           say('Falha ao enviar e-mail de redefinição: ' + (err.message || err));
