@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Verifique seu e-mail — MEI Robô</title>
+  <link rel="stylesheet" href="./assets/styles.css" />
+  <style>
+    .center{max-width:720px;margin:0 auto}
+  </style>
+</head>
+<body>
+  <div id="app-header"></div>
+
+  <main class="section">
+    <div class="container center">
+      <h1 style="color:var(--wa-dark); margin:0 0 6px">Confirme seu e-mail</h1>
+      <p class="note">Enviamos um link de verificação para <strong id="emailLabel"></strong>. Abra sua caixa de entrada e clique no link para continuar.</p>
+
+      <div class="card">
+        <h2 style="color:var(--wa-dark)">Não recebeu?</h2>
+        <form id="resendForm" class="form-row" action="#" method="POST" novalidate>
+          <label for="email"><strong>E-mail</strong></label>
+          <input id="email" name="email" class="input" type="email" required />
+          <div class="actions" style="margin-top:10px">
+            <button id="btnResend" class="cta" type="submit">Reenviar e-mail</button>
+            <a id="btnCheck" class="btn-secondary" href="#">Já verifiquei — continuar</a>
+          </div>
+          <div id="msg" class="hint" style="margin-top:8px"></div>
+        </form>
+      </div>
+
+      <p class="note" style="margin-top:10px">
+        Dica: confira a pasta de spam/lixeira ou aguarde alguns minutos.
+      </p>
+    </div>
+  </main>
+
+  <div id="app-footer"></div>
+
+  <script src="./assets/layout.js"></script>
+  <script>
+    const API = {
+      resendEmail:  'http://localhost:3000/api/auth/resend-verification',     // POST {email}
+      checkStatus:  'http://localhost:3000/api/auth/verification-status',     // GET ?email=...
+      // checkout:  'http://localhost:3000/api/checkout' // quando quiser redirecionar ao Stripe
+    };
+
+    const url = new URL(window.location.href);
+    const initialEmail = url.searchParams.get('email') || '';
+    const emailInput = document.getElementById('email');
+    const emailLabel = document.getElementById('emailLabel');
+    const msg = document.getElementById('msg');
+
+    emailInput.value = initialEmail;
+    emailLabel.textContent = initialEmail || 'seu e-mail';
+
+    document.getElementById('resendForm').addEventListener('submit', async (e)=>{
+      e.preventDefault();
+      msg.className='hint'; msg.textContent='Enviando...';
+      const email = (emailInput.value||'').trim();
+      if(!email){ msg.className='error'; msg.textContent='Informe um e-mail válido.'; return; }
+      try{
+        // const res = await fetch(API.resendEmail, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ email }) });
+        // if(!res.ok) throw new Error('Falha ao reenviar');
+        msg.className='ok'; msg.textContent='Pronto! Verifique sua caixa de entrada.';
+      } catch{
+        msg.className='error'; msg.textContent='Não foi possível reenviar agora.';
+      }
+    });
+
+    document.getElementById('btnCheck').addEventListener('click', async (e)=>{
+      e.preventDefault();
+      msg.className='hint'; msg.textContent='Checando status...';
+      const email = (emailInput.value||'').trim();
+      if(!email){ msg.className='error'; msg.textContent='Informe um e-mail válido.'; return; }
+      try{
+        // const res = await fetch(API.checkStatus + '?email=' + encodeURIComponent(email));
+        // if(!res.ok) throw new Error('Falha ao checar');
+        // const data = await res.json();
+        // if(data.verified){ window.location.href = './bem-vindo.html'; return; }
+        // Simulação:
+        msg.className='ok'; msg.textContent='E-mail verificado! Redirecionando...';
+        setTimeout(()=> window.location.href = './bem-vindo.html', 800);
+      } catch{
+        msg.className='error'; msg.textContent='Não conseguimos confirmar ainda. Tente novamente em instantes.';
+      }
+    });
+  </script>
+</body>
+</html>

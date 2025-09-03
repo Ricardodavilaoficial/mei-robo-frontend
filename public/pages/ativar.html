@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Ativar Conta — MEI Robô</title>
+
+  <!-- Estilos canônicos -->
+  <link rel="stylesheet" href="/assets/styles.css" />
+
+  <!-- Patch: garante que rotas de API vão para o backend de produção -->
+  <script src="/assets/backend-patch.js"></script>
+
+  <!-- Loader de header/footer -->
+  <script defer src="/assets/layout.js"></script>
+</head>
+<body>
+  <div id="app-header"></div>
+
+  <main class="container" style="padding:16px;">
+    <div class="card" style="padding:16px;">
+      <h2 style="margin-top:0;">Ativar Conta</h2>
+
+      <nav aria-label="Navegação secundária" style="margin-bottom:12px;">
+        <a href="/pages/dashboard.html">Dashboard</a>
+        <span style="margin:0 6px;">•</span>
+        <a href="/pages/agenda.html">Agenda</a>
+        <span style="margin:0 6px;">•</span>
+        <a href="/pages/admin-cupons.html">Admin Cupons</a>
+      </nav>
+
+      <label for="codigo" style="display:block;margin:8px 0;">Código do cupom</label>
+      <input class="input" id="codigo" placeholder="Ex.: RIC-002" />
+
+      <div style="margin-top:12px; display:flex; gap:8px;">
+        <button class="btn" id="ativar">Ativar</button>
+        <button class="btn outline" id="abrir-admin" type="button">Abrir Admin Cupons</button>
+      </div>
+
+      <pre id="out" aria-live="polite" style="margin-top:16px;"></pre>
+    </div>
+  </main>
+
+  <div id="app-footer"></div>
+
+  <script>
+    (function () {
+      // leitura segura de localStorage (se bloqueado, cai em null)
+      function getLS(key) { try { return window.localStorage.getItem(key); } catch { return null; } }
+
+      const API_BASE = getLS('apiBase') || ''; // ex.: https://mei-robo-prod.onrender.com (opcional)
+      const UID = getLS('uid');                // enviaremos se disponível
+
+      const $codigo = document.getElementById('codigo');
+      const $btn = document.getElementById('ativar');
+      const $btnAdmin = document.getElementById('abrir-admin');
+      const $out = document.getElementById('out');
+
+      function log(msg) {
+        if (typeof msg === 'string') $out.textContent = msg;
+        else {
+          try { $out.textContent = JSON.stringify(msg, null, 2); }
+          catch { $out.textContent = String(msg); }
+        }
+      }
+
+      async function ativar() {
+        const codigo = ($codigo.value || '').trim();
+        if (!codigo) { log('Digite o código do cupom.'); $codigo.focus(); return; }
+
+        // Se API_BASE não estiver setado (ou storage bloqueado), usamos caminho relativo.
+        // O backend-patch.js reescreve para o backend prod.
+        const url = (API_BASE ? API_BASE : '') + '/licencas/ativar-cupom';
+        const body = UID ? { codigo, uid: UID } : { codigo };
+
+        $btn.disabled = true;
+        const prev = $btn.textContent;
+        $btn.textContent = 'Ativando…';
+        log('Enviando…');
+
+        try {
+          const resp = await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body)
+          });
+
+          const ct = resp.headers.get('content-type') || '';
+          const payload = ct.includes('application/json') ? await resp.json() : { message: await resp.text() };
+          log(payload);
+        } catch (e) {
+          log('❌ Erro de rede: ' + (e && e.message ? e.message : e));
+        } finally {
+          $btn.disabled = false;
+          $btn.textContent = prev;
+        }
+      }
+
+      $btn.addEventListener('click', ativar);
+      $codigo.addEventListener('keydown', (ev) => { if (ev.key === 'Enter') ativar(); });
+
+      $btnAdmin.addEventListener('click', () => {
+        window.location.href = '/pages/admin-cupons.html';
+      });
+    })();
+  </script>
+</body>
+</html>
