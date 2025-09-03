@@ -1,6 +1,6 @@
 // public/assets/firebase-init.js
 // Firebase init (v8) — MEI Robô (produção)
-// Requer: firebase-app.js e firebase-auth.js (v8.10.1) já carregados
+// Requer: firebase-app.js e firebase-auth.js (v8.10.1) já carregados na página
 
 (function () {
   if (!(window.firebase && firebase.initializeApp)) {
@@ -13,10 +13,9 @@
     apiKey: "AIzaSyCjIbIjLOjAa_NyoB3MMLWOdq_rJs432qg",
     authDomain: "mei-robo-prod.firebaseapp.com",
     projectId: "mei-robo-prod",
-    storageBucket: "mei-robo-prod.firebasestorage.app", // formato novo (OK)
+    storageBucket: "mei-robo-prod.firebasestorage.app",
     messagingSenderId: "161054994911",
     appId: "1:161054994911:web:4a57ad4337d8edf0b5146a"
-    // measurementId: "G-XXXXXXXXXX" // se existir, opcional
   };
 
   // Inicializa SOMENTE o DEFAULT (o login.html cria/usa 'loginApp')
@@ -29,7 +28,7 @@
     console.log("[firebase-init] DEFAULT já existia:", app.options.projectId);
   }
 
-  // Diagnóstico rápido
+  // Diagnóstico rápido (ajuda a ver a apiKey que está ativa)
   try {
     var rows = (firebase.apps || []).map(function (a) {
       return { name: a.name, apiKey: a.options && a.options.apiKey };
