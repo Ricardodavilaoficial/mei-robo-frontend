@@ -1,44 +1,47 @@
-<!doctype html>
-<html lang="pt-BR">
-<head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>MEI Robô — Login</title>
+/**
+ * Firebase init — MEI Robô (produção)
+ * Compat v9 + app nomeado "loginApp"
+ * Requer: firebase-app-compat.js, firebase-auth-compat.js já carregados.
+ */
+(function () {
+  if (!window.firebase) {
+    console.error("[firebase-init] Firebase não encontrado no window. Verifique os <script> compat no HTML.");
+    return;
+  }
 
-  <!-- Firebase SDK v9 compat (ordem importa) -->
-  <script src="https://www.gstatic.com/firebasejs/9.6.11/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.6.11/firebase-auth-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.6.11/firebase-firestore-compat.js"></script>
+  // ⚠️ CONFIG REAL (copiada do seu console → Web app)
+  const firebaseConfig = {
+    apiKey: "AIzaSyCjIbIjLOjAa_NyoB3MMLWOdq_rJs432qg",
+    authDomain: "mei-robo-prod.firebaseapp.com",
+    projectId: "mei-robo-prod",
+    storageBucket: "mei-robo-prod.appspot.com", // ← corrigido
+    messagingSenderId: "161054994911",
+    appId: "1:161054994911:web:4a57ad4337d8edf0b5146a"
+    // measurementId: "G-XXXXXXXXXX" // (opcional)
+  };
 
-  <!-- Sua config correta -->
-  <script src="/assets/firebase-init.js"></script>
+  // Evita reinit
+  let defaultApp = firebase.apps.find(a => a.name === "[DEFAULT]");
+  if (!defaultApp) {
+    defaultApp = firebase.initializeApp(firebaseConfig);
+    console.log("Firebase inicializado (DEFAULT):", defaultApp.options.projectId);
+  }
 
-  <!-- JS de login via SDK (sem usar REST) -->
-  <script src="/assets/login.js"></script>
+  let loginApp = firebase.apps.find(a => a.name === "loginApp");
+  if (!loginApp) {
+    loginApp = firebase.initializeApp(firebaseConfig, "loginApp");
+    console.log("Firebase inicializado (loginApp):", !!loginApp.options.apiKey ? "OK" : "SEM API KEY");
+  }
 
-  <style>
-    body { font-family: system-ui, Arial, sans-serif; margin: 2rem; }
-    .card { max-width: 360px; padding: 1.25rem; border: 1px solid #e5e7eb; border-radius: 12px; }
-    label { display:block; margin-top: .75rem; font-size: .9rem; }
-    input { width:100%; padding:.6rem .7rem; margin-top:.35rem; border:1px solid #d1d5db; border-radius:8px; }
-    button { width:100%; padding:.7rem; margin-top:1rem; border:0; border-radius:10px; cursor:pointer; }
-    #btn-login { background:#25D366; color:#fff; font-weight:600; }
-    #login-msg { margin-top:.75rem; font-size:.9rem; color:#374151; }
-  </style>
-</head>
-<body>
-  <div class="card">
-    <h1>Entrar</h1>
-    <form id="login-form">
-      <label for="email">E-mail</label>
-      <input id="email" type="email" autocomplete="username" required />
+  // Exponho referências úteis
+  window.loginApp = loginApp;
+  window.loginAuth = firebase.auth(loginApp);
 
-      <label for="password">Senha</label>
-      <input id="password" type="password" autocomplete="current-password" required />
-
-      <button id="btn-login" type="submit">Entrar</button>
-      <div id="login-msg"></div>
-    </form>
-  </div>
-</body>
-</html>
+  // Diagnóstico
+  try {
+    const table = firebase.apps.map(a => ({ name: a.name, apiKey: a.options.apiKey }));
+    console.table(table);
+  } catch (e) {
+    console.warn("[firebase-init] Não foi possível listar apps:", e);
+  }
+})();

@@ -7,6 +7,8 @@
 
   <!-- Estilos canônicos (usar caminho absoluto já que estamos em /pages/) -->
   <link rel="stylesheet" href="/assets/styles.css" />
+  <!-- Evita 404 de favicon no console -->
+  <link rel="icon" href="data:,">
 
   <!-- Firebase SDK v8 (compat) — ORDEM IMPORTA -->
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
@@ -70,16 +72,38 @@
       }
       function lsSet(k,v){ try{ localStorage.setItem(k,v); }catch{} }
 
+      // Diagnóstico leve no carregamento
+      try {
+        if (window.firebase && firebase.apps) {
+          const table = (firebase.apps || []).map(a => ({ name: a.name, apiKey: a.options && a.options.apiKey }));
+          console.table(table);
+        }
+      } catch(e) { /* silencioso */ }
+
       // === App nomeado para isolar de qualquer inicialização legada ===
       function getLoginAuth() {
         if (!(window.firebase && firebase.app)) {
           throw new Error('SDK do Firebase não carregado.');
         }
-        const rootApp = firebase.app();     // app default inicializado em /assets/firebase-init.js
-        const cfg = rootApp.options;        // pega a config correta (mei-robo-prod)
+        let rootApp;
+        try {
+          rootApp = firebase.app(); // app default inicializado em /assets/firebase-init.js
+        } catch (e) {
+          throw new Error('App DEFAULT não inicializado. Verifique /assets/firebase-init.js.');
+        }
+        const cfg = rootApp.options || {};
+        if ((cfg.apiKey || '').toUpperCase() === 'PASTE_API_KEY') {
+          console.error('Config com PASTE_API_KEY detectada — verifique firebase-init.js');
+          throw new Error('Config inválida (PASTE_API_KEY).');
+        }
         const loginApp =
           (firebase.apps || []).find(a => a.name === 'loginApp') ||
           firebase.initializeApp(cfg, 'loginApp'); // cria app nomeado
+        // Logs diagnósticos sutis
+        try {
+          console.log('Default apiKey:', rootApp.options.apiKey);
+          console.log('loginApp apiKey:', loginApp.options.apiKey);
+        } catch {}
         return loginApp.auth();             // usa o auth do app nomeado
       }
 
@@ -92,9 +116,6 @@
         let auth;
         try {
           auth = getLoginAuth();
-          // logs diagnósticos (opcional)
-          console.log('Default apiKey:', firebase.app().options.apiKey);
-          console.log('loginApp apiKey:', auth.app.options.apiKey);
         } catch(err) {
           say(err.message || String(err));
           console.error(err);
@@ -124,6 +145,7 @@
           else if(code === 'auth/wrong-password') say('Senha incorreta.');
           else if(code === 'auth/invalid-email') say('E-mail inválido.');
           else if(code === 'auth/too-many-requests') say('Muitas tentativas. Tente mais tarde.');
+          else if(code === 'auth/invalid-api-key') say('Falha: API key inválida (verifique firebase-init.js).');
           else say('Falha no login: ' + (err && err.message ? err.message : err));
           console.error('Erro no login:', err);
         }finally{
