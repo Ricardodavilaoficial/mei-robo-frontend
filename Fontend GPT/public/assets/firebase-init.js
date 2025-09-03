@@ -1,21 +1,38 @@
 // public/assets/firebase-init.js
-(function () {
-  // ❗ Substitua pelos valores reais do seu projeto (Console → Project settings → SDK config)
-  const cfg = {
-    apiKey: "PASTE_API_KEY",
-    authDomain: "mei-robo-prod.firebaseapp.com",
-    projectId: "mei-robo-prod",
-    storageBucket: "mei-robo-prod.appspot.com",
-    messagingSenderId: "PASTE_SENDER_ID",
-    appId: "PASTE_APP_ID"
-  };
+// Firebase init (v8) — MEI Robô (produção)
+// Requer: firebase-app.js e firebase-auth.js (v8.10.1) já carregados na página
 
-  if (!window.firebase) {
-    console.warn("Firebase SDK ainda não carregado (firebase-app/auth).");
+(function () {
+  if (!(window.firebase && firebase.initializeApp)) {
+    console.error("[firebase-init] Firebase SDK v8 não encontrado. Verifique a ordem dos <script>.");
     return;
   }
-  if (!firebase.apps || !firebase.apps.length) {
-    firebase.initializeApp(cfg);
-    console.log("Firebase inicializado:", cfg.projectId);
+
+  // ⚠️ CONFIG REAL (copiada do Console → Project settings → Web app)
+  var firebaseConfig = {
+    apiKey: "AIzaSyCjIbIjLOjAa_NyoB3MMLWOdq_rJs432qg",
+    authDomain: "mei-robo-prod.firebaseapp.com",
+    projectId: "mei-robo-prod",
+    storageBucket: "mei-robo-prod.firebasestorage.app",
+    messagingSenderId: "161054994911",
+    appId: "1:161054994911:web:4a57ad4337d8edf0b5146a"
+  };
+
+  // Inicializa SOMENTE o DEFAULT (o login.html cria/usa 'loginApp')
+  var app;
+  if (!firebase.apps.length) {
+    app = firebase.initializeApp(firebaseConfig);
+    console.log("[firebase-init] DEFAULT inicializado:", app.options.projectId);
+  } else {
+    app = firebase.app();
+    console.log("[firebase-init] DEFAULT já existia:", app.options.projectId);
   }
+
+  // Diagnóstico rápido (ajuda a ver a apiKey que está ativa)
+  try {
+    var rows = (firebase.apps || []).map(function (a) {
+      return { name: a.name, apiKey: a.options && a.options.apiKey };
+    });
+    console.table(rows);
+  } catch (e) {}
 })();
