@@ -9,11 +9,11 @@
   <link rel="stylesheet" href="/assets/styles.css" />
   <link rel="icon" href="data:,">
 
-  <!-- Firebase v8 (mesma ordem do login) -->
+  <!-- 🔹 ADIÇÃO: Firebase v8 (mesma ordem do login) -->
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
 
-  <!-- Init (DEFAULT com apiKey real) -->
+  <!-- 🔹 ADIÇÃO: Init (DEFAULT com apiKey real) -->
   <script src="/assets/firebase-init.js?v=login6"></script>
 
   <!-- Patch de rotas: garante que /gerar-cupom e /cupons vão ao backend prod -->
@@ -78,7 +78,7 @@
     function lsGet(key) { try { return window.localStorage.getItem(key); } catch { return null; } }
     function lsSet(key, val) { try { window.localStorage.setItem(key, val); } catch {} }
 
-    const token = () => lsGet('idToken') || ''; // mantém seu fluxo atual
+    const token = () => lsGet('idToken') || ''; // Enviaremos se existir
 
     function gateApply(){
       const isAdmin = lsGet('isAdmin') === 'true';
@@ -174,24 +174,6 @@
     }
 
     window.addEventListener('DOMContentLoaded', () => {
-      // Observabilidade: confere apps e atualiza token do usuário se houver sessão
-      try {
-        if (window.firebase?.apps) {
-          console.table(firebase.apps.map(a => ({ name:a.name, apiKey:a.options && a.options.apiKey })));
-        }
-        if (window.firebase?.auth) {
-          const u = firebase.auth().currentUser;
-          if (u) {
-            u.getIdToken(true).then(idt => {
-              lsSet('idToken', idt);
-              console.log('[admin-cupons] token refresh OK');
-            }).catch(e => console.warn('[admin-cupons] token refresh falhou', e));
-          } else {
-            console.warn('[admin-cupons] nenhum usuário logado no firebase.auth()');
-          }
-        }
-      } catch (e) {}
-
       gateApply();
       document.getElementById('saveGate').onclick = () => {
         const v = document.getElementById('toggleAdmin').checked;
