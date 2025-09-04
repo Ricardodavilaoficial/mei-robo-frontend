@@ -43,7 +43,7 @@
 
           <div class="actions" style="margin-top:12px">
             <button class="cta" id="btn-login" type="submit">Entrar</button>
-            <a class="btn-secondary" href="/cadastro.html">Criar conta</a>
+            <a class="btn-secondary" href="/pages/cadastro.html">Criar conta</a>
           </div>
 
           <p id="msg" class="hint" style="margin-top:10px"></p>
@@ -98,7 +98,7 @@
       }
       function lsSet(k,v){ try{ localStorage.setItem(k,v); }catch{} }
 
-      // Garante que Enter nos inputs submete o formulário sempre
+      // Enter → submit sempre
       function wireEnterKeys(){
         const inputs = [$email, $senha].filter(Boolean);
         inputs.forEach(function(el){
@@ -109,13 +109,25 @@
               if ($form && typeof $form.requestSubmit === 'function') {
                 $form.requestSubmit();
               } else if ($form) {
-                // fallback para navegadores antigos
                 const evt = new Event('submit', {bubbles:true, cancelable:true});
                 $form.dispatchEvent(evt);
               }
             }
           });
         });
+      }
+
+      // Descobre o primeiro caminho existente e navega
+      async function goFirstAvailable(paths){
+        for (const path of paths){
+          try{
+            const r = await fetch(path + (path.includes('?')?'':'?v=' + Date.now()), { method:'HEAD', cache:'no-store' });
+            if (r.ok || (r.status >= 300 && r.status < 400)) {
+              location.href = path; return;
+            }
+          }catch(_){}
+        }
+        location.href = '/'; // fallback final
       }
 
       try {
@@ -169,10 +181,20 @@
           lsSet('uid', user.uid);
           lsSet('idToken', idt);
 
-          console.log('Login OK — UID:', user.uid, 'IDToken(ini):', idt.slice(0,25), '...');
+          console.log('Login OK — UID:', user.uid);
           say('Login OK! Redirecionando…', true);
 
-          window.location.href = '/dashboard.html';
+          // Redirecionamento resiliente — vai para o primeiro caminho que existir
+          const candidates = [
+            '/pages/dashboard.html',
+            '/dashboard.html',
+            '/pages/agenda.html',
+            '/pages/index.html',
+            '/index.html',
+            '/'
+          ];
+          goFirstAvailable(candidates);
+
         }catch(err){
           const code = err && err.code ? String(err.code) : '';
           if(code === 'auth/user-not-found') say('Usuário não encontrado.');
@@ -210,7 +232,7 @@
       // Bind handlers
       $form.addEventListener('submit', doLogin);
       $forgot.addEventListener('click', doReset);
-      wireEnterKeys(); // <- garante Enter
+      wireEnterKeys();
 
     })();
   </script>
