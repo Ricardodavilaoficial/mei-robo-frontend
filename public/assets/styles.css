@@ -187,3 +187,11 @@ pre#out {
 /* promo: for‡a logo maior no header (override) */
 #app-header img[src$="mei-robo-icon.png"]{width:220px !important;height:auto !important;vertical-align:middle}
 @media (min-width:768px){#app-header img[src$="mei-robo-icon.png"]{width:260px !important}}
+
+/* === brand tune: logo menor e texto maior no header === */
+/* deixa o link da marca em linha e com gap */
+#app-header a:has(="mei-robo-icon.png"]){display:inline-flex;align-items:center;gap:10px;font-size:22px;font-weight:800;line-height:1.1}
+@media (min-width:768px){#app-header a:has(="mei-robo-icon.png"]){font-size:26px}}
+/* logo um pouco menor que antes */
+#app-header img[src$="mei-robo-icon.png"]{width:140px !important;height:auto !important;vertical-align:middle}
+@media (min-width:768px){#app-header img[src$="mei-robo-icon.png"]{width:180px !important}}
