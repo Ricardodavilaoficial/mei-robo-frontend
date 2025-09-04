@@ -2,26 +2,26 @@
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8" />
-  <title>ADMIN — Cupons (diag4)</title>
+  <title>ADMIN — Cupons (diag5)</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
 
   <!-- Estilos canônicos -->
   <link rel="stylesheet" href="/assets/styles.css" />
   <link rel="icon" href="data:,">
 
-  <!-- 🔹 Firebase v8 (mesma ordem do login) -->
+  <!-- Firebase v8 -->
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
 
-  <!-- 🔹 Init (DEFAULT com apiKey real) -->
+  <!-- Init (DEFAULT com apiKey real) -->
   <script src="/assets/firebase-init.js?v=login6"></script>
 
   <!-- Patch de rotas (mantido) -->
   <script src="/assets/backend-patch.js"></script>
 
-  <!-- Loader de header/footer e demais iniciais do app -->
+  <!-- Loader de header/footer -->
   <script defer src="/assets/layout.js"></script>
-  <!-- DIAG_VERSION=4 -->
+  <!-- DIAG_VERSION=5 -->
 </head>
 <body>
   <div id="app-header"></div>
@@ -31,12 +31,12 @@
       <h2>Admin • Cupons</h2>
       <p class="note">Acesso restrito. Somente administrador.</p>
 
-      <!-- 🔖 Badge de versão visível -->
+      <!-- Badge -->
       <div class="note" style="margin:8px 0;">
-        <strong>Versão:</strong> diag4
+        <strong>Versão:</strong> diag5
       </div>
 
-      <!-- 🔎 Painel de status de autenticação -->
+      <!-- Painel de status -->
       <div class="card" style="margin-top:12px; background:#0c171d;">
         <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
           <span class="note">UID: <code id="uid">-</code></span>
@@ -45,6 +45,7 @@
           <button class="btn secondary" id="refreshToken" type="button">Atualizar token</button>
           <button class="btn secondary" id="listScripts" type="button">Listar scripts</button>
           <button class="btn secondary" id="diagnosticar" type="button">Diagnosticar rotas</button>
+          <button class="btn danger" id="stopScan" type="button" title="Cancela a varredura atual">Parar varredura</button>
         </div>
       </div>
 
@@ -92,10 +93,8 @@
   <div id="app-footer"></div>
 
   <script>
-    // Acesso "seguro" ao localStorage
     function lsGet(key) { try { return window.localStorage.getItem(key); } catch { return null; } }
     function lsSet(key, val) { try { window.localStorage.setItem(key, val); } catch {} }
-
     const token = () => lsGet('idToken') || '';
 
     function gateApply(){
@@ -114,14 +113,10 @@
       }
     }
 
-    // 🔎 UI de status de auth
     function updateAuthUI(u){
-      const uidEl = document.getElementById('uid');
-      const tokEl = document.getElementById('tok');
-      const fbEl  = document.getElementById('fbStatus');
-      uidEl.textContent = u ? (u.uid || '-') : '-';
-      tokEl.textContent = token() ? 'token_ok' : '-';
-      fbEl.textContent = (typeof window.firebase !== 'undefined') ? 'ok' : 'indisponível';
+      document.getElementById('uid').textContent = u ? (u.uid || '-') : '-';
+      document.getElementById('tok').textContent = token() ? 'token_ok' : '-';
+      document.getElementById('fbStatus').textContent = (typeof window.firebase !== 'undefined') ? 'ok' : 'indisponível';
     }
 
     async function refreshIdToken(){
@@ -138,9 +133,80 @@
       }
     }
 
-    // =============== FALLBACK INTELIGENTE p/ GERAR (prefixos + métodos) ===============
+    // ===== Controle de varredura (Abort + timeout + limite) =====
+    let currentScan = null; // {controller, running}
+    function stopScan(reason){
+      if (currentScan && currentScan.controller) currentScan.controller.abort();
+      currentScan = null;
+      if (reason) setOut({ info:'Varredura cancelada', motivo: reason });
+    }
+    function fetchWithTimeout(url, init, ms, signal){
+      const ctrl = new AbortController();
+      const timer = setTimeout(()=>ctrl.abort(), ms);
+      const composite = new AbortController();
+      function abortAll(){ ctrl.abort(); composite.abort(); }
+      if (signal) signal.addEventListener('abort', abortAll, { once:true });
+      const merged = { ...init, signal: ctrl.signal };
+      return fetch(url, merged).finally(()=>clearTimeout(timer));
+    }
+
+    async function tryCombos({base, auth, payload, onStep, maxTries=12}){
+      const prefixes = ["", "/api", "/api/v1", "/v1"];
+      const names = [
+        "licencas/gerar-cupom", "licencas/gerar_cupom",
+        "licencas/cupom/gerar", "cupons/gerar"
+      ];
+      const methods = ["GET","PUT","PATCH","POST"]; // ordem segura
+      const suffixes = ["", "/"];
+
+      const controller = new AbortController();
+      currentScan = { controller, running:true };
+      let tries = 0, lastErr = null;
+
+      outer: for (const pfx of prefixes){
+        for (const name of names){
+          for (const sfx of suffixes){
+            for (const m of methods){
+              if (!currentScan) break outer;
+              if (tries >= maxTries) break outer;
+              tries++;
+              const path = `${pfx}/${name}${sfx}`.replace(/\/\/+/g,'/');
+              const headers = { ...auth };
+              let url = base + path;
+              const init = { method:m, mode:'cors', headers };
+
+              if (m === "GET"){
+                const qs = new URLSearchParams(payload).toString();
+                if (qs) url += (sfx ? "" : "") + "?" + qs;
+              } else {
+                headers['Content-Type'] = 'application/json';
+                init.body = JSON.stringify(payload);
+              }
+
+              onStep && onStep({ step:tries, method:m, path });
+
+              try{
+                const r = await fetchWithTimeout(url, init, 2500, controller.signal);
+                if (r.ok){
+                  currentScan = null;
+                  return { ok:true, res:r, via:{method:m, path} };
+                } else {
+                  const txt = await r.text().catch(()=>'(sem corpo)');
+                  lastErr = `${m} ${path} -> ${r.status}: ${txt.slice(0,140)}`;
+                }
+              }catch(e){
+                lastErr = `${m} ${path} -> ${String(e).slice(0,140)}`;
+              }
+            }
+          }
+        }
+      }
+      currentScan = null;
+      return { ok:false, err:lastErr || 'Sem rota 2xx dentro do limite de tentativas.' };
+    }
+
     async function gerar(){
-      setOut('Gerando cupom...');
+      setOut('Gerando cupom (scan limitado)…');
       const dias = Number(document.getElementById('dias').value || 0);
       const prefixo = document.getElementById('prefixo').value.trim() || null;
       const payload = {};
@@ -151,78 +217,26 @@
         const t = token();
         const auth = t ? { 'Authorization': 'Bearer ' + t } : {};
         const base = "https://mei-robo-prod.onrender.com";
+        const steps = [];
 
-        const prefixes = ["", "/api", "/v1", "/api/v1"];
-        const names = [
-          "licencas/gerar-cupom", "licencas/gerar_cupom",
-          "licencas/cupom/gerar", "cupons/gerar", "cupom/gerar",
-          "coupon/generate"
-        ];
-        const methods = ["GET","PUT","PATCH","POST"]; // GET primeiro (query), depois PUT/PATCH, por último POST
-        const suffixes = ["", "/"];
+        const result = await tryCombos({
+          base, auth, payload, maxTries: 12,
+          onStep:(s)=>{ steps.push(`${s.step}. ${s.method} ${s.path}`); setOut('Tentativas:\n'+steps.join('\n')); }
+        });
 
-        let lastErr = null, okRes = null, okMeta = null;
+        if (!result.ok) throw new Error(result.err);
 
-        // tenta combinações estruturadas
-        outer: for (const pfx of prefixes){
-          for (const name of names){
-            for (const sfx of suffixes){
-              const path = `${pfx}/${name}${sfx}`.replace(/\/\/+/g,'/'); // sem dupla barra
-              for (const m of methods){
-                try{
-                  const headers = { ...auth };
-                  let url = base + path;
-                  const init = { method: m, mode:'cors', headers };
-
-                  if (m === "GET"){
-                    const qs = new URLSearchParams(payload).toString();
-                    if (qs) url += (sfx ? "" : "") + "?" + qs;
-                  } else {
-                    headers['Content-Type'] = 'application/json';
-                    init.body = JSON.stringify(payload);
-                  }
-
-                  const r = await fetch(url, init);
-                  if (r.ok){ okRes = r; okMeta = { method:m, path }; break outer; }
-                  const txt = await r.text().catch(()=>'(sem corpo)');
-                  lastErr = `${m} ${path} -> ${r.status}: ${txt.slice(0,160)}`;
-                }catch(e){
-                  lastErr = `${m} ${path} -> ${String(e)}`;
-                }
-              }
-            }
-          }
-        }
-
-        // fallback genérico: endpoints que usam action=? via GET
-        if (!okRes){
-          const generics = ["licencas", "cupons", "api/licencas", "api/cupons", "v1/licencas", "api/v1/licencas"];
-          for (const g of generics){
-            const qs = new URLSearchParams({ action:"gerar-cupom", ...payload }).toString();
-            const url = `${base}/${g}?${qs}`.replace(/\/\/+/g,'/');
-            try{
-              const r = await fetch(url, { method:"GET", mode:"cors", headers:{ ...auth }});
-              if (r.ok){ okRes = r; okMeta = { method:"GET", path:`/${g}?${qs}` }; break; }
-              const txt = await r.text().catch(()=>'(sem corpo)');
-              lastErr = `GET /${g}?… -> ${r.status}: ${txt.slice(0,160)}`;
-            }catch(e){ lastErr = `GET /${g}?… -> ${String(e)}`; }
-          }
-        }
-
-        if (!okRes) throw new Error(lastErr || 'Nenhuma rota/método aceitou a requisição.');
-
-        const ct = okRes.headers.get('content-type') || '';
-        const j = ct.includes('application/json') ? await okRes.json() : { ok:true, detalhe:'Cupom gerado (não-JSON)' };
-        setOut({ ok:true, via: okMeta, resposta: j });
+        const ct = result.res.headers.get('content-type') || '';
+        const j = ct.includes('application/json') ? await result.res.json() : { ok:true, detalhe:'Cupom gerado (não-JSON)' };
+        setOut({ ok:true, via: result.via, resposta: j });
         await listar();
       }catch(err){
         setOut({ erro:'Falha ao gerar cupom', detalhe: err.message });
       }
     }
 
-    // =============== FALLBACK INTELIGENTE p/ LISTAR (prefixos) ===============
     async function listar(){
-      setOut('Listando cupons...');
+      setOut('Listando cupons (scan limitado)…');
       const tb = document.querySelector('#tbl tbody');
       tb.innerHTML = '';
       try{
@@ -230,36 +244,37 @@
         const auth = t ? { 'Authorization': 'Bearer ' + t } : {};
         const base = "https://mei-robo-prod.onrender.com";
 
-        const prefixes = ["", "/api", "/v1", "/api/v1"];
-        const names = [
-          "licencas/cupons", "cupons", "coupon/list", "cupons/listar"
+        // poucas combinações de listagem
+        const candidates = [
+          "/licencas/cupons", "/licencas/cupons/", "/cupons", "/cupons/",
+          "/api/licencas/cupons", "/api/cupons", "/api/v1/licencas/cupons", "/v1/licencas/cupons"
         ];
-        const suffixes = ["", "/"];
 
-        let okRes = null, lastErr = null, okMeta = null;
+        const controller = new AbortController();
+        currentScan = { controller, running:true };
+        let okRes = null, lastErr = null, tried = 0, steps = [];
 
-        outer: for (const pfx of prefixes){
-          for (const name of names){
-            for (const sfx of suffixes){
-              const url = `${base}/${pfx}/${name}${sfx}`.replace(/\/\/+/g,'/');
-              try{
-                const r = await fetch(url, { method:'GET', mode:'cors', headers: { ...auth } });
-                if (r.ok){ okRes = r; okMeta = { path: url.replace(base,'') }; break outer; }
-                const txt = await r.text().catch(()=>'(sem corpo)');
-                lastErr = `GET ${url.replace(base,'')} -> ${r.status}: ${txt.slice(0,160)}`;
-              }catch(e){ lastErr = `GET ${url.replace(base,'')} -> ${String(e)}`; }
-            }
-          }
+        for (const path of candidates){
+          if (!currentScan || tried >= 8) break;
+          tried++;
+          steps.push(`${tried}. GET ${path}`); setOut('Tentativas:\n'+steps.join('\n'));
+          try{
+            const r = await fetchWithTimeout(base + path, { method:'GET', mode:'cors', headers:{ ...auth } }, 2500, controller.signal);
+            if (r.ok){ okRes = r; break; }
+            const txt = await r.text().catch(()=>'(sem corpo)');
+            lastErr = `GET ${path} -> ${r.status}: ${txt.slice(0,140)}`;
+          }catch(e){ lastErr = `GET ${path} -> ${String(e).slice(0,140)}`; }
         }
+        currentScan = null;
 
-        if (!okRes) throw new Error(lastErr || 'Nenhuma rota retornou 200.');
+        if (!okRes) throw new Error(lastErr || 'Sem rota 2xx para listagem.');
 
         const ct = okRes.headers.get('content-type') || '';
         let arr = [];
         if (ct.includes('application/json')) arr = await okRes.json();
         else {
           const txt = await okRes.text();
-          setOut({ aviso:'Resposta de listagem não-JSON', via: okMeta, sample: (txt||'').slice(0,160) });
+          setOut({ aviso:'Resposta de listagem não-JSON', sample: (txt||'').slice(0,160) });
         }
 
         (arr||[]).forEach(c => {
@@ -272,17 +287,13 @@
           tb.appendChild(tr);
         });
 
-        if(!arr || arr.length === 0){
-          setOut({ info:'Nenhum cupom cadastrado.', via: okMeta });
-        }else{
-          setOut({ ok:true, via: okMeta, itens: arr.length });
-        }
+        setOut(arr && arr.length ? { ok:true, itens: arr.length } : 'Nenhum cupom cadastrado.');
       }catch(err){
         setOut({ erro:'Falha ao listar cupons', detalhe: err.message });
       }
     }
 
-    // ---------- Ferramentas de diagnóstico (iguais) ----------
+    // ---- Ferramentas / Diagnóstico (como antes) ----
     function listScriptsSafe(){
       var out = [];
       for (var i=0; i<document.scripts.length; i++) {
@@ -343,7 +354,7 @@
       }
     }
 
-    // ---------- Bindings ----------
+    // Bindings
     window.addEventListener('DOMContentLoaded', () => {
       gateApply();
       document.getElementById('saveGate').onclick = () => {
@@ -353,6 +364,7 @@
       };
       document.getElementById('gerar').onclick = gerar;
       document.getElementById('listar').onclick = listar;
+      document.getElementById('stopScan').onclick = () => stopScan('botão parar');
 
       const btn = document.getElementById('refreshToken');
       if(btn) btn.onclick = refreshIdToken;
