@@ -28,15 +28,17 @@
       <h1 style="color:var(--wa-dark); margin:0 0 6px">Entrar</h1>
 
       <div class="form-grid">
-        <form id="login-form" class="form-card full" action="#" method="POST" novalidate>
+        <form id="login-form" class="form-card full" action="#" method="POST" novalidate autocomplete="on">
           <div class="form-row">
             <label for="email"><strong>E-mail</strong></label>
-            <input id="email" name="email" class="input" type="email" placeholder="voce@email.com" required />
+            <input id="email" name="email" class="input" type="email" placeholder="voce@email.com"
+                   required autocomplete="username" />
           </div>
 
           <div class="form-row">
             <label for="senha"><strong>Senha</strong></label>
-            <input id="senha" name="senha" class="input" type="password" placeholder="********" required />
+            <input id="senha" name="senha" class="input" type="password" placeholder="********"
+                   required autocomplete="current-password" />
           </div>
 
           <div class="actions" style="margin-top:12px">
@@ -54,7 +56,7 @@
   <!-- Rodapé via parcial -->
   <div id="app-footer" data-include="footer"></div>
 
-  <!-- login-fallback: injeta header/footer se o layout.js falhar (ou se não estiver presente nesta página) -->
+  <!-- login-fallback: injeta header/footer -->
   <script>
     (function () {
       function ready(fn){ if (document.readyState !== 'loading') fn(); else document.addEventListener('DOMContentLoaded', fn); }
@@ -77,7 +79,7 @@
         injectInto(footerEl, ['/partials/footer.html','../partials/footer.html']);
         try { console.warn('[login-fallback] layout.js indisponível — header/footer injetados.'); } catch(e){}
       }
-      ready(function(){ setTimeout(bootFallback, 50); }); // injeta rápido nesta página
+      ready(function(){ setTimeout(bootFallback, 50); });
     })();
   </script>
 
@@ -95,6 +97,26 @@
         $msg.textContent = text || '';
       }
       function lsSet(k,v){ try{ localStorage.setItem(k,v); }catch{} }
+
+      // Garante que Enter nos inputs submete o formulário sempre
+      function wireEnterKeys(){
+        const inputs = [$email, $senha].filter(Boolean);
+        inputs.forEach(function(el){
+          el.addEventListener('keydown', function(ev){
+            if (ev.key === 'Enter') {
+              ev.preventDefault();
+              if ($btn && $btn.disabled) return;
+              if ($form && typeof $form.requestSubmit === 'function') {
+                $form.requestSubmit();
+              } else if ($form) {
+                // fallback para navegadores antigos
+                const evt = new Event('submit', {bubbles:true, cancelable:true});
+                $form.dispatchEvent(evt);
+              }
+            }
+          });
+        });
+      }
 
       try {
         if (window.firebase && firebase.apps) {
@@ -185,8 +207,11 @@
         }
       }
 
-      document.getElementById('login-form').addEventListener('submit', doLogin);
-      document.getElementById('forgot').addEventListener('click', doReset);
+      // Bind handlers
+      $form.addEventListener('submit', doLogin);
+      $forgot.addEventListener('click', doReset);
+      wireEnterKeys(); // <- garante Enter
+
     })();
   </script>
 </body>
