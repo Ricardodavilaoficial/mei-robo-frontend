@@ -9,11 +9,11 @@
   <link rel="stylesheet" href="/assets/styles.css" />
   <link rel="icon" href="data:,">
 
-  <!-- 🔹 ADIÇÃO: Firebase v8 (mesma ordem do login) -->
+  <!-- 🔹 Firebase v8 (mesma ordem do login) -->
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
 
-  <!-- 🔹 ADIÇÃO: Init (DEFAULT com apiKey real) -->
+  <!-- 🔹 Init (DEFAULT com apiKey real) -->
   <script src="/assets/firebase-init.js?v=login6"></script>
 
   <!-- Patch de rotas: garante que /gerar-cupom e /cupons vão ao backend prod -->
@@ -29,6 +29,15 @@
     <div class="card">
       <h2>Admin • Cupons</h2>
       <p class="note">Acesso restrito. Somente administrador.</p>
+
+      <!-- 🔎 Painel de status de autenticação (apenas exibição/ação segura) -->
+      <div class="card" style="margin-top:12px; background:#0c171d;">
+        <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+          <span class="note">UID: <code id="uid">-</code></span>
+          <span class="note">Token: <span id="tok">-</span></span>
+          <button class="btn secondary" id="refreshToken" type="button" title="Força refresh e salva em localStorage.idToken">Atualizar token</button>
+        </div>
+      </div>
 
       <div id="admin-gate" class="card" style="margin-top:12px; background:#0c171d;">
         <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
@@ -93,6 +102,28 @@
       else {
         try { el.textContent = JSON.stringify(msg, null, 2); }
         catch { el.textContent = String(msg); }
+      }
+    }
+
+    // 🔎 UI de status de auth
+    function updateAuthUI(u){
+      const uidEl = document.getElementById('uid');
+      const tokEl = document.getElementById('tok');
+      uidEl.textContent = u ? (u.uid || '-') : '-';
+      const t = token();
+      tokEl.textContent = t ? 'token_ok' : '-';
+    }
+
+    async function refreshIdToken(){
+      try{
+        const u = firebase.auth().currentUser;
+        if(!u){ setOut('Sem usuário logado. Faça login.'); updateAuthUI(null); return; }
+        const t = await u.getIdToken(true);
+        if(t){ lsSet('idToken', t); }
+        updateAuthUI(u);
+        setOut('Token atualizado e salvo em localStorage.idToken ✅');
+      }catch(err){
+        setOut({ erro:'Falha ao atualizar token', detalhe: err.message });
       }
     }
 
@@ -182,6 +213,17 @@
       };
       document.getElementById('gerar').onclick = gerar;
       document.getElementById('listar').onclick = listar;
+
+      // Auth UI bindings
+      const btn = document.getElementById('refreshToken');
+      if(btn) btn.onclick = refreshIdToken;
+
+      try {
+        firebase.auth().onAuthStateChanged(u => updateAuthUI(u || null));
+      } catch(e) {
+        console.warn('AuthState listener falhou:', e);
+        updateAuthUI(null);
+      }
     });
   </script>
 </body>
