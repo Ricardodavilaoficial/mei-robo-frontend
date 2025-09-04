@@ -18,17 +18,17 @@
     "/whatsapp",
     "/api",
     "/licencas",
-    "/gerar-cupom"      // <- novo: a tela Admin usa este caminho relativo
+    "/admin",       // garante admin → backend
+    "/gerar-cupom"  // a tela Admin usa este caminho relativo
   ];
 
   // Mapeamentos específicos de caminho → novo caminho no backend
   function mapPath(path) {
-    // Se a tela chamar /gerar-cupom, preferimos a rota sob /licencas
-    if (path === "/gerar-cupom") return "/admin/cupons";
-    // Mantém o restante como está
+    // ⚠️ Sem rewrite especial: /gerar-cupom deve ir exatamente como está
     return path;
   }
 
+  // Recursos locais (não devem ser roteados ao backend)
   const LOCAL_PREFIXES = ["/partials", "/assets"];
   const LOCAL_EXTS = [
     ".html", ".css", ".js", ".png", ".jpg",
