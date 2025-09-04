@@ -165,7 +165,7 @@
 
       // Corpo da rota pública (fallback) — estes nomes já funcionaram no cURL:
       const bodyPublic = {};
-      if (dias > 0) bodyPublic.diasValidade = dias;        // nota: 'diasValidade' (não 'validadeDias')
+      if (dias > 0) bodyPublic.diasValidade = dias; // 'diasValidade' (não 'validadeDias')
       if (prefixo)  bodyPublic.prefixo = prefixo;
       bodyPublic.plano = "start";
 
@@ -181,11 +181,13 @@
       }
 
       try{
-        // 1) Tenta rota ADMIN oficial
+        // 1) tenta rota ADMIN
+        let via = "admin";
         let resp = await postJson(ABS_API + "/admin/cupons", bodyAdmin);
 
-        // 403 => sem privilégio admin: usa rota pública legada (/gerar-cupom)
-        if (resp.status === 403) {
+        // Sem privilégio (ou rota indisponível) => fallback público
+        if ([401,403,404,405].includes(resp.status)) {
+          via = "publico";
           resp = await postJson(ABS_API + "/gerar-cupom", bodyPublic);
         }
 
@@ -194,7 +196,11 @@
           throw new Error(`Falha ao criar cupom: ${resp.status} ${resp.statusText} — ${resumo}`);
         }
 
-        setOut(resp.data || { ok:true, detalhe:"Cupom gerado" });
+        const cup = resp.data || {};
+        const codigo = cup.codigo || cup.code || "(sem código)";
+        setOut({ ok:true, via, cupom: codigo, resposta: cup });
+
+        // Atualiza tabela depois de mostrar o cupom
         await listar();
       } catch(err){
         setOut({ erro: "Falha ao gerar cupom", detalhe: String(err.message || err) });
@@ -285,8 +291,6 @@
         const rows = [];
         rows.push(await ping("/admin/cupons", "POST", {diasValidade:3,prefixo:"MEI"}));
         rows.push(await ping("/gerar-cupom", "POST", {diasValidade:3,prefixo:"MEI",plano:"start"}));
-        rows.push(await ping("/licencas/gerar-cupom", "POST", {diasValidade:3}));
-        rows.push(await ping("/cupons/gerar", "POST", {diasValidade:3}));
         rows.push(await ping("/__list?col=cuponsAtivacao&limit=5", "GET"));
 
         setOut("Resultado da sonda:\n" + rows.map(r => `${r.method} ${r.path} -> ${r.status} | Allow: ${r.allow} | ACAM: ${r.acam} | ${r.sample}…`).join('\n'));
