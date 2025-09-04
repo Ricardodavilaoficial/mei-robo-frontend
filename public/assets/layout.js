@@ -1,156 +1,171 @@
-/* public/assets/layout.js
- * MEI Robô — injeção de parciais (robusta) + Auth Guard (produção)
- * - Suporta:
- *   - <div data-include="header" [data-src="/partials/header-landing.html"]>
- *   - <div id="header"> ou <div id="app-header">
- *   - <div data-include="footer"> / <div id="footer"> / <div id="app-footer">
- * - Fallback relativo e absoluto para /partials/*.html
- * - Bloqueio de rotas protegidas e admin
- * Dependência: /assets/firebase-init.js deve carregar antes deste script.
- */
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Entrar — MEI Robô</title>
 
-(function () {
-  const $ = (sel) => document.querySelector(sel);
-  const now = () => new Date();
+  <link rel="stylesheet" href="/assets/styles.css" />
+  <link rel="icon" href="data:,">
 
-  // ---------- util: fetch com fallback (relativa + absoluta) ----------
-  function tryFetch(urls, onOk, onFail) {
-    const next = (i) => {
-      if (i >= urls.length) return onFail(new Error("Falha em todas as URLs: " + urls.join(", ")));
-      const u = `${urls[i]}${urls[i].includes("?") ? "" : `?v=${Date.now()}`}`;
-      fetch(u, { cache: "no-store" })
-        .then((r) => (r.ok ? r.text() : Promise.reject(new Error(`${u} -> ${r.status}`))))
-        .then((html) => onOk(html))
-        .catch(() => next(i + 1));
-    };
-    next(0);
-  }
+  <!-- Firebase SDK v8 (compat) — ORDEM IMPORTA -->
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
 
-  function injectInto(el, urls) {
-    if (!el) return;
-    tryFetch(
-      urls,
-      (html) => { el.innerHTML = html; },
-      (err) => {
-        console.error("[layout] Inject error:", err);
-        el.innerHTML =
-          `<div style="padding:8px;color:#b00020;background:#ffeaea;border:1px solid #ffc4c4;">
-             Falha ao carregar: ${urls.map(u => `<code>${u}</code>`).join(" ou ")}<br>${err.message}
-           </div>`;
+  <!-- Inicialização do projeto (config REAL do mei-robo-prod) -->
+  <script src="/assets/firebase-init.js"></script>
+
+  <!-- Patch de rotas (geral do app) -->
+  <script src="/assets/backend-patch.js" defer></script>
+</head>
+<body>
+  <!-- Cabeçalho via parcial -->
+  <div data-include="header"></div>
+
+  <main class="section">
+    <div class="container form-wrap">
+      <h1 style="color:var(--wa-dark); margin:0 0 6px">Entrar</h1>
+
+      <div class="form-grid">
+        <form id="login-form" class="form-card full" action="#" method="POST" novalidate>
+          <div class="form-row">
+            <label for="email"><strong>E-mail</strong></label>
+            <input id="email" name="email" class="input" type="email" placeholder="voce@email.com" required />
+          </div>
+
+          <div class="form-row">
+            <label for="senha"><strong>Senha</strong></label>
+            <input id="senha" name="senha" class="input" type="password" placeholder="********" required />
+          </div>
+
+          <div class="actions" style="margin-top:12px">
+            <button class="cta" id="btn-login" type="submit">Entrar</button>
+            <a class="btn-secondary" href="/cadastro.html">Criar conta</a>
+          </div>
+
+          <p id="msg" class="hint" style="margin-top:10px"></p>
+          <p class="hint" style="margin-top:6px"><a id="forgot" href="#">Esqueci minha senha</a></p>
+        </form>
+      </div>
+    </div>
+  </main>
+
+  <!-- Rodapé via parcial -->
+  <div data-include="footer"></div>
+
+  <!-- Loader de header/footer + guard de autenticação (com versão para furar cache) -->
+  <script src="/assets/layout.js?v=20250904a" defer></script>
+
+  <script>
+    (function () {
+      const $form   = document.getElementById('login-form');
+      const $email  = document.getElementById('email');
+      const $senha  = document.getElementById('senha');
+      const $btn    = document.getElementById('btn-login');
+      const $msg    = document.getElementById('msg');
+      const $forgot = document.getElementById('forgot');
+
+      function say(text, ok=false){
+        $msg.style.color = ok ? 'var(--ok, #2e7d32)' : 'var(--err, #b00020)';
+        $msg.textContent = text || '';
       }
-    );
-  }
+      function lsSet(k,v){ try{ localStorage.setItem(k,v); }catch{} }
 
-  // ---------- injeção de header/footer ----------
-  function currentPath() {
-    let p = (location.pathname || "/").toLowerCase();
-    if (p === "" || p === "/") return "/index.html";
-    return p;
-  }
-
-  function buildCandidates(defaultSrc, dataSrc) {
-    const list = [];
-    // prioridade: data-src, depois absoluto, depois relativo comum
-    if (dataSrc) list.push(dataSrc);
-    list.push(defaultSrc); // absoluto
-    // fallback relativo típico p/ páginas em /pages/
-    list.push(`..${defaultSrc}`); // ex.: ../partials/header.html
-    return list;
-  }
-
-  async function injectPartials() {
-    // HEADER — aceita data-include ou ids usuais
-    const headerEl = $('[data-include="header"]') || $('#header') || $('#app-header');
-    const headerSrc = headerEl && headerEl.getAttribute && headerEl.getAttribute('data-src');
-    const headerUrls = buildCandidates('/partials/header.html', headerSrc);
-    if (headerEl) injectInto(headerEl, headerUrls);
-
-    // FOOTER
-    const footerEl = $('[data-include="footer"]') || $('#footer') || $('#app-footer');
-    const footerSrc = footerEl && footerEl.getAttribute && footerEl.getAttribute('data-src');
-    const footerUrls = buildCandidates('/partials/footer.html', footerSrc);
-    if (footerEl) injectInto(footerEl, footerUrls);
-  }
-
-  // ---------- Auth Guard ----------
-  const PUBLIC_ROUTES = new Set([
-    '/', '/index.html',
-    '/login.html',
-    '/cadastro.html',
-    '/cookies.html',
-    '/privacidade.html',
-    '/termos.html'
-  ]);
-
-  const AUTH_REQUIRED = new Set([
-    '/dashboard.html',
-    '/agenda.html',
-    '/configuracao.html',
-    '/ativar.html'
-  ]);
-
-  const ADMIN_ONLY = new Set([
-    '/admin-cupons.html'
-  ]);
-
-  function waitForFirebase(ms = 3000) {
-    return new Promise((resolve) => {
-      const start = Date.now();
-      (function tick() {
-        if (window.firebase && firebase.apps && firebase.apps.length > 0) return resolve(true);
-        if (Date.now() - start > ms) {
-          console.warn("[layout] Firebase não disponível após", ms, "ms (seguindo sem guard).");
-          return resolve(false);
+      try {
+        if (window.firebase && firebase.apps) {
+          const table = (firebase.apps || []).map(a => ({ name: a.name, apiKey: a.options && a.options.apiKey }));
+          console.table(table);
         }
-        setTimeout(tick, 100);
-      })();
-    });
-  }
+      } catch(e) {}
 
-  async function setupAuthGuard() {
-    const ok = await waitForFirebase();
-    const path = currentPath();
-    if (!ok) return; // não quebra a página se Firebase não veio
+      function getLoginAuth() {
+        if (!(window.firebase && firebase.app)) {
+          throw new Error('SDK do Firebase não carregado.');
+        }
+        let rootApp;
+        try { rootApp = firebase.app(); }
+        catch (e) { throw new Error('App DEFAULT não inicializado. Verifique /assets/firebase-init.js.'); }
 
-    const auth = firebase.auth();
-
-    const enforce = async (user) => {
-      const isPublic   = PUBLIC_ROUTES.has(path);
-      const needsAuth  = AUTH_REQUIRED.has(path);
-      const needsAdmin = ADMIN_ONLY.has(path);
-
-      if (isPublic) return;
-
-      if (needsAuth) {
-        if (!user) { location.replace('/login.html'); return; }
-        return;
-      }
-
-      if (needsAdmin) {
-        if (!user) { location.replace('/login.html'); return; }
+        const cfg = rootApp.options || {};
+        if ((cfg.apiKey || '').toUpperCase() === 'PASTE_API_KEY') {
+          console.error('Config com PASTE_API_KEY — verifique firebase-init.js');
+          throw new Error('Config inválida (PASTE_API_KEY).');
+        }
+        const loginApp =
+          (firebase.apps || []).find(a => a.name === 'loginApp') ||
+          firebase.initializeApp(cfg, 'loginApp');
         try {
-          const token = await user.getIdTokenResult(true);
-          const isAdmin = !!(token && token.claims && token.claims.admin === true);
-          if (!isAdmin) { location.replace('/index.html'); return; }
-        } catch (e) {
-          console.error('[guard] Falha ao ler claims:', e);
-          location.replace('/index.html');
-        }
-        return;
+          console.log('Default apiKey:', rootApp.options.apiKey);
+          console.log('loginApp apiKey:', loginApp.options.apiKey);
+        } catch {}
+        return loginApp.auth();
       }
 
-      // demais rotas continuam livres (comportamento atual)
-    };
+      async function doLogin(e){
+        e.preventDefault();
+        const email = ($email.value || '').trim();
+        const senha = ($senha.value || '').trim();
+        if(!email || !senha){ say('Preencha e-mail e senha.'); return; }
 
-    // aplica já e mantém vigilância
-    enforce(auth.currentUser);
-    auth.onAuthStateChanged((u) => enforce(u));
-  }
+        let auth;
+        try { auth = getLoginAuth(); }
+        catch(err) { say(err.message || String(err)); console.error(err); return; }
 
-  // ---------- boot ----------
-  document.addEventListener('DOMContentLoaded', async () => {
-    await injectPartials();
-    await setupAuthGuard();
-    console.debug('[layout] OK —', now().toISOString(), currentPath());
-  });
-})();
+        $btn.disabled = true;
+        const prev = $btn.textContent;
+        $btn.textContent = 'Entrando…';
+        say('Autenticando…', true);
+
+        try{
+          const cred = await auth.signInWithEmailAndPassword(email, senha);
+          const user = cred.user;
+          const idt  = await user.getIdToken(true);
+
+          lsSet('uid', user.uid);
+          lsSet('idToken', idt);
+
+          console.log('Login OK — UID:', user.uid, 'IDToken(ini):', idt.slice(0,25), '...');
+          say('Login OK! Redirecionando…', true);
+
+          window.location.href = '/dashboard.html';
+        }catch(err){
+          const code = err && err.code ? String(err.code) : '';
+          if(code === 'auth/user-not-found') say('Usuário não encontrado.');
+          else if(code === 'auth/wrong-password') say('Senha incorreta.');
+          else if(code === 'auth/invalid-email') say('E-mail inválido.');
+          else if(code === 'auth/too-many-requests') say('Muitas tentativas. Tente mais tarde.');
+          else if(code === 'auth/invalid-api-key') say('Falha: API key inválida (verifique firebase-init.js).');
+          else say('Falha no login: ' + (err && err.message ? err.message : err));
+          console.error('Erro no login:', err);
+        }finally{
+          $btn.disabled = false;
+          $btn.textContent = prev;
+        }
+      }
+
+      async function doReset(e){
+        e.preventDefault();
+        const email = ($email.value || '').trim();
+        if(!email){ say('Digite seu e-mail para receber o link de reset.'); return; }
+
+        try{
+          const auth = getLoginAuth();
+          const actionCodeSettings = {
+            url: 'https://mei-robo-prod.web.app/login.html',
+            handleCodeInApp: false
+          };
+          await auth.sendPasswordResetEmail(email, actionCodeSettings);
+          say('Enviamos um link de redefinição para o seu e-mail.', true);
+        }catch(err){
+          say('Falha ao enviar e-mail de redefinição: ' + (err.message || err));
+          console.error('Erro reset senha:', err);
+        }
+      }
+
+      $form.addEventListener('submit', doLogin);
+      $forgot.addEventListener('click', doReset);
+    })();
+  </script>
+</body>
+</html>
