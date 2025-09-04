@@ -133,7 +133,7 @@
       }
     }
 
-    // ===== Controle de varredura (Abort + timeout + limite) =====
+    // ===== Controle de varredura (mantido para diagnóstico/listagem) =====
     let currentScan = null; // {controller, running}
     function stopScan(reason){
       if (currentScan && currentScan.controller) currentScan.controller.abort();
@@ -143,9 +143,7 @@
     function fetchWithTimeout(url, init, ms, signal){
       const ctrl = new AbortController();
       const timer = setTimeout(()=>ctrl.abort(), ms);
-      const composite = new AbortController();
-      function abortAll(){ ctrl.abort(); composite.abort(); }
-      if (signal) signal.addEventListener('abort', abortAll, { once:true });
+      if (signal) signal.addEventListener('abort', ()=>ctrl.abort(), { once:true });
       const merged = { ...init, signal: ctrl.signal };
       return fetch(url, merged).finally(()=>clearTimeout(timer));
     }
@@ -156,7 +154,7 @@
         "licencas/gerar-cupom", "licencas/gerar_cupom",
         "licencas/cupom/gerar", "cupons/gerar"
       ];
-      const methods = ["GET","PUT","PATCH","POST"]; // ordem segura
+      const methods = ["GET","PUT","PATCH","POST"];
       const suffixes = ["", "/"];
 
       const controller = new AbortController();
@@ -177,7 +175,7 @@
 
               if (m === "GET"){
                 const qs = new URLSearchParams(payload).toString();
-                if (qs) url += (sfx ? "" : "") + "?" + qs;
+                if (qs) url += "?" + qs;
               } else {
                 headers['Content-Type'] = 'application/json';
                 init.body = JSON.stringify(payload);
@@ -205,33 +203,55 @@
       return { ok:false, err:lastErr || 'Sem rota 2xx dentro do limite de tentativas.' };
     }
 
+    // ====== NOVO gerar(): POST direto em /admin/cupons com fallback /gerar-cupom ======
     async function gerar(){
-      setOut('Gerando cupom (scan limitado)…');
-      const dias = Number(document.getElementById('dias').value || 0);
-      const prefixo = document.getElementById('prefixo').value.trim() || null;
-      const payload = {};
-      if(dias > 0) payload.diasValidade = dias;
-      if(prefixo) payload.prefixo = prefixo;
+      setOut('Gerando cupom…');
+
+      const dias    = Number(document.getElementById('dias').value || 0);
+      const prefixo = (document.getElementById('prefixo').value || '').trim();
+
+      // Corpo da rota ADMIN
+      const bodyAdmin = {};
+      if (dias > 0) bodyAdmin.diasValidade = dias;
+      if (prefixo)  bodyAdmin.prefixo = prefixo;
+      bodyAdmin.origem = "admin-cupons";
+
+      // Corpo da rota pública (fallback)
+      const bodyPublic = {
+        validadeDias: dias > 0 ? dias : 3,
+        plano: prefixo || "start"
+      };
+
+      const ABS_API = "https://mei-robo-prod.onrender.com";
+      const headers = { "Content-Type": "application/json" };
+      const t = token();
+      if (t) headers["Authorization"] = "Bearer " + t;
+
+      async function postJson(url, body){
+        const r = await fetch(url, { method:"POST", mode:"cors", headers, body: JSON.stringify(body) });
+        const ct = r.headers.get("content-type") || "";
+        const data = ct.includes("application/json") ? await r.json() : (await r.text());
+        return { ok: r.ok, status: r.status, statusText: r.statusText, data };
+      }
 
       try{
-        const t = token();
-        const auth = t ? { 'Authorization': 'Bearer ' + t } : {};
-        const base = "https://mei-robo-prod.onrender.com";
-        const steps = [];
+        // 1) Tenta rota ADMIN oficial
+        let resp = await postJson(ABS_API + "/admin/cupons", bodyAdmin);
 
-        const result = await tryCombos({
-          base, auth, payload, maxTries: 12,
-          onStep:(s)=>{ steps.push(`${s.step}. ${s.method} ${s.path}`); setOut('Tentativas:\n'+steps.join('\n')); }
-        });
+        // 403 => sem privilégio admin: cai para rota pública legada
+        if (resp.status === 403) {
+          resp = await postJson(ABS_API + "/gerar-cupom", bodyPublic);
+        }
 
-        if (!result.ok) throw new Error(result.err);
+        if (!resp.ok) {
+          const resumo = typeof resp.data === 'string' ? resp.data.slice(0,200) : JSON.stringify(resp.data).slice(0,200);
+          throw new Error(`Falha ao criar cupom: ${resp.status} ${resp.statusText} — ${resumo}`);
+        }
 
-        const ct = result.res.headers.get('content-type') || '';
-        const j = ct.includes('application/json') ? await result.res.json() : { ok:true, detalhe:'Cupom gerado (não-JSON)' };
-        setOut({ ok:true, via: result.via, resposta: j });
+        setOut(resp.data || { ok:true, detalhe:"Cupom gerado" });
         await listar();
-      }catch(err){
-        setOut({ erro:'Falha ao gerar cupom', detalhe: err.message });
+      } catch(err){
+        setOut({ erro: "Falha ao gerar cupom", detalhe: String(err.message || err) });
       }
     }
 
@@ -244,7 +264,6 @@
         const auth = t ? { 'Authorization': 'Bearer ' + t } : {};
         const base = "https://mei-robo-prod.onrender.com";
 
-        // poucas combinações de listagem
         const candidates = [
           "/licencas/cupons", "/licencas/cupons/", "/cupons", "/cupons/",
           "/api/licencas/cupons", "/api/cupons", "/api/v1/licencas/cupons", "/v1/licencas/cupons"
@@ -293,7 +312,7 @@
       }
     }
 
-    // ---- Ferramentas / Diagnóstico (como antes) ----
+    // ---- Ferramentas / Diagnóstico (mantido) ----
     function listScriptsSafe(){
       var out = [];
       for (var i=0; i<document.scripts.length; i++) {
