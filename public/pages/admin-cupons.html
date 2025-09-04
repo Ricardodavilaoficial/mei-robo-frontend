@@ -4,21 +4,15 @@
   <meta charset="UTF-8" />
   <title>ADMIN — Cupons (diag5)</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-
-  <!-- Estilos canônicos -->
   <link rel="stylesheet" href="/assets/styles.css" />
   <link rel="icon" href="data:,">
-
   <!-- Firebase v8 -->
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
-
-  <!-- Init (DEFAULT com apiKey real) -->
+  <!-- Init -->
   <script src="/assets/firebase-init.js?v=login6"></script>
-
-  <!-- Patch de rotas (mantido) -->
+  <!-- Patch de rotas -->
   <script src="/assets/backend-patch.js"></script>
-
   <!-- Loader de header/footer -->
   <script defer src="/assets/layout.js"></script>
   <!-- DIAG_VERSION=5 -->
@@ -32,8 +26,9 @@
       <p class="note">Acesso restrito. Somente administrador.</p>
 
       <!-- Badge versão -->
-      <div class="note" style="margin:8px 0;">
-        <strong>Versão:</strong> diag5
+      <div class="note" style="margin:8px 0; display:flex; gap:12px; align-items:center; flex-wrap:wrap;">
+        <span><strong>Versão:</strong> diag5</span>
+        <span id="adminBadge" class="badge" style="padding:2px 6px;border-radius:6px;background:#1b2a33;">status: <code id="admFlag">desconhecido</code></span>
       </div>
 
       <!-- Último cupom gerado -->
@@ -57,6 +52,7 @@
         </div>
       </div>
 
+      <!-- Chave “dev” (a UI continua, mas não fura segurança do backend) -->
       <div id="admin-gate" class="card" style="margin-top:12px; background:#0c171d;">
         <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
           <label>
@@ -64,14 +60,15 @@
             Eu sou administrador (dev)
           </label>
           <button class="btn secondary" id="saveGate" type="button">Aplicar</button>
-          <span class="note">Flag salva em <code>localStorage.isAdmin</code></span>
+          <span class="note">Flag salva em <code>localStorage.isAdmin</code> (somente visual)</span>
         </div>
       </div>
 
       <div id="admin-area" style="display:none; margin-top:14px;">
-        <div style="display:flex; gap:10px; flex-wrap:wrap;">
+        <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
           <button class="btn" id="gerar" type="button">Gerar cupom</button>
           <button class="btn secondary" id="listar" type="button">Atualizar lista</button>
+          <span id="noAdminMsg" class="note" style="display:none;">Você não tem permissão para gerar cupons.</span>
         </div>
 
         <div class="grid grid-2" style="margin-top:12px">
@@ -107,9 +104,10 @@
     const token = () => lsGet('idToken') || '';
 
     function gateApply(){
-      const isAdmin = lsGet('isAdmin') === 'true';
-      document.getElementById('toggleAdmin').checked = isAdmin;
-      document.getElementById('admin-area').style.display = isAdmin ? '' : 'none';
+      const isAdminGate = lsGet('isAdmin') === 'true';
+      document.getElementById('toggleAdmin').checked = isAdminGate;
+      // Área visível = gate (dev) ON ou não — deixamos visível para listar/copiar mesmo sem admin
+      document.getElementById('admin-area').style.display = '';
     }
 
     function setOut(msg){
@@ -137,6 +135,7 @@
         if(t){ lsSet('idToken', t); }
         updateAuthUI(u);
         setOut('Token atualizado e salvo em localStorage.idToken ✅');
+        await applyWhoamiAdmin(); // reavalia após refresh
       }catch(err){
         setOut({ erro:'Falha ao atualizar token', detalhe: err.message });
       }
@@ -184,35 +183,55 @@
         if (!r.ok) return false;
         const j = await r.json().catch(()=> ({}));
         if (j === null || typeof j !== "object") return false;
-
-        // Várias formas possíveis de flag admin
         if (j.admin === true || j.is_admin === true) return true;
         if (j.role === "admin") return true;
         if (Array.isArray(j.roles) && j.roles.includes("admin")) return true;
         if (j.claims && (j.claims.admin === true || j.claims.is_admin === true)) return true;
-
         return false;
       }catch{ return false; }
+    }
+
+    // Aplica estado admin na UI (bloqueia geração p/ não-admin)
+    async function applyWhoamiAdmin(){
+      const adm = await isAdminUser();
+      const gerarBtn = document.getElementById('gerar');
+      const noAdminMsg = document.getElementById('noAdminMsg');
+      const admFlag = document.getElementById('admFlag');
+
+      if (adm) {
+        gerarBtn.disabled = false;
+        gerarBtn.title = "Gerar cupom (admin)";
+        noAdminMsg.style.display = 'none';
+        admFlag.textContent = 'admin';
+        document.getElementById('adminBadge').style.background = '#10331b';
+      } else {
+        gerarBtn.disabled = true;
+        gerarBtn.title = "Somente administrador pode gerar cupons";
+        noAdminMsg.style.display = '';
+        admFlag.textContent = 'não-admin';
+        document.getElementById('adminBadge').style.background = '#311b10';
+      }
+      return adm;
     }
 
     // ====== GERAR ======
     async function gerar(){
       setOut('Gerando cupom…');
 
+      // Hard stop para não-admin: nem chama backend
+      const canAdmin = await isAdminUser();
+      if (!canAdmin) {
+        setOut({ erro: "Permissão negada", detalhe: "Somente administrador pode gerar cupons." });
+        return;
+      }
+
       const dias    = Number(document.getElementById('dias').value || 0);
       const prefixo = (document.getElementById('prefixo').value || '').trim();
 
-      // Corpo da rota ADMIN
       const bodyAdmin = {};
       if (dias > 0) bodyAdmin.diasValidade = dias;
       if (prefixo)  bodyAdmin.prefixo = prefixo;
       bodyAdmin.origem = "admin-cupons";
-
-      // Corpo da rota pública (fallback) — já validado no cURL
-      const bodyPublic = {};
-      if (dias > 0) bodyPublic.diasValidade = dias; // atenção: diasValidade
-      if (prefixo)  bodyPublic.prefixo = prefixo;
-      bodyPublic.plano = "start";
 
       const headers = { "Content-Type": "application/json" };
       const t = token();
@@ -226,21 +245,13 @@
       }
 
       try{
-        let via, resp;
-        const canAdmin = await isAdminUser();
+        // rota oficial de admin (backend também protege)
+        let via  = "admin";
+        let resp = await postJson(ABS_API + "/admin/cupons", bodyAdmin);
 
-        if (canAdmin) {
-          via  = "admin";
-          resp = await postJson(ABS_API + "/admin/cupons", bodyAdmin);
-          // fallback defensivo se algo bloquear
-          if ([401,403,404,405].includes(resp.status)) {
-            via  = "publico";
-            resp = await postJson(ABS_API + "/gerar-cupom", bodyPublic);
-          }
-        } else {
-          // evita 403 no console
-          via  = "publico";
-          resp = await postJson(ABS_API + "/gerar-cupom", bodyPublic);
+        // fallback defensivo: /gerar-cupom também é admin_required no backend
+        if ([404,405].includes(resp.status)) {
+          resp = await postJson(ABS_API + "/gerar-cupom", bodyAdmin);
         }
 
         if (!resp.ok) {
@@ -297,7 +308,7 @@
       }
     }
 
-    // ---- Ferramentas / Diagnóstico (mantido) ----
+    // ---- Ferramentas / Diagnóstico ----
     function listScriptsSafe(){
       const out = [];
       for (let i=0; i<document.scripts.length; i++) {
@@ -320,10 +331,11 @@
         async function ping(path, method, body){
           let res;
           try {
+            const needsJson = (method==="POST" || method==="PUT" || method==="PATCH");
             res = await fetch(base + path, {
               method, mode:"cors",
-              headers: { "Authorization":"Bearer "+tok, ...(method==="POST"||"PUT"||"PATCH"?{"Content-Type":"application/json"}:{}) },
-              body: (method==="POST"||method==="PUT"||method==="PATCH") ? JSON.stringify(body||{origem:"admin-cupons"}) : undefined
+              headers: { "Authorization":"Bearer "+tok, ...(needsJson?{"Content-Type":"application/json"}:{}) },
+              body: needsJson ? JSON.stringify(body||{origem:"admin-cupons"}) : undefined
             });
           } catch(e) {
             console.log(method, path, '-> FETCH_ERR', String(e));
@@ -341,8 +353,14 @@
         }
 
         const rows = [];
-        rows.push(await ping("/admin/cupons", "POST", {diasValidade:3,prefixo:"MEI"}));
-        rows.push(await ping("/gerar-cupom", "POST", {diasValidade:3,prefixo:"MEI",plano:"start"}));
+        const adm = await isAdminUser();
+        if (adm) {
+          rows.push(await ping("/admin/cupons", "POST", {diasValidade:3,prefixo:"MEI"}));
+          rows.push(await ping("/gerar-cupom", "POST", {diasValidade:3,prefixo:"MEI"}));
+        } else {
+          rows.push({ path:"/admin/cupons", method:"POST", status:"(não testado)", allow:"-", acam:"-", sample:"usuário não-admin" });
+          rows.push({ path:"/gerar-cupom", method:"POST", status:"(não testado)", allow:"-", acam:"-", sample:"usuário não-admin" });
+        }
         rows.push(await ping("/__list?col=cuponsAtivacao&limit=5", "GET"));
 
         setOut("Resultado da sonda:\n" + rows.map(r => `${r.method} ${r.path} -> ${r.status} | Allow: ${r.allow} | ACAM: ${r.acam} | ${r.sample}…`).join('\n'));
@@ -352,8 +370,9 @@
     }
 
     // Bindings
-    window.addEventListener('DOMContentLoaded', () => {
+    window.addEventListener('DOMContentLoaded', async () => {
       gateApply();
+
       document.getElementById('saveGate').onclick = () => {
         const v = document.getElementById('toggleAdmin').checked;
         lsSet('isAdmin', v ? 'true' : 'false');
@@ -391,14 +410,22 @@
 
       try {
         if (typeof firebase !== 'undefined') {
-          firebase.auth().onAuthStateChanged(u => updateAuthUI(u || null));
+          firebase.auth().onAuthStateChanged(async u => {
+            updateAuthUI(u || null);
+            await applyWhoamiAdmin();
+          });
         } else {
           updateAuthUI(null);
+          await applyWhoamiAdmin();
         }
       } catch(e) {
         console.warn('AuthState listener falhou:', e);
         updateAuthUI(null);
+        await applyWhoamiAdmin();
       }
+
+      // Carrega lista ao abrir
+      listar();
     });
   </script>
 </body>
