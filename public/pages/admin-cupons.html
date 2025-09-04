@@ -30,10 +30,13 @@
         <span id="adminBadge" class="badge" style="padding:2px 6px;border-radius:6px;background:#1b2a33;">status: <code id="admFlag">verificando…</code></span>
       </div>
 
-      <!-- Aviso para não-admin -->
+      <!-- Aviso para não-admin (agora com botões Entrar/Trocar conta) -->
       <div id="nonAdminBanner" class="card" style="display:none; margin:12px 0; background:#2a1210; border:1px solid #5a2a20;">
         <strong>Sem acesso.</strong> Esta área é exclusiva de administradores.
-        Faça login com a conta de administrador para continuar.
+        <div id="nonAdminActions" style="margin-top:8px; display:flex; gap:8px; flex-wrap:wrap;">
+          <button class="btn" id="btnSignIn" type="button" style="display:none;">Entrar</button>
+          <button class="btn secondary" id="btnSwitch" type="button" style="display:none;">Trocar conta</button>
+        </div>
       </div>
 
       <!-- Último cupom gerado (apenas admin) -->
@@ -56,7 +59,7 @@
         </div>
       </div>
 
-      <!-- Área admin -->
+      <!-- Área admin (totalmente oculta para não-admin) -->
       <div id="admin-area" style="display:none; margin-top:14px;">
         <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
           <button class="btn" id="gerar" type="button">Gerar cupom</button>
@@ -211,10 +214,11 @@
         } catch { lastBox.style.display = 'none'; }
 
       } else {
-        adminArea.style.display = ''; // mantemos a casca para mensagem “Sem acesso”
+        // Esconde a área restrita por completo para não-admin
+        adminArea.style.display = 'none';
         nonAdmin.style.display  = '';
         gerarBtn.disabled = true;
-        listarBtn.disabled = true;  // não permite listar
+        listarBtn.disabled = true;
         table.style.display = 'none';
         admFlag.textContent = 'não-admin';
         badge.style.background = '#311b10';
@@ -222,7 +226,43 @@
         // limpa qualquer vestígio local de cupom
         lsDel('lastCoupon');
         lastBox.style.display = 'none';
-        setOut(''); // limpa console da área de saída
+        setOut('');
+
+        // Mostra "Entrar" se não logado; "Trocar conta" se logado
+        try {
+          const u = (typeof firebase !== 'undefined') ? firebase.auth().currentUser : null;
+          const btnIn  = document.getElementById('btnSignIn');
+          const btnSw  = document.getElementById('btnSwitch');
+          if (btnIn && btnSw) {
+            if (!u) {
+              btnIn.style.display = '';
+              btnSw.style.display = 'none';
+            } else {
+              btnIn.style.display = 'none';
+              btnSw.style.display = '';
+            }
+            // Bind handlers (idempotentes)
+            btnIn.onclick = async () => {
+              try {
+                const prov = new firebase.auth.GoogleAuthProvider();
+                await firebase.auth().signInWithPopup(prov);
+                await refreshIdToken();
+              } catch(e) {
+                setOut({ erro: 'Falha no login', detalhe: String(e.message || e) });
+              }
+            };
+            btnSw.onclick = async () => {
+              try {
+                await firebase.auth().signOut();
+                lsDel('idToken');
+                updateAuthUI(null);
+                await applyWhoamiAdmin();
+              } catch(e) {
+                setOut({ erro: 'Falha ao sair', detalhe: String(e.message || e) });
+              }
+            };
+          }
+        } catch {}
       }
 
       return adm;
@@ -375,7 +415,6 @@
 
     // Bindings
     window.addEventListener('DOMContentLoaded', async () => {
-      // Header
       try {
         if (typeof firebase !== 'undefined') {
           firebase.auth().onAuthStateChanged(async u => {
@@ -391,7 +430,6 @@
         await applyWhoamiAdmin();
       }
 
-      // Botões
       document.getElementById('refreshToken').onclick = refreshIdToken;
       document.getElementById('gerar').onclick = gerar;
       document.getElementById('listar').onclick = listar;
