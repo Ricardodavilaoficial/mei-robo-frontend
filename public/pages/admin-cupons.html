@@ -2,7 +2,7 @@
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8" />
-  <title>ADMIN — Cupons (diag2)</title>
+  <title>ADMIN — Cupons (diag3)</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
 
   <!-- Estilos canônicos -->
@@ -16,12 +16,12 @@
   <!-- 🔹 Init (DEFAULT com apiKey real) -->
   <script src="/assets/firebase-init.js?v=login6"></script>
 
-  <!-- Patch de rotas: garante que /gerar-cupom e /cupons vão ao backend prod -->
+  <!-- Patch de rotas (mantido; mas teremos fallback absoluto também) -->
   <script src="/assets/backend-patch.js"></script>
 
   <!-- Loader de header/footer e demais iniciais do app -->
   <script defer src="/assets/layout.js"></script>
-  <!-- DIAG_VERSION=2 -->
+  <!-- DIAG_VERSION=3 -->
 </head>
 <body>
   <div id="app-header"></div>
@@ -33,7 +33,7 @@
 
       <!-- 🔖 Badge de versão visível -->
       <div class="note" style="margin:8px 0;">
-        <strong>Versão:</strong> diag2
+        <strong>Versão:</strong> diag3
       </div>
 
       <!-- 🔎 Painel de status de autenticação (exibição/ação segura) -->
@@ -42,9 +42,9 @@
           <span class="note">UID: <code id="uid">-</code></span>
           <span class="note">Token: <span id="tok">-</span></span>
           <span class="note">Firebase: <code id="fbStatus">-</code></span>
-          <button class="btn secondary" id="refreshToken" type="button" title="Força refresh e salva em localStorage.idToken">Atualizar token</button>
-          <button class="btn secondary" id="listScripts" type="button" title="Lista scripts carregados">Listar scripts</button>
-          <button class="btn secondary" id="diagnosticar" type="button" title="Testa rotas/métodos e mostra status">Diagnosticar rotas</button>
+          <button class="btn secondary" id="refreshToken" type="button">Atualizar token</button>
+          <button class="btn secondary" id="listScripts" type="button">Listar scripts</button>
+          <button class="btn secondary" id="diagnosticar" type="button">Diagnosticar rotas</button>
         </div>
       </div>
 
@@ -139,6 +139,7 @@
       }
     }
 
+    // =============== FALLBACK INTELIGENTE p/ GERAR ===============
     async function gerar(){
       setOut('Gerando cupom...');
       const dias = Number(document.getElementById('dias').value || 0);
@@ -148,23 +149,56 @@
       if(prefixo) body.prefixo = prefixo;
 
       try{
-        const headers = { 'Content-Type': 'application/json' };
         const t = token();
-        if (t) headers['Authorization'] = 'Bearer ' + t;
+        const auth = t ? { 'Authorization': 'Bearer ' + t } : {};
+        const base = "https://mei-robo-prod.onrender.com";
 
-        // backend-patch.js reescreve -> https://mei-robo-prod.onrender.com/licencas/gerar-cupom
-        const r = await fetch('/gerar-cupom', {
-          method:'POST',
-          headers,
-          body: JSON.stringify(body)
-        });
+        // candidatos em ordem: primeiro GET com barra, depois GET sem barra, depois underscore, por fim POST legado
+        const candidates = [
+          { method:'GET',  url: base+'/licencas/gerar-cupom/',   qs:true },
+          { method:'GET',  url: base+'/licencas/gerar-cupom',    qs:true },
+          { method:'GET',  url: base+'/licencas/gerar_cupom/',   qs:true },
+          { method:'GET',  url: base+'/licencas/gerar_cupom',    qs:true },
+          // fallback para implementações antigas:
+          { method:'POST', url: base+'/licencas/gerar-cupom',    json:true },
+          { method:'POST', url: base+'/licencas/gerar_cupom',    json:true }
+        ];
 
-        const ct = r.headers.get('content-type') || '';
-        if(!r.ok){
-          const txt = await r.text().catch(()=>'(sem corpo)');
-          throw new Error(`POST /gerar-cupom -> ${r.status}: ${txt.slice(0,200)}`);
+        let lastErr = null, okRes = null;
+        for (const c of candidates){
+          try{
+            const headers = { ...auth };
+            let fetchUrl = c.url;
+            let init = { method: c.method, mode:'cors', headers };
+
+            if (c.qs){
+              const qs = new URLSearchParams(body).toString();
+              fetchUrl = qs ? (c.url + (c.url.endsWith('/') ? '' : '') + '?' + qs) : c.url;
+            }
+            if (c.json){
+              headers['Content-Type'] = 'application/json';
+              init.body = JSON.stringify(body);
+            }
+
+            const r = await fetch(fetchUrl, init);
+            if (r.ok){
+              okRes = r;
+              break;
+            } else {
+              const txt = await r.text().catch(()=>'(sem corpo)');
+              lastErr = `${c.method} ${fetchUrl} -> ${r.status}: ${txt.slice(0,180)}`;
+            }
+          }catch(e){
+            lastErr = String(e);
+          }
         }
-        const j = ct.includes('application/json') ? await r.json() : { ok:true, detalhe:'Cupom gerado (não-JSON)' };
+
+        if (!okRes){
+          throw new Error(lastErr || 'Nenhuma rota/método aceitou a requisição.');
+        }
+
+        const ct = okRes.headers.get('content-type') || '';
+        const j = ct.includes('application/json') ? await okRes.json() : { ok:true, detalhe:'Cupom gerado (não-JSON)' };
         setOut(j);
         await listar();
       }catch(err){
@@ -172,28 +206,43 @@
       }
     }
 
+    // =============== FALLBACK INTELIGENTE p/ LISTAR ===============
     async function listar(){
       setOut('Listando cupons...');
       const tb = document.querySelector('#tbl tbody');
       tb.innerHTML = '';
       try{
-        const headers = {};
         const t = token();
-        if (t) headers['Authorization'] = 'Bearer ' + t;
+        const auth = t ? { 'Authorization': 'Bearer ' + t } : {};
+        const base = "https://mei-robo-prod.onrender.com";
 
-        // backend-patch.js reescreve -> https://mei-robo-prod.onrender.com/licencas/cupons
-        const r = await fetch('/cupons', { headers });
-        const ct = r.headers.get('content-type') || '';
-        if(!r.ok){
-          const txt = await r.text().catch(()=>'(sem corpo)');
-          throw new Error(`GET /cupons -> ${r.status}: ${txt.slice(0,200)}`);
+        const candidates = [
+          { url: base+'/licencas/cupons',  method:'GET' },
+          { url: base+'/licencas/cupons/', method:'GET' },
+          { url: base+'/cupons',           method:'GET' },
+          { url: base+'/cupons/',          method:'GET' },
+        ];
+
+        let okRes = null, lastErr = null;
+        for (const c of candidates){
+          try{
+            const r = await fetch(c.url, { method:c.method, mode:'cors', headers: { ...auth } });
+            if (r.ok){ okRes = r; break; }
+            const txt = await r.text().catch(()=>'(sem corpo)');
+            lastErr = `${c.method} ${c.url} -> ${r.status}: ${txt.slice(0,160)}`;
+          }catch(e){
+            lastErr = String(e);
+          }
         }
+        if (!okRes) throw new Error(lastErr || 'Nenhuma rota retornou 200.');
+
+        const ct = okRes.headers.get('content-type') || '';
         let arr = [];
-        if(ct.includes('application/json')) arr = await r.json();
+        if (ct.includes('application/json')) arr = await okRes.json();
         else {
-          const txt = await r.text();
-          setOut('⚠️ Resposta inesperada de /cupons (não-JSON).');
-          console.warn('Resposta /cupons:', txt);
+          const txt = await okRes.text();
+          setOut('⚠️ Resposta inesperada de listagem (não-JSON).');
+          console.warn('Resposta listagem:', txt);
         }
 
         (arr||[]).forEach(c => {
@@ -216,7 +265,7 @@
       }
     }
 
-    // 🔧 util: listar scripts sem spread (...)
+    // ---------- Ferramentas de diagnóstico (iguais da diag2) ----------
     function listScriptsSafe(){
       var out = [];
       for (var i=0; i<document.scripts.length; i++) {
@@ -248,16 +297,14 @@
             return { path, method, status:'FETCH_ERR', allow:'-', sample:String(e) };
           }
           const allow = res.headers.get('allow') || '-';
+          const acam  = res.headers.get('access-control-allow-methods') || '-';
           const ct = res.headers.get('content-type') || '';
           let text;
           try {
-            if (ct.includes('application/json')) {
-              text = JSON.stringify(await res.json());
-            } else {
-              text = await res.text();
-            }
+            if (ct.includes('application/json')) text = JSON.stringify(await res.json());
+            else text = await res.text();
           } catch(e) { text = '(sem corpo)'; }
-          const row = { path, method, status: res.status, allow, sample: (text||'').replace(/\s+/g,' ').slice(0,160) };
+          const row = { path, method, status: res.status, allow, acam, sample: (text||'').replace(/\s+/g,' ').slice(0,160) };
           console.log(row);
           return row;
         }
@@ -265,17 +312,23 @@
         const rows = [];
         rows.push(await ping("/licencas/gerar-cupom", "POST"));
         rows.push(await ping("/licencas/gerar-cupom", "GET"));
+        rows.push(await ping("/licencas/gerar-cupom/", "GET"));
+        rows.push(await ping("/licencas/gerar_cupom", "GET"));
+        rows.push(await ping("/licencas/gerar_cupom/", "GET"));
         rows.push(await ping("/cupons/gerar", "POST"));
         rows.push(await ping("/cupons/gerar", "GET"));
         rows.push(await ping("/licencas/cupons", "GET"));
+        rows.push(await ping("/licencas/cupons/", "GET"));
         rows.push(await ping("/cupons", "GET"));
+        rows.push(await ping("/cupons/", "GET"));
 
-        setOut("Resultado da sonda:\n" + rows.map(r => `${r.method} ${r.path} -> ${r.status} | Allow: ${r.allow} | ${r.sample}…`).join('\n'));
+        setOut("Resultado da sonda:\n" + rows.map(r => `${r.method} ${r.path} -> ${r.status} | Allow: ${r.allow} | ACAM: ${r.acam} | ${r.sample}…`).join('\n'));
       } catch (err) {
         setOut({ erro: 'Falha no diagnóstico', detalhe: err.message });
       }
     }
 
+    // ---------- Bindings ----------
     window.addEventListener('DOMContentLoaded', () => {
       gateApply();
       document.getElementById('saveGate').onclick = () => {
@@ -286,7 +339,6 @@
       document.getElementById('gerar').onclick = gerar;
       document.getElementById('listar').onclick = listar;
 
-      // Auth UI bindings
       const btn = document.getElementById('refreshToken');
       if(btn) btn.onclick = refreshIdToken;
 
