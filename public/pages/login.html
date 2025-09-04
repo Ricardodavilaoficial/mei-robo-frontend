@@ -43,7 +43,8 @@
 
           <div class="actions" style="margin-top:12px">
             <button class="cta" id="btn-login" type="submit">Entrar</button>
-            <a class="btn-secondary" href="/pages/cadastro.html">Criar conta</a>
+            <!-- mantém um href padrão, mas o JS vai testar alternativas -->
+            <a class="btn-secondary" id="signup-link" href="/pages/cadastro.html">Criar conta</a>
           </div>
 
           <p id="msg" class="hint" style="margin-top:10px"></p>
@@ -85,12 +86,13 @@
 
   <script>
     (function () {
-      const $form   = document.getElementById('login-form');
-      const $email  = document.getElementById('email');
-      const $senha  = document.getElementById('senha');
-      const $btn    = document.getElementById('btn-login');
-      const $msg    = document.getElementById('msg');
-      const $forgot = document.getElementById('forgot');
+      const $form    = document.getElementById('login-form');
+      const $email   = document.getElementById('email');
+      const $senha   = document.getElementById('senha');
+      const $btn     = document.getElementById('btn-login');
+      const $msg     = document.getElementById('msg');
+      const $forgot  = document.getElementById('forgot');
+      const $signup  = document.getElementById('signup-link');
 
       function say(text, ok=false){
         $msg.style.color = ok ? 'var(--ok, #2e7d32)' : 'var(--err, #b00020)';
@@ -117,14 +119,12 @@
         });
       }
 
-      // Descobre o primeiro caminho existente e navega
+      // Descobre o primeiro caminho existente (HEAD 200/3xx) e navega
       async function goFirstAvailable(paths){
         for (const path of paths){
           try{
             const r = await fetch(path + (path.includes('?')?'':'?v=' + Date.now()), { method:'HEAD', cache:'no-store' });
-            if (r.ok || (r.status >= 300 && r.status < 400)) {
-              location.href = path; return;
-            }
+            if (r.ok || (r.status >= 300 && r.status < 400)) { location.href = path; return; }
           }catch(_){}
         }
         location.href = '/'; // fallback final
@@ -184,16 +184,15 @@
           console.log('Login OK — UID:', user.uid);
           say('Login OK! Redirecionando…', true);
 
-          // Redirecionamento resiliente — vai para o primeiro caminho que existir
-          const candidates = [
+          // Pós-login: vai para a 1ª rota existente
+          goFirstAvailable([
             '/pages/dashboard.html',
             '/dashboard.html',
             '/pages/agenda.html',
             '/pages/index.html',
             '/index.html',
             '/'
-          ];
-          goFirstAvailable(candidates);
+          ]);
 
         }catch(err){
           const code = err && err.code ? String(err.code) : '';
@@ -233,6 +232,21 @@
       $form.addEventListener('submit', doLogin);
       $forgot.addEventListener('click', doReset);
       wireEnterKeys();
+
+      // Clique em "Criar conta" com fallback de rotas
+      if ($signup) {
+        $signup.addEventListener('click', function(ev){
+          ev.preventDefault();
+          goFirstAvailable([
+            '/pages/cadastro.html',
+            '/cadastro.html',
+            '/pages/ativar.html',
+            '/pages/onboarding.html',
+            '/pages/register.html',
+            '/register.html'
+          ]);
+        });
+      }
 
     })();
   </script>
