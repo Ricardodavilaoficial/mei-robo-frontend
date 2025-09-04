@@ -21,7 +21,7 @@
 </head>
 <body>
   <!-- Cabeçalho via parcial -->
-  <div id="app-header"></div>
+  <div id="app-header" data-include="header"></div>
 
   <main class="section">
     <div class="container form-wrap">
@@ -52,10 +52,38 @@
   </main>
 
   <!-- Rodapé via parcial -->
-  <div id="app-footer"></div>
+  <div id="app-footer" data-include="footer"></div>
 
-  <!-- Loader de header/footer + guard (correto) -->
-  <script src="/assets/layout.js?v=20250904e" defer></script>
+  <!-- Loader oficial (se funcionar, ótimo) -->
+  <script src="/assets/layout.js?v=20250904i" defer></script>
+
+  <!-- FALLBACK embutido: injeta header/footer se o layout.js falhar -->
+  <script>
+    (function () {
+      function ready(fn){ if (document.readyState !== 'loading') fn(); else document.addEventListener('DOMContentLoaded', fn); }
+      function tryFetch(urls, ok, fail){
+        var i=0; (function next(){
+          if(i>=urls.length) return fail && fail(new Error('Falha em: '+urls.join(', ')));
+          var u = urls[i++]; if(u.indexOf('?')<0) u += (u.indexOf('#')>-1?'':'') + '?v=' + Date.now();
+          fetch(u, {cache:'no-store'}).then(function(r){ return r.ok ? r.text() : Promise.reject(); })
+            .then(function(html){ ok && ok(html); }).catch(next);
+        })();
+      }
+      function injectInto(el, urls){
+        if(!el) return;
+        tryFetch(urls, function(html){ el.innerHTML = html; }, function(){ /* silencioso */ });
+      }
+      function bootFallback(){
+        if (window.__layoutBooted) return; // layout oficial rodou
+        var headerEl = document.getElementById('app-header') || document.querySelector('[data-include="header"]');
+        var footerEl = document.getElementById('app-footer') || document.querySelector('[data-include="footer"]');
+        injectInto(headerEl, ['/partials/header.html','../partials/header.html']);
+        injectInto(footerEl, ['/partials/footer.html','../partials/footer.html']);
+        try { console.warn('[login-fallback] layout.js indisponível — header/footer injetados.'); } catch(e){}
+      }
+      ready(function(){ setTimeout(bootFallback, 800); }); // dá chance ao layout.js; se falhar, cai no fallback
+    })();
+  </script>
 
   <script>
     (function () {
@@ -80,16 +108,14 @@
       } catch(e) {}
 
       function getLoginAuth() {
-        if (!(window.firebase && firebase.app)) {
-          throw new Error('SDK do Firebase não carregado.');
-        }
+        if (!(window.firebase && firebase.app)) throw new Error('SDK do Firebase não carregado.');
         let rootApp;
         try { rootApp = firebase.app(); }
         catch (e) { throw new Error('App DEFAULT não inicializado. Verifique /assets/firebase-init.js.'); }
 
         const cfg = rootApp.options || {};
         if ((cfg.apiKey || '').toUpperCase() === 'PASTE_API_KEY') {
-          console.error('Config com PASTE_API_KEY detectada — verifique firebase-init.js');
+          console.error('Config com PASTE_API_KEY — verifique firebase-init.js');
           throw new Error('Config inválida (PASTE_API_KEY).');
         }
         const loginApp =
@@ -163,8 +189,8 @@
         }
       }
 
-      $form.addEventListener('submit', doLogin);
-      $forgot.addEventListener('click', doReset);
+      document.getElementById('login-form').addEventListener('submit', doLogin);
+      document.getElementById('forgot').addEventListener('click', doReset);
     })();
   </script>
 </body>
