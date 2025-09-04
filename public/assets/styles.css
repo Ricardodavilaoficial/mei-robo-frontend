@@ -179,3 +179,7 @@ pre#out {
   .brand-logo { width: 32px; height: 32px; }
   .brand-name { font-size: 18px; }
 }
+
+/* promo: logo maior no header (mei-robo-icon) */
+#app-header img[src$="mei-robo-icon.png"]{width:180px;height:auto;vertical-align:middle}
+@media (min-width:768px){#app-header img[src$="mei-robo-icon.png"]{width:220px}}
