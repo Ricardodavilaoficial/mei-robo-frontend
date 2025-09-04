@@ -25,13 +25,18 @@
       <h2>Admin • Cupons</h2>
       <p class="note">Acesso restrito. Somente administrador.</p>
 
-      <!-- Badge versão -->
       <div class="note" style="margin:8px 0; display:flex; gap:12px; align-items:center; flex-wrap:wrap;">
         <span><strong>Versão:</strong> diag5</span>
-        <span id="adminBadge" class="badge" style="padding:2px 6px;border-radius:6px;background:#1b2a33;">status: <code id="admFlag">desconhecido</code></span>
+        <span id="adminBadge" class="badge" style="padding:2px 6px;border-radius:6px;background:#1b2a33;">status: <code id="admFlag">verificando…</code></span>
       </div>
 
-      <!-- Último cupom gerado -->
+      <!-- Aviso para não-admin -->
+      <div id="nonAdminBanner" class="card" style="display:none; margin:12px 0; background:#2a1210; border:1px solid #5a2a20;">
+        <strong>Sem acesso.</strong> Esta área é exclusiva de administradores.
+        Faça login com a conta de administrador para continuar.
+      </div>
+
+      <!-- Último cupom gerado (apenas admin) -->
       <div id="last-coupon" class="note" style="display:none; margin:8px 0;">
         <strong>Último cupom:</strong>
         <code id="last-code"></code>
@@ -46,29 +51,16 @@
           <span class="note">Token: <span id="tok">-</span></span>
           <span class="note">Firebase: <code id="fbStatus">-</code></span>
           <button class="btn secondary" id="refreshToken" type="button">Atualizar token</button>
-          <button class="btn secondary" id="listScripts" type="button">Listar scripts</button>
           <button class="btn secondary" id="diagnosticar" type="button">Diagnosticar rotas</button>
           <button class="btn danger" id="stopScan" type="button" title="Cancela a varredura atual">Parar varredura</button>
         </div>
       </div>
 
-      <!-- Chave “dev” (a UI continua, mas não fura segurança do backend) -->
-      <div id="admin-gate" class="card" style="margin-top:12px; background:#0c171d;">
-        <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
-          <label>
-            <input type="checkbox" id="toggleAdmin" />
-            Eu sou administrador (dev)
-          </label>
-          <button class="btn secondary" id="saveGate" type="button">Aplicar</button>
-          <span class="note">Flag salva em <code>localStorage.isAdmin</code> (somente visual)</span>
-        </div>
-      </div>
-
+      <!-- Área admin -->
       <div id="admin-area" style="display:none; margin-top:14px;">
         <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
           <button class="btn" id="gerar" type="button">Gerar cupom</button>
           <button class="btn secondary" id="listar" type="button">Atualizar lista</button>
-          <span id="noAdminMsg" class="note" style="display:none;">Você não tem permissão para gerar cupons.</span>
         </div>
 
         <div class="grid grid-2" style="margin-top:12px">
@@ -84,7 +76,7 @@
 
         <pre id="out" style="margin-top:12px; white-space:pre-wrap"></pre>
 
-        <table class="table" id="tbl" style="margin-top:8px;">
+        <table class="table" id="tbl" style="margin-top:8px; display:none;">
           <thead>
             <tr><th>código</th><th>status</th><th>criadoEm</th><th>expiraEm</th></tr>
           </thead>
@@ -101,17 +93,12 @@
 
     function lsGet(key) { try { return window.localStorage.getItem(key); } catch { return null; } }
     function lsSet(key, val) { try { window.localStorage.setItem(key, val); } catch {} }
+    function lsDel(key) { try { window.localStorage.removeItem(key); } catch {} }
     const token = () => lsGet('idToken') || '';
-
-    function gateApply(){
-      const isAdminGate = lsGet('isAdmin') === 'true';
-      document.getElementById('toggleAdmin').checked = isAdminGate;
-      // Área visível = gate (dev) ON ou não — deixamos visível para listar/copiar mesmo sem admin
-      document.getElementById('admin-area').style.display = '';
-    }
 
     function setOut(msg){
       const el = document.getElementById('out');
+      if(!el) return;
       if(msg == null || msg === '') { el.textContent = ''; return; }
       if(typeof msg === 'string') el.textContent = msg;
       else {
@@ -141,7 +128,7 @@
       }
     }
 
-    // Badge "último cupom"
+    // “Último cupom” (apenas admin)
     function showLastCoupon(code, via){
       const box = document.getElementById('last-coupon');
       const elCode = document.getElementById('last-code');
@@ -182,43 +169,69 @@
         });
         if (!r.ok) return false;
         const j = await r.json().catch(()=> ({}));
-        if (j === null || typeof j !== "object") return false;
-        if (j.admin === true || j.is_admin === true) return true;
-        if (j.role === "admin") return true;
-        if (Array.isArray(j.roles) && j.roles.includes("admin")) return true;
-        if (j.claims && (j.claims.admin === true || j.claims.is_admin === true)) return true;
+        if (j && (j.admin === true || j.is_admin === true)) return true;
+        if (j && j.role === "admin") return true;
+        if (j && Array.isArray(j.roles) && j.roles.includes("admin")) return true;
+        if (j && j.claims && (j.claims.admin === true || j.claims.is_admin === true)) return true;
         return false;
       }catch{ return false; }
     }
 
-    // Aplica estado admin na UI (bloqueia geração p/ não-admin)
+    // Aplica/força UI de admin vs não-admin
     async function applyWhoamiAdmin(){
       const adm = await isAdminUser();
-      const gerarBtn = document.getElementById('gerar');
-      const noAdminMsg = document.getElementById('noAdminMsg');
-      const admFlag = document.getElementById('admFlag');
+
+      const adminArea    = document.getElementById('admin-area');
+      const nonAdmin     = document.getElementById('nonAdminBanner');
+      const gerarBtn     = document.getElementById('gerar');
+      const listarBtn    = document.getElementById('listar');
+      const table        = document.getElementById('tbl');
+      const admFlag      = document.getElementById('admFlag');
+      const badge        = document.getElementById('adminBadge');
+      const lastBox      = document.getElementById('last-coupon');
 
       if (adm) {
+        adminArea.style.display = '';
+        nonAdmin.style.display  = 'none';
         gerarBtn.disabled = false;
-        gerarBtn.title = "Gerar cupom (admin)";
-        noAdminMsg.style.display = 'none';
+        listarBtn.disabled = false;
+        table.style.display = ''; // só admins veem a tabela
         admFlag.textContent = 'admin';
-        document.getElementById('adminBadge').style.background = '#10331b';
+        badge.style.background = '#10331b';
+
+        // restaura “último cupom” só para admin
+        try {
+          const raw = lsGet('lastCoupon');
+          if (raw) {
+            const obj = JSON.parse(raw);
+            showLastCoupon(obj.code, obj.via);
+          } else {
+            lastBox.style.display = 'none';
+          }
+        } catch { lastBox.style.display = 'none'; }
+
       } else {
+        adminArea.style.display = ''; // mantemos a casca para mensagem “Sem acesso”
+        nonAdmin.style.display  = '';
         gerarBtn.disabled = true;
-        gerarBtn.title = "Somente administrador pode gerar cupons";
-        noAdminMsg.style.display = '';
+        listarBtn.disabled = true;  // não permite listar
+        table.style.display = 'none';
         admFlag.textContent = 'não-admin';
-        document.getElementById('adminBadge').style.background = '#311b10';
+        badge.style.background = '#311b10';
+
+        // limpa qualquer vestígio local de cupom
+        lsDel('lastCoupon');
+        lastBox.style.display = 'none';
+        setOut(''); // limpa console da área de saída
       }
+
       return adm;
     }
 
-    // ====== GERAR ======
+    // ====== GERAR (apenas admin; backend também exige) ======
     async function gerar(){
       setOut('Gerando cupom…');
 
-      // Hard stop para não-admin: nem chama backend
       const canAdmin = await isAdminUser();
       if (!canAdmin) {
         setOut({ erro: "Permissão negada", detalhe: "Somente administrador pode gerar cupons." });
@@ -245,11 +258,9 @@
       }
 
       try{
-        // rota oficial de admin (backend também protege)
-        let via  = "admin";
         let resp = await postJson(ABS_API + "/admin/cupons", bodyAdmin);
 
-        // fallback defensivo: /gerar-cupom também é admin_required no backend
+        // fallback defensivo: /gerar-cupom (também admin_required no backend)
         if ([404,405].includes(resp.status)) {
           resp = await postJson(ABS_API + "/gerar-cupom", bodyAdmin);
         }
@@ -261,20 +272,29 @@
 
         const cup = resp.data || {};
         const codigo = cup.codigo || cup.code || "(sem código)";
-        saveLastCoupon(codigo, via);
+        saveLastCoupon(codigo, "admin");
+        setOut({ ok:true, via:"admin", cupom: codigo, resposta: cup });
 
-        setOut({ ok:true, via, cupom: codigo, resposta: cup });
         await listar();
       } catch(err){
         setOut({ erro: "Falha ao gerar cupom", detalhe: String(err.message || err) });
       }
     }
 
-    // ====== LISTAR (usa /__list) ======
+    // ====== LISTAR (somente admin; usa /__list) ======
     async function listar(){
+      const canAdmin = await isAdminUser();
+      if (!canAdmin) {
+        setOut({ erro:'Sem permissão', detalhe:'Somente administradores podem listar cupons.' });
+        return;
+      }
+
       setOut('Listando cupons…');
       const tb = document.querySelector('#tbl tbody');
+      const table = document.getElementById('tbl');
       tb.innerHTML = '';
+      table.style.display = 'none';
+
       try{
         const t = token();
         const headers = {};
@@ -302,27 +322,20 @@
           tb.appendChild(tr);
         }
 
+        table.style.display = '';
         setOut({ ok:true, itens: arr.length });
       }catch(err){
         setOut({ erro:'Falha ao listar cupons', detalhe: String(err).slice(0,200) });
       }
     }
 
-    // ---- Ferramentas / Diagnóstico ----
-    function listScriptsSafe(){
-      const out = [];
-      for (let i=0; i<document.scripts.length; i++) {
-        const s = document.scripts[i];
-        out.push(s.src ? s.src : '(inline)');
-      }
-      setOut(out.join('\n'));
-      console.log('Scripts:', out);
-    }
-
+    // ---- Diagnóstico (só admin usa na prática) ----
     async function diagnosticarRotas(){
+      const canAdmin = await isAdminUser();
+      if (!canAdmin) { setOut('Diagnóstico indisponível para não-admin.'); return; }
+
       try {
         setOut('Diagnosticando rotas…');
-        if (typeof firebase === 'undefined') { setOut('Firebase indisponível. Recarregue com Ctrl+F5.'); return; }
         const u = firebase.auth().currentUser;
         if(!u){ setOut('Sem usuário logado. Faça login primeiro.'); return; }
         const tok = await u.getIdToken(true);
@@ -338,7 +351,6 @@
               body: needsJson ? JSON.stringify(body||{origem:"admin-cupons"}) : undefined
             });
           } catch(e) {
-            console.log(method, path, '-> FETCH_ERR', String(e));
             return { path, method, status:'FETCH_ERR', allow:'-', acam:'-', sample:String(e) };
           }
           const allow = res.headers.get('allow') || '-';
@@ -347,20 +359,12 @@
           let text;
           try { text = ct.includes('application/json') ? JSON.stringify(await res.json()) : await res.text(); }
           catch(e) { text = '(sem corpo)'; }
-          const row = { path, method, status: res.status, allow, acam, sample: (text||'').replace(/\s+/g,' ').slice(0,160) };
-          console.log(row);
-          return row;
+          return { path, method, status: res.status, allow, acam, sample: (text||'').replace(/\s+/g,' ').slice(0,160) };
         }
 
         const rows = [];
-        const adm = await isAdminUser();
-        if (adm) {
-          rows.push(await ping("/admin/cupons", "POST", {diasValidade:3,prefixo:"MEI"}));
-          rows.push(await ping("/gerar-cupom", "POST", {diasValidade:3,prefixo:"MEI"}));
-        } else {
-          rows.push({ path:"/admin/cupons", method:"POST", status:"(não testado)", allow:"-", acam:"-", sample:"usuário não-admin" });
-          rows.push({ path:"/gerar-cupom", method:"POST", status:"(não testado)", allow:"-", acam:"-", sample:"usuário não-admin" });
-        }
+        rows.push(await ping("/admin/cupons", "POST", {diasValidade:3,prefixo:"MEI"}));
+        rows.push(await ping("/gerar-cupom", "POST", {diasValidade:3,prefixo:"MEI"}));
         rows.push(await ping("/__list?col=cuponsAtivacao&limit=5", "GET"));
 
         setOut("Resultado da sonda:\n" + rows.map(r => `${r.method} ${r.path} -> ${r.status} | Allow: ${r.allow} | ACAM: ${r.acam} | ${r.sample}…`).join('\n'));
@@ -371,43 +375,7 @@
 
     // Bindings
     window.addEventListener('DOMContentLoaded', async () => {
-      gateApply();
-
-      document.getElementById('saveGate').onclick = () => {
-        const v = document.getElementById('toggleAdmin').checked;
-        lsSet('isAdmin', v ? 'true' : 'false');
-        gateApply();
-      };
-      document.getElementById('gerar').onclick = gerar;
-      document.getElementById('listar').onclick = listar;
-      document.getElementById('stopScan').onclick = () => stopScan('botão parar');
-
-      const btn = document.getElementById('refreshToken');
-      if(btn) btn.onclick = refreshIdToken;
-
-      const lsBtn = document.getElementById('listScripts');
-      if(lsBtn) lsBtn.onclick = listScriptsSafe;
-
-      const dgBtn = document.getElementById('diagnosticar');
-      if(dgBtn) dgBtn.onclick = diagnosticarRotas;
-
-      const btnCopy = document.getElementById('copyLast');
-      if (btnCopy) btnCopy.onclick = async () => {
-        const code = (document.getElementById('last-code').textContent || '').trim();
-        if (!code) return;
-        try { await navigator.clipboard.writeText(code); setOut('Código copiado ✔'); }
-        catch { setOut('Não foi possível copiar automaticamente.'); }
-      };
-
-      // Restaura último cupom salvo (UX)
-      try {
-        const raw = lsGet('lastCoupon');
-        if (raw) {
-          const obj = JSON.parse(raw);
-          showLastCoupon(obj.code, obj.via);
-        }
-      } catch {}
-
+      // Header
       try {
         if (typeof firebase !== 'undefined') {
           firebase.auth().onAuthStateChanged(async u => {
@@ -419,13 +387,26 @@
           await applyWhoamiAdmin();
         }
       } catch(e) {
-        console.warn('AuthState listener falhou:', e);
         updateAuthUI(null);
         await applyWhoamiAdmin();
       }
 
-      // Carrega lista ao abrir
-      listar();
+      // Botões
+      document.getElementById('refreshToken').onclick = refreshIdToken;
+      document.getElementById('gerar').onclick = gerar;
+      document.getElementById('listar').onclick = listar;
+      document.getElementById('diagnosticar').onclick = diagnosticarRotas;
+      document.getElementById('stopScan').onclick = () => stopScan('botão parar');
+
+      const btnCopy = document.getElementById('copyLast');
+      if (btnCopy) btnCopy.onclick = async () => {
+        const code = (document.getElementById('last-code').textContent || '').trim();
+        if (!code) return;
+        try { await navigator.clipboard.writeText(code); setOut('Código copiado ✔'); }
+        catch { setOut('Não foi possível copiar automaticamente.'); }
+      };
+
+      // NÃO chamamos listar() automaticamente — somente quando admin clicar.
     });
   </script>
 </body>
