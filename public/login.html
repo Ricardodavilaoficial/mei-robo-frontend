@@ -5,9 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Entrar — MEI Robô</title>
 
-  <!-- Estilos canônicos (usar caminho absoluto já que estamos em /pages/) -->
   <link rel="stylesheet" href="/assets/styles.css" />
-  <!-- Evita 404 de favicon no console -->
   <link rel="icon" href="data:,">
 
   <!-- Firebase SDK v8 (compat) — ORDEM IMPORTA -->
@@ -20,13 +18,9 @@
 
   <!-- Patch de rotas (geral do app) -->
   <script src="/assets/backend-patch.js" defer></script>
-
-  <!-- Loader de header/footer -->
-  <script src="/assets/firebase-init.js?v=login6"></script>
-
-
 </head>
 <body>
+  <!-- Cabeçalho via parcial -->
   <div id="app-header"></div>
 
   <main class="section">
@@ -47,7 +41,7 @@
 
           <div class="actions" style="margin-top:12px">
             <button class="cta" id="btn-login" type="submit">Entrar</button>
-            <a class="btn-secondary" href="./cadastro.html">Criar conta</a>
+            <a class="btn-secondary" href="/cadastro.html">Criar conta</a>
           </div>
 
           <p id="msg" class="hint" style="margin-top:10px"></p>
@@ -57,7 +51,11 @@
     </div>
   </main>
 
+  <!-- Rodapé via parcial -->
   <div id="app-footer"></div>
+
+  <!-- Loader de header/footer + guard (agora correto) -->
+  <script src="/assets/layout.js?v=20250904d" defer></script>
 
   <script>
     (function () {
@@ -140,7 +138,8 @@
           console.log('Login OK — UID:', user.uid, 'IDToken(ini):', idt.slice(0,25), '...');
           say('Login OK! Redirecionando…', true);
 
-          window.location.href = '/pages/dashboard.html';
+          // destino correto na raiz do Hosting
+          window.location.href = '/dashboard.html';
         }catch(err){
           const code = err && err.code ? String(err.code) : '';
           if(code === 'auth/user-not-found') say('Usuário não encontrado.');
@@ -163,7 +162,12 @@
 
         try{
           const auth = getLoginAuth();
-          await auth.sendPasswordResetEmail(email);
+          // ajuste opcional seguro de retorno
+          const actionCodeSettings = {
+            url: 'https://mei-robo-prod.web.app/login.html',
+            handleCodeInApp: false
+          };
+          await auth.sendPasswordResetEmail(email, actionCodeSettings);
           say('Enviamos um link de redefinição para o seu e-mail.', true);
         }catch(err){
           say('Falha ao enviar e-mail de redefinição: ' + (err.message || err));
