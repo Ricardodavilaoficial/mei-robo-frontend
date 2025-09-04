@@ -2,7 +2,7 @@
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8" />
-  <title>ADMIN — Cupons</title>
+  <title>ADMIN — Cupons (diag2)</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
 
   <!-- Estilos canônicos -->
@@ -21,6 +21,7 @@
 
   <!-- Loader de header/footer e demais iniciais do app -->
   <script defer src="/assets/layout.js"></script>
+  <!-- DIAG_VERSION=2 -->
 </head>
 <body>
   <div id="app-header"></div>
@@ -29,6 +30,11 @@
     <div class="card">
       <h2>Admin • Cupons</h2>
       <p class="note">Acesso restrito. Somente administrador.</p>
+
+      <!-- 🔖 Badge de versão visível -->
+      <div class="note" style="margin:8px 0;">
+        <strong>Versão:</strong> diag2
+      </div>
 
       <!-- 🔎 Painel de status de autenticação (exibição/ação segura) -->
       <div class="card" style="margin-top:12px; background:#0c171d;">
@@ -86,11 +92,11 @@
   <div id="app-footer"></div>
 
   <script>
-    // Acesso "seguro" ao localStorage (alguns navegadores podem bloquear)
+    // Acesso "seguro" ao localStorage
     function lsGet(key) { try { return window.localStorage.getItem(key); } catch { return null; } }
     function lsSet(key, val) { try { window.localStorage.setItem(key, val); } catch {} }
 
-    const token = () => lsGet('idToken') || ''; // Enviaremos se existir
+    const token = () => lsGet('idToken') || '';
 
     function gateApply(){
       const isAdmin = lsGet('isAdmin') === 'true';
@@ -146,7 +152,7 @@
         const t = token();
         if (t) headers['Authorization'] = 'Bearer ' + t;
 
-        // Caminho relativo: backend-patch.js reescreve -> https://mei-robo-prod.onrender.com/licencas/gerar-cupom
+        // backend-patch.js reescreve -> https://mei-robo-prod.onrender.com/licencas/gerar-cupom
         const r = await fetch('/gerar-cupom', {
           method:'POST',
           headers,
@@ -175,7 +181,7 @@
         const t = token();
         if (t) headers['Authorization'] = 'Bearer ' + t;
 
-        // Caminho relativo: backend-patch.js reescreve -> https://mei-robo-prod.onrender.com/licencas/cupons (mapeado no patch)
+        // backend-patch.js reescreve -> https://mei-robo-prod.onrender.com/licencas/cupons
         const r = await fetch('/cupons', { headers });
         const ct = r.headers.get('content-type') || '';
         if(!r.ok){
@@ -210,7 +216,7 @@
       }
     }
 
-    // 🔧 util simples p/ listar scripts sem usar spread (...)
+    // 🔧 util: listar scripts sem spread (...)
     function listScriptsSafe(){
       var out = [];
       for (var i=0; i<document.scripts.length; i++) {
@@ -239,7 +245,7 @@
             });
           } catch(e) {
             console.log(method, path, '-> FETCH_ERR', String(e));
-            return { path, method, status:'FETCH_ERR', allow:'-', text:String(e) };
+            return { path, method, status:'FETCH_ERR', allow:'-', sample:String(e) };
           }
           const allow = res.headers.get('allow') || '-';
           const ct = res.headers.get('content-type') || '';
