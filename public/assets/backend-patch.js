@@ -24,7 +24,7 @@
   // Mapeamentos específicos de caminho → novo caminho no backend
   function mapPath(path) {
     // Se a tela chamar /gerar-cupom, preferimos a rota sob /licencas
-    if (path === "/gerar-cupom") return "/licencas/gerar-cupom";
+    if (path === "/gerar-cupom") return "/admin/cupons";
     // Mantém o restante como está
     return path;
   }
