@@ -183,3 +183,7 @@ pre#out {
 /* promo: logo maior no header (mei-robo-icon) */
 #app-header img[src$="mei-robo-icon.png"]{width:180px;height:auto;vertical-align:middle}
 @media (min-width:768px){#app-header img[src$="mei-robo-icon.png"]{width:220px}}
+
+/* promo: for‡a logo maior no header (override) */
+#app-header img[src$="mei-robo-icon.png"]{width:220px !important;height:auto !important;vertical-align:middle}
+@media (min-width:768px){#app-header img[src$="mei-robo-icon.png"]{width:260px !important}}
