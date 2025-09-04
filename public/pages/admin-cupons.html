@@ -30,12 +30,15 @@
       <h2>Admin • Cupons</h2>
       <p class="note">Acesso restrito. Somente administrador.</p>
 
-      <!-- 🔎 Painel de status de autenticação (apenas exibição/ação segura) -->
+      <!-- 🔎 Painel de status de autenticação (exibição/ação segura) -->
       <div class="card" style="margin-top:12px; background:#0c171d;">
         <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
           <span class="note">UID: <code id="uid">-</code></span>
           <span class="note">Token: <span id="tok">-</span></span>
+          <span class="note">Firebase: <code id="fbStatus">-</code></span>
           <button class="btn secondary" id="refreshToken" type="button" title="Força refresh e salva em localStorage.idToken">Atualizar token</button>
+          <button class="btn secondary" id="listScripts" type="button" title="Lista scripts carregados">Listar scripts</button>
+          <button class="btn secondary" id="diagnosticar" type="button" title="Testa rotas/métodos e mostra status">Diagnosticar rotas</button>
         </div>
       </div>
 
@@ -67,7 +70,7 @@
           </div>
         </div>
 
-        <pre id="out" style="margin-top:12px"></pre>
+        <pre id="out" style="margin-top:12px; white-space:pre-wrap"></pre>
 
         <h3 style="margin-top:20px">Cupons</h3>
         <table class="table" id="tbl">
@@ -109,13 +112,16 @@
     function updateAuthUI(u){
       const uidEl = document.getElementById('uid');
       const tokEl = document.getElementById('tok');
+      const fbEl  = document.getElementById('fbStatus');
       uidEl.textContent = u ? (u.uid || '-') : '-';
       const t = token();
       tokEl.textContent = t ? 'token_ok' : '-';
+      fbEl.textContent = (typeof window.firebase !== 'undefined') ? 'ok' : 'indisponível';
     }
 
     async function refreshIdToken(){
       try{
+        if (typeof firebase === 'undefined') { setOut('Firebase indisponível. Recarregue a página (Ctrl+F5).'); updateAuthUI(null); return; }
         const u = firebase.auth().currentUser;
         if(!u){ setOut('Sem usuário logado. Faça login.'); updateAuthUI(null); return; }
         const t = await u.getIdToken(true);
@@ -204,6 +210,66 @@
       }
     }
 
+    // 🔧 util simples p/ listar scripts sem usar spread (...)
+    function listScriptsSafe(){
+      var out = [];
+      for (var i=0; i<document.scripts.length; i++) {
+        var s = document.scripts[i];
+        out.push(s.src ? s.src : '(inline)');
+      }
+      setOut(out.join('\n'));
+      console.log('Scripts:', out);
+    }
+
+    async function diagnosticarRotas(){
+      try {
+        setOut('Diagnosticando rotas…');
+        if (typeof firebase === 'undefined') { setOut('Firebase indisponível. Recarregue com Ctrl+F5.'); return; }
+        const u = firebase.auth().currentUser;
+        if(!u){ setOut('Sem usuário logado. Faça login primeiro.'); return; }
+        const tok = await u.getIdToken(true);
+        const base = "https://mei-robo-prod.onrender.com";
+        async function ping(path, method, body){
+          let res;
+          try {
+            res = await fetch(base + path, {
+              method, mode:"cors",
+              headers: { "Authorization":"Bearer "+tok, ...(method==="POST"?{"Content-Type":"application/json"}:{}) },
+              body: method==="POST" ? JSON.stringify(body||{origem:"admin-cupons"}) : undefined
+            });
+          } catch(e) {
+            console.log(method, path, '-> FETCH_ERR', String(e));
+            return { path, method, status:'FETCH_ERR', allow:'-', text:String(e) };
+          }
+          const allow = res.headers.get('allow') || '-';
+          const ct = res.headers.get('content-type') || '';
+          let text;
+          try {
+            if (ct.includes('application/json')) {
+              text = JSON.stringify(await res.json());
+            } else {
+              text = await res.text();
+            }
+          } catch(e) { text = '(sem corpo)'; }
+          const row = { path, method, status: res.status, allow, sample: (text||'').replace(/\s+/g,' ').slice(0,160) };
+          console.log(row);
+          return row;
+        }
+
+        const rows = [];
+        rows.push(await ping("/licencas/gerar-cupom", "POST"));
+        rows.push(await ping("/licencas/gerar-cupom", "GET"));
+        rows.push(await ping("/cupons/gerar", "POST"));
+        rows.push(await ping("/cupons/gerar", "GET"));
+        rows.push(await ping("/licencas/cupons", "GET"));
+        rows.push(await ping("/cupons", "GET"));
+
+        setOut("Resultado da sonda:\n" + rows.map(r => `${r.method} ${r.path} -> ${r.status} | Allow: ${r.allow} | ${r.sample}…`).join('\n'));
+      } catch (err) {
+        setOut({ erro: 'Falha no diagnóstico', detalhe: err.message });
+      }
+    }
+
     window.addEventListener('DOMContentLoaded', () => {
       gateApply();
       document.getElementById('saveGate').onclick = () => {
@@ -218,8 +284,18 @@
       const btn = document.getElementById('refreshToken');
       if(btn) btn.onclick = refreshIdToken;
 
+      const lsBtn = document.getElementById('listScripts');
+      if(lsBtn) lsBtn.onclick = listScriptsSafe;
+
+      const dgBtn = document.getElementById('diagnosticar');
+      if(dgBtn) dgBtn.onclick = diagnosticarRotas;
+
       try {
-        firebase.auth().onAuthStateChanged(u => updateAuthUI(u || null));
+        if (typeof firebase !== 'undefined') {
+          firebase.auth().onAuthStateChanged(u => updateAuthUI(u || null));
+        } else {
+          updateAuthUI(null);
+        }
       } catch(e) {
         console.warn('AuthState listener falhou:', e);
         updateAuthUI(null);
