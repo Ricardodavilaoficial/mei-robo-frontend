@@ -1,22 +1,29 @@
-<!-- header.html — canônico com marca destacada -->
-<!-- IMPORTANTE: esta linha carrega o patch que envia somente as rotas de API ao backend em produção -->
-<script src="/assets/backend-patch.js"></script>
-
-<header class="site">
-  <div class="inner header-inner">
-    <a href="/pages/dashboard.html" class="brand" aria-label="MEI Robô — Dashboard">
-      <img class="brand-logo" src="/assets/mei-robo-icon.png" alt="Ícone MEI Robô" />
-      <span class="brand-name">MEI Robô</span>
+<!-- public/partials/header.html -->
+<header class="site-header" style="position:sticky;top:0;z-index:1000;background:#0b1f17;color:#fff;border-bottom:1px solid rgba(255,255,255,.08);">
+  <div class="container" style="max-width:1100px;margin:0 auto;padding:10px 16px;display:flex;align-items:center;gap:16px;">
+    <!-- Marca -->
+    <a href="/index.html" style="display:flex;align-items:center;gap:10px;text-decoration:none;color:inherit;">
+      <img src="/assets/img/logo.png" alt="MEI Robô" width="32" height="32" style="display:block;border-radius:6px;object-fit:cover;">
+      <strong style="font-size:16px;letter-spacing:.2px;">MEI Robô</strong>
     </a>
 
-    <nav class="main-nav" aria-label="Navegação principal">
-      <ul>
-        <li><a href="/pages/dashboard.html">Dashboard</a></li>
-        <li><a href="/pages/agenda.html">Agenda</a></li>
-        <li><a href="/pages/ativar.html">Ativar</a></li>
-        <li><a href="/pages/admin-cupons.html">Admin Cupons</a></li>
-        <li><a href="/pages/configuracao.html">Configuração</a></li>
-      </ul>
+    <div style="flex:1"></div>
+
+    <!-- Navegação básica (âncoras seguras) -->
+    <nav aria-label="Menu principal" style="display:flex;gap:14px;align-items:center;">
+      <a href="/index.html" style="color:#cfe8dd;text-decoration:none;font-size:14px;">Início</a>
+      <a href="/#como-funciona" style="color:#cfe8dd;text-decoration:none;font-size:14px;">Como funciona</a>
+      <a href="/#recursos" style="color:#cfe8dd;text-decoration:none;font-size:14px;">Recursos</a>
+      <a href="/#precos" style="color:#cfe8dd;text-decoration:none;font-size:14px;">Preços</a>
+      <a href="/#contato" style="color:#cfe8dd;text-decoration:none;font-size:14px;">Contato</a>
     </nav>
+
+    <!-- Ações -->
+    <div class="actions" style="display:flex;gap:10px;align-items:center;margin-left:8px;">
+      <a href="/login.html" style="color:#cfe8dd;text-decoration:none;font-size:14px;">Entrar</a>
+      <a href="/cadastro.html" style="background:#22c55e;color:#0b1f17;text-decoration:none;font-weight:600;font-size:14px;padding:8px 12px;border-radius:10px;display:inline-block;">
+        Quero usar o MEI Robô
+      </a>
+    </div>
   </div>
 </header>
