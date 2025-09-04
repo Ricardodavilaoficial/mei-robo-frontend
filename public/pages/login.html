@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+c<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
   <meta charset="utf-8" />
@@ -54,17 +54,17 @@
   <!-- Rodapé via parcial -->
   <div id="app-footer" data-include="footer"></div>
 
-  <!-- Loader oficial (se funcionar, ótimo) -->
-  <script src="/assets/layout.js?v=20250904i" defer></script>
+  <!-- Tentativa oficial (se funcionar, ótimo) -->
+  <script src="/assets/layout.js" defer></script>
 
-  <!-- FALLBACK embutido: injeta header/footer se o layout.js falhar -->
+  <!-- login-fallback: injeta header/footer se o layout.js falhar -->
   <script>
     (function () {
       function ready(fn){ if (document.readyState !== 'loading') fn(); else document.addEventListener('DOMContentLoaded', fn); }
       function tryFetch(urls, ok, fail){
         var i=0; (function next(){
           if(i>=urls.length) return fail && fail(new Error('Falha em: '+urls.join(', ')));
-          var u = urls[i++]; if(u.indexOf('?')<0) u += (u.indexOf('#')>-1?'':'') + '?v=' + Date.now();
+          var u = urls[i++]; if(u.indexOf('?')<0) u += '?v=' + Date.now();
           fetch(u, {cache:'no-store'}).then(function(r){ return r.ok ? r.text() : Promise.reject(); })
             .then(function(html){ ok && ok(html); }).catch(next);
         })();
@@ -74,14 +74,14 @@
         tryFetch(urls, function(html){ el.innerHTML = html; }, function(){ /* silencioso */ });
       }
       function bootFallback(){
-        if (window.__layoutBooted) return; // layout oficial rodou
+        if (window.__layoutBooted) return; // se o layout.js rodou, não faz nada
         var headerEl = document.getElementById('app-header') || document.querySelector('[data-include="header"]');
         var footerEl = document.getElementById('app-footer') || document.querySelector('[data-include="footer"]');
         injectInto(headerEl, ['/partials/header.html','../partials/header.html']);
         injectInto(footerEl, ['/partials/footer.html','../partials/footer.html']);
         try { console.warn('[login-fallback] layout.js indisponível — header/footer injetados.'); } catch(e){}
       }
-      ready(function(){ setTimeout(bootFallback, 800); }); // dá chance ao layout.js; se falhar, cai no fallback
+      ready(function(){ setTimeout(bootFallback, 800); }); // dá chance ao layout.js; se falhar, injeta
     })();
   </script>
 
@@ -178,7 +178,7 @@
         try{
           const auth = getLoginAuth();
           const actionCodeSettings = {
-            url: 'https://mei-robo-prod.web.app/login.html',
+            url: 'https://mei-robo-prod.web.app/pages/login.html',
             handleCodeInApp: false
           };
           await auth.sendPasswordResetEmail(email, actionCodeSettings);
