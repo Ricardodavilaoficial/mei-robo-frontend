@@ -1,4 +1,4 @@
-c<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
   <meta charset="utf-8" />
@@ -54,10 +54,7 @@ c<!DOCTYPE html>
   <!-- Rodapé via parcial -->
   <div id="app-footer" data-include="footer"></div>
 
-  <!-- Tentativa oficial (se funcionar, ótimo) -->
-  <script src="/assets/layout.js" defer></script>
-
-  <!-- login-fallback: injeta header/footer se o layout.js falhar -->
+  <!-- login-fallback: injeta header/footer se o layout.js falhar (ou se não estiver presente nesta página) -->
   <script>
     (function () {
       function ready(fn){ if (document.readyState !== 'loading') fn(); else document.addEventListener('DOMContentLoaded', fn); }
@@ -74,14 +71,13 @@ c<!DOCTYPE html>
         tryFetch(urls, function(html){ el.innerHTML = html; }, function(){ /* silencioso */ });
       }
       function bootFallback(){
-        if (window.__layoutBooted) return; // se o layout.js rodou, não faz nada
         var headerEl = document.getElementById('app-header') || document.querySelector('[data-include="header"]');
         var footerEl = document.getElementById('app-footer') || document.querySelector('[data-include="footer"]');
         injectInto(headerEl, ['/partials/header.html','../partials/header.html']);
         injectInto(footerEl, ['/partials/footer.html','../partials/footer.html']);
         try { console.warn('[login-fallback] layout.js indisponível — header/footer injetados.'); } catch(e){}
       }
-      ready(function(){ setTimeout(bootFallback, 800); }); // dá chance ao layout.js; se falhar, injeta
+      ready(function(){ setTimeout(bootFallback, 50); }); // injeta rápido nesta página
     })();
   </script>
 
