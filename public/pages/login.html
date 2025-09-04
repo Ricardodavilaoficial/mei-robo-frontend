@@ -5,9 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Entrar — MEI Robô</title>
 
-  <!-- Estilos canônicos (usar caminho absoluto já que estamos em /pages/) -->
   <link rel="stylesheet" href="/assets/styles.css" />
-  <!-- Evita 404 de favicon no console -->
   <link rel="icon" href="data:,">
 
   <!-- Firebase SDK v8 (compat) — ORDEM IMPORTA -->
@@ -20,13 +18,9 @@
 
   <!-- Patch de rotas (geral do app) -->
   <script src="/assets/backend-patch.js" defer></script>
-
-  <!-- Loader de header/footer -->
-  <script src="/assets/firebase-init.js?v=login6"></script>
-
-
 </head>
 <body>
+  <!-- Cabeçalho via parcial -->
   <div id="app-header"></div>
 
   <main class="section">
@@ -47,7 +41,7 @@
 
           <div class="actions" style="margin-top:12px">
             <button class="cta" id="btn-login" type="submit">Entrar</button>
-            <a class="btn-secondary" href="./cadastro.html">Criar conta</a>
+            <a class="btn-secondary" href="/cadastro.html">Criar conta</a>
           </div>
 
           <p id="msg" class="hint" style="margin-top:10px"></p>
@@ -57,7 +51,11 @@
     </div>
   </main>
 
+  <!-- Rodapé via parcial -->
   <div id="app-footer"></div>
+
+  <!-- Loader de header/footer + guard (correto) -->
+  <script src="/assets/layout.js?v=20250904e" defer></script>
 
   <script>
     (function () {
@@ -74,25 +72,21 @@
       }
       function lsSet(k,v){ try{ localStorage.setItem(k,v); }catch{} }
 
-      // Diagnóstico leve no carregamento
       try {
         if (window.firebase && firebase.apps) {
           const table = (firebase.apps || []).map(a => ({ name: a.name, apiKey: a.options && a.options.apiKey }));
           console.table(table);
         }
-      } catch(e) { /* silencioso */ }
+      } catch(e) {}
 
-      // === App nomeado para isolar de qualquer inicialização legada ===
       function getLoginAuth() {
         if (!(window.firebase && firebase.app)) {
           throw new Error('SDK do Firebase não carregado.');
         }
         let rootApp;
-        try {
-          rootApp = firebase.app(); // app default inicializado em /assets/firebase-init.js
-        } catch (e) {
-          throw new Error('App DEFAULT não inicializado. Verifique /assets/firebase-init.js.');
-        }
+        try { rootApp = firebase.app(); }
+        catch (e) { throw new Error('App DEFAULT não inicializado. Verifique /assets/firebase-init.js.'); }
+
         const cfg = rootApp.options || {};
         if ((cfg.apiKey || '').toUpperCase() === 'PASTE_API_KEY') {
           console.error('Config com PASTE_API_KEY detectada — verifique firebase-init.js');
@@ -100,13 +94,12 @@
         }
         const loginApp =
           (firebase.apps || []).find(a => a.name === 'loginApp') ||
-          firebase.initializeApp(cfg, 'loginApp'); // cria app nomeado
-        // Logs diagnósticos sutis
+          firebase.initializeApp(cfg, 'loginApp');
         try {
           console.log('Default apiKey:', rootApp.options.apiKey);
           console.log('loginApp apiKey:', loginApp.options.apiKey);
         } catch {}
-        return loginApp.auth();             // usa o auth do app nomeado
+        return loginApp.auth();
       }
 
       async function doLogin(e){
@@ -116,13 +109,8 @@
         if(!email || !senha){ say('Preencha e-mail e senha.'); return; }
 
         let auth;
-        try {
-          auth = getLoginAuth();
-        } catch(err) {
-          say(err.message || String(err));
-          console.error(err);
-          return;
-        }
+        try { auth = getLoginAuth(); }
+        catch(err) { say(err.message || String(err)); console.error(err); return; }
 
         $btn.disabled = true;
         const prev = $btn.textContent;
@@ -140,7 +128,7 @@
           console.log('Login OK — UID:', user.uid, 'IDToken(ini):', idt.slice(0,25), '...');
           say('Login OK! Redirecionando…', true);
 
-          window.location.href = '/pages/dashboard.html';
+          window.location.href = '/dashboard.html';
         }catch(err){
           const code = err && err.code ? String(err.code) : '';
           if(code === 'auth/user-not-found') say('Usuário não encontrado.');
@@ -163,7 +151,11 @@
 
         try{
           const auth = getLoginAuth();
-          await auth.sendPasswordResetEmail(email);
+          const actionCodeSettings = {
+            url: 'https://mei-robo-prod.web.app/login.html',
+            handleCodeInApp: false
+          };
+          await auth.sendPasswordResetEmail(email, actionCodeSettings);
           say('Enviamos um link de redefinição para o seu e-mail.', true);
         }catch(err){
           say('Falha ao enviar e-mail de redefinição: ' + (err.message || err));
