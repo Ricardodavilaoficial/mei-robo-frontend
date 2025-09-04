@@ -93,6 +93,8 @@
   <div id="app-footer"></div>
 
   <script>
+    const ABS_API = "https://mei-robo-prod.onrender.com";
+
     function lsGet(key) { try { return window.localStorage.getItem(key); } catch { return null; } }
     function lsSet(key, val) { try { window.localStorage.setItem(key, val); } catch {} }
     const token = () => lsGet('idToken') || '';
@@ -133,7 +135,7 @@
       }
     }
 
-    // ===== Controle de varredura (mantido para diagnóstico/listagem) =====
+    // ===== util: timeout + abort (para diagnósticos) =====
     let currentScan = null; // {controller, running}
     function stopScan(reason){
       if (currentScan && currentScan.controller) currentScan.controller.abort();
@@ -148,62 +150,7 @@
       return fetch(url, merged).finally(()=>clearTimeout(timer));
     }
 
-    async function tryCombos({base, auth, payload, onStep, maxTries=12}){
-      const prefixes = ["", "/api", "/api/v1", "/v1"];
-      const names = [
-        "licencas/gerar-cupom", "licencas/gerar_cupom",
-        "licencas/cupom/gerar", "cupons/gerar"
-      ];
-      const methods = ["GET","PUT","PATCH","POST"];
-      const suffixes = ["", "/"];
-
-      const controller = new AbortController();
-      currentScan = { controller, running:true };
-      let tries = 0, lastErr = null;
-
-      outer: for (const pfx of prefixes){
-        for (const name of names){
-          for (const sfx of suffixes){
-            for (const m of methods){
-              if (!currentScan) break outer;
-              if (tries >= maxTries) break outer;
-              tries++;
-              const path = `${pfx}/${name}${sfx}`.replace(/\/\/+/g,'/');
-              const headers = { ...auth };
-              let url = base + path;
-              const init = { method:m, mode:'cors', headers };
-
-              if (m === "GET"){
-                const qs = new URLSearchParams(payload).toString();
-                if (qs) url += "?" + qs;
-              } else {
-                headers['Content-Type'] = 'application/json';
-                init.body = JSON.stringify(payload);
-              }
-
-              onStep && onStep({ step:tries, method:m, path });
-
-              try{
-                const r = await fetchWithTimeout(url, init, 2500, controller.signal);
-                if (r.ok){
-                  currentScan = null;
-                  return { ok:true, res:r, via:{method:m, path} };
-                } else {
-                  const txt = await r.text().catch(()=>'(sem corpo)');
-                  lastErr = `${m} ${path} -> ${r.status}: ${txt.slice(0,140)}`;
-                }
-              }catch(e){
-                lastErr = `${m} ${path} -> ${String(e).slice(0,140)}`;
-              }
-            }
-          }
-        }
-      }
-      currentScan = null;
-      return { ok:false, err:lastErr || 'Sem rota 2xx dentro do limite de tentativas.' };
-    }
-
-    // ====== NOVO gerar(): POST direto em /admin/cupons com fallback /gerar-cupom ======
+    // ====== GERAR ======
     async function gerar(){
       setOut('Gerando cupom…');
 
@@ -216,13 +163,12 @@
       if (prefixo)  bodyAdmin.prefixo = prefixo;
       bodyAdmin.origem = "admin-cupons";
 
-      // Corpo da rota pública (fallback)
-      const bodyPublic = {
-        validadeDias: dias > 0 ? dias : 3,
-        plano: prefixo || "start"
-      };
+      // Corpo da rota pública (fallback) — estes nomes já funcionaram no cURL:
+      const bodyPublic = {};
+      if (dias > 0) bodyPublic.diasValidade = dias;        // nota: 'diasValidade' (não 'validadeDias')
+      if (prefixo)  bodyPublic.prefixo = prefixo;
+      bodyPublic.plano = "start";
 
-      const ABS_API = "https://mei-robo-prod.onrender.com";
       const headers = { "Content-Type": "application/json" };
       const t = token();
       if (t) headers["Authorization"] = "Bearer " + t;
@@ -238,7 +184,7 @@
         // 1) Tenta rota ADMIN oficial
         let resp = await postJson(ABS_API + "/admin/cupons", bodyAdmin);
 
-        // 403 => sem privilégio admin: cai para rota pública legada
+        // 403 => sem privilégio admin: usa rota pública legada (/gerar-cupom)
         if (resp.status === 403) {
           resp = await postJson(ABS_API + "/gerar-cupom", bodyPublic);
         }
@@ -255,68 +201,49 @@
       }
     }
 
+    // ====== LISTAR (usa /__list) ======
     async function listar(){
-      setOut('Listando cupons (scan limitado)…');
+      setOut('Listando cupons…');
       const tb = document.querySelector('#tbl tbody');
       tb.innerHTML = '';
       try{
         const t = token();
-        const auth = t ? { 'Authorization': 'Bearer ' + t } : {};
-        const base = "https://mei-robo-prod.onrender.com";
+        const headers = {};
+        if (t) headers["Authorization"] = "Bearer " + t;
 
-        const candidates = [
-          "/licencas/cupons", "/licencas/cupons/", "/cupons", "/cupons/",
-          "/api/licencas/cupons", "/api/cupons", "/api/v1/licencas/cupons", "/v1/licencas/cupons"
-        ];
+        const url  = ABS_API + "/__list?col=cuponsAtivacao&limit=50";
+        const r = await fetch(url, { method:"GET", mode:"cors", headers });
+        const j = await r.json();
 
-        const controller = new AbortController();
-        currentScan = { controller, running:true };
-        let okRes = null, lastErr = null, tried = 0, steps = [];
+        if (!r.ok || !j.ok) throw new Error((j.error||("status "+r.status)));
 
-        for (const path of candidates){
-          if (!currentScan || tried >= 8) break;
-          tried++;
-          steps.push(`${tried}. GET ${path}`); setOut('Tentativas:\n'+steps.join('\n'));
-          try{
-            const r = await fetchWithTimeout(base + path, { method:'GET', mode:'cors', headers:{ ...auth } }, 2500, controller.signal);
-            if (r.ok){ okRes = r; break; }
-            const txt = await r.text().catch(()=>'(sem corpo)');
-            lastErr = `GET ${path} -> ${r.status}: ${txt.slice(0,140)}`;
-          }catch(e){ lastErr = `GET ${path} -> ${String(e).slice(0,140)}`; }
-        }
-        currentScan = null;
+        const arr = j.items || [];
+        for (const c of arr){
+          const status =
+            (typeof c.usosMax !== "undefined")
+              ? ((c.usos || 0) >= (c.usosMax || 1) ? "usado" : "disponível")
+              : (c.ativo === false ? "inativo" : "ativo");
 
-        if (!okRes) throw new Error(lastErr || 'Sem rota 2xx para listagem.');
-
-        const ct = okRes.headers.get('content-type') || '';
-        let arr = [];
-        if (ct.includes('application/json')) arr = await okRes.json();
-        else {
-          const txt = await okRes.text();
-          setOut({ aviso:'Resposta de listagem não-JSON', sample: (txt||'').slice(0,160) });
-        }
-
-        (arr||[]).forEach(c => {
           const tr = document.createElement('tr');
           tr.innerHTML = `
-            <td>${c.codigo||c.code||'-'}</td>
-            <td>${c.status||'-'}</td>
-            <td>${c.criadoEm||c.createdAt||'-'}</td>
-            <td>${c.expiraEm||c.expiresAt||'-'}</td>`;
+            <td>${c.codigo ?? c.code ?? "-"}</td>
+            <td>${status}</td>
+            <td>${c.createdAt ?? c.criadoEm ?? "-"}</td>
+            <td>${c.expiraEm ?? c.validUntil ?? "-"}</td>`;
           tb.appendChild(tr);
-        });
+        }
 
-        setOut(arr && arr.length ? { ok:true, itens: arr.length } : 'Nenhum cupom cadastrado.');
+        setOut({ ok:true, itens: arr.length });
       }catch(err){
-        setOut({ erro:'Falha ao listar cupons', detalhe: err.message });
+        setOut({ erro:'Falha ao listar cupons', detalhe: String(err).slice(0,200) });
       }
     }
 
     // ---- Ferramentas / Diagnóstico (mantido) ----
     function listScriptsSafe(){
-      var out = [];
-      for (var i=0; i<document.scripts.length; i++) {
-        var s = document.scripts[i];
+      const out = [];
+      for (let i=0; i<document.scripts.length; i++) {
+        const s = document.scripts[i];
         out.push(s.src ? s.src : '(inline)');
       }
       setOut(out.join('\n'));
@@ -330,7 +257,8 @@
         const u = firebase.auth().currentUser;
         if(!u){ setOut('Sem usuário logado. Faça login primeiro.'); return; }
         const tok = await u.getIdToken(true);
-        const base = "https://mei-robo-prod.onrender.com";
+        const base = ABS_API;
+
         async function ping(path, method, body){
           let res;
           try {
@@ -355,17 +283,11 @@
         }
 
         const rows = [];
-        rows.push(await ping("/licencas/gerar-cupom", "POST"));
-        rows.push(await ping("/licencas/gerar-cupom", "GET"));
-        rows.push(await ping("/licencas/gerar-cupom/", "GET"));
-        rows.push(await ping("/licencas/gerar_cupom", "GET"));
-        rows.push(await ping("/licencas/gerar_cupom/", "GET"));
-        rows.push(await ping("/cupons/gerar", "POST"));
-        rows.push(await ping("/cupons/gerar", "GET"));
-        rows.push(await ping("/licencas/cupons", "GET"));
-        rows.push(await ping("/licencas/cupons/", "GET"));
-        rows.push(await ping("/cupons", "GET"));
-        rows.push(await ping("/cupons/", "GET"));
+        rows.push(await ping("/admin/cupons", "POST", {diasValidade:3,prefixo:"MEI"}));
+        rows.push(await ping("/gerar-cupom", "POST", {diasValidade:3,prefixo:"MEI",plano:"start"}));
+        rows.push(await ping("/licencas/gerar-cupom", "POST", {diasValidade:3}));
+        rows.push(await ping("/cupons/gerar", "POST", {diasValidade:3}));
+        rows.push(await ping("/__list?col=cuponsAtivacao&limit=5", "GET"));
 
         setOut("Resultado da sonda:\n" + rows.map(r => `${r.method} ${r.path} -> ${r.status} | Allow: ${r.allow} | ACAM: ${r.acam} | ${r.sample}…`).join('\n'));
       } catch (err) {
