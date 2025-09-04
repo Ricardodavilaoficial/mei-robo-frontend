@@ -31,9 +31,17 @@
       <h2>Admin • Cupons</h2>
       <p class="note">Acesso restrito. Somente administrador.</p>
 
-      <!-- Badge -->
+      <!-- Badge versão -->
       <div class="note" style="margin:8px 0;">
         <strong>Versão:</strong> diag5
+      </div>
+
+      <!-- NOVO: Último cupom gerado -->
+      <div id="last-coupon" class="note" style="display:none; margin:8px 0;">
+        <strong>Último cupom:</strong>
+        <code id="last-code"></code>
+        <small>(via: <span id="last-via"></span>)</small>
+        <button class="btn secondary" id="copyLast" type="button" style="margin-left:8px;">Copiar</button>
       </div>
 
       <!-- Painel de status -->
@@ -63,7 +71,6 @@
       <div id="admin-area" style="display:none; margin-top:14px;">
         <div style="display:flex; gap:10px; flex-wrap:wrap;">
           <button class="btn" id="gerar" type="button">Gerar cupom</button>
-          <button class="btn secondary" id="listar" type="button">Listar cupons</button>
         </div>
 
         <div class="grid grid-2" style="margin-top:12px">
@@ -79,8 +86,12 @@
 
         <pre id="out" style="margin-top:12px; white-space:pre-wrap"></pre>
 
-        <h3 style="margin-top:20px">Cupons</h3>
-        <table class="table" id="tbl">
+        <div style="display:flex; gap:10px; align-items:center; margin-top:12px;">
+          <h3 style="margin:0">Cupons</h3>
+          <button class="btn secondary" id="listar" type="button">Atualizar lista</button>
+        </div>
+
+        <table class="table" id="tbl" style="margin-top:8px;">
           <thead>
             <tr><th>código</th><th>status</th><th>criadoEm</th><th>expiraEm</th></tr>
           </thead>
@@ -135,7 +146,22 @@
       }
     }
 
-    // ===== util: timeout + abort (para diagnósticos) =====
+    // ===== NOVO: badge "último cupom" =====
+    function showLastCoupon(code, via){
+      const box = document.getElementById('last-coupon');
+      const elCode = document.getElementById('last-code');
+      const elVia  = document.getElementById('last-via');
+      if (!code) { box.style.display = 'none'; return; }
+      elCode.textContent = code;
+      elVia.textContent  = via || '-';
+      box.style.display  = '';
+    }
+    function saveLastCoupon(code, via){
+      try { lsSet('lastCoupon', JSON.stringify({ code, via, at: Date.now() })); } catch {}
+      showLastCoupon(code, via);
+    }
+
+    // ===== util: timeout + abort (diagnósticos) =====
     let currentScan = null; // {controller, running}
     function stopScan(reason){
       if (currentScan && currentScan.controller) currentScan.controller.abort();
@@ -163,9 +189,9 @@
       if (prefixo)  bodyAdmin.prefixo = prefixo;
       bodyAdmin.origem = "admin-cupons";
 
-      // Corpo da rota pública (fallback) — estes nomes já funcionaram no cURL:
+      // Corpo da rota pública (fallback) — já validado no cURL
       const bodyPublic = {};
-      if (dias > 0) bodyPublic.diasValidade = dias; // 'diasValidade' (não 'validadeDias')
+      if (dias > 0) bodyPublic.diasValidade = dias; // atenção: diasValidade
       if (prefixo)  bodyPublic.prefixo = prefixo;
       bodyPublic.plano = "start";
 
@@ -198,6 +224,8 @@
 
         const cup = resp.data || {};
         const codigo = cup.codigo || cup.code || "(sem código)";
+        saveLastCoupon(codigo, via); // <<< salva e mostra no badge
+
         setOut({ ok:true, via, cupom: codigo, resposta: cup });
 
         // Atualiza tabela depois de mostrar o cupom
@@ -319,6 +347,23 @@
 
       const dgBtn = document.getElementById('diagnosticar');
       if(dgBtn) dgBtn.onclick = diagnosticarRotas;
+
+      const btnCopy = document.getElementById('copyLast');
+      if (btnCopy) btnCopy.onclick = async () => {
+        const code = (document.getElementById('last-code').textContent || '').trim();
+        if (!code) return;
+        try { await navigator.clipboard.writeText(code); setOut('Código copiado ✔'); }
+        catch { setOut('Não foi possível copiar automaticamente.'); }
+      };
+
+      // Restaura último cupom salvo (UX)
+      try {
+        const raw = lsGet('lastCoupon');
+        if (raw) {
+          const obj = JSON.parse(raw);
+          showLastCoupon(obj.code, obj.via);
+        }
+      } catch {}
 
       try {
         if (typeof firebase !== 'undefined') {
