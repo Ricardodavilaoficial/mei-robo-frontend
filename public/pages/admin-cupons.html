@@ -2,7 +2,7 @@
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8" />
-  <title>ADMIN — Cupons (diag3)</title>
+  <title>ADMIN — Cupons (diag4)</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
 
   <!-- Estilos canônicos -->
@@ -16,12 +16,12 @@
   <!-- 🔹 Init (DEFAULT com apiKey real) -->
   <script src="/assets/firebase-init.js?v=login6"></script>
 
-  <!-- Patch de rotas (mantido; mas teremos fallback absoluto também) -->
+  <!-- Patch de rotas (mantido) -->
   <script src="/assets/backend-patch.js"></script>
 
   <!-- Loader de header/footer e demais iniciais do app -->
   <script defer src="/assets/layout.js"></script>
-  <!-- DIAG_VERSION=3 -->
+  <!-- DIAG_VERSION=4 -->
 </head>
 <body>
   <div id="app-header"></div>
@@ -33,10 +33,10 @@
 
       <!-- 🔖 Badge de versão visível -->
       <div class="note" style="margin:8px 0;">
-        <strong>Versão:</strong> diag3
+        <strong>Versão:</strong> diag4
       </div>
 
-      <!-- 🔎 Painel de status de autenticação (exibição/ação segura) -->
+      <!-- 🔎 Painel de status de autenticação -->
       <div class="card" style="margin-top:12px; background:#0c171d;">
         <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
           <span class="note">UID: <code id="uid">-</code></span>
@@ -120,14 +120,13 @@
       const tokEl = document.getElementById('tok');
       const fbEl  = document.getElementById('fbStatus');
       uidEl.textContent = u ? (u.uid || '-') : '-';
-      const t = token();
-      tokEl.textContent = t ? 'token_ok' : '-';
+      tokEl.textContent = token() ? 'token_ok' : '-';
       fbEl.textContent = (typeof window.firebase !== 'undefined') ? 'ok' : 'indisponível';
     }
 
     async function refreshIdToken(){
       try{
-        if (typeof firebase === 'undefined') { setOut('Firebase indisponível. Recarregue a página (Ctrl+F5).'); updateAuthUI(null); return; }
+        if (typeof firebase === 'undefined') { setOut('Firebase indisponível. Recarregue (Ctrl+F5).'); updateAuthUI(null); return; }
         const u = firebase.auth().currentUser;
         if(!u){ setOut('Sem usuário logado. Faça login.'); updateAuthUI(null); return; }
         const t = await u.getIdToken(true);
@@ -139,74 +138,89 @@
       }
     }
 
-    // =============== FALLBACK INTELIGENTE p/ GERAR ===============
+    // =============== FALLBACK INTELIGENTE p/ GERAR (prefixos + métodos) ===============
     async function gerar(){
       setOut('Gerando cupom...');
       const dias = Number(document.getElementById('dias').value || 0);
       const prefixo = document.getElementById('prefixo').value.trim() || null;
-      const body = {};
-      if(dias > 0) body.diasValidade = dias;
-      if(prefixo) body.prefixo = prefixo;
+      const payload = {};
+      if(dias > 0) payload.diasValidade = dias;
+      if(prefixo) payload.prefixo = prefixo;
 
       try{
         const t = token();
         const auth = t ? { 'Authorization': 'Bearer ' + t } : {};
         const base = "https://mei-robo-prod.onrender.com";
 
-        // candidatos em ordem: primeiro GET com barra, depois GET sem barra, depois underscore, por fim POST legado
-        const candidates = [
-          { method:'GET',  url: base+'/licencas/gerar-cupom/',   qs:true },
-          { method:'GET',  url: base+'/licencas/gerar-cupom',    qs:true },
-          { method:'GET',  url: base+'/licencas/gerar_cupom/',   qs:true },
-          { method:'GET',  url: base+'/licencas/gerar_cupom',    qs:true },
-          // fallback para implementações antigas:
-          { method:'POST', url: base+'/licencas/gerar-cupom',    json:true },
-          { method:'POST', url: base+'/licencas/gerar_cupom',    json:true }
+        const prefixes = ["", "/api", "/v1", "/api/v1"];
+        const names = [
+          "licencas/gerar-cupom", "licencas/gerar_cupom",
+          "licencas/cupom/gerar", "cupons/gerar", "cupom/gerar",
+          "coupon/generate"
         ];
+        const methods = ["GET","PUT","PATCH","POST"]; // GET primeiro (query), depois PUT/PATCH, por último POST
+        const suffixes = ["", "/"];
 
-        let lastErr = null, okRes = null;
-        for (const c of candidates){
-          try{
-            const headers = { ...auth };
-            let fetchUrl = c.url;
-            let init = { method: c.method, mode:'cors', headers };
+        let lastErr = null, okRes = null, okMeta = null;
 
-            if (c.qs){
-              const qs = new URLSearchParams(body).toString();
-              fetchUrl = qs ? (c.url + (c.url.endsWith('/') ? '' : '') + '?' + qs) : c.url;
-            }
-            if (c.json){
-              headers['Content-Type'] = 'application/json';
-              init.body = JSON.stringify(body);
-            }
+        // tenta combinações estruturadas
+        outer: for (const pfx of prefixes){
+          for (const name of names){
+            for (const sfx of suffixes){
+              const path = `${pfx}/${name}${sfx}`.replace(/\/\/+/g,'/'); // sem dupla barra
+              for (const m of methods){
+                try{
+                  const headers = { ...auth };
+                  let url = base + path;
+                  const init = { method: m, mode:'cors', headers };
 
-            const r = await fetch(fetchUrl, init);
-            if (r.ok){
-              okRes = r;
-              break;
-            } else {
-              const txt = await r.text().catch(()=>'(sem corpo)');
-              lastErr = `${c.method} ${fetchUrl} -> ${r.status}: ${txt.slice(0,180)}`;
+                  if (m === "GET"){
+                    const qs = new URLSearchParams(payload).toString();
+                    if (qs) url += (sfx ? "" : "") + "?" + qs;
+                  } else {
+                    headers['Content-Type'] = 'application/json';
+                    init.body = JSON.stringify(payload);
+                  }
+
+                  const r = await fetch(url, init);
+                  if (r.ok){ okRes = r; okMeta = { method:m, path }; break outer; }
+                  const txt = await r.text().catch(()=>'(sem corpo)');
+                  lastErr = `${m} ${path} -> ${r.status}: ${txt.slice(0,160)}`;
+                }catch(e){
+                  lastErr = `${m} ${path} -> ${String(e)}`;
+                }
+              }
             }
-          }catch(e){
-            lastErr = String(e);
           }
         }
 
+        // fallback genérico: endpoints que usam action=? via GET
         if (!okRes){
-          throw new Error(lastErr || 'Nenhuma rota/método aceitou a requisição.');
+          const generics = ["licencas", "cupons", "api/licencas", "api/cupons", "v1/licencas", "api/v1/licencas"];
+          for (const g of generics){
+            const qs = new URLSearchParams({ action:"gerar-cupom", ...payload }).toString();
+            const url = `${base}/${g}?${qs}`.replace(/\/\/+/g,'/');
+            try{
+              const r = await fetch(url, { method:"GET", mode:"cors", headers:{ ...auth }});
+              if (r.ok){ okRes = r; okMeta = { method:"GET", path:`/${g}?${qs}` }; break; }
+              const txt = await r.text().catch(()=>'(sem corpo)');
+              lastErr = `GET /${g}?… -> ${r.status}: ${txt.slice(0,160)}`;
+            }catch(e){ lastErr = `GET /${g}?… -> ${String(e)}`; }
+          }
         }
+
+        if (!okRes) throw new Error(lastErr || 'Nenhuma rota/método aceitou a requisição.');
 
         const ct = okRes.headers.get('content-type') || '';
         const j = ct.includes('application/json') ? await okRes.json() : { ok:true, detalhe:'Cupom gerado (não-JSON)' };
-        setOut(j);
+        setOut({ ok:true, via: okMeta, resposta: j });
         await listar();
       }catch(err){
         setOut({ erro:'Falha ao gerar cupom', detalhe: err.message });
       }
     }
 
-    // =============== FALLBACK INTELIGENTE p/ LISTAR ===============
+    // =============== FALLBACK INTELIGENTE p/ LISTAR (prefixos) ===============
     async function listar(){
       setOut('Listando cupons...');
       const tb = document.querySelector('#tbl tbody');
@@ -216,24 +230,28 @@
         const auth = t ? { 'Authorization': 'Bearer ' + t } : {};
         const base = "https://mei-robo-prod.onrender.com";
 
-        const candidates = [
-          { url: base+'/licencas/cupons',  method:'GET' },
-          { url: base+'/licencas/cupons/', method:'GET' },
-          { url: base+'/cupons',           method:'GET' },
-          { url: base+'/cupons/',          method:'GET' },
+        const prefixes = ["", "/api", "/v1", "/api/v1"];
+        const names = [
+          "licencas/cupons", "cupons", "coupon/list", "cupons/listar"
         ];
+        const suffixes = ["", "/"];
 
-        let okRes = null, lastErr = null;
-        for (const c of candidates){
-          try{
-            const r = await fetch(c.url, { method:c.method, mode:'cors', headers: { ...auth } });
-            if (r.ok){ okRes = r; break; }
-            const txt = await r.text().catch(()=>'(sem corpo)');
-            lastErr = `${c.method} ${c.url} -> ${r.status}: ${txt.slice(0,160)}`;
-          }catch(e){
-            lastErr = String(e);
+        let okRes = null, lastErr = null, okMeta = null;
+
+        outer: for (const pfx of prefixes){
+          for (const name of names){
+            for (const sfx of suffixes){
+              const url = `${base}/${pfx}/${name}${sfx}`.replace(/\/\/+/g,'/');
+              try{
+                const r = await fetch(url, { method:'GET', mode:'cors', headers: { ...auth } });
+                if (r.ok){ okRes = r; okMeta = { path: url.replace(base,'') }; break outer; }
+                const txt = await r.text().catch(()=>'(sem corpo)');
+                lastErr = `GET ${url.replace(base,'')} -> ${r.status}: ${txt.slice(0,160)}`;
+              }catch(e){ lastErr = `GET ${url.replace(base,'')} -> ${String(e)}`; }
+            }
           }
         }
+
         if (!okRes) throw new Error(lastErr || 'Nenhuma rota retornou 200.');
 
         const ct = okRes.headers.get('content-type') || '';
@@ -241,8 +259,7 @@
         if (ct.includes('application/json')) arr = await okRes.json();
         else {
           const txt = await okRes.text();
-          setOut('⚠️ Resposta inesperada de listagem (não-JSON).');
-          console.warn('Resposta listagem:', txt);
+          setOut({ aviso:'Resposta de listagem não-JSON', via: okMeta, sample: (txt||'').slice(0,160) });
         }
 
         (arr||[]).forEach(c => {
@@ -256,16 +273,16 @@
         });
 
         if(!arr || arr.length === 0){
-          setOut('Nenhum cupom cadastrado.');
+          setOut({ info:'Nenhum cupom cadastrado.', via: okMeta });
         }else{
-          setOut('Lista de cupons atualizada ✅');
+          setOut({ ok:true, via: okMeta, itens: arr.length });
         }
       }catch(err){
         setOut({ erro:'Falha ao listar cupons', detalhe: err.message });
       }
     }
 
-    // ---------- Ferramentas de diagnóstico (iguais da diag2) ----------
+    // ---------- Ferramentas de diagnóstico (iguais) ----------
     function listScriptsSafe(){
       var out = [];
       for (var i=0; i<document.scripts.length; i++) {
@@ -289,21 +306,19 @@
           try {
             res = await fetch(base + path, {
               method, mode:"cors",
-              headers: { "Authorization":"Bearer "+tok, ...(method==="POST"?{"Content-Type":"application/json"}:{}) },
-              body: method==="POST" ? JSON.stringify(body||{origem:"admin-cupons"}) : undefined
+              headers: { "Authorization":"Bearer "+tok, ...(method==="POST"||method==="PUT"||method==="PATCH"?{"Content-Type":"application/json"}:{}) },
+              body: (method==="POST"||method==="PUT"||method==="PATCH") ? JSON.stringify(body||{origem:"admin-cupons"}) : undefined
             });
           } catch(e) {
             console.log(method, path, '-> FETCH_ERR', String(e));
-            return { path, method, status:'FETCH_ERR', allow:'-', sample:String(e) };
+            return { path, method, status:'FETCH_ERR', allow:'-', acam:'-', sample:String(e) };
           }
           const allow = res.headers.get('allow') || '-';
           const acam  = res.headers.get('access-control-allow-methods') || '-';
           const ct = res.headers.get('content-type') || '';
           let text;
-          try {
-            if (ct.includes('application/json')) text = JSON.stringify(await res.json());
-            else text = await res.text();
-          } catch(e) { text = '(sem corpo)'; }
+          try { text = ct.includes('application/json') ? JSON.stringify(await res.json()) : await res.text(); }
+          catch(e) { text = '(sem corpo)'; }
           const row = { path, method, status: res.status, allow, acam, sample: (text||'').replace(/\s+/g,' ').slice(0,160) };
           console.log(row);
           return row;
