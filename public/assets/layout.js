@@ -1,171 +1,60 @@
-<!DOCTYPE html>
-<html lang="pt-BR">
-<head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Entrar — MEI Robô</title>
+powershell -NoProfile -Command "@'
+/*! layout.js – injeção de header/footer com fallback universal (v2025-09-04) */
+(function () {
+  'use strict';
 
-  <link rel="stylesheet" href="/assets/styles.css" />
-  <link rel="icon" href="data:,">
+  function log(){ try{ console.log.apply(console, ['[layout]'].concat([].slice.call(arguments))); }catch(e){} }
+  function warn(){ try{ console.warn.apply(console, ['[layout]'].concat([].slice.call(arguments))); }catch(e){} }
 
-  <!-- Firebase SDK v8 (compat) — ORDEM IMPORTA -->
-  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+  function ready(fn){
+    if (document.readyState !== 'loading') fn();
+    else document.addEventListener('DOMContentLoaded', fn);
+  }
 
-  <!-- Inicialização do projeto (config REAL do mei-robo-prod) -->
-  <script src="/assets/firebase-init.js"></script>
-
-  <!-- Patch de rotas (geral do app) -->
-  <script src="/assets/backend-patch.js" defer></script>
-</head>
-<body>
-  <!-- Cabeçalho via parcial -->
-  <div data-include="header"></div>
-
-  <main class="section">
-    <div class="container form-wrap">
-      <h1 style="color:var(--wa-dark); margin:0 0 6px">Entrar</h1>
-
-      <div class="form-grid">
-        <form id="login-form" class="form-card full" action="#" method="POST" novalidate>
-          <div class="form-row">
-            <label for="email"><strong>E-mail</strong></label>
-            <input id="email" name="email" class="input" type="email" placeholder="voce@email.com" required />
-          </div>
-
-          <div class="form-row">
-            <label for="senha"><strong>Senha</strong></label>
-            <input id="senha" name="senha" class="input" type="password" placeholder="********" required />
-          </div>
-
-          <div class="actions" style="margin-top:12px">
-            <button class="cta" id="btn-login" type="submit">Entrar</button>
-            <a class="btn-secondary" href="/cadastro.html">Criar conta</a>
-          </div>
-
-          <p id="msg" class="hint" style="margin-top:10px"></p>
-          <p class="hint" style="margin-top:6px"><a id="forgot" href="#">Esqueci minha senha</a></p>
-        </form>
-      </div>
-    </div>
-  </main>
-
-  <!-- Rodapé via parcial -->
-  <div data-include="footer"></div>
-
-  <!-- Loader de header/footer + guard de autenticação (com versão para furar cache) -->
-  <script src="/assets/layout.js?v=20250904a" defer></script>
-
-  <script>
-    (function () {
-      const $form   = document.getElementById('login-form');
-      const $email  = document.getElementById('email');
-      const $senha  = document.getElementById('senha');
-      const $btn    = document.getElementById('btn-login');
-      const $msg    = document.getElementById('msg');
-      const $forgot = document.getElementById('forgot');
-
-      function say(text, ok=false){
-        $msg.style.color = ok ? 'var(--ok, #2e7d32)' : 'var(--err, #b00020)';
-        $msg.textContent = text || '';
-      }
-      function lsSet(k,v){ try{ localStorage.setItem(k,v); }catch{} }
-
-      try {
-        if (window.firebase && firebase.apps) {
-          const table = (firebase.apps || []).map(a => ({ name: a.name, apiKey: a.options && a.options.apiKey }));
-          console.table(table);
-        }
-      } catch(e) {}
-
-      function getLoginAuth() {
-        if (!(window.firebase && firebase.app)) {
-          throw new Error('SDK do Firebase não carregado.');
-        }
-        let rootApp;
-        try { rootApp = firebase.app(); }
-        catch (e) { throw new Error('App DEFAULT não inicializado. Verifique /assets/firebase-init.js.'); }
-
-        const cfg = rootApp.options || {};
-        if ((cfg.apiKey || '').toUpperCase() === 'PASTE_API_KEY') {
-          console.error('Config com PASTE_API_KEY — verifique firebase-init.js');
-          throw new Error('Config inválida (PASTE_API_KEY).');
-        }
-        const loginApp =
-          (firebase.apps || []).find(a => a.name === 'loginApp') ||
-          firebase.initializeApp(cfg, 'loginApp');
-        try {
-          console.log('Default apiKey:', rootApp.options.apiKey);
-          console.log('loginApp apiKey:', loginApp.options.apiKey);
-        } catch {}
-        return loginApp.auth();
-      }
-
-      async function doLogin(e){
-        e.preventDefault();
-        const email = ($email.value || '').trim();
-        const senha = ($senha.value || '').trim();
-        if(!email || !senha){ say('Preencha e-mail e senha.'); return; }
-
-        let auth;
-        try { auth = getLoginAuth(); }
-        catch(err) { say(err.message || String(err)); console.error(err); return; }
-
-        $btn.disabled = true;
-        const prev = $btn.textContent;
-        $btn.textContent = 'Entrando…';
-        say('Autenticando…', true);
-
-        try{
-          const cred = await auth.signInWithEmailAndPassword(email, senha);
-          const user = cred.user;
-          const idt  = await user.getIdToken(true);
-
-          lsSet('uid', user.uid);
-          lsSet('idToken', idt);
-
-          console.log('Login OK — UID:', user.uid, 'IDToken(ini):', idt.slice(0,25), '...');
-          say('Login OK! Redirecionando…', true);
-
-          window.location.href = '/dashboard.html';
-        }catch(err){
-          const code = err && err.code ? String(err.code) : '';
-          if(code === 'auth/user-not-found') say('Usuário não encontrado.');
-          else if(code === 'auth/wrong-password') say('Senha incorreta.');
-          else if(code === 'auth/invalid-email') say('E-mail inválido.');
-          else if(code === 'auth/too-many-requests') say('Muitas tentativas. Tente mais tarde.');
-          else if(code === 'auth/invalid-api-key') say('Falha: API key inválida (verifique firebase-init.js).');
-          else say('Falha no login: ' + (err && err.message ? err.message : err));
-          console.error('Erro no login:', err);
-        }finally{
-          $btn.disabled = false;
-          $btn.textContent = prev;
-        }
-      }
-
-      async function doReset(e){
-        e.preventDefault();
-        const email = ($email.value || '').trim();
-        if(!email){ say('Digite seu e-mail para receber o link de reset.'); return; }
-
-        try{
-          const auth = getLoginAuth();
-          const actionCodeSettings = {
-            url: 'https://mei-robo-prod.web.app/login.html',
-            handleCodeInApp: false
-          };
-          await auth.sendPasswordResetEmail(email, actionCodeSettings);
-          say('Enviamos um link de redefinição para o seu e-mail.', true);
-        }catch(err){
-          say('Falha ao enviar e-mail de redefinição: ' + (err.message || err));
-          console.error('Erro reset senha:', err);
-        }
-      }
-
-      $form.addEventListener('submit', doLogin);
-      $forgot.addEventListener('click', doReset);
+  function tryFetch(urls, onOk, onFail) {
+    var i = 0;
+    (function next() {
+      if (i >= urls.length) return onFail && onFail(new Error('Falha em: ' + urls.join(', ')));
+      var u = urls[i++];
+      if (u.indexOf('?') < 0) u += '?v=' + Date.now();
+      fetch(u, { cache: 'no-store' })
+        .then(function (r) { return r.ok ? r.text() : Promise.reject(new Error('HTTP ' + r.status)); })
+        .then(function (html) { onOk && onOk(html); })
+        .catch(next);
     })();
-  </script>
-</body>
-</html>
+  }
+
+  function pickEl(which){
+    // which: 'header' | 'footer'
+    var byId = document.getElementById('app-' + which);
+    if (byId) return byId;
+    return document.querySelector('[data-include=\"'+ which +'\"]');
+  }
+
+  function inject(which){
+    var el = pickEl(which);
+    if (!el) return;
+
+    var urls = [
+      '/partials/' + which + '.html',
+      '../partials/' + which + '.html',
+      '../../partials/' + which + '.html'
+    ];
+
+    tryFetch(urls, function(html){
+      el.innerHTML = html;
+      log('OK:', which);
+    }, function(err){
+      warn('Falha ao carregar', which, err && err.message);
+      el.innerHTML = '<!-- layout: não foi possível carregar '+ which +' -->';
+    });
+  }
+
+  function boot(){
+    inject('header');
+    inject('footer');
+  }
+
+  ready(boot);
+})();
+'@ | Set-Content -Encoding UTF8 'public\assets\layout.js'"
