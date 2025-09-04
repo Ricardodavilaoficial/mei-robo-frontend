@@ -36,7 +36,7 @@
         <strong>Versão:</strong> diag5
       </div>
 
-      <!-- NOVO: Último cupom gerado -->
+      <!-- Último cupom gerado -->
       <div id="last-coupon" class="note" style="display:none; margin:8px 0;">
         <strong>Último cupom:</strong>
         <code id="last-code"></code>
@@ -71,6 +71,7 @@
       <div id="admin-area" style="display:none; margin-top:14px;">
         <div style="display:flex; gap:10px; flex-wrap:wrap;">
           <button class="btn" id="gerar" type="button">Gerar cupom</button>
+          <button class="btn secondary" id="listar" type="button">Atualizar lista</button>
         </div>
 
         <div class="grid grid-2" style="margin-top:12px">
@@ -85,11 +86,6 @@
         </div>
 
         <pre id="out" style="margin-top:12px; white-space:pre-wrap"></pre>
-
-        <div style="display:flex; gap:10px; align-items:center; margin-top:12px;">
-          <h3 style="margin:0">Cupons</h3>
-          <button class="btn secondary" id="listar" type="button">Atualizar lista</button>
-        </div>
 
         <table class="table" id="tbl" style="margin-top:8px;">
           <thead>
@@ -146,7 +142,7 @@
       }
     }
 
-    // ===== NOVO: badge "último cupom" =====
+    // Badge "último cupom"
     function showLastCoupon(code, via){
       const box = document.getElementById('last-coupon');
       const elCode = document.getElementById('last-code');
@@ -174,6 +170,29 @@
       if (signal) signal.addEventListener('abort', ()=>ctrl.abort(), { once:true });
       const merged = { ...init, signal: ctrl.signal };
       return fetch(url, merged).finally(()=>clearTimeout(timer));
+    }
+
+    // ===== Checagem: sou admin? (usa /auth/whoami) =====
+    async function isAdminUser(){
+      try{
+        const t = token();
+        if (!t) return false;
+        const r = await fetch(ABS_API + "/auth/whoami", {
+          method: "GET", mode: "cors",
+          headers: { "Authorization": "Bearer " + t }
+        });
+        if (!r.ok) return false;
+        const j = await r.json().catch(()=> ({}));
+        if (j === null || typeof j !== "object") return false;
+
+        // Várias formas possíveis de flag admin
+        if (j.admin === true || j.is_admin === true) return true;
+        if (j.role === "admin") return true;
+        if (Array.isArray(j.roles) && j.roles.includes("admin")) return true;
+        if (j.claims && (j.claims.admin === true || j.claims.is_admin === true)) return true;
+
+        return false;
+      }catch{ return false; }
     }
 
     // ====== GERAR ======
@@ -207,13 +226,20 @@
       }
 
       try{
-        // 1) tenta rota ADMIN
-        let via = "admin";
-        let resp = await postJson(ABS_API + "/admin/cupons", bodyAdmin);
+        let via, resp;
+        const canAdmin = await isAdminUser();
 
-        // Sem privilégio (ou rota indisponível) => fallback público
-        if ([401,403,404,405].includes(resp.status)) {
-          via = "publico";
+        if (canAdmin) {
+          via  = "admin";
+          resp = await postJson(ABS_API + "/admin/cupons", bodyAdmin);
+          // fallback defensivo se algo bloquear
+          if ([401,403,404,405].includes(resp.status)) {
+            via  = "publico";
+            resp = await postJson(ABS_API + "/gerar-cupom", bodyPublic);
+          }
+        } else {
+          // evita 403 no console
+          via  = "publico";
           resp = await postJson(ABS_API + "/gerar-cupom", bodyPublic);
         }
 
@@ -224,11 +250,9 @@
 
         const cup = resp.data || {};
         const codigo = cup.codigo || cup.code || "(sem código)";
-        saveLastCoupon(codigo, via); // <<< salva e mostra no badge
+        saveLastCoupon(codigo, via);
 
         setOut({ ok:true, via, cupom: codigo, resposta: cup });
-
-        // Atualiza tabela depois de mostrar o cupom
         await listar();
       } catch(err){
         setOut({ erro: "Falha ao gerar cupom", detalhe: String(err.message || err) });
@@ -298,7 +322,7 @@
           try {
             res = await fetch(base + path, {
               method, mode:"cors",
-              headers: { "Authorization":"Bearer "+tok, ...(method==="POST"||method==="PUT"||method==="PATCH"?{"Content-Type":"application/json"}:{}) },
+              headers: { "Authorization":"Bearer "+tok, ...(method==="POST"||"PUT"||"PATCH"?{"Content-Type":"application/json"}:{}) },
               body: (method==="POST"||method==="PUT"||method==="PATCH") ? JSON.stringify(body||{origem:"admin-cupons"}) : undefined
             });
           } catch(e) {
