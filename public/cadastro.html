@@ -15,10 +15,10 @@
     /* microestilos locais (mantém identidade e melhora UX) */
     .badge-mini{display:inline-block;background:#e8fff2;color:#0d7a56;border:1px solid #b8f3cf;border-radius:999px;padding:4px 10px;font-weight:800;font-size:.85rem}
 
-    /* >>> CONTRASTE E LEGIBILIDADE NAS CAIXAS <<< */
+    /* CONTRASTE E LEGIBILIDADE NAS CAIXAS */
     .input{
-      background:#f9fbfa;            /* leve off-white para diferenciar da página */
-      border:1px solid #cfdad6;      /* borda com contraste melhor */
+      background:#f9fbfa;
+      border:1px solid #cfdad6;
       color:#1e2d29;
     }
     .input:focus{
@@ -27,32 +27,27 @@
       outline:0;
     }
     .input::placeholder{
-      color:#3f5a53;                  /* placeholder mais escuro */
-      opacity:1;                      /* 100% opaco para legibilidade */
-      font-weight:500;                /* meio-negrito sutil */
+      color:#3f5a53;
+      opacity:1;
+      font-weight:500;
     }
 
     /* Área de upload com ghost-text evidente */
-    .upload-area{
-      border:2px dashed #cfdad6;border-radius:12px;padding:18px;cursor:pointer;background:#fff;overflow:hidden
-    }
+    .upload-area{border:2px dashed #cfdad6;border-radius:12px;padding:18px;cursor:pointer;background:#fff;overflow:hidden}
     .upload-area:hover{background:#f6fbf9}
     .upload-head{display:flex;gap:12px;align-items:center;justify-content:space-between;flex-wrap:wrap}
     .upload-actions{display:flex;gap:10px;align-items:center}
     .upload-actions .btn-mini{cursor:pointer;border-radius:999px;padding:8px 14px;font-weight:800;border:1px solid #cdd7d4;background:#fff;color:var(--wa-dark)}
-    .upload-area .dim{
-      color:#2f4a43;                  /* ghost-text mais escuro */
-      font-weight:600;
-    }
+    .upload-area .dim{color:#2f4a43;font-weight:600}
 
     .file-list{list-style:none;padding:0;margin:12px 0 0}
     .file-item{display:flex;align-items:center;justify-content:space-between;gap:10px;background:#f8fbfa;border:1px solid #e7ecea;border-radius:10px;padding:8px 12px;margin:6px 0}
     .file-meta{font-size:.95rem;color:#355d52;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
     .remove-btn{background:#fff;border:1px solid #ffb3b3;color:#a33;border-radius:999px;padding:6px 10px;font-weight:800;cursor:pointer}
     .meter-voice{margin-top:8px}
-    .dim{opacity:.92} /* um pouco mais forte que antes */
+    .dim{opacity:.92}
     .btn-disabled{opacity:.55; pointer-events:none}
-    .alert{border:1px solid #e7ecea;background:#fff;border-radius:12px;padding:12px;margin-top:12px}
+    .alert{border:1px solid #e7ecea;background:#fff;border-radius:12px;padding:12px;margin-top:12px} /* (hoje não usamos, pode ficar) */
 
     /* Sinais de interatividade/acessibilidade */
     a[role="button"], .btn-secondary, #togglePwd, .btn-mini { cursor: pointer; }
@@ -60,10 +55,6 @@
 
     /* Correção de sobreposição no CTA (caixa branca) */
     .actions { position: relative; z-index: 1; }
-    /* reforço de contraste da caixa 'alert' */
-    .alert { color:#1e2d29; }
-    .alert strong { color:#1e2d29; }
-
   </style>
 </head>
 <body>
@@ -98,8 +89,16 @@
           <div class="form-row">
             <label for="email"><strong>E-mail</strong></label>
             <input id="email" name="email" class="input" type="email" placeholder="voce@email.com"
-                   autocomplete="email" required />
-            <span class="hint">Enviaremos um link para <strong>verificar</strong> este e-mail.</span>
+                   autocomplete="email" required aria-describedby="emailHelp" />
+            <span id="emailHelp" class="hint">Enviaremos um link de verificação para este endereço.</span>
+          </div>
+
+          <!-- NOVO: Confirmar e-mail -->
+          <div class="form-row">
+            <label for="email2"><strong>Confirmar e-mail</strong></label>
+            <input id="email2" name="confirm-email" class="input" type="email" placeholder="Repita o e-mail"
+                   autocomplete="email" required aria-describedby="email2Help" />
+            <span id="email2Help" class="hint">Digite novamente. Os dois e-mails precisam ser idênticos.</span>
           </div>
 
           <div class="form-row">
@@ -200,10 +199,7 @@
             <div id="couponMsg" class="hint"></div>
           </div>
 
-          <div class="alert">
-            <strong>Confirme seu e-mail:</strong> enviaremos um link de verificação para o endereço informado acima.
-            Depois da verificação você segue ao pagamento.
-          </div>
+          <!-- (REMOVIDO) caixa .alert — agora a mensagem fica junto aos campos de e-mail -->
 
           <div id="formMsg" class="hint"></div>
 
@@ -271,7 +267,7 @@
   </script>
 
   <!-- layout (carrega header/footer) — caminho absoluto + versão -->
-  <script src="/assets/layout.js?v=20250905d" defer></script>
+  <script src="/assets/layout.js?v=20250905f" defer></script>
 
   <!-- LIMPAR SESSÃO APENAS NA VALIDAÇÃO (não afeta clientes reais) -->
   <script>
@@ -344,6 +340,7 @@
     const cnpjInput = document.getElementById('cnpj');
     const cnpjStatus = document.getElementById('cnpjStatus');
     const emailInput = document.getElementById('email');
+    const email2Input = document.getElementById('email2');
 
     const pwd = document.getElementById('senha');
     const pwd2 = document.getElementById('senha2');
@@ -545,12 +542,26 @@
       e.preventDefault();
       formMsg.className='hint'; formMsg.textContent='';
 
-      if (cnpjAvailability === 'unavailable') { formMsg.className='error'; formMsg.textContent='CNPJ já cadastrado. Use outro CNPJ ou recupere acesso.'; return; }
+      // NOVO: e-mails devem coincidir
+      const e1 = (emailInput.value || '').trim().toLowerCase();
+      const e2 = (email2Input.value || '').trim().toLowerCase();
+      if (!e1 || !e2 || e1 !== e2) {
+        formMsg.className='error'; formMsg.textContent='Os e-mails não coincidem.'; 
+        email2Input.focus();
+        return;
+      }
+
+      // CNPJ duplicado (no front)
+      if (cnpjAvailability === 'unavailable') {
+        formMsg.className='error'; formMsg.textContent='CNPJ já cadastrado. Use outro CNPJ ou recupere acesso.'; return;
+      }
+      // Senha
       if (pwd.value !== pwd2.value) { formMsg.className='error'; formMsg.textContent='As senhas não coincidem.'; return; }
       const rules=[/[a-z]/,/[A-Z]/,/[0-9]/,/[^A-Za-z0-9]/];
       if (!(rules.every(r=>r.test(pwd.value)) && pwd.value.length>=8)) {
         formMsg.className='error'; formMsg.textContent='A senha não atende aos requisitos mínimos.'; return;
       }
+      // Voz
       if (voiceState.files.length===0) { formMsg.className='error'; formMsg.textContent='Envie ao menos 1 arquivo de voz (1 minuto no total).'; return; }
       if (!voiceState.totalSec || voiceState.totalSec<60) { formMsg.className='error'; formMsg.textContent='O total de áudio precisa ter ao menos 1 minuto.'; return; }
       if (voiceState.totalSec>1800) { formMsg.className='error'; formMsg.textContent='O total de áudio excede 30 minutos.'; return; }
