@@ -523,25 +523,41 @@
       }
     }
 
-    form.addEventListener('submit', async (e) => {
-      e.preventDefault();
-      formMsg.className='hint'; formMsg.textContent='';
+ form.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  formMsg.className='hint';
+  formMsg.textContent='';
 
-      if (cnpjAvailability === 'unavailable') {
-                formMsg.className='error';
-        formMsg.textContent='A senha não atende aos requisitos mínimos.';
-        return;
-      }
+  // CNPJ já usado
+  if (cnpjAvailability === 'unavailable') {
+    formMsg.className='error';
+    formMsg.textContent='CNPJ já cadastrado. Use outro CNPJ ou recupere acesso.';
+    return;
+  }
 
-      // OK -> segue cadastro com reCAPTCHA (ou fallback)
-      await doRegister();
-    });
+  // Senhas devem coincidir
+  if (pwd.value !== pwd2.value) {
+    formMsg.className='error';
+    formMsg.textContent='As senhas não coincidem.';
+    return;
+  }
 
-    // inicia medidores assim que a página carregar
-    document.addEventListener('DOMContentLoaded', () => {
-      updatePwdMeter();
-    });
-  </script>
+  // Regras mínimas de senha
+  const rules=[/[a-z]/,/[A-Z]/,/[0-9]/,/[^A-Za-z0-9]/];
+  if (!(rules.every(r=>r.test(pwd.value)) && pwd.value.length>=8)) {
+    formMsg.className='error';
+    formMsg.textContent='A senha não atende aos requisitos mínimos.';
+    return;
+  }
+
+  // OK -> segue cadastro (reCAPTCHA ou fallback)
+  await doRegister();
+});
+
+// inicia medidores assim que a página carregar
+document.addEventListener('DOMContentLoaded', () => {
+  updatePwdMeter();
+});
+</script>
 </body>
 </html>
-
