@@ -144,6 +144,43 @@
   <!-- rodapé -->
   <div id="app-footer"></div>
 
-  <script src="/assets/layout.js?v=20250905a"></script>
+  <!-- FALLBACK: injeta header/footer se o loader falhar -->
+  <script>
+    (function () {
+      function pick(which){
+        return document.getElementById('app-'+which) || document.querySelector('[data-include="'+which+'"]');
+      }
+      function hasContent(el){
+        return !!(el && ((el.children && el.children.length) || (el.innerHTML && el.innerHTML.trim() !== '')));
+      }
+      function fetchPart(which){
+        return fetch('/partials/'+which+'.html',{cache:'no-store'}).then(function(r){
+          if(!r.ok) throw new Error('HTTP '+r.status);
+          return r.text();
+        });
+      }
+      function injectIfEmpty(which, html){
+        var el = pick(which);
+        if (el && !hasContent(el)) el.innerHTML = html;
+      }
+      function bootFallback(){
+        setTimeout(function(){
+          var h = pick('header'), f = pick('footer');
+          if (!hasContent(h) || !hasContent(f)) {
+            try { console.warn('[index-fallback] layout.js indisponível — header/footer injetados.'); } catch(e){}
+            Promise.allSettled([fetchPart('header'), fetchPart('footer')]).then(function(res){
+              if (res[0].status === 'fulfilled') injectIfEmpty('header', res[0].value);
+              if (res[1].status === 'fulfilled') injectIfEmpty('footer', res[1].value);
+            });
+          }
+        }, 350);
+      }
+      if (document.readyState !== 'loading') bootFallback();
+      else document.addEventListener('DOMContentLoaded', bootFallback);
+    })();
+  </script>
+
+  <!-- Loader principal (se falhar, o fallback acima garante) -->
+  <script defer src="/assets/layout.js?v=20250905b"></script>
 </body>
 </html>
