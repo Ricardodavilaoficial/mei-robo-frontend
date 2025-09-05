@@ -6,7 +6,7 @@
   <title>MEI Robô — Cadastro</title>
 
   <!-- PRODUÇÃO: defina sua SITE KEY do reCAPTCHA v2 Invisible -->
-  <!-- Substitua o content="" pela sua chave real, depois do teste inicial -->
+  <!-- Preencha o content="" com a chave real quando for ativar o reCAPTCHA -->
   <meta name="RECAPTCHA_SITE_KEY" content="">
 
   <!-- Caminhos absolutos para evitar quebras por pasta -->
@@ -15,7 +15,7 @@
   <style>
     /* microestilos locais (mantém identidade e melhora UX) */
     .badge-mini{display:inline-block;background:#e8fff2;color:#0d7a56;border:1px solid #b8f3cf;border-radius:999px;padding:4px 10px;font-weight:800;font-size:.85rem}
-    .upload-area{border:2px dashed #cfdad6;border-radius:12px;padding:18px;cursor:pointer;background:#fff}
+    .upload-area{border:2px dashed #cfdad6;border-radius:12px;padding:18px;cursor:pointer;background:#fff;overflow:hidden}
     .upload-area:hover{background:#f6fbf9}
     .upload-head{display:flex;gap:12px;align-items:center;justify-content:space-between;flex-wrap:wrap}
     .upload-actions{display:flex;gap:10px;align-items:center}
@@ -29,9 +29,12 @@
     .btn-disabled{opacity:.55; pointer-events:none}
     .alert{border:1px solid #e7ecea;background:#fff;border-radius:12px;padding:12px;margin-top:12px}
 
-    /* Sinais de interatividade */
+    /* Sinais de interatividade/acessibilidade */
     a[role="button"], .btn-secondary, #togglePwd, .btn-mini { cursor: pointer; }
     a:focus, button:focus { outline: 2px solid #1faa85; outline-offset: 2px; }
+
+    /* Correção de sobreposição no CTA (caixa branca) */
+    .actions { position: relative; z-index: 1; }
   </style>
 </head>
 <body>
@@ -43,23 +46,15 @@
     <div class="container form-wrap">
       <h1 style="color:var(--wa-dark); margin:0 0 6px">Criar minha conta</h1>
 
-      <!-- Stepper claro -->
-      <div class="steps" aria-label="Progresso de assinatura">
-        <div class="step step--active"><div class="step__dot">1</div><div class="step__label">Dados & Voz</div></div>
-        <div class="step"><div class="step__dot">2</div><div class="step__label">Pagamento</div></div>
-        <div class="step"><div class="step__dot">3</div><div class="step__label">Bem-vindo</div></div>
-      </div>
-
-      <!-- O que você precisa agora (microcopy objetiva) -->
+      <!-- Texto introdutório único (sem stepper/bullets) -->
       <div class="note" style="margin:10px 0 18px">
-        <ul style="margin:0; padding-left:18px">
-          <li><strong>E-mail</strong> que você usa (vamos enviar um link de verificação).</li>
-          <li><strong>CNPJ MEI</strong> válido (vamos checar disponibilidade).</li>
-          <li><strong>1–5 áudios</strong> somando pelo menos 1 minuto (sua voz do robô).</li>
-        </ul>
-        <div class="hint" style="margin-top:6px">
-          Segurança: seus áudios são usados só na sua conta e podem ser apagados a qualquer momento.
-        </div>
+        <p>
+          Sua conta é pessoal e intransferível e só será validada quando vinculada ao seu CNPJ/empresa.
+          Para ativar o MEI Robô, é obrigatório clonar a sua voz para uso exclusivo na sua conta:
+          grave áudios nítidos, em local silencioso e sem eco, falando naturalmente, como numa conversa.
+          Envie até 5 áudios, cada um com pelo menos 1 minuto; o ideal é que, somados, tenham entre 10 e 30 minutos.
+          Todas as informações são criptografadas e mantidas em sigilo. Consulte os Termos de Uso.
+        </p>
       </div>
 
       <div class="form-grid">
@@ -68,18 +63,18 @@
           <div class="form-row">
             <label for="nome"><strong>Nome completo</strong></label>
             <input id="nome" name="name" class="input" type="text" placeholder="Ex.: Maria Silva" autocomplete="name" required />
-            <span class="hint">Use o seu nome — é a pessoa que vai falar com seus clientes. Não use razão social.</span>
+            <span class="hint">Use o seu nome — é quem falará com seus clientes. Não use razão social.</span>
           </div>
 
           <div class="form-row">
             <label for="email"><strong>E-mail</strong></label>
             <input id="email" name="email" class="input" type="email" placeholder="voce@email.com"
                    autocomplete="email" required />
-            <span class="hint">Você receberá um link para <strong>verificar</strong> este e-mail.</span>
+            <span class="hint">Enviaremos um link para <strong>verificar</strong> este e-mail.</span>
           </div>
 
           <div class="form-row">
-            <label for="cnpj"><strong>CNPJ (MEI)</strong></label>
+            <label for="cnpj"><strong>CNPJ</strong></label>
             <input
               id="cnpj"
               name="cnpj"
@@ -119,11 +114,19 @@
           <!-- VOZ (OBRIGATÓRIO) -->
           <div class="form-row full">
             <label><strong>Envio de voz (obrigatório)</strong></label>
-            <span class="hint">Clique para selecionar (ou arraste) até <strong>5 áudios</strong> (WAV/MP3/M4A/OGG/WEBM) somando <strong>≥ 1 minuto</strong>. Dica: grave frases naturais do seu dia.</span>
+            <span class="hint">
+              Clique para selecionar <em>(ou arraste)</em> até <strong>5 áudios</strong> (WAV/MP3/M4A/OGG/WEBM) somando <strong>≥ 1 minuto</strong>.
+              Grave em <strong>silêncio absoluto</strong>, sem eco e sem ruídos distantes.
+            </span>
 
             <div id="uploadArea" class="upload-area" tabindex="0" role="button" aria-label="Enviar arquivos de áudio por clique ou arraste">
               <div class="upload-head">
-                <div class="dim">Clique para escolher arquivos de áudio…</div>
+                <div class="dim">
+                  <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true" style="vertical-align:-3px; margin-right:6px">
+                    <path d="M19 15v4H5v-4H3v4a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-4h-2zm-6-1 4-4h-3V3h-2v7H9l4 4z"/>
+                  </svg>
+                  Clique para escolher arquivos de áudio… ou arraste aqui.
+                </div>
                 <div class="upload-actions">
                   <input id="voiceFiles" type="file" accept=".wav,.mp3,.m4a,.ogg,.webm,audio/*" multiple hidden />
                   <button type="button" class="btn-mini" id="btnChooseFiles">Escolher arquivos</button>
@@ -176,8 +179,8 @@
           <div id="formMsg" class="hint"></div>
 
           <div class="actions" style="margin-top:12px">
-            <button id="submitBtn" type="submit" class="cta">Continuar (Verificar e-mail)</button>
-            <a href="#" id="stripeBtn" class="btn-secondary">Outras formas de pagamento</a>
+            <button id="submitBtn" type="submit" class="cta">Continuar (Confirmar e-mail)</button>
+            <a href="#" id="stripeBtn" class="btn-secondary">Formas de pagamento</a>
           </div>
 
           <p class="hint" style="margin-top:10px">
@@ -192,8 +195,17 @@
         <aside class="side">
           <span class="badge-mini">Plano Start</span>
           <h3>Limites e SLA</h3>
-          <div class="price-line"><span class="hint">Taxa de configuração:</span> <span class="price-old">R$ 399,00</span> <span>→</span> <span class="price-new">R$ 250,00</span> <span class="hint">(único)</span></div>
-          <div class="price-line"><span class="hint">Mensalidade:</span> <span class="price-old">R$ 109,00</span> <span>→</span> <span class="price-new">R$ 89,00</span> <span class="per-month">/mês</span></div>
+
+          <!-- PREÇOS ATUALIZADOS -->
+          <div class="price-line">
+            <span class="hint">Taxa de configuração PROMOCIONAL:</span>
+            <span>De <strong>R$ 399,00</strong> por <strong>R$ 250,00</strong> <span class="hint">(valor único)</span></span>
+          </div>
+          <div class="price-line">
+            <span class="hint">Mensalidade:</span>
+            <span>De <strong>R$ 109,00</strong> por <strong>R$ 89,00</strong> <span class="per-month">/mês</span> <span class="hint">— válida por 1 ano e sem fidelidade</span></span>
+          </div>
+
           <ul>
             <li>Até <strong>500 conversas iniciadas pelo cliente/mês</strong>.</li>
             <li>Proativas (marketing/utility/auth) monitoradas e sinalizadas.</li>
@@ -231,11 +243,10 @@
   </script>
 
   <!-- layout (carrega header/footer) — caminho absoluto + versão -->
-  <script src="/assets/layout.js?v=20250905b" defer></script>
+  <script src="/assets/layout.js?v=20250905c" defer></script>
 
-  <!-- reCAPTCHA (invisible v2, explicit render) -->
+  <!-- LIMPAR SESSÃO APENAS NA VALIDAÇÃO (não afeta clientes reais) -->
   <script>
-    // LIMPADOR DE SESSÃO APENAS NA VALIDAÇÃO (não afeta clientes reais)
     (function(){
       try {
         const params = new URLSearchParams(location.search);
@@ -250,10 +261,12 @@
         console.warn("[cadastro] Não foi possível limpar sessão:", e);
       }
     })();
+  </script>
 
-    // reCAPTCHA
+  <!-- reCAPTCHA (invisible v2, explicit render) -->
+  <script>
     let recaptchaWidgetId = null;
-    let pendingSubmit = null; // função a ser chamada após token
+    let pendingSubmit = null;
     function onRecaptchaLoad(){
       try{
         const meta = document.querySelector('meta[name="RECAPTCHA_SITE_KEY"]');
@@ -294,7 +307,6 @@
       availability: API_BASE + "/api/cnpj/availability",           // GET ?cnpj=digits -> {available:true|false}
       cadastro:     API_BASE + "/api/cadastro",                    // POST multipart + recaptchaToken -> {next:'verifyEmail', email, checkoutUrl?}
       resendEmail:  API_BASE + "/api/auth/resend-verification"     // POST {email}
-      // checkout:  API_BASE + "/api/checkout"                     // (quando habilitar)
     };
 
     // ====== Variáveis de UI ======
