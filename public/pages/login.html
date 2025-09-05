@@ -13,38 +13,33 @@
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
 
-  <!-- Inicialização do projeto (usa a config REAL do mei-robo-prod) -->
+  <!-- Inicialização real do projeto -->
   <script src="/assets/firebase-init.js"></script>
-
   <!-- Patch de rotas (geral do app) -->
   <script src="/assets/backend-patch.js" defer></script>
 </head>
 <body>
-  <!-- Cabeçalho via parcial -->
-  <div id="app-header" data-include="header"></div>
+  <div id="app-header"></div>
 
   <main class="section">
     <div class="container form-wrap">
       <h1 style="color:var(--wa-dark); margin:0 0 6px">Entrar</h1>
 
       <div class="form-grid">
-        <form id="login-form" class="form-card full" action="#" method="POST" novalidate autocomplete="on">
+        <form id="login-form" class="form-card full" action="#" method="POST" novalidate>
           <div class="form-row">
             <label for="email"><strong>E-mail</strong></label>
-            <input id="email" name="email" class="input" type="email" placeholder="voce@email.com"
-                   required autocomplete="username" />
+            <input id="email" name="email" class="input" type="email" placeholder="voce@email.com" required />
           </div>
 
           <div class="form-row">
             <label for="senha"><strong>Senha</strong></label>
-            <input id="senha" name="senha" class="input" type="password" placeholder="********"
-                   required autocomplete="current-password" />
+            <input id="senha" name="senha" class="input" type="password" placeholder="********" required />
           </div>
 
           <div class="actions" style="margin-top:12px">
             <button class="cta" id="btn-login" type="submit">Entrar</button>
-            <!-- mantém um href padrão, mas o JS vai testar alternativas -->
-            <a class="btn-secondary" id="signup-link" href="/pages/cadastro.html">Criar conta</a>
+            <a class="btn-secondary" id="btn-cadastrar" href="/cadastro.html">Criar conta</a>
           </div>
 
           <p id="msg" class="hint" style="margin-top:10px"></p>
@@ -54,98 +49,73 @@
     </div>
   </main>
 
-  <!-- Rodapé via parcial -->
-  <div id="app-footer" data-include="footer"></div>
+  <div id="app-footer"></div>
 
-  <!-- login-fallback: injeta header/footer -->
+  <!-- FALLBACK: injeta header/footer se o loader falhar -->
   <script>
     (function () {
-      function ready(fn){ if (document.readyState !== 'loading') fn(); else document.addEventListener('DOMContentLoaded', fn); }
-      function tryFetch(urls, ok, fail){
-        var i=0; (function next(){
-          if(i>=urls.length) return fail && fail(new Error('Falha em: '+urls.join(', ')));
-          var u = urls[i++]; if(u.indexOf('?')<0) u += '?v=' + Date.now();
-          fetch(u, {cache:'no-store'}).then(function(r){ return r.ok ? r.text() : Promise.reject(); })
-            .then(function(html){ ok && ok(html); }).catch(next);
-        })();
+      function pick(which){
+        return document.getElementById('app-'+which) || document.querySelector('[data-include="'+which+'"]');
       }
-      function injectInto(el, urls){
-        if(!el) return;
-        tryFetch(urls, function(html){ el.innerHTML = html; }, function(){ /* silencioso */ });
+      function hasContent(el){
+        return !!(el && ((el.children && el.children.length) || (el.innerHTML && el.innerHTML.trim() !== '')));
+      }
+      function fetchPart(which){
+        return fetch('/partials/'+which+'.html',{cache:'no-store'}).then(function(r){
+          if(!r.ok) throw new Error('HTTP '+r.status);
+          return r.text();
+        });
+      }
+      function injectIfEmpty(which, html){
+        var el = pick(which);
+        if (el && !hasContent(el)) el.innerHTML = html;
       }
       function bootFallback(){
-        var headerEl = document.getElementById('app-header') || document.querySelector('[data-include="header"]');
-        var footerEl = document.getElementById('app-footer') || document.querySelector('[data-include="footer"]');
-        injectInto(headerEl, ['/partials/header.html','../partials/header.html']);
-        injectInto(footerEl, ['/partials/footer.html','../partials/footer.html']);
-        try { console.warn('[login-fallback] layout.js indisponível — header/footer injetados.'); } catch(e){}
+        setTimeout(function(){
+          var h = pick('header'), f = pick('footer');
+          if (!hasContent(h) || !hasContent(f)) {
+            try { console.warn('[login-fallback] layout.js indisponível — header/footer injetados.'); } catch(e){}
+            Promise.allSettled([fetchPart('header'), fetchPart('footer')]).then(function(res){
+              if (res[0].status === 'fulfilled') injectIfEmpty('header', res[0].value);
+              if (res[1].status === 'fulfilled') injectIfEmpty('footer', res[1].value);
+            });
+          }
+        }, 350);
       }
-      ready(function(){ setTimeout(bootFallback, 50); });
+      if (document.readyState !== 'loading') bootFallback();
+      else document.addEventListener('DOMContentLoaded', bootFallback);
     })();
   </script>
 
+  <!-- Loader principal (se falhar, o fallback acima garante) -->
+  <script defer src="/assets/layout.js?v=20250905a"></script>
+
   <script>
     (function () {
-      const $form    = document.getElementById('login-form');
-      const $email   = document.getElementById('email');
-      const $senha   = document.getElementById('senha');
-      const $btn     = document.getElementById('btn-login');
-      const $msg     = document.getElementById('msg');
-      const $forgot  = document.getElementById('forgot');
-      const $signup  = document.getElementById('signup-link');
+      const $form   = document.getElementById('login-form');
+      const $email  = document.getElementById('email');
+      const $senha  = document.getElementById('senha');
+      const $btn    = document.getElementById('btn-login');
+      const $msg    = document.getElementById('msg');
+      const $forgot = document.getElementById('forgot');
+      const $cad    = document.getElementById('btn-cadastrar');
 
       function say(text, ok=false){
         $msg.style.color = ok ? 'var(--ok, #2e7d32)' : 'var(--err, #b00020)';
         $msg.textContent = text || '';
       }
       function lsSet(k,v){ try{ localStorage.setItem(k,v); }catch{} }
+      function lsDel(k){  try{ localStorage.removeItem(k); }catch{} }
 
-      // Enter → submit sempre
-      function wireEnterKeys(){
-        const inputs = [$email, $senha].filter(Boolean);
-        inputs.forEach(function(el){
-          el.addEventListener('keydown', function(ev){
-            if (ev.key === 'Enter') {
-              ev.preventDefault();
-              if ($btn && $btn.disabled) return;
-              if ($form && typeof $form.requestSubmit === 'function') {
-                $form.requestSubmit();
-              } else if ($form) {
-                const evt = new Event('submit', {bubbles:true, cancelable:true});
-                $form.dispatchEvent(evt);
-              }
-            }
-          });
-        });
-      }
-
-      // Descobre o primeiro caminho existente (HEAD 200/3xx) e navega
-      async function goFirstAvailable(paths){
-        for (const path of paths){
-          try{
-            const r = await fetch(path + (path.includes('?')?'':'?v=' + Date.now()), { method:'HEAD', cache:'no-store' });
-            if (r.ok || (r.status >= 300 && r.status < 400)) { location.href = path; return; }
-          }catch(_){}
-        }
-        location.href = '/'; // fallback final
-      }
-
-      try {
-        if (window.firebase && firebase.apps) {
-          const table = (firebase.apps || []).map(a => ({ name: a.name, apiKey: a.options && a.options.apiKey }));
-          console.table(table);
-        }
-      } catch(e) {}
-
+      // === App nomeado para isolar de qualquer inicialização legada ===
       function getLoginAuth() {
         if (!(window.firebase && firebase.app)) throw new Error('SDK do Firebase não carregado.');
         let rootApp;
         try { rootApp = firebase.app(); }
         catch (e) { throw new Error('App DEFAULT não inicializado. Verifique /assets/firebase-init.js.'); }
-
         const cfg = rootApp.options || {};
         if ((cfg.apiKey || '').toUpperCase() === 'PASTE_API_KEY') {
-          console.error('Config com PASTE_API_KEY — verifique firebase-init.js');
+          console.error('Config com PASTE_API_KEY detectada — verifique firebase-init.js');
           throw new Error('Config inválida (PASTE_API_KEY).');
         }
         const loginApp =
@@ -181,19 +151,10 @@
           lsSet('uid', user.uid);
           lsSet('idToken', idt);
 
-          console.log('Login OK — UID:', user.uid);
+          console.log('Login OK — UID:', user.uid, 'IDToken(ini):', idt.slice(0,25), '...');
           say('Login OK! Redirecionando…', true);
 
-          // Pós-login: vai para a 1ª rota existente
-          goFirstAvailable([
-            '/pages/dashboard.html',
-            '/dashboard.html',
-            '/pages/agenda.html',
-            '/pages/index.html',
-            '/index.html',
-            '/'
-          ]);
-
+          window.location.href = '/pages/dashboard.html';
         }catch(err){
           const code = err && err.code ? String(err.code) : '';
           if(code === 'auth/user-not-found') say('Usuário não encontrado.');
@@ -213,14 +174,9 @@
         e.preventDefault();
         const email = ($email.value || '').trim();
         if(!email){ say('Digite seu e-mail para receber o link de reset.'); return; }
-
         try{
           const auth = getLoginAuth();
-          const actionCodeSettings = {
-            url: 'https://mei-robo-prod.web.app/pages/login.html',
-            handleCodeInApp: false
-          };
-          await auth.sendPasswordResetEmail(email, actionCodeSettings);
+          await auth.sendPasswordResetEmail(email);
           say('Enviamos um link de redefinição para o seu e-mail.', true);
         }catch(err){
           say('Falha ao enviar e-mail de redefinição: ' + (err.message || err));
@@ -228,26 +184,19 @@
         }
       }
 
-      // Bind handlers
-      $form.addEventListener('submit', doLogin);
-      $forgot.addEventListener('click', doReset);
-      wireEnterKeys();
-
-      // Clique em "Criar conta" com fallback de rotas
-      if ($signup) {
-        $signup.addEventListener('click', function(ev){
-          ev.preventDefault();
-          goFirstAvailable([
-            '/pages/cadastro.html',
-            '/cadastro.html',
-            '/pages/ativar.html',
-            '/pages/onboarding.html',
-            '/pages/register.html',
-            '/register.html'
-          ]);
-        });
+      // Limpa sessão antes de ir para cadastro (evita herdar seus dados)
+      function clearSession(){
+        ['uid','idToken','isAdmin'].forEach(lsDel);
+        try { getLoginAuth().signOut().catch(()=>{}); } catch(_) {}
       }
 
+      $form.addEventListener('submit', doLogin);
+      $forgot.addEventListener('click', doReset);
+      $cad.addEventListener('click', function(ev){
+        ev.preventDefault();
+        clearSession();
+        window.location.href = '/cadastro.html';
+      });
     })();
   </script>
 </body>
