@@ -5,13 +5,16 @@
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>MEI Robô — Cadastro</title>
 
-  <!-- Caminhos absolutos evitam problemas de pasta -->
+  <!-- PRODUÇÃO: defina sua SITE KEY do reCAPTCHA v2 Invisible -->
+  <!-- Substitua o content="" pela sua chave real, depois do teste inicial -->
+  <meta name="RECAPTCHA_SITE_KEY" content="">
+
+  <!-- Caminhos absolutos para evitar quebras por pasta -->
   <link rel="stylesheet" href="/assets/styles.css" />
 
   <style>
-    /* microestilos locais (mantém identidade existente) */
+    /* microestilos locais (mantém identidade e melhora UX) */
     .badge-mini{display:inline-block;background:#e8fff2;color:#0d7a56;border:1px solid #b8f3cf;border-radius:999px;padding:4px 10px;font-weight:800;font-size:.85rem}
-    /* upload de voz */
     .upload-area{border:2px dashed #cfdad6;border-radius:12px;padding:18px;cursor:pointer;background:#fff}
     .upload-area:hover{background:#f6fbf9}
     .upload-head{display:flex;gap:12px;align-items:center;justify-content:space-between;flex-wrap:wrap}
@@ -25,37 +28,54 @@
     .dim{opacity:.85}
     .btn-disabled{opacity:.55; pointer-events:none}
     .alert{border:1px solid #e7ecea;background:#fff;border-radius:12px;padding:12px;margin-top:12px}
+
+    /* Sinais de interatividade */
+    a[role="button"], .btn-secondary, #togglePwd, .btn-mini { cursor: pointer; }
+    a:focus, button:focus { outline: 2px solid #1faa85; outline-offset: 2px; }
   </style>
 </head>
 <body>
-  <!-- cabeçalho (ids canônicos + compat com app-header/app-footer) -->
+  <!-- cabeçalho (ids canônicos + compat) -->
   <div id="app-header"></div>
   <div id="header"></div>
 
   <main class="section">
     <div class="container form-wrap">
       <h1 style="color:var(--wa-dark); margin:0 0 6px">Criar minha conta</h1>
+
+      <!-- Stepper claro -->
       <div class="steps" aria-label="Progresso de assinatura">
         <div class="step step--active"><div class="step__dot">1</div><div class="step__label">Dados & Voz</div></div>
         <div class="step"><div class="step__dot">2</div><div class="step__label">Pagamento</div></div>
         <div class="step"><div class="step__dot">3</div><div class="step__label">Bem-vindo</div></div>
       </div>
 
-      <p class="note" style="margin:0 0 22px">
-        Seus dados de configuração são tratados com segurança. Senhas são armazenadas de forma protegida e o tráfego é criptografado.
-      </p>
+      <!-- O que você precisa agora (microcopy objetiva) -->
+      <div class="note" style="margin:10px 0 18px">
+        <ul style="margin:0; padding-left:18px">
+          <li><strong>E-mail</strong> que você usa (vamos enviar um link de verificação).</li>
+          <li><strong>CNPJ MEI</strong> válido (vamos checar disponibilidade).</li>
+          <li><strong>1–5 áudios</strong> somando pelo menos 1 minuto (sua voz do robô).</li>
+        </ul>
+        <div class="hint" style="margin-top:6px">
+          Segurança: seus áudios são usados só na sua conta e podem ser apagados a qualquer momento.
+        </div>
+      </div>
 
       <div class="form-grid">
         <!-- Formulário -->
         <form id="signupForm" class="form-card" action="#" method="POST" novalidate>
           <div class="form-row">
             <label for="nome"><strong>Nome completo</strong></label>
-            <input id="nome" name="nome" class="input" type="text" placeholder="Ex.: Maria Silva" required />
+            <input id="nome" name="name" class="input" type="text" placeholder="Ex.: Maria Silva" autocomplete="name" required />
+            <span class="hint">Use o seu nome — é a pessoa que vai falar com seus clientes. Não use razão social.</span>
           </div>
 
           <div class="form-row">
             <label for="email"><strong>E-mail</strong></label>
-            <input id="email" name="email" class="input" type="email" placeholder="voce@email.com" required />
+            <input id="email" name="email" class="input" type="email" placeholder="voce@email.com"
+                   autocomplete="email" required />
+            <span class="hint">Você receberá um link para <strong>verificar</strong> este e-mail.</span>
           </div>
 
           <div class="form-row">
@@ -68,20 +88,23 @@
               pattern="^\d{14}$|^\d{2}\.\d{3}\.\d{3}/\d{4}-\d{2}$"
               title="Informe um CNPJ válido (14 dígitos ou 00.000.000/0000-00)"
               placeholder="Somente números ou 00.000.000/0000-00"
+              autocomplete="on"
               required
             />
-            <span class="hint">Use apenas números ou o formato 00.000.000/0000-00.</span>
+            <span class="hint">Ex.: 12.345.678/0001-90 — checamos se já existe conta com este CNPJ.</span>
             <div id="cnpjStatus" class="hint" aria-live="polite" style="margin-top:6px"></div>
           </div>
 
           <div class="form-row">
             <label for="senha"><strong>Criar senha</strong></label>
             <div class="inline" style="width:100%">
-              <input id="senha" name="senha" class="input" type="password" placeholder="********" minlength="8" required aria-describedby="pwdRules pwdStrength" style="flex:1" />
+              <input id="senha" name="new-password" class="input" type="password" placeholder="********"
+                     minlength="8" autocomplete="new-password" required
+                     aria-describedby="pwdRules pwdStrength" style="flex:1" />
               <a role="button" id="togglePwd" class="btn-secondary" aria-pressed="false" aria-controls="senha">Mostrar</a>
             </div>
             <div id="pwdRules" class="hint">
-              Mínimo de 8 caracteres com pelo menos: uma letra maiúscula, uma minúscula, um número e um caractere especial.
+              Mínimo de 8 caracteres com: maiúscula, minúscula, número e símbolo.
             </div>
             <div class="meter meter-voice" aria-hidden="true"><span id="pwdBar" class="strength-1"></span></div>
             <div id="pwdStrength" class="hint" aria-live="polite"></div>
@@ -89,17 +112,18 @@
 
           <div class="form-row">
             <label for="senha2"><strong>Confirmar senha</strong></label>
-            <input id="senha2" name="senha2" class="input" type="password" placeholder="Repita a senha" required />
+            <input id="senha2" name="confirm-password" class="input" type="password" placeholder="Repita a senha"
+                   autocomplete="new-password" required />
           </div>
 
           <!-- VOZ (OBRIGATÓRIO) -->
           <div class="form-row full">
             <label><strong>Envio de voz (obrigatório)</strong></label>
-            <span class="hint">Grave pelo menos <strong>1 minuto</strong> (até <strong>5 arquivos</strong>, total máximo <strong>30 minutos</strong>). Use ambiente silencioso. Aceitos: WAV, MP3, M4A, OGG, WEBM.</span>
+            <span class="hint">Clique para selecionar (ou arraste) até <strong>5 áudios</strong> (WAV/MP3/M4A/OGG/WEBM) somando <strong>≥ 1 minuto</strong>. Dica: grave frases naturais do seu dia.</span>
 
-            <div id="uploadArea" class="upload-area" tabindex="0" role="button" aria-label="Área para enviar arquivos de áudio por clique ou arraste">
+            <div id="uploadArea" class="upload-area" tabindex="0" role="button" aria-label="Enviar arquivos de áudio por clique ou arraste">
               <div class="upload-head">
-                <div class="dim">Arraste e solte seus arquivos aqui, ou</div>
+                <div class="dim">Clique para escolher arquivos de áudio…</div>
                 <div class="upload-actions">
                   <input id="voiceFiles" type="file" accept=".wav,.mp3,.m4a,.ogg,.webm,audio/*" multiple hidden />
                   <button type="button" class="btn-mini" id="btnChooseFiles">Escolher arquivos</button>
@@ -115,10 +139,10 @@
             <label class="inline" style="gap:8px;margin-top:10px">
               <input type="checkbox" id="aceiteVoz" required />
               <span class="hint">
-                Declaro que sou o titular da voz enviada e <strong>autorizo seu uso</strong> exclusivamente na minha conta,
-                conforme o <a href="/consentimento-voz.html" target="_blank" rel="noopener">Consentimento de Voz</a>,
-                a <a href="/privacidade.html" target="_blank" rel="noopener">Política de Privacidade</a> e os
-                <a href="/termos.html" target="_blank" rel="noopener">Termos de Uso</a>.
+                Autorizo o uso da minha voz <strong>somente</strong> na minha conta,
+                conforme o <a href="/consentimento-voz.html" target="_blank" rel="noopener noreferrer">Consentimento de Voz</a>,
+                a <a href="/privacidade.html" target="_blank" rel="noopener noreferrer">Política de Privacidade</a> e os
+                <a href="/termos.html" target="_blank" rel="noopener noreferrer">Termos de Uso</a>.
               </span>
             </label>
           </div>
@@ -128,8 +152,8 @@
             <label class="inline" style="gap:8px">
               <input type="checkbox" id="aceite" required />
               <span class="hint">
-                Li e aceito os <a href="/termos.html" target="_blank" rel="noopener">Termos</a> e a
-                <a href="/privacidade.html" target="_blank" rel="noopener">Política de Privacidade</a>.
+                Li e aceito os <a href="/termos.html" target="_blank" rel="noopener noreferrer">Termos</a> e a
+                <a href="/privacidade.html" target="_blank" rel="noopener noreferrer">Política de Privacidade</a>.
               </span>
             </label>
           </div>
@@ -138,15 +162,15 @@
           <div class="form-row full">
             <label for="cupom"><strong>Cupom promocional</strong> <span class="hint">(opcional)</span></label>
             <div class="inline" style="width:100%">
-              <input id="cupom" name="cupom" class="input" type="text" placeholder="Ex.: MEIROBO89" style="flex:1" />
+              <input id="cupom" name="cupom" class="input" type="text" placeholder="Ex.: MEIROBO89" style="flex:1" autocomplete="one-time-code" />
               <a role="button" id="applyCoupon" class="btn-secondary">Aplicar cupom</a>
             </div>
             <div id="couponMsg" class="hint"></div>
           </div>
 
           <div class="alert">
-            <strong>Importante:</strong> após o cadastro, você receberá um e-mail para <strong>verificar sua conta</strong>.
-            Só depois da verificação seguiremos ao pagamento.
+            <strong>Importante:</strong> após o cadastro, enviaremos um e-mail para <strong>verificar sua conta</strong>.
+            Depois da verificação você segue ao pagamento.
           </div>
 
           <div id="formMsg" class="hint"></div>
@@ -189,7 +213,11 @@
   <!-- SHIM: garante ids canônicos antes do loader -->
   <script>
     (function(){
-      function ensure(id){ return document.getElementById(id) || (function(){const d=document.createElement('div'); d.id=id; return document.body.insertBefore(d, id==='header'?document.body.firstChild:null), d;})() }
+      function ensure(id){
+        var el = document.getElementById(id);
+        if (!el){ el=document.createElement('div'); el.id=id; if(id==='header') document.body.prepend(el); else document.body.appendChild(el); }
+        return el;
+      }
       ensure('header'); ensure('footer');
       // espelha conteúdo do canônico para app-*, se existirem
       const sync = new MutationObserver(() => {
@@ -203,18 +231,35 @@
   </script>
 
   <!-- layout (carrega header/footer) — caminho absoluto + versão -->
-  <script src="/assets/layout.js?v=20250905a" defer></script>
+  <script src="/assets/layout.js?v=20250905b" defer></script>
 
   <!-- reCAPTCHA (invisible v2, explicit render) -->
   <script>
-    // COLE AQUI SUA CHAVE DO SITE (reCAPTCHA v2 Invisible)
-    const RECAPTCHA_SITE_KEY = 'PASTE_YOUR_SITE_KEY_HERE';
+    // LIMPADOR DE SESSÃO APENAS NA VALIDAÇÃO (não afeta clientes reais)
+    (function(){
+      try {
+        const params = new URLSearchParams(location.search);
+        if (params.get('validate') === '1') {
+          localStorage.removeItem("uid");
+          localStorage.removeItem("idToken");
+          localStorage.removeItem("isAdmin");
+          if (window.firebase?.auth) { firebase.auth().signOut().catch(()=>{}); }
+          console.log("[cadastro] Sessão limpa para validação.");
+        }
+      } catch(e) {
+        console.warn("[cadastro] Não foi possível limpar sessão:", e);
+      }
+    })();
+
+    // reCAPTCHA
     let recaptchaWidgetId = null;
     let pendingSubmit = null; // função a ser chamada após token
     function onRecaptchaLoad(){
       try{
-        if (!window.grecaptcha || !RECAPTCHA_SITE_KEY || RECAPTCHA_SITE_KEY.includes('PASTE_')) {
-          console.warn('reCAPTCHA não configurado. Configure RECAPTCHA_SITE_KEY.');
+        const meta = document.querySelector('meta[name="RECAPTCHA_SITE_KEY"]');
+        const RECAPTCHA_SITE_KEY = meta?.content?.trim();
+        if (!window.grecaptcha || !RECAPTCHA_SITE_KEY) {
+          console.warn('reCAPTCHA não configurado. Defina meta[name="RECAPTCHA_SITE_KEY"].');
           return;
         }
         recaptchaWidgetId = grecaptcha.render('recaptcha', {
@@ -237,34 +282,20 @@
       msg.textContent='Falha no reCAPTCHA. Atualize a página e tente novamente.';
       pendingSubmit = null;
     }
-    function onRecaptchaExpired(){
-      // silencioso; form chama execute de novo se necessário
-    }
+    function onRecaptchaExpired(){ /* silencioso */ }
     window.onRecaptchaLoad = onRecaptchaLoad;
   </script>
   <script src="https://www.google.com/recaptcha/api.js?onload=onRecaptchaLoad&render=explicit" async defer></script>
 
   <script>
-    // ====== CONFIG do Backend (ajuste quando tiver) ======
+    // ====== CONFIG do Backend (PRODUÇÃO) ======
+    const API_BASE = "https://mei-robo-prod.onrender.com";
     const API = {
-      availability: 'http://localhost:3000/api/cnpj/availability', // GET ?cnpj=digits -> {available:true|false}
-      cadastro:     'http://localhost:3000/api/cadastro',          // POST multipart + recaptchaToken -> {next:'verifyEmail', email}
-      resendEmail:  'http://localhost:3000/api/auth/resend-verification', // POST {email}
-      // checkout:  'http://localhost:3000/api/checkout'
+      availability: API_BASE + "/api/cnpj/availability",           // GET ?cnpj=digits -> {available:true|false}
+      cadastro:     API_BASE + "/api/cadastro",                    // POST multipart + recaptchaToken -> {next:'verifyEmail', email, checkoutUrl?}
+      resendEmail:  API_BASE + "/api/auth/resend-verification"     // POST {email}
+      // checkout:  API_BASE + "/api/checkout"                     // (quando habilitar)
     };
-
-    // ====== Limpar sessão para validação controlada (não afeta autofill do navegador) ======
-    (function(){
-      try {
-        localStorage.removeItem("uid");
-        localStorage.removeItem("idToken");
-        localStorage.removeItem("isAdmin");
-        if (window.firebase?.auth) { firebase.auth().signOut().catch(()=>{}); }
-        console.log("[cadastro] Sessão limpa para validação.");
-      } catch(e) {
-        console.warn("[cadastro] Não foi possível limpar sessão:", e);
-      }
-    })();
 
     // ====== Variáveis de UI ======
     const form = document.getElementById('signupForm');
@@ -294,7 +325,7 @@
     const voiceBar = document.getElementById('voiceBar');
     const aceiteVoz = document.getElementById('aceiteVoz');
 
-    let filesArr = [];
+    const voiceState={ files:[], totalSec:0 };
     let cnpjAvailability = 'unknown'; // 'unknown'|'available'|'unavailable'
 
     // ====== Helpers ======
@@ -337,7 +368,7 @@
       cnpjStatus.textContent = 'Verificando disponibilidade...';
       cnpjStatus.className = 'hint';
       try{
-        const res = await fetch(API.availability + '?cnpj=' + encodeURIComponent(digits));
+        const res = await fetch(API.availability + '?cnpj=' + encodeURIComponent(digits), { credentials:'include' });
         if (!res.ok) throw new Error('HTTP ' + res.status);
         const data = await res.json();
         if (data && data.available === true) {
@@ -378,7 +409,6 @@
 
     // Upload de voz
     function formatTime(sec){ const m=Math.floor(sec/60), s=Math.floor(sec%60); return `${m}m ${String(s).padStart(2,'0')}s`; }
-    const voiceState={ files:[], totalSec:0 };
     function renderFileList(){
       fileList.innerHTML='';
       voiceState.files.forEach((f,idx)=>{
@@ -433,12 +463,11 @@
       formMsg.textContent='Finalize o cadastro e verifique seu e-mail para seguir ao pagamento.';
     });
 
-    // ====== SUBMIT com reCAPTCHA e redirecionamento para verificação de e-mail ======
+    // ====== SUBMIT com reCAPTCHA + Backend PROD ======
     async function proceedSubmit(recaptchaToken){
       formMsg.className='hint';
       formMsg.textContent='Enviando cadastro com segurança...';
 
-      // MONTA FormData
       const fd = new FormData();
       fd.append('nome',  (document.getElementById('nome').value || '').trim());
       fd.append('email', (emailInput.value || '').trim());
@@ -451,23 +480,21 @@
       voiceState.files.forEach((file)=> fd.append('voice', file, file.name));
 
       try{
-        // Quando o backend estiver pronto, descomente:
-        // const res = await fetch(API.cadastro, { method:'POST', body: fd /*, credentials:'include'*/ });
-        // if (!res.ok) throw new Error('Falha no cadastro');
-        // const data = await res.json();
-
-        // Simulação: backend respondeu next: 'verifyEmail'
-        const data = { ok:true, next:'verifyEmail', email: (emailInput.value||'').trim() };
+        const res = await fetch(API.cadastro, { method:'POST', body: fd, credentials:'include' });
+        if (!res.ok) throw new Error('Falha no cadastro: HTTP '+res.status);
+        const data = await res.json();
 
         if (data.next === 'verifyEmail') {
-          window.location.href = '/verify-email.html?email=' + encodeURIComponent(data.email || '');
+          const mail = (data.email || (emailInput.value||'')).trim();
+          location.href = '/verify-email.html?email=' + encodeURIComponent(mail);
           return;
         }
         if (data.checkoutUrl) {
-          window.location.href = data.checkoutUrl;
+          location.href = data.checkoutUrl;
           return;
         }
-        window.location.href = '/verify-email.html';
+        // fallback
+        location.href = '/verify-email.html';
       } catch(e){
         console.error(e);
         formMsg.className='error';
@@ -496,19 +523,21 @@
       if (!aceiteVoz.checked) { formMsg.className='error'; formMsg.textContent='É necessário autorizar o uso da sua voz.'; return; }
       if (!document.getElementById('aceite').checked) { formMsg.className='error'; formMsg.textContent='É necessário aceitar os Termos e a Privacidade.'; return; }
 
-      // Executa reCAPTCHA (se disponível); senão, segue (modo dev)
+      // Executa reCAPTCHA (se disponível); senão, segue sem token (NÃO recomendado para produção definitiva)
       if (typeof grecaptcha !== 'undefined' && recaptchaWidgetId !== null) {
         formMsg.textContent='Validando segurança...';
         pendingSubmit = (token)=> proceedSubmit(token);
         grecaptcha.execute(recaptchaWidgetId);
       } else {
-        console.warn('reCAPTCHA não habilitado — seguindo em modo dev.');
+        console.warn('reCAPTCHA não habilitado — seguindo sem token (configurar meta[name=RECAPTCHA_SITE_KEY]).');
         proceedSubmit(null);
       }
     });
 
-    // inicia medidores
-    updatePwdMeter();
+    // inicia medidores assim que a página carregar
+    document.addEventListener('DOMContentLoaded', () => {
+      updatePwdMeter();
+    });
   </script>
 </body>
 </html>
