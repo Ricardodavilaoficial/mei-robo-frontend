@@ -4,7 +4,10 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>MEI Robô — Cadastro</title>
-  <link rel="stylesheet" href="./assets/styles.css" />
+
+  <!-- Caminhos absolutos evitam problemas de pasta -->
+  <link rel="stylesheet" href="/assets/styles.css" />
+
   <style>
     /* microestilos locais (mantém identidade existente) */
     .badge-mini{display:inline-block;background:#e8fff2;color:#0d7a56;border:1px solid #b8f3cf;border-radius:999px;padding:4px 10px;font-weight:800;font-size:.85rem}
@@ -25,8 +28,9 @@
   </style>
 </head>
 <body>
-  <!-- cabeçalho -->
+  <!-- cabeçalho (ids canônicos + compat com app-header/app-footer) -->
   <div id="app-header"></div>
+  <div id="header"></div>
 
   <main class="section">
     <div class="container form-wrap">
@@ -112,9 +116,9 @@
               <input type="checkbox" id="aceiteVoz" required />
               <span class="hint">
                 Declaro que sou o titular da voz enviada e <strong>autorizo seu uso</strong> exclusivamente na minha conta,
-                conforme o <a href="./consentimento-voz.html" target="_blank" rel="noopener">Consentimento de Voz</a>,
-                a <a href="./privacidade.html" target="_blank" rel="noopener">Política de Privacidade</a> e os
-                <a href="./termos.html" target="_blank" rel="noopener">Termos de Uso</a>.
+                conforme o <a href="/consentimento-voz.html" target="_blank" rel="noopener">Consentimento de Voz</a>,
+                a <a href="/privacidade.html" target="_blank" rel="noopener">Política de Privacidade</a> e os
+                <a href="/termos.html" target="_blank" rel="noopener">Termos de Uso</a>.
               </span>
             </label>
           </div>
@@ -124,8 +128,8 @@
             <label class="inline" style="gap:8px">
               <input type="checkbox" id="aceite" required />
               <span class="hint">
-                Li e aceito os <a href="./termos.html" target="_blank" rel="noopener">Termos</a> e a
-                <a href="./privacidade.html" target="_blank" rel="noopener">Política de Privacidade</a>.
+                Li e aceito os <a href="/termos.html" target="_blank" rel="noopener">Termos</a> e a
+                <a href="/privacidade.html" target="_blank" rel="noopener">Política de Privacidade</a>.
               </span>
             </label>
           </div>
@@ -153,7 +157,7 @@
           </div>
 
           <p class="hint" style="margin-top:10px">
-            Já tem conta? <a href="./login.html">Entrar</a>
+            Já tem conta? <a href="/pages/login.html">Entrar</a>
           </p>
 
           <!-- reCAPTCHA (invisível) -->
@@ -180,9 +184,26 @@
 
   <!-- rodapé -->
   <div id="app-footer"></div>
+  <div id="footer"></div>
 
-  <!-- layout (carrega header/footer) -->
-  <script src="./assets/layout.js"></script>
+  <!-- SHIM: garante ids canônicos antes do loader -->
+  <script>
+    (function(){
+      function ensure(id){ return document.getElementById(id) || (function(){const d=document.createElement('div'); d.id=id; return document.body.insertBefore(d, id==='header'?document.body.firstChild:null), d;})() }
+      ensure('header'); ensure('footer');
+      // espelha conteúdo do canônico para app-*, se existirem
+      const sync = new MutationObserver(() => {
+        const H=document.getElementById('header'), F=document.getElementById('footer');
+        const AH=document.getElementById('app-header'), AF=document.getElementById('app-footer');
+        if (H && AH && !AH.innerHTML) AH.innerHTML = H.innerHTML;
+        if (F && AF && !AF.innerHTML) AF.innerHTML = F.innerHTML;
+      });
+      sync.observe(document.body, { subtree:true, childList:true });
+    })();
+  </script>
+
+  <!-- layout (carrega header/footer) — caminho absoluto + versão -->
+  <script src="/assets/layout.js?v=20250905a" defer></script>
 
   <!-- reCAPTCHA (invisible v2, explicit render) -->
   <script>
@@ -231,6 +252,19 @@
       resendEmail:  'http://localhost:3000/api/auth/resend-verification', // POST {email}
       // checkout:  'http://localhost:3000/api/checkout'
     };
+
+    // ====== Limpar sessão para validação controlada (não afeta autofill do navegador) ======
+    (function(){
+      try {
+        localStorage.removeItem("uid");
+        localStorage.removeItem("idToken");
+        localStorage.removeItem("isAdmin");
+        if (window.firebase?.auth) { firebase.auth().signOut().catch(()=>{}); }
+        console.log("[cadastro] Sessão limpa para validação.");
+      } catch(e) {
+        console.warn("[cadastro] Não foi possível limpar sessão:", e);
+      }
+    })();
 
     // ====== Variáveis de UI ======
     const form = document.getElementById('signupForm');
@@ -393,7 +427,7 @@
     fileInput.addEventListener('change',(e)=>{ const files=e.target && e.target.files?e.target.files:null; if(files) addFiles(files); fileInput.value=''; });
 
     // Stripe (placeholder) — será bloqueado até verificar e-mail
-    stripeBtn.addEventListener('click', (e) => {
+    document.getElementById('stripeBtn').addEventListener('click', (e) => {
       e.preventDefault();
       formMsg.className='hint';
       formMsg.textContent='Finalize o cadastro e verifique seu e-mail para seguir ao pagamento.';
@@ -418,7 +452,7 @@
 
       try{
         // Quando o backend estiver pronto, descomente:
-        // const res = await fetch(API.cadastro, { method:'POST', body: fd, /* credentials:'include' */ });
+        // const res = await fetch(API.cadastro, { method:'POST', body: fd /*, credentials:'include'*/ });
         // if (!res.ok) throw new Error('Falha no cadastro');
         // const data = await res.json();
 
@@ -426,14 +460,14 @@
         const data = { ok:true, next:'verifyEmail', email: (emailInput.value||'').trim() };
 
         if (data.next === 'verifyEmail') {
-          window.location.href = './verify-email.html?email=' + encodeURIComponent(data.email || '');
+          window.location.href = '/verify-email.html?email=' + encodeURIComponent(data.email || '');
           return;
         }
-        if (data.checkoutUrl) { // caso seu backend já retorne checkoutUrl direto
+        if (data.checkoutUrl) {
           window.location.href = data.checkoutUrl;
           return;
         }
-        window.location.href = './verify-email.html';
+        window.location.href = '/verify-email.html';
       } catch(e){
         console.error(e);
         formMsg.className='error';
