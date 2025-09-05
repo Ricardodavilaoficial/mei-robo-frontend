@@ -6,17 +6,16 @@
   <title>MEI Robô — Cadastro</title>
 
   <!-- PRODUÇÃO: defina sua SITE KEY do reCAPTCHA v2 Invisible -->
-  <!-- Preencha o content="" com a chave real quando for ativar o reCAPTCHA -->
   <meta name="RECAPTCHA_SITE_KEY" content="">
 
-  <!-- Caminhos absolutos para evitar quebras por pasta -->
+  <!-- Caminhos absolutos -->
   <link rel="stylesheet" href="/assets/styles.css" />
 
   <style>
-    /* microestilos locais (mantém identidade e melhora UX) */
+    /* microestilos locais (identidade + UX) */
     .badge-mini{display:inline-block;background:#e8fff2;color:#0d7a56;border:1px solid #b8f3cf;border-radius:999px;padding:4px 10px;font-weight:800;font-size:.85rem}
-    .upload-area{border:2px dashed #cfdad6;border-radius:12px;padding:18px;cursor:pointer;background:#fff;overflow:hidden}
-    .upload-area:hover{background:#f6fbf9}
+    .upload-area{border:2px dashed #b7c7c2;border-radius:12px;padding:18px;cursor:pointer;background:#fbfdfc;overflow:hidden}
+    .upload-area:hover{background:#f2fbf7}
     .upload-head{display:flex;gap:12px;align-items:center;justify-content:space-between;flex-wrap:wrap}
     .upload-actions{display:flex;gap:10px;align-items:center}
     .upload-actions .btn-mini{cursor:pointer;border-radius:999px;padding:8px 14px;font-weight:800;border:1px solid #cdd7d4;background:#fff;color:var(--wa-dark)}
@@ -25,7 +24,7 @@
     .file-meta{font-size:.95rem;color:#355d52;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
     .remove-btn{background:#fff;border:1px solid #ffb3b3;color:#a33;border-radius:999px;padding:6px 10px;font-weight:800;cursor:pointer}
     .meter-voice{margin-top:8px}
-    .dim{opacity:.85}
+    .dim{opacity:1} /* não esmaecer textos-guia */
     .btn-disabled{opacity:.55; pointer-events:none}
     .alert{border:1px solid #e7ecea;background:#fff;border-radius:12px;padding:12px;margin-top:12px}
 
@@ -35,10 +34,22 @@
 
     /* Correção de sobreposição no CTA (caixa branca) */
     .actions { position: relative; z-index: 1; }
+
+    /* >>> CONTRASTE MELHORADO EM PLACEHOLDERS E GHOST TEXT <<< */
+    /* Texto nos inputs mais escuro */
+    .input, input.input { color:#183b33; }
+    /* Placeholders com legibilidade (Safari/Edge também) */
+    .input::placeholder{ color:#556964; opacity:1; }
+    .input::-ms-input-placeholder{ color:#556964; }
+    .input:-ms-input-placeholder{ color:#556964; }
+    /* Dicas e mensagens (mais legíveis sem “sumir”) */
+    .hint{ color:#46655d; }
+    /* Ghost text da área de upload mais forte */
+    .upload-area .dim{ color:#325a52; font-weight:600; }
   </style>
 </head>
 <body>
-  <!-- cabeçalho (ids canônicos + compat) -->
+  <!-- cabeçalho -->
   <div id="app-header"></div>
   <div id="header"></div>
 
@@ -46,7 +57,7 @@
     <div class="container form-wrap">
       <h1 style="color:var(--wa-dark); margin:0 0 6px">Criar minha conta</h1>
 
-      <!-- Texto introdutório único (sem stepper/bullets) -->
+      <!-- Texto introdutório único -->
       <div class="note" style="margin:10px 0 18px">
         <p>
           Sua conta é pessoal e intransferível e só será validada quando vinculada ao seu CNPJ/empresa.
@@ -222,7 +233,7 @@
   <div id="app-footer"></div>
   <div id="footer"></div>
 
-  <!-- SHIM: garante ids canônicos antes do loader -->
+  <!-- SHIM header/footer -->
   <script>
     (function(){
       function ensure(id){
@@ -231,7 +242,6 @@
         return el;
       }
       ensure('header'); ensure('footer');
-      // espelha conteúdo do canônico para app-*, se existirem
       const sync = new MutationObserver(() => {
         const H=document.getElementById('header'), F=document.getElementById('footer');
         const AH=document.getElementById('app-header'), AF=document.getElementById('app-footer');
@@ -242,10 +252,10 @@
     })();
   </script>
 
-  <!-- layout (carrega header/footer) — caminho absoluto + versão -->
-  <script src="/assets/layout.js?v=20250905c" defer></script>
+  <!-- layout (cache-busting) -->
+  <script src="/assets/layout.js?v=20250905d" defer></script>
 
-  <!-- LIMPAR SESSÃO APENAS NA VALIDAÇÃO (não afeta clientes reais) -->
+  <!-- LIMPAR SESSÃO APENAS NA VALIDAÇÃO -->
   <script>
     (function(){
       try {
@@ -263,7 +273,7 @@
     })();
   </script>
 
-  <!-- reCAPTCHA (invisible v2, explicit render) -->
+  <!-- reCAPTCHA -->
   <script>
     let recaptchaWidgetId = null;
     let pendingSubmit = null;
@@ -301,15 +311,15 @@
   <script src="https://www.google.com/recaptcha/api.js?onload=onRecaptchaLoad&render=explicit" async defer></script>
 
   <script>
-    // ====== CONFIG do Backend (PRODUÇÃO) ======
+    /* Backend PROD */
     const API_BASE = "https://mei-robo-prod.onrender.com";
     const API = {
-      availability: API_BASE + "/api/cnpj/availability",           // GET ?cnpj=digits -> {available:true|false}
-      cadastro:     API_BASE + "/api/cadastro",                    // POST multipart + recaptchaToken -> {next:'verifyEmail', email, checkoutUrl?}
-      resendEmail:  API_BASE + "/api/auth/resend-verification"     // POST {email}
+      availability: API_BASE + "/api/cnpj/availability",
+      cadastro:     API_BASE + "/api/cadastro",
+      resendEmail:  API_BASE + "/api/auth/resend-verification"
     };
 
-    // ====== Variáveis de UI ======
+    /* UI vars */
     const form = document.getElementById('signupForm');
     const submitBtn = document.getElementById('submitBtn');
 
@@ -338,9 +348,9 @@
     const aceiteVoz = document.getElementById('aceiteVoz');
 
     const voiceState={ files:[], totalSec:0 };
-    let cnpjAvailability = 'unknown'; // 'unknown'|'available'|'unavailable'
+    let cnpjAvailability = 'unknown';
 
-    // ====== Helpers ======
+    /* Helpers */
     function normalizeCNPJ(v){ return (v || '').replace(/\D+/g,''); }
     function validateCNPJ(cnpj){
       cnpj = normalizeCNPJ(cnpj);
@@ -405,13 +415,13 @@
     cnpjInput.addEventListener('blur', checkCNPJAvailability);
     cnpjInput.addEventListener('input', debouncedCheck);
 
-    // Força da senha
+    /* Força da senha */
     function calcStrength(s){ let score=0; if(!s) return 0; if(s.length>=8)score++; if(s.length>=12)score++; if(/[a-z]/.test(s))score++; if(/[A-Z]/.test(s))score++; if(/[0-9]/.test(s))score++; if(/[^A-Za-z0-9]/.test(s))score++; return Math.min(5, Math.max(0, Math.floor(score*0.8))); }
     function updatePwdMeter(){ const s=pwd.value||''; const st=calcStrength(s); const pct=[0,20,40,60,80,100][st]; bar.style.width=pct+'%'; bar.className=['','strength-1','strength-2','strength-3','strength-4','strength-5'][st]||'strength-1'; const labels=['Muito fraca','Fraca','Razoável','Forte','Muito forte','Excelente']; strengthText.textContent=s?('Força da senha: '+labels[st]):''; }
     pwd.addEventListener('input', updatePwdMeter);
     togglePwd.addEventListener('click', (e)=>{ e.preventDefault(); const visible=pwd.type==='text'; pwd.type=visible?'password':'text'; togglePwd.textContent=visible?'Mostrar':'Ocultar'; togglePwd.setAttribute('aria-pressed', String(!visible)); pwd.focus(); });
 
-    // Cupom (simples)
+    /* Cupom (simples) */
     document.getElementById('applyCoupon').addEventListener('click', () => {
       const code = (cupomInput.value || '').trim();
       if (!code) { couponMsg.textContent='Digite um cupom antes de aplicar.'; couponMsg.className='hint'; return; }
@@ -419,7 +429,7 @@
       else { couponMsg.textContent='Cupom inválido. Verifique e tente novamente.'; couponMsg.className='error'; }
     });
 
-    // Upload de voz
+    /* Upload de voz */
     function formatTime(sec){ const m=Math.floor(sec/60), s=Math.floor(sec%60); return `${m}m ${String(s).padStart(2,'0')}s`; }
     function renderFileList(){
       fileList.innerHTML='';
@@ -464,18 +474,18 @@
     document.getElementById('btnClearFiles').addEventListener('click',()=>{ voiceState.files=[]; renderFileList(); updateVoiceDurations(); });
     uploadArea.addEventListener('click',(e)=>{ const t=e.target; if(t && t.closest && t.closest('.btn-mini')) return; fileInput.click(); });
     uploadArea.addEventListener('dragover',(e)=>{ e.preventDefault(); uploadArea.style.background='#f0fff7'; });
-    uploadArea.addEventListener('dragleave',()=>{ uploadArea.style.background='#fff'; });
-    uploadArea.addEventListener('drop',(e)=>{ e.preventDefault(); uploadArea.style.background='#fff'; addFiles(e.dataTransfer.files); });
+    uploadArea.addEventListener('dragleave',()=>{ uploadArea.style.background='#fbfdfc'; });
+    uploadArea.addEventListener('drop',(e)=>{ e.preventDefault(); uploadArea.style.background='#fbfdfc'; addFiles(e.dataTransfer.files); });
     fileInput.addEventListener('change',(e)=>{ const files=e.target && e.target.files?e.target.files:null; if(files) addFiles(files); fileInput.value=''; });
 
-    // Stripe (placeholder) — será bloqueado até verificar e-mail
+    /* Stripe (placeholder) */
     document.getElementById('stripeBtn').addEventListener('click', (e) => {
       e.preventDefault();
       formMsg.className='hint';
       formMsg.textContent='Finalize o cadastro e verifique seu e-mail para seguir ao pagamento.';
     });
 
-    // ====== SUBMIT com reCAPTCHA + Backend PROD ======
+    /* SUBMIT com reCAPTCHA + Backend PROD */
     async function proceedSubmit(recaptchaToken){
       formMsg.className='hint';
       formMsg.textContent='Enviando cadastro com segurança...';
@@ -505,7 +515,6 @@
           location.href = data.checkoutUrl;
           return;
         }
-        // fallback
         location.href = '/verify-email.html';
       } catch(e){
         console.error(e);
@@ -518,32 +527,14 @@
       e.preventDefault();
       formMsg.className='hint'; formMsg.textContent='';
 
-      // CNPJ duplicado (no front)
       if (cnpjAvailability === 'unavailable') {
-        formMsg.className='error'; formMsg.textContent='CNPJ já cadastrado. Use outro CNPJ ou recupere acesso.'; return;
+                formMsg.className='error';
+        formMsg.textContent='A senha não atende aos requisitos mínimos.';
+        return;
       }
-      // Senha
-      if (pwd.value !== pwd2.value) { formMsg.className='error'; formMsg.textContent='As senhas não coincidem.'; return; }
-      const rules=[/[a-z]/,/[A-Z]/,/[0-9]/,/[^A-Za-z0-9]/];
-      if (!(rules.every(r=>r.test(pwd.value)) && pwd.value.length>=8)) {
-        formMsg.className='error'; formMsg.textContent='A senha não atende aos requisitos mínimos.'; return;
-      }
-      // Voz
-      if (voiceState.files.length===0) { formMsg.className='error'; formMsg.textContent='Envie ao menos 1 arquivo de voz (1 minuto no total).'; return; }
-      if (!voiceState.totalSec || voiceState.totalSec<60) { formMsg.className='error'; formMsg.textContent='O total de áudio precisa ter ao menos 1 minuto.'; return; }
-      if (voiceState.totalSec>1800) { formMsg.className='error'; formMsg.textContent='O total de áudio excede 30 minutos.'; return; }
-      if (!aceiteVoz.checked) { formMsg.className='error'; formMsg.textContent='É necessário autorizar o uso da sua voz.'; return; }
-      if (!document.getElementById('aceite').checked) { formMsg.className='error'; formMsg.textContent='É necessário aceitar os Termos e a Privacidade.'; return; }
 
-      // Executa reCAPTCHA (se disponível); senão, segue sem token (NÃO recomendado para produção definitiva)
-      if (typeof grecaptcha !== 'undefined' && recaptchaWidgetId !== null) {
-        formMsg.textContent='Validando segurança...';
-        pendingSubmit = (token)=> proceedSubmit(token);
-        grecaptcha.execute(recaptchaWidgetId);
-      } else {
-        console.warn('reCAPTCHA não habilitado — seguindo sem token (configurar meta[name=RECAPTCHA_SITE_KEY]).');
-        proceedSubmit(null);
-      }
+      // OK -> segue cadastro com reCAPTCHA (ou fallback)
+      await doRegister();
     });
 
     // inicia medidores assim que a página carregar
@@ -553,3 +544,4 @@
   </script>
 </body>
 </html>
+
