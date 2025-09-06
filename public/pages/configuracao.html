@@ -3,25 +3,46 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Configuração — MEI Robô</title>
+  <title>Configuração de comunicação — MEI Robô</title>
 
   <!-- Canônicos -->
   <link rel="stylesheet" href="/assets/styles.css" />
-  <script defer src="/assets/layout.js"></script>
+  <!-- Mantemos layout.js; bust leve para evitar cache local -->
+  <script defer src="/assets/layout.js?v=2025-09-06-06"></script>
 
   <style>
-    /* pequenos ajustes visuais opcionais */
+    :root { --input-h: 48px; --input-br: 10px; --input-bc: #d8d8d8; --input-fc: #222; --hint: .92rem; }
     .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-    .mt-16 { margin-top: 16px; }
-    .mt-24 { margin-top: 24px; }
-    .w-100 { width: 100%; }
-    .hint { font-size: .9rem; opacity: .85; }
-    form section { margin-top: 16px; }
-    form label { display: block; margin: 8px 0; }
-    .btn { padding: 10px 14px; border: 0; border-radius: 8px; cursor: pointer; }
-    .btn.primary { background: #25D366; color: #fff; }
-    .btn.outline { background: #fff; border: 1px solid #ccc; }
-    .card + .card { margin-top: 16px; }
+    .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; }
+    @media (max-width: 900px) { .grid-2, .grid-3 { grid-template-columns: 1fr; } }
+    .mt-6{margin-top:6px}.mt-8{margin-top:8px}.mt-12{margin-top:12px}.mt-16{margin-top:16px}.mt-20{margin-top:20px}.mt-24{margin-top:24px}
+    .w-100{width:100%}.hint{font-size:var(--hint);opacity:.9} form section{margin-top:18px} form label{display:block;margin:8px 0}
+
+    /* Inputs padrão */
+    input[type="text"],input[type="email"],input[type="tel"],select{
+      width:100%;height:var(--input-h);border:1px solid var(--input-bc);
+      border-radius:var(--input-br);padding:0 12px;color:var(--input-fc);
+      outline:none;box-sizing:border-box;background:#fff
+    }
+    input::placeholder{opacity:.75}
+
+    /* Readonly: “caixa fixa” visual */
+    input[readonly]{background:#f7f7f7;color:#222;border-color:#e3e3e3}
+    input[readonly]:focus{cursor:default}
+
+    /* Botões */
+    .btn{padding:10px 14px;border:0;border-radius:8px;cursor:pointer}
+    .btn.primary{background:#25D366;color:#fff}
+    .btn.outline{background:#fff;border:1px solid #ccc}
+    .btn[disabled]{opacity:.6;cursor:not-allowed}
+    .card + .card{margin-top:16px}
+
+    /* Badges (apenas para status WABA) */
+    .pill{display:inline-block;font-size:.76rem;line-height:1;padding:5px 8px;border-radius:999px;vertical-align:middle;margin-left:8px}
+    .pill-pending{background:#fff7e6;color:#8a5a00;border:1px solid #f5d08a}
+    .pill-prov{background:#eef5ff;color:#0b63c9;border:1px solid #cfe0ff}
+    .pill-active{background:#e8fff2;color:#116a3d;border:1px solid #25D366}
+    .pill-failed{background:#feecec;color:#9b1c1c;border:1px solid #fecaca}
   </style>
 </head>
 <body>
@@ -29,201 +50,357 @@
 
   <main class="container">
     <div class="card">
-      <h2>Configuração Inicial</h2>
-      <p>Complete as etapas para ativar seu MEI Robô.</p>
+      <h2>Configuração de comunicação</h2>
+      <p class="hint">Como você fala com as pessoas no WhatsApp. Capriche aqui: isso aumenta respostas, orçamentos e fechamentos.</p>
+      <p class="hint mt-8">Este é o <strong>padrão geral</strong>. Depois dá pra ajustar por contato.</p>
 
-      <!-- Form multi-step -->
-      <form id="config-form">
+      <form id="config-form" class="mt-16" novalidate>
+        <!-- Status do número virtual -->
+        <section id="sec-waba">
+          <h3>WhatsApp Business (número virtual) <span id="waba-badge" class="pill pill-pending">verificando…</span></h3>
+          <p id="waba-fixed" class="hint mt-6">
+            Você receberá um <strong>número novo do WhatsApp Business</strong> (virtual, <strong>sem chip</strong>), adequado para conta comercial.
+            Você pode manter seus números atuais; o robô usará este número quando estiver <strong>Ativo</strong>.
+            Ele será liberado após a autenticação da sua conta pela Meta, <strong>em até 7 dias úteis</strong>.
+          </p>
+          <p id="waba-note" class="hint"></p>
+          <p id="waba-eta" class="hint"></p>
+        </section>
 
-        <!-- Etapa 1: Dados básicos -->
-        <section>
-          <h3>Dados básicos</h3>
+        <!-- Dados da conta (somente leitura) -->
+        <section class="mt-20">
+          <h3>Dados da conta</h3>
           <div class="grid-2">
-            <label>Nome:
-              <input class="w-100" type="text" name="nome" required />
+            <label>Nome
+              <input type="text" name="nome" autocomplete="name" readonly />
             </label>
-            <label>Email:
-              <input class="w-100" type="email" name="email" required />
+            <label>E-mail
+              <input type="email" name="email" autocomplete="email" readonly />
             </label>
-            <label>Telefone:
-              <input class="w-100" type="tel" name="telefone" required />
+            <label>Telefone (WhatsApp)
+              <input type="tel" name="telefone" autocomplete="tel" placeholder="Ex.: (11) 91234-5678" />
+              <span class="hint">Use o número que atende seus clientes.</span>
             </label>
-            <label>CNPJ:
-              <input class="w-100" type="text" name="cnpj" required />
+            <label>CNPJ
+              <input type="text" name="cnpj" inputmode="numeric" readonly />
             </label>
           </div>
         </section>
 
-        <!-- Etapa 2: Segmento -->
+        <!-- Segmento e áreas -->
         <section>
           <h3>Segmento profissional</h3>
           <div class="grid-2">
-            <label>Segmento:
-              <input class="w-100" type="text" name="segmento" required />
+            <label>Segmento (CNAE)
+              <input type="text" name="segmento" readonly />
             </label>
-            <label>Especialização 1:
-              <input class="w-100" type="text" name="esp1" />
+            <label>Área que você mais atua
+              <input type="text" name="esp1" placeholder="Ex.: Pneus / Corte masculino / Direito trabalhista" />
             </label>
-            <label>Especialização 2:
-              <input class="w-100" type="text" name="esp2" />
+            <label>Outra área de atuação (opcional)
+              <input type="text" name="esp2" placeholder="Ex.: Troca de óleo / Barba / Contratos" />
             </label>
           </div>
         </section>
 
-        <!-- Etapa 3: Estilo comunicação -->
+        <!-- Seu jeito de falar -->
         <section>
-          <h3>Estilo de comunicação</h3>
-          <div class="grid-2">
-            <label>Formalidade:
-              <select class="w-100" name="formalidade">
-                <option value="alta">Alta</option>
-                <option value="media" selected>Média</option>
-                <option value="baixa">Baixa</option>
+          <h3>Seu jeito de falar</h3>
+          <p class="hint">Defina o estilo que você costuma usar com a maioria dos clientes. Depois dá pra personalizar por contato.</p>
+
+          <div class="grid-3">
+            <label>Formalidade
+              <select name="formalidade">
+                <option value="alta">Alta — “Prezado Sr. João…”</option>
+                <option value="media" selected>Média — “Olá, João, tudo bem?”</option>
+                <option value="baixa">Baixa — “E aí, João, beleza?”</option>
               </select>
             </label>
             <label>Usa emojis?
-              <select class="w-100" name="emojis">
+              <select name="emojis">
                 <option value="sim" selected>Sim</option>
+                <option value="as_vezes">Às vezes</option>
                 <option value="nao">Não</option>
               </select>
             </label>
-            <label>Saudação preferida:
-              <input class="w-100" type="text" name="saudacao" placeholder="Ex.: Olá! Tudo bem?" />
+            <label>Saudação preferida
+              <input type="text" name="saudacao" placeholder="Ex.: Olá! Tudo bem? / Bom dia! Como vai?" />
+            </label>
+          </div>
+
+          <div class="grid-2 mt-12">
+            <label>Como você costuma ser chamado?
+              <input type="text" name="display_name" placeholder="Ex.: Ricardo / Ricardo — Barbeiro / Dr. Ricardo / Ricardão 😎" />
+              <span class="hint">Esse é o nome que aparece nas mensagens, quando necessário. Você pode mudar por contato depois.</span>
+            </label>
+            <label>Fechamento de conversa (opcional)
+              <input type="text" name="closing_text" placeholder="Ex.: Abraço. Ricardo / Obrigado! Ricardo" />
+              <span class="hint">Usado só quando fizer sentido.</span>
+            </label>
+          </div>
+
+          <div class="grid-2 mt-12">
+            <label>Horário de resposta padrão
+              <select name="janela_resposta" id="janela_resposta">
+                <option value="24x7" selected>Sempre disponível (24/7 — padrão do MEI Robô)</option>
+                <option value="comercial">Horário comercial (Seg–Sex, 9h–18h)</option>
+                <option value="estendido">Estendido (Seg–Sáb, 8h–20h)</option>
+                <option value="custom">Personalizado…</option>
+              </select>
+            </label>
+          </div>
+          <div id="custom-horario" class="mt-8" style="display:none">
+            <label>Informe seu horário (livre)
+              <input type="text" name="janela_resposta_custom" placeholder="Ex.: Respondo das 9h às 18h e, às vezes, até 22h" />
             </label>
           </div>
         </section>
 
-        <!-- Etapa 4: Voz -->
-        <section>
-          <h3>Clonagem de voz</h3>
-          <input type="file" name="voz" accept="audio/*" required />
-          <p class="hint"><small>⚠️ O envio da voz é obrigatório para ativação.</small></p>
-        </section>
-
         <div class="mt-24">
-          <button type="submit" class="btn primary">Salvar configuração</button>
+          <button id="btn-salvar" type="submit" class="btn primary">Salvar e continuar</button>
+          <span id="config-feedback" class="hint mt-8" style="margin-left:8px;"></span>
         </div>
       </form>
-
-      <p id="config-feedback" class="hint mt-16"></p>
-    </div>
-
-    <!-- Importar tabela de preços -->
-    <div class="card">
-      <h3>Importar tabela de preços</h3>
-      <p class="hint">Envie um arquivo <strong>.csv</strong> ou <strong>.xlsx</strong> contendo colunas como <em>nome</em>, <em>preço</em> e (opcional) <em>duração</em> em minutos.</p>
-
-      <div class="grid-2">
-        <label>Arquivo:
-          <input class="w-100" type="file" id="arquivo-precos" accept=".csv,.xlsx" />
-        </label>
-        <div class="mt-16">
-          <button id="btn-importar" class="btn outline">Importar</button>
-        </div>
-      </div>
-
-      <p id="import-feedback" class="hint mt-16"></p>
     </div>
   </main>
 
   <div id="app-footer"></div>
 
-  <!-- Scripts da página -->
   <script>
-    // =========================================
-    // Config de API — defina uma vez no console:
-    // localStorage.setItem('apiBase','https://SEU-RENDER.onrender.com')
-    // =========================================
-    const API_BASE = localStorage.getItem('apiBase') || '';
+    // ============================ API BASE ============================
+    const API_BASE = (localStorage.getItem('apiBase') || 'https://mei-robo-prod.onrender.com').replace(/\/+$/, '');
 
-    // Se já tiver UID autenticado, salve no localStorage em algum momento:
-    // localStorage.setItem('uid', 'demo'); // fallback para testes
-    const UID = localStorage.getItem('uid') || 'demo';
+    // ====================== Firebase readiness helper =================
+    async function waitForFirebaseAuth(timeoutMs = 10000) {
+      return new Promise((resolve) => {
+        const start = Date.now();
+        (function check() {
+          const ready = !!(window.firebase && firebase.apps && firebase.apps.length && firebase.auth);
+          if (ready) return resolve(true);
+          if (Date.now() - start > timeoutMs) return resolve(false);
+          setTimeout(check, 50);
+        })();
+      });
+    }
 
-    // ----------------------------
-    // Submit do formulário (config)
-    // ----------------------------
+    // =============== AUTH GATE (discreto; sem CTA de login aqui) ======
+    (async function authGate() {
+      const fbReady = await waitForFirebaseAuth();
+      if (fbReady && window.firebase && firebase.auth) {
+        await new Promise((resolve) => {
+          let resolved = false;
+          const unsub = firebase.auth().onAuthStateChanged((user) => {
+            if (resolved) return;
+            resolved = true; unsub();
+            resolve();
+          });
+          setTimeout(() => { if (!resolved) { resolved = true; resolve(); } }, 3000);
+        });
+      }
+    })();
+
+    // ============================== HELPERS ===========================
+    async function getAuthContext() {
+      let uid = localStorage.getItem('uid') || sessionStorage.getItem('uid') || null;
+      let idToken = null;
+      if (window.firebase && firebase.auth) {
+        try {
+          const user = firebase.auth().currentUser;
+          if (user) {
+            uid = user.uid;
+            idToken = await user.getIdToken(true);
+          }
+        } catch (_) {}
+      }
+      return { uid, idToken };
+    }
+
+    // ============================== ELEMENTOS =========================
     const form = document.getElementById('config-form');
     const cfgFeedback = document.getElementById('config-feedback');
+    const btnSalvar = document.getElementById('btn-salvar');
 
-    form.addEventListener('submit', async (e) => {
-      e.preventDefault();
+    const fNome = form.querySelector('input[name="nome"]');
+    const fEmail = form.querySelector('input[name="email"]');
+    const fTel   = form.querySelector('input[name="telefone"]');
+    const fCnpj  = form.querySelector('input[name="cnpj"]');
 
-      const fd = new FormData(form);
-      fd.append('uid', UID);
+    const fSegmento = form.querySelector('input[name="segmento"]');
+    const fEsp1 = form.querySelector('input[name="esp1"]');
+    const fEsp2 = form.querySelector('input[name="esp2"]');
 
-      cfgFeedback.textContent = 'Enviando dados...';
+    const fFormal = form.querySelector('select[name="formalidade"]');
+    const fEmojis = form.querySelector('select[name="emojis"]');
+    const fSaud   = form.querySelector('input[name="saudacao"]');
+    const fDisp   = form.querySelector('input[name="display_name"]');
+    const fClose  = form.querySelector('input[name="closing_text"]');
 
-      try {
-        const resp = await fetch(`${API_BASE}/api/configuracao`, {
-          method: 'POST',
-          body: fd
-        });
+    const fJanela = document.getElementById('janela_resposta');
+    const wrapCustom = document.getElementById('custom-horario');
+    const fJanelaCustom = form.querySelector('input[name="janela_resposta_custom"]');
 
-        let payload;
-        const ct = resp.headers.get('content-type') || '';
-        if (ct.includes('application/json')) {
-          payload = await resp.json();
-        } else {
-          payload = { message: await resp.text() };
-        }
+    const wabaBadge = document.getElementById('waba-badge');
+    const wabaNote  = document.getElementById('waba-note');
+    const wabaEta   = document.getElementById('waba-eta');
 
-        if (!resp.ok) {
-          cfgFeedback.textContent = '❌ Falha ao salvar: ' + (payload?.message || JSON.stringify(payload));
-          return;
-        }
-
-        cfgFeedback.textContent = '✅ Configuração salva! UID: ' + (payload?.uid || UID);
-        alert('Configuração salva! Status: ' + (payload?.status || 'ok'));
-      } catch (err) {
-        console.error(err);
-        cfgFeedback.textContent = '❌ Erro ao comunicar com o servidor.';
-      }
+    fJanela.addEventListener('change', () => {
+      wrapCustom.style.display = (fJanela.value === 'custom') ? 'block' : 'none';
     });
 
-    // ----------------------------
-    // Importação de preços (CSV/XLSX)
-    // ----------------------------
-    const btnImportar = document.getElementById('btn-importar');
-    const inputArquivo = document.getElementById('arquivo-precos');
-    const importFeedback = document.getElementById('import-feedback');
+    // ============================== INIT ==============================
+    (async function init() {
+      await waitForFirebaseAuth();
+      const { uid, idToken } = await getAuthContext();
 
-    btnImportar.addEventListener('click', async () => {
-      if (!inputArquivo.files[0]) {
-        alert('Selecione um arquivo CSV/XLSX.');
+      // Carrega snapshot de configuração
+      if (uid) {
+        try {
+          const headers = {}; if (idToken) headers['Authorization'] = 'Bearer ' + idToken;
+          const resp = await fetch(`${API_BASE}/api/configuracao?uid=${encodeURIComponent(uid)}`, { method: 'GET', headers });
+          if (resp.ok) {
+            const data = await resp.json();
+
+            if (data.nome)  fNome.value = data.nome;
+            if (data.email) fEmail.value = data.email;
+            if (data.telefone) fTel.value = data.telefone;
+            if (data.cnpj)  fCnpj.value = data.cnpj;
+
+            // Segmento (readonly)
+            if (data.segmento) fSegmento.value = data.segmento;
+            fSegmento.readOnly = true;
+
+            // Áreas de atuação
+            if (data.esp1) fEsp1.value = data.esp1;
+            if (data.esp2) fEsp2.value = data.esp2;
+
+            // Comunicação
+            if (data.formalidade) fFormal.value = data.formalidade;
+            if (data.emojis) fEmojis.value = data.emojis;
+            if (data.saudacao) fSaud.value = data.saudacao;
+            if (data.display_name) fDisp.value = data.display_name;
+            if (data.closing_text) fClose.value = data.closing_text;
+
+            // Horário
+            if (data.janela_resposta) {
+              fJanela.value = data.janela_resposta;
+              wrapCustom.style.display = (fJanela.value === 'custom') ? 'block' : 'none';
+            }
+            if (data.janela_resposta_custom) {
+              fJanelaCustom.value = data.janela_resposta_custom;
+            }
+          } else {
+            cfgFeedback.textContent = '⚠️ Não foi possível carregar seus dados agora.';
+          }
+        } catch (err) {
+          console.error(err);
+          cfgFeedback.textContent = '⚠️ Erro ao carregar dados.';
+        }
+      }
+
+      // Carrega status do número virtual (WABA)
+      await loadWabaStatus(uid, idToken);
+    })();
+
+    async function loadWabaStatus(uid, idToken){
+      try {
+        if (!uid) { setWabaUI('UNKNOWN'); return; }
+        const headers = {}; if (idToken) headers['Authorization'] = 'Bearer ' + idToken;
+        const r = await fetch(`${API_BASE}/api/waba/status?uid=${encodeURIComponent(uid)}`, { headers });
+        if (!r.ok) { setWabaUI('UNKNOWN'); return; }
+        const data = await r.json();
+        setWabaUI(String(data.status || 'UNKNOWN').toUpperCase(), data);
+
+        // Poll leve enquanto não ativo/failed
+        if (data.status && !/ACTIVE|FAILED/i.test(data.status)) {
+          setTimeout(() => loadWabaStatus(uid, idToken), 60000);
+        }
+      } catch(e){
+        console.warn('[waba] status erro:', e);
+        setWabaUI('UNKNOWN');
+      }
+    }
+
+    function setWabaUI(status, data){
+      const s = (status || '').toUpperCase();
+      const badge = wabaBadge; const note = wabaNote; const eta = wabaEta;
+      badge.className = 'pill'; eta.textContent = ''; note.textContent = '';
+
+      if (s === 'ACTIVE') {
+        badge.classList.add('pill-active'); badge.textContent = 'ativo';
+        const num = (data && data.numberE164) ? data.numberE164 : '';
+        note.innerHTML = 'Número virtual <strong>ativado</strong> ' + (num ? '(' + escapeHtml(num) + ')' : '') + '. Tudo pronto para atender.';
+      } else if (s === 'PROVISIONING') {
+        badge.classList.add('pill-prov'); badge.textContent = 'ativando…';
+        note.innerHTML = 'Estamos ativando seu número virtual.';
+        if (data && data.eta) eta.textContent = 'Entrega prevista até: ' + formatDateBR(data.eta);
+      } else if (s === 'PENDING') {
+        badge.classList.add('pill-pending'); badge.textContent = 'em análise';
+        note.innerHTML = 'Aguardando aprovação da Meta. Assim que for aprovado, seu número será ativado.';
+        if (data && data.eta) eta.textContent = 'Entrega prevista até: ' + formatDateBR(data.eta) + ' (até 7 dias úteis).';
+        else eta.textContent = 'Entrega prevista: até 7 dias úteis.';
+      } else if (s === 'FAILED') {
+        badge.classList.add('pill-failed'); badge.textContent = 'falhou';
+        note.textContent = 'Não foi possível ativar o número. Verifique a documentação e tente novamente.';
+      } else {
+        badge.classList.add('pill-pending'); badge.textContent = 'verificando…';
+        note.textContent = 'Estamos verificando o status do seu número virtual.';
+      }
+    }
+
+    function escapeHtml(str){ return String(str).replace(/[&<>"']/g, s => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[s])); }
+    function formatDateBR(iso){
+      try { const d = new Date(iso); const dd = String(d.getDate()).padStart(2,'0'); const mm = String(d.getMonth()+1).padStart(2,'0'); const yy = d.getFullYear(); return `${dd}/${mm}/${yy}`; }
+      catch(_){ return iso; }
+    }
+
+    // ============================== SUBMIT ============================
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      cfgFeedback.textContent = '';
+      btnSalvar.disabled = true;
+      btnSalvar.textContent = 'Enviando…';
+
+      const { uid, idToken } = await getAuthContext();
+      if (!uid) {
+        cfgFeedback.textContent = '❌ Faça login para salvar suas configurações.';
+        btnSalvar.disabled = false;
+        btnSalvar.textContent = 'Salvar e continuar';
         return;
       }
 
-      importFeedback.textContent = 'Enviando tabela...';
-
-      const fd = new FormData();
-      fd.append('uid', UID);
-      fd.append('arquivo', inputArquivo.files[0]);
-
       try {
-        const resp = await fetch(`${API_BASE}/api/importar-precos`, {
-          method: 'POST',
-          body: fd
-        });
+        const fd = new FormData(form);
+        fd.append('uid', uid);
 
-        let payload;
-        const ct = resp.headers.get('content-type') || '';
-        if (ct.includes('application/json')) {
-          payload = await resp.json();
-        } else {
-          payload = { message: await resp.text() };
+        if (fd.get('janela_resposta') !== 'custom') {
+          fd.delete('janela_resposta_custom');
         }
 
+        // Garante segmento readonly
+        fd.set('segmento', fSegmento.value || '');
+
+        const headers = {}; if (idToken) headers['Authorization'] = 'Bearer ' + idToken;
+        const resp = await fetch(`${API_BASE}/api/configuracao`, {
+          method: 'POST', headers, body: fd
+        });
+
+        let payload; const ct = resp.headers.get('content-type') || '';
+        if (ct.includes('application/json')) payload = await resp.json();
+        else payload = { message: await resp.text() };
+
         if (!resp.ok) {
-          importFeedback.textContent = '❌ Erro: ' + (payload?.message || JSON.stringify(payload));
+          cfgFeedback.textContent = '❌ Falha ao salvar: ' + (payload?.message || JSON.stringify(payload));
+          btnSalvar.disabled = false; btnSalvar.textContent = 'Salvar e continuar';
           return;
         }
 
-        importFeedback.textContent = `✅ Importação concluída! Itens: ${payload?.itens ?? '—'}`;
-        alert('Importação concluída!');
-      } catch (e) {
-        console.error(e);
-        importFeedback.textContent = '❌ Erro na importação.';
+        cfgFeedback.textContent = '✅ Configuração salva. Continuando…';
+        setTimeout(() => { window.location.href = '/pages/dashboard.html'; }, 600);
+      } catch (err) {
+        console.error(err);
+        cfgFeedback.textContent = '❌ Erro ao comunicar com o servidor.';
+        btnSalvar.disabled = false;
+        btnSalvar.textContent = 'Salvar e continuar';
       }
     });
   </script>
