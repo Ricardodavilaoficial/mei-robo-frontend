@@ -1,4 +1,4 @@
-/* styles.css — canônico (complementado) */
+/* styles.css — canônico (revisado p/ produção) */
 :root {
   --bg: #0d1418;          /* tom WhatsApp dark */
   --card: #111b21;
@@ -38,14 +38,14 @@ a:hover { text-decoration: underline; }
 
 /* Header/Rodapé canônicos */
 header.site, footer.site,
-.site-footer { /* suporta <footer class="site-footer"> também */
+.site-footer {
   background: #0b1a12;
   border-bottom: 1px solid var(--border);
   border-top: 1px solid var(--border);
 }
 
 header.site .inner, footer.site .inner,
-.site-footer .container { /* .container do footer antigo vira “inner” */
+.site-footer .container {
   max-width: 980px;
   margin: 0 auto;
   padding: 12px 16px;
@@ -58,6 +58,7 @@ header.site .brand { font-weight: 700; letter-spacing: .3px; }
 
 main h2 { margin-top: 0; }
 
+/* Botões base */
 button {
   background: var(--accent);
   color: #001;
@@ -69,6 +70,7 @@ button {
 }
 button:disabled { opacity: .5; cursor: not-allowed; }
 
+/* Saída de debug */
 pre#out {
   white-space: pre-wrap;
   background: #0c171d;
@@ -97,6 +99,7 @@ pre#out {
 .grid-2{ grid-template-columns:repeat(2, minmax(0,1fr)); }
 @media (max-width: 720px){ .grid-2{ grid-template-columns:1fr; } }
 
+/* Inputs */
 .input, select.input, textarea.input{
   width:100%;
   padding:10px 12px;
@@ -108,6 +111,14 @@ pre#out {
 }
 .input:focus, select.input:focus, textarea.input:focus{ border-color:var(--accent); }
 
+/* Placeholder padrão do projeto (acinzentado) */
+.input::placeholder { color: rgba(233, 237, 239, 0.55); opacity: 1; }
+.input::-webkit-input-placeholder { color: rgba(233, 237, 239, 0.55); opacity: 1; }
+.input::-moz-placeholder { color: rgba(233, 237, 239, 0.55); opacity: 1; }
+.input:-ms-input-placeholder { color: rgba(233, 237, 239, 0.55); opacity: 1; }
+.input::-ms-input-placeholder { color: rgba(233, 237, 239, 0.55); opacity: 1; }
+
+/* Botões utilitários (para compatibilidade com telas existentes) */
 .btn{
   background:var(--accent);
   color:#001;
@@ -122,7 +133,31 @@ pre#out {
   color:var(--text);
   border:1px solid var(--border);
 }
+/* Também oferecemos a variante com hífen, usada em algumas páginas */
+.btn-secondary{
+  background:transparent;
+  color:var(--text);
+  border:1px solid var(--border);
+  border-radius:10px;
+  padding:10px 14px;
+  cursor:pointer;
+  font-weight:600;
+  display:inline-block;
+}
+/* CTA usada em formulários simples */
+.cta{
+  background: var(--accent);
+  color: #001;
+  border: 0;
+  border-radius: 10px;
+  padding: 10px 14px;
+  cursor: pointer;
+  font-weight: 700;
+  display: inline-block;
+}
+.cta:disabled{ opacity:.5; cursor:not-allowed; }
 
+/* Tabelas */
 .table{ width:100%; border-collapse:collapse; }
 .table th, .table td{ border-bottom:1px solid var(--border); padding:8px; text-align:left; }
 .table thead th{ color:var(--muted); font-weight:600; }
@@ -130,6 +165,7 @@ pre#out {
 /* Ajustes quando o footer usa .site-footer */
 .site-footer .note + .note { margin-top: 2px; }
 .site-footer .container { flex-direction: column; align-items: flex-start; gap: 8px; }
+
 /* ===== Header com marca forte ===== */
 .header-inner { justify-content: space-between; }
 .brand {
@@ -140,7 +176,7 @@ pre#out {
   color: var(--text);
 }
 .brand-logo {
-  width: 40px;   /* destaque da marca */
+  width: 40px;
   height: 40px;
   border-radius: 10px;
   display: block;
@@ -150,7 +186,7 @@ pre#out {
 }
 .brand-name {
   font-weight: 800;
-  font-size: 22px;        /* maior para dar presença à marca */
+  font-size: 22px;
   letter-spacing: .2px;
 }
 
@@ -180,18 +216,28 @@ pre#out {
   .brand-name { font-size: 18px; }
 }
 
-/* promo: logo maior no header (mei-robo-icon) */
-#app-header img[src$="mei-robo-icon.png"]{width:180px;height:auto;vertical-align:middle}
-@media (min-width:768px){#app-header img[src$="mei-robo-icon.png"]{width:220px}}
+/* ========= Promo: logo no header (consolidado, sem duplicatas) ========= */
+#app-header img[src$="mei-robo-icon.png"]{ width:180px; height:auto; vertical-align:middle; }
+@media (min-width:768px){ #app-header img[src$="mei-robo-icon.png"]{ width:220px; } }
 
-/* promo: for�a logo maior no header (override) */
-#app-header img[src$="mei-robo-icon.png"]{width:220px !important;height:auto !important;vertical-align:middle}
-@media (min-width:768px){#app-header img[src$="mei-robo-icon.png"]{width:260px !important}}
+/* (removidas regras duplicadas e seletor :has com sintaxe inválida) */
 
-/* === brand tune: logo menor e texto maior no header === */
-/* deixa o link da marca em linha e com gap */
-#app-header a:has(="mei-robo-icon.png"]){display:inline-flex;align-items:center;gap:10px;font-size:22px;font-weight:800;line-height:1.1}
-@media (min-width:768px){#app-header a:has(="mei-robo-icon.png"]){font-size:26px}}
-/* logo um pouco menor que antes */
-#app-header img[src$="mei-robo-icon.png"]{width:140px !important;height:auto !important;vertical-align:middle}
-@media (min-width:768px){#app-header img[src$="mei-robo-icon.png"]{width:180px !important}}
+/* ===================== App Shell Global (anti "página anã") ===================== */
+/* Use body.app-shell + main.app-main nas páginas curtas (verify-email, reset, etc.) */
+.app-shell{
+  min-height: 100svh;  /* mobile moderno */
+  min-height: 100vh;   /* fallback desktop */
+  display: flex;
+  flex-direction: column;
+}
+.app-main{
+  flex: 1 0 auto;
+  display: grid;
+  place-items: center;
+  padding: clamp(16px, 3vw, 40px);
+}
+
+/* ==================== Feedbacks de texto comuns ==================== */
+.hint { color: var(--muted); }
+.ok   { color: #86f7c2; }
+.error{ color: #ff9c9c; }
