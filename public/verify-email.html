@@ -5,96 +5,119 @@
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Verifique seu e-mail — MEI Robô</title>
 
+  <!-- Reforço: evitar cache do HTML -->
   <meta http-equiv="Cache-Control" content="no-store" />
+
+  <!-- Estilos do projeto -->
   <link rel="stylesheet" href="/assets/styles.css" />
 
   <style>
-    /* ===== Forçar altura plena de viewport (vence CSS global) ===== */
-    html, body { height: 100%; }
-    body.shell-page {
-      min-height: 100vh !important; /* fallback desktop */
-      min-height: 100svh !important; /* viewport segura mobile */
-      display: flex;
-      flex-direction: column;
+    /* ===============================
+       1) Shell isolado anti-"página anã"
+       =============================== */
+    .page-shell{
+      min-height: 100svh !important; /* viewport segura em mobile */
+      min-height: 100vh !important;  /* fallback desktop */
+      display: flex !important;
+      flex-direction: column !important;
       background: var(--bg, #0b1f1a);
     }
-    main.section.shell-content {
+    .page-shell main.section{
       flex: 1 0 auto !important;
       display: grid !important;
       place-items: center !important;
       padding: clamp(16px, 3vw, 40px);
-      /* Garantir miolo com “altura confortável” mesmo com pouco conteúdo */
+      /* garante "corpo" confortável em páginas curtas */
       min-height: clamp(60svh, 72svh, 80svh) !important;
+      width: 100%;
     }
 
     /* Mantém teu container central */
-    .center { max-width: 720px; margin: 0 auto; }
+    .center{ max-width:720px; margin:0 auto; width:100%; }
 
     /* Chip de e-mail (apenas leitura) */
     .email-chip{
       font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
       font-weight: 700; padding: 2px 8px; border-radius: 8px;
-      background: #0f3b2f; color: #b9f4d8; word-break: break-all;
+      background:#0f3b2f; color:#b9f4d8; word-break:break-all;
     }
 
-    /* ===== Placeholder “branco acinzentado” com alta especificidade ===== */
-    #email.input::placeholder { color: rgba(255,255,255,0.55) !important; opacity: 1; }
-    /* Vendor prefixes para garantir em todos browsers */
-    #email.input::-webkit-input-placeholder { color: rgba(255,255,255,0.55) !important; opacity: 1; }
-    #email.input::-moz-placeholder { color: rgba(255,255,255,0.55) !important; opacity: 1; }
-    #email.input:-ms-input-placeholder { color: rgba(255,255,255,0.55) !important; opacity: 1; }
-    #email.input::-ms-input-placeholder { color: rgba(255,255,255,0.55) !important; opacity: 1; }
+    /* =============================================
+       2) Placeholder acinzentado de verdade (apenas
+          quando o campo está vazio/placeholder-shown)
+       ============================================= */
+    /* Texto do input quando vazio (placeholder visível) */
+    #email.input:placeholder-shown{
+      color: rgba(255,255,255,0.55) !important;
+    }
+    /* Vendor fallbacks para placeholder */
+    #email.input::placeholder{ color: rgba(255,255,255,0.55) !important; opacity:1; }
+    #email.input::-webkit-input-placeholder{ color: rgba(255,255,255,0.55) !important; opacity:1; }
+    #email.input::-moz-placeholder{ color: rgba(255,255,255,0.55) !important; opacity:1; }
+    #email.input:-ms-input-placeholder{ color: rgba(255,255,255,0.55) !important; opacity:1; }
+    #email.input::-ms-input-placeholder{ color: rgba(255,255,255,0.55) !important; opacity:1; }
+
+    /* Texto do input quando tem valor (não-placeholder) */
+    #email.input:not(:placeholder-shown){
+      color: #ffffff !important;
+    }
 
     /* Mensagens (mantendo tua taxonomia) */
-    #msg.hint{ color: rgba(255,255,255,0.8); }
+    #msg.hint{ color: rgba(255,255,255,0.85); }
     #msg.ok{ color: #86f7c2; }
     #msg.error{ color: #ff9c9c; }
   </style>
 </head>
-<body class="shell-page">
-  <div id="app-header"></div>
+<body>
+  <div class="page-shell"><!-- <== Shell isolado anti-conflitos -->
 
-  <main class="section shell-content">
-    <div class="container center">
-      <h1 style="color:var(--wa-dark); margin:0 0 6px">Confirme seu e-mail</h1>
+    <!-- HEADER (injetado por layout.js; com fallback) -->
+    <div id="app-header"></div>
 
-      <p class="note">
-        Enviamos um link de verificação para
-        <strong id="emailLabel" class="email-chip">seu_email@exemplo.com</strong>.
-        Abra sua caixa de entrada e clique no link para continuar.
-      </p>
+    <main class="section">
+      <div class="container center">
+        <h1 style="color:var(--wa-dark); margin:0 0 6px">Confirme seu e-mail</h1>
 
-      <div class="card">
-        <h2 style="color:var(--wa-dark)">Não recebeu?</h2>
+        <p class="note">
+          Enviamos um link de verificação para
+          <strong id="emailLabel" class="email-chip">seu_email@exemplo.com</strong>.
+          Abra sua caixa de entrada e clique no link para continuar.
+        </p>
 
-        <form id="resendForm" class="form-row" action="#" method="POST" novalidate aria-describedby="form-hint">
-          <label for="email"><strong>E-mail</strong></label>
-          <input id="email" name="email" class="input" type="email"
-                 placeholder="Confirme aqui seu e-mail de validação"
-                 inputmode="email" autocomplete="email" spellcheck="false" required />
+        <div class="card">
+          <h2 style="color:var(--wa-dark)">Não recebeu?</h2>
 
-          <div id="form-hint" class="hint" style="margin-top:6px">
-            Usaremos este e-mail para reenviar o link de verificação.
-          </div>
+          <form id="resendForm" class="form-row" action="#" method="POST" novalidate aria-describedby="form-hint">
+            <label for="email"><strong>E-mail</strong></label>
+            <input id="email" name="email" class="input" type="email"
+                   placeholder="Confirme aqui seu e-mail de validação"
+                   inputmode="email" autocomplete="email" spellcheck="false" required />
 
-          <div class="actions" style="margin-top:10px; display:flex; gap:8px; flex-wrap:wrap">
-            <button id="btnResend" class="cta" type="submit">Reenviar e-mail</button>
-            <a id="btnCheck" class="btn-secondary" href="#" role="button">Já verifiquei — continuar</a>
-            <a id="btnChange" class="btn-secondary" href="/cadastro.html" role="button">Trocar e-mail</a>
-          </div>
+            <div id="form-hint" class="hint" style="margin-top:6px">
+              Usaremos este e-mail para reenviar o link de verificação.
+            </div>
 
-          <div id="msg" class="hint" style="margin-top:8px"></div>
-        </form>
+            <div class="actions" style="margin-top:10px; display:flex; gap:8px; flex-wrap:wrap">
+              <button id="btnResend" class="cta" type="submit">Reenviar e-mail</button>
+              <a id="btnCheck" class="btn-secondary" href="#" role="button">Já verifiquei — continuar</a>
+              <a id="btnChange" class="btn-secondary" href="/cadastro.html" role="button">Trocar e-mail</a>
+            </div>
+
+            <div id="msg" class="hint" style="margin-top:8px"></div>
+          </form>
+        </div>
+
+        <p class="note" style="margin-top:10px">
+          Dica: confira a pasta de <strong>Spam</strong>/<strong>Promoções</strong> e adicione nosso remetente à lista segura.
+        </p>
       </div>
+    </main>
 
-      <p class="note" style="margin-top:10px">
-        Dica: confira a pasta de <strong>Spam</strong>/<strong>Promoções</strong> e adicione nosso remetente à lista segura.
-      </p>
-    </div>
-  </main>
+    <!-- FOOTER (injetado por layout.js; com fallback) -->
+    <div id="app-footer"></div>
+  </div><!-- /.page-shell -->
 
-  <div id="app-footer"></div>
-
+  <!-- Scripts do projeto -->
   <script src="/assets/firebase-init.js" defer></script>
   <script src="/assets/layout.js" defer></script>
 
@@ -117,17 +140,14 @@
     function setMsg(text, cls){ msg.className = cls || 'hint'; msg.textContent = text || ''; }
     function sanitizeEmail(s){ if(!s||typeof s!=='string')return''; s=s.trim().replace(/\s+/g,''); return s.replace(/[\u200B-\u200D\uFEFF]/g,''); }
     function isValidEmail(s){ return /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(s); }
-    function readQueryEmail(){
-      try{ const p = new URLSearchParams(location.search); return p.get('email') || ''; }
-      catch{ return ''; }
-    }
+    function readQueryEmail(){ try{ const p=new URLSearchParams(location.search); return p.get('email')||''; }catch{ return ''; } }
     function applyEmailToUI(email){
       if(email && isValidEmail(email)){
-        emailInput.value = email;
-        emailLabel.textContent = email;
+        emailInput.value = email;         // valor → texto branco (regra :not(:placeholder-shown))
+        emailLabel.textContent = email;   // chip verde/mono
         emailLabel.setAttribute('title', email);
       }else{
-        emailInput.value = '';
+        emailInput.value = '';            // vazio → placeholder acinzentado
         emailLabel.textContent = 'seu_email@exemplo.com';
         emailLabel.removeAttribute('title');
       }
@@ -162,7 +182,10 @@
       btnResend.disabled = true; btnCheck.setAttribute('aria-disabled','true');
 
       try{
-        const res = await fetch(API.resendEmail, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ email }) });
+        const res = await fetch(API.resendEmail, {
+          method:'POST', headers:{'Content-Type':'application/json'},
+          body: JSON.stringify({ email })
+        });
         const data = await res.json().catch(()=> ({}));
         if(res.ok && (data.ok===true || data.success===true)){
           setMsg('Pronto! Verifique sua caixa de entrada.', 'ok');
@@ -202,7 +225,10 @@
 
         const email = sanitizeEmail(emailInput.value || '');
         const payload = isValidEmail(email) ? { email } : {};
-        const res = await fetch(API.checkStatus, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload) });
+        const res = await fetch(API.checkStatus, {
+          method:'POST', headers:{'Content-Type':'application/json'},
+          body: JSON.stringify(payload)
+        });
         const data = await res.json().catch(()=> ({}));
         if(res.ok && (data.verified===true || data.ok===true)){
           setMsg('E-mail verificado com sucesso! Redirecionando…', 'ok');
@@ -219,7 +245,7 @@
     });
 
     // Trocar e-mail → limpar sessão
-    btnChange.addEventListener('click', async (e)=>{
+    document.getElementById('btnChange').addEventListener('click', async (e)=>{
       try{
         e.preventDefault();
         try{ localStorage.removeItem('uid'); localStorage.removeItem('idToken'); localStorage.removeItem('isAdmin'); }catch{}
@@ -236,6 +262,8 @@
       const qEmail = sanitizeEmail(readQueryEmail());
       applyEmailToUI(qEmail);
       await ensureHeaderFooter();
+
+      // limpar msg ao digitar
       emailInput.addEventListener('input', ()=> setMsg('', 'hint'));
     })();
   })();
