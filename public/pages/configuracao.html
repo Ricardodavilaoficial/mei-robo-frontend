@@ -7,8 +7,8 @@
 
   <!-- Canônicos -->
   <link rel="stylesheet" href="/assets/styles.css" />
-  <!-- Mantemos layout.js; bust leve para evitar cache local -->
-  <script defer src="/assets/layout.js?v=2025-09-06-06"></script>
+  <!-- Bust leve pra evitar cache local -->
+  <script defer src="/assets/layout.js?v=2025-09-06-07"></script>
 
   <style>
     :root { --input-h: 48px; --input-br: 10px; --input-bc: #d8d8d8; --input-fc: #222; --hint: .92rem; }
@@ -18,7 +18,7 @@
     .mt-6{margin-top:6px}.mt-8{margin-top:8px}.mt-12{margin-top:12px}.mt-16{margin-top:16px}.mt-20{margin-top:20px}.mt-24{margin-top:24px}
     .w-100{width:100%}.hint{font-size:var(--hint);opacity:.9} form section{margin-top:18px} form label{display:block;margin:8px 0}
 
-    /* Inputs padrão */
+    /* Inputs padrão (apenas os editáveis ficam assim) */
     input[type="text"],input[type="email"],input[type="tel"],select{
       width:100%;height:var(--input-h);border:1px solid var(--input-bc);
       border-radius:var(--input-br);padding:0 12px;color:var(--input-fc);
@@ -26,9 +26,15 @@
     }
     input::placeholder{opacity:.75}
 
-    /* Readonly: “caixa fixa” visual */
-    input[readonly]{background:#f7f7f7;color:#222;border-color:#e3e3e3}
-    input[readonly]:focus{cursor:default}
+    /* Valores fixos exibidos “secos” (sem caixa) */
+    .display-value{
+      display:block;
+      padding: 10px 0 2px;
+      font-weight:600;
+      color:#1f2937;
+      letter-spacing:.2px;
+      /* sem borda, sem fundo */
+    }
 
     /* Botões */
     .btn{padding:10px 14px;border:0;border-radius:8px;cursor:pointer}
@@ -57,33 +63,40 @@
       <form id="config-form" class="mt-16" novalidate>
         <!-- Status do número virtual -->
         <section id="sec-waba">
-          <h3>WhatsApp Business (número virtual) <span id="waba-badge" class="pill pill-pending">verificando…</span></h3>
+          <h3>WhatsApp Business - Conta comercial com MEI Robô - <span id="waba-badge" class="pill pill-pending">em validação</span></h3>
           <p id="waba-fixed" class="hint mt-6">
             Você receberá um <strong>número novo do WhatsApp Business</strong> (virtual, <strong>sem chip</strong>), adequado para conta comercial.
-            Você pode manter seus números atuais; o robô usará este número quando estiver <strong>Ativo</strong>.
-            Ele será liberado após a autenticação da sua conta pela Meta, <strong>em até 7 dias úteis</strong>.
+            Você pode manter seus números atuais, <strong>acrescentando o novo número e mantendo a mesma forma que você já utiliza</strong>;
+            o robô usará este número quando estiver <strong>Ativo</strong>. A liberação acontece após a <strong>configuração e implantação pelo MEI Robô</strong>,
+            em até <strong>7 dias úteis</strong>.
           </p>
           <p id="waba-note" class="hint"></p>
           <p id="waba-eta" class="hint"></p>
         </section>
 
-        <!-- Dados da conta (somente leitura) -->
+        <!-- Dados da conta (exibição seca) -->
         <section class="mt-20">
           <h3>Dados da conta</h3>
           <div class="grid-2">
-            <label>Nome
-              <input type="text" name="nome" autocomplete="name" readonly />
-            </label>
-            <label>E-mail
-              <input type="email" name="email" autocomplete="email" readonly />
-            </label>
+            <div>
+              <label>Nome</label>
+              <span id="disp-nome" class="display-value">—</span>
+              <input type="hidden" name="nome" id="hid-nome" />
+            </div>
+            <div>
+              <label>E-mail</label>
+              <span id="disp-email" class="display-value">—</span>
+              <input type="hidden" name="email" id="hid-email" />
+            </div>
             <label>Telefone (WhatsApp)
               <input type="tel" name="telefone" autocomplete="tel" placeholder="Ex.: (11) 91234-5678" />
               <span class="hint">Use o número que atende seus clientes.</span>
             </label>
-            <label>CNPJ
-              <input type="text" name="cnpj" inputmode="numeric" readonly />
-            </label>
+            <div>
+              <label>CNPJ</label>
+              <span id="disp-cnpj" class="display-value">—</span>
+              <input type="hidden" name="cnpj" id="hid-cnpj" />
+            </div>
           </div>
         </section>
 
@@ -91,9 +104,11 @@
         <section>
           <h3>Segmento profissional</h3>
           <div class="grid-2">
-            <label>Segmento (CNAE)
-              <input type="text" name="segmento" readonly />
-            </label>
+            <div>
+              <label>Segmento (CNAE)</label>
+              <span id="disp-segmento" class="display-value">—</span>
+              <input type="hidden" name="segmento" id="hid-segmento" />
+            </div>
             <label>Área que você mais atua
               <input type="text" name="esp1" placeholder="Ex.: Pneus / Corte masculino / Direito trabalhista" />
             </label>
@@ -220,22 +235,27 @@
     const cfgFeedback = document.getElementById('config-feedback');
     const btnSalvar = document.getElementById('btn-salvar');
 
-    const fNome = form.querySelector('input[name="nome"]');
-    const fEmail = form.querySelector('input[name="email"]');
+    // Displays e inputs ocultos p/ dados fixos
+    const dNome = document.getElementById('disp-nome');
+    const dEmail = document.getElementById('disp-email');
+    const dCnpj = document.getElementById('disp-cnpj');
+    const dSeg = document.getElementById('disp-segmento');
+
+    const hNome = document.getElementById('hid-nome');
+    const hEmail = document.getElementById('hid-email');
+    const hCnpj = document.getElementById('hid-cnpj');
+    const hSeg = document.getElementById('hid-segmento');
+
+    // Editáveis
     const fTel   = form.querySelector('input[name="telefone"]');
-    const fCnpj  = form.querySelector('input[name="cnpj"]');
-
-    const fSegmento = form.querySelector('input[name="segmento"]');
-    const fEsp1 = form.querySelector('input[name="esp1"]');
-    const fEsp2 = form.querySelector('input[name="esp2"]');
-
-    const fFormal = form.querySelector('select[name="formalidade"]');
-    const fEmojis = form.querySelector('select[name="emojis"]');
-    const fSaud   = form.querySelector('input[name="saudacao"]');
-    const fDisp   = form.querySelector('input[name="display_name"]');
-    const fClose  = form.querySelector('input[name="closing_text"]');
-
-    const fJanela = document.getElementById('janela_resposta');
+    const fEsp1  = form.querySelector('input[name="esp1"]');
+    const fEsp2  = form.querySelector('input[name="esp2"]');
+    const fFormal= form.querySelector('select[name="formalidade"]');
+    const fEmojis= form.querySelector('select[name="emojis"]');
+    const fSaud  = form.querySelector('input[name="saudacao"]');
+    const fDisp  = form.querySelector('input[name="display_name"]');
+    const fClose = form.querySelector('input[name="closing_text"]');
+    const fJanela= document.getElementById('janela_resposta');
     const wrapCustom = document.getElementById('custom-horario');
     const fJanelaCustom = form.querySelector('input[name="janela_resposta_custom"]');
 
@@ -260,27 +280,21 @@
           if (resp.ok) {
             const data = await resp.json();
 
-            if (data.nome)  fNome.value = data.nome;
-            if (data.email) fEmail.value = data.email;
+            // Exibe dados fixos (secos) + mantém hidden p/ payload
+            if (data.nome)  { dNome.textContent = data.nome; hNome.value = data.nome; }
+            if (data.email) { dEmail.textContent = data.email; hEmail.value = data.email; }
+            if (data.cnpj)  { dCnpj.textContent = data.cnpj; hCnpj.value = data.cnpj; }
+            if (data.segmento) { dSeg.textContent = data.segmento; hSeg.value = data.segmento; }
+
+            // Demais campos
             if (data.telefone) fTel.value = data.telefone;
-            if (data.cnpj)  fCnpj.value = data.cnpj;
-
-            // Segmento (readonly)
-            if (data.segmento) fSegmento.value = data.segmento;
-            fSegmento.readOnly = true;
-
-            // Áreas de atuação
             if (data.esp1) fEsp1.value = data.esp1;
             if (data.esp2) fEsp2.value = data.esp2;
-
-            // Comunicação
             if (data.formalidade) fFormal.value = data.formalidade;
             if (data.emojis) fEmojis.value = data.emojis;
             if (data.saudacao) fSaud.value = data.saudacao;
             if (data.display_name) fDisp.value = data.display_name;
             if (data.closing_text) fClose.value = data.closing_text;
-
-            // Horário
             if (data.janela_resposta) {
               fJanela.value = data.janela_resposta;
               wrapCustom.style.display = (fJanela.value === 'custom') ? 'block' : 'none';
@@ -310,7 +324,6 @@
         const data = await r.json();
         setWabaUI(String(data.status || 'UNKNOWN').toUpperCase(), data);
 
-        // Poll leve enquanto não ativo/failed
         if (data.status && !/ACTIVE|FAILED/i.test(data.status)) {
           setTimeout(() => loadWabaStatus(uid, idToken), 60000);
         }
@@ -334,15 +347,15 @@
         note.innerHTML = 'Estamos ativando seu número virtual.';
         if (data && data.eta) eta.textContent = 'Entrega prevista até: ' + formatDateBR(data.eta);
       } else if (s === 'PENDING') {
-        badge.classList.add('pill-pending'); badge.textContent = 'em análise';
-        note.innerHTML = 'Aguardando aprovação da Meta. Assim que for aprovado, seu número será ativado.';
+        badge.classList.add('pill-pending'); badge.textContent = 'em validação';
+        note.innerHTML = 'Aguardando validação e implantação.';
         if (data && data.eta) eta.textContent = 'Entrega prevista até: ' + formatDateBR(data.eta) + ' (até 7 dias úteis).';
         else eta.textContent = 'Entrega prevista: até 7 dias úteis.';
       } else if (s === 'FAILED') {
         badge.classList.add('pill-failed'); badge.textContent = 'falhou';
         note.textContent = 'Não foi possível ativar o número. Verifique a documentação e tente novamente.';
       } else {
-        badge.classList.add('pill-pending'); badge.textContent = 'verificando…';
+        badge.classList.add('pill-pending'); badge.textContent = 'em validação';
         note.textContent = 'Estamos verificando o status do seu número virtual.';
       }
     }
@@ -376,8 +389,9 @@
           fd.delete('janela_resposta_custom');
         }
 
-        // Garante segmento readonly
-        fd.set('segmento', fSegmento.value || '');
+        // Segmento vem do hidden
+        const segVal = document.getElementById('hid-segmento').value || '';
+        fd.set('segmento', segVal);
 
         const headers = {}; if (idToken) headers['Authorization'] = 'Bearer ' + idToken;
         const resp = await fetch(`${API_BASE}/api/configuracao`, {
