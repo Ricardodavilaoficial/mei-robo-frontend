@@ -4,13 +4,14 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Verifique seu e-mail — MEI Robô</title>
+
   <meta http-equiv="Cache-Control" content="no-store" />
   <link rel="stylesheet" href="/assets/styles.css" />
 
   <style>
     .center{ max-width:720px; margin:0 auto; width:100%; }
 
-    /* Chip de e-mail (apenas leitura) */
+    /* Chip de e-mail apenas leitura */
     .email-chip{
       font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
       font-weight: 700; padding: 2px 8px; border-radius: 8px;
@@ -19,8 +20,9 @@
 
     /* Texto do input menos branco quando tem value */
     .value-soft{ color: rgba(233,237,239,.80) !important; }
+    .readonly{ opacity:.9; }
 
-    /* Placeholder acinzentado (fallback local para garantir) */
+    /* Placeholder acinzentado (fallback local garantido) */
     #email.input::placeholder{ color: rgba(233,237,239,.55) !important; opacity:1; }
     #email.input::-webkit-input-placeholder{ color: rgba(233,237,239,.55) !important; opacity:1; }
     #email.input::-moz-placeholder{ color: rgba(233,237,239,.55) !important; opacity:1; }
@@ -36,8 +38,8 @@
 <body class="app-shell">
   <div id="app-header"></div>
 
-  <!-- app-main + fallback inline de min-height para evitar "página anã" mesmo sem CSS -->
-  <main class="section app-main" style="min-height:72svh">
+  <!-- Fallback inline de altura confortável -->
+  <main class="section app-main" style="min-height:82svh">
     <div class="container center">
       <h1 style="color:var(--wa-dark); margin:0 0 6px">Confirme seu e-mail</h1>
 
@@ -63,7 +65,7 @@
           <div class="actions" style="margin-top:10px; display:flex; gap:8px; flex-wrap:wrap">
             <button id="btnResend" class="cta" type="submit">Reenviar e-mail</button>
             <a id="btnCheck" class="btn-secondary" href="#" role="button">Já verifiquei — continuar</a>
-            <a id="btnChange" class="btn-secondary" href="/cadastro.html" role="button">Trocar e-mail</a>
+            <a id="btnChange" class="btn-secondary" href="/cadastro.html" role="button" title="Voltar ao cadastro e refazer o e-mail">Trocar e-mail</a>
           </div>
 
           <div id="msg" class="hint" style="margin-top:8px"></div>
@@ -97,17 +99,20 @@
     const btnCheck  = $('#btnCheck');
     const btnChange = $('#btnChange');
 
+    let authEmail = null;   // se logado, usamos este e-mail
+    let idToken   = null;   // se logado, mandamos Bearer
+
     function setMsg(text, cls){ msg.className = cls || 'hint'; msg.textContent = text || ''; }
     function sanitizeEmail(s){ if(!s||typeof s!=='string')return''; s=s.trim().replace(/\s+/g,''); return s.replace(/[\u200B-\u200D\uFEFF]/g,''); }
     function isValidEmail(s){ return /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(s); }
     function readQueryEmail(){ try{ const p=new URLSearchParams(location.search); return p.get('email')||''; }catch{ return ''; } }
     function applyEmailToUI(email){
       if(email && isValidEmail(email)){
-        emailInput.value = email;         // continua "value-soft" (80%)
-        emailLabel.textContent = email;   // chip
+        emailInput.value = email;
+        emailLabel.textContent = email;
         emailLabel.setAttribute('title', email);
       }else{
-        emailInput.value = '';            // vazio → placeholder 55%
+        emailInput.value = '';
         emailLabel.textContent = 'seu_email@exemplo.com';
         emailLabel.removeAttribute('title');
       }
@@ -131,20 +136,23 @@
       }catch(e){ console.info('[verify] fallback header/footer falhou:', e); }
     }
 
-    // Reenviar
+    // ====== Reenviar ======
     document.getElementById('resendForm').addEventListener('submit', async (e)=>{
       e.preventDefault();
       setMsg('Enviando...', 'hint');
 
-      const email = sanitizeEmail(emailInput.value || '');
+      // se logado, força uso do e-mail autenticado
+      const email = authEmail ? authEmail : sanitizeEmail(emailInput.value || '');
       if(!isValidEmail(email)){ setMsg('Informe um e-mail válido.', 'error'); emailInput.focus(); return; }
 
       btnResend.disabled = true; btnCheck.setAttribute('aria-disabled','true');
 
       try{
+        const headers = {'Content-Type': 'application/json'};
+        if(idToken){ headers['Authorization'] = 'Bearer ' + idToken; }
+
         const res = await fetch(API.resendEmail, {
-          method:'POST', headers:{'Content-Type':'application/json'},
-          body: JSON.stringify({ email })
+          method:'POST', headers, body: JSON.stringify({ email })
         });
         const data = await res.json().catch(()=> ({}));
         if(res.ok && (data.ok===true || data.success===true)){
@@ -161,7 +169,7 @@
       }
     });
 
-    // Já verifiquei
+    // ====== Já verifiquei ======
     btnCheck.addEventListener('click', async (e)=>{
       e.preventDefault();
       setMsg('', 'hint');
@@ -183,11 +191,13 @@
           }catch(e){ console.info('[verify] firebase reload falhou:', e); }
         }
 
-        const email = sanitizeEmail(emailInput.value || '');
+        const email = authEmail ? authEmail : sanitizeEmail(emailInput.value || '');
         const payload = isValidEmail(email) ? { email } : {};
+        const headers = {'Content-Type': 'application/json'};
+        if(idToken){ headers['Authorization'] = 'Bearer ' + idToken; }
+
         const res = await fetch(API.checkStatus, {
-          method:'POST', headers:{'Content-Type':'application/json'},
-          body: JSON.stringify(payload)
+          method:'POST', headers, body: JSON.stringify(payload)
         });
         const data = await res.json().catch(()=> ({}));
         if(res.ok && (data.verified===true || data.ok===true)){
@@ -204,8 +214,8 @@
       }
     });
 
-    // Trocar e-mail → limpar sessão
-    document.getElementById('btnChange').addEventListener('click', async (e)=>{
+    // ====== Trocar e-mail → voltar ao cadastro (limpando sessão) ======
+    btnChange.addEventListener('click', async (e)=>{
       try{
         e.preventDefault();
         try{ localStorage.removeItem('uid'); localStorage.removeItem('idToken'); localStorage.removeItem('isAdmin'); }catch{}
@@ -217,11 +227,34 @@
       }
     });
 
-    // Init
-    (async function(){
-      const qEmail = sanitizeEmail(readQueryEmail());
-      applyEmailToUI(qEmail);
+    // ====== Init ======
+    (async function init(){
       await ensureHeaderFooter();
+
+      // Preferir e-mail do usuário autenticado, se houver.
+      try{
+        const hasFirebase = typeof window.firebase !== 'undefined' && firebase?.auth;
+        if(hasFirebase){
+          const user = firebase.auth().currentUser || null;
+          if(user?.email){
+            authEmail = user.email;
+            try{ idToken = await user.getIdToken(/* forceRefresh */ false); }catch{}
+          }
+        }
+      }catch(e){ console.info('[verify] firebase init note:', e); }
+
+      const fromQuery = sanitizeEmail(readQueryEmail());
+      const displayEmail = authEmail || fromQuery;
+      applyEmailToUI(displayEmail);
+
+      // Se estiver logado, trava o input (não é para "editar" aqui)
+      if(authEmail){
+        emailInput.readOnly = true;
+        emailInput.classList.add('readonly');
+        emailInput.value = authEmail;
+      }
+
+      // limpar msg ao digitar (só faz sentido se não estiver readonly)
       emailInput.addEventListener('input', ()=> setMsg('', 'hint'));
     })();
   })();
