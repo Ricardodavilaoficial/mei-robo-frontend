@@ -5,124 +5,100 @@
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Preços e Serviços — MEI Robô</title>
 
-  <!-- Caminhos absolutos canônicos -->
+  <!-- Estilos canônicos do projeto -->
   <link rel="stylesheet" href="/assets/styles.css" />
 
-  <!-- Acessibilidade e contraste mínimo local (reforço ao styles.css) -->
+  <!-- Microlayout e ajustes de legibilidade (herdando a paleta do tema escuro) -->
   <style>
-    :root { --soft: rgba(0,0,0,.55); --value: rgba(0,0,0,.80); }
-    body.app-shell { min-height: 100svh; background:#fafafa; }
     .app-main { min-height: 82svh; }
-    .card { background:#fff; border:1px solid #e5e7eb; border-radius:16px; padding:16px; box-shadow:0 1px 2px rgba(0,0,0,.04); }
-    .title-xl { font-size:1.5rem; font-weight:800; letter-spacing:.2px; }
-    .muted { color: var(--soft); }
-    .value { color: var(--value); }
-    .input, .select, .button, .upload {
-      border:1.5px solid #cbd5e1; border-radius:10px; padding:10px 12px; font-size:1rem; outline:none; background:#fff;
-    }
-    .input::placeholder { color: var(--soft); }
-    .input:focus, .upload:focus { border-color:#0f9d58; box-shadow:0 0 0 3px rgba(15,157,88,.15); }
-    .button { cursor:pointer; font-weight:700; }
-    .button.primary { background:#0f9d58; color:#fff; border-color:#0f9d58; }
-    .button.ghost { background:#fff; color:#0f9d58; border-color:#0f9d58; }
-    .button.warn { background:#f97316; color:#fff; border-color:#ea580c; }
-    .button:disabled { opacity:.55; cursor:not-allowed; }
-    .row { display:flex; gap:12px; flex-wrap:wrap; }
-    .col { flex:1 1 280px; }
-    .badge { display:inline-flex; align-items:center; gap:6px; font-weight:700; font-size:.85rem; padding:4px 10px; border-radius:999px; border:1px solid #b8f3cf; background:#e8fff2; color:#0d7a56; }
-    .badge.gray { background:#eef2f7; border-color:#e5e7eb; color:#334155; }
-    .help { font-size:.92rem; color:var(--soft); }
-    .table { width:100%; border-collapse:collapse; }
-    .table th, .table td { padding:10px; border-bottom:1px solid #eee; text-align:left; font-size:.95rem; vertical-align:top; }
-    .table th { font-weight:800; }
-    .kbd { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; background:#f3f4f6; border:1px solid #e5e7eb; border-radius:6px; padding:2px 6px; font-size:.9rem; }
-    .upload-area { border:2px dashed #b7c7c2; border-radius:12px; padding:18px; cursor:pointer; background:#fff; }
-    .upload-area:hover { background:#f8fafc; }
-    .error { background:#fef2f2; border:1px solid #fecaca; color:#991b1b; border-radius:8px; padding:10px; font-weight:700; }
-    .success { background:#ecfdf5; border:1px solid #a7f3d0; color:#065f46; border-radius:8px; padding:10px; font-weight:700; }
+    .container { max-width: 1100px; margin: 0 auto; padding: 16px; }
+    .row { display: flex; gap: 12px; flex-wrap: wrap; }
+    .col { flex: 1 1 320px; }
+    .card { border-radius: 16px; padding: 16px; }
+    .title-xl { font-size: 1.5rem; font-weight: 800; letter-spacing: .2px; }
+    .help { font-size: .92rem; opacity: .85; }
     .toolbar { display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
-    .spacer { height:8px; }
-    .hidden { display:none !important; }
-    .nowrap { white-space:nowrap; }
-    .w-100 { width:100%; }
-    .text-right { text-align:right; }
     .mt-1{margin-top:4px} .mt-2{margin-top:8px} .mt-3{margin-top:12px} .mt-4{margin-top:16px} .mt-6{margin-top:24px} .mt-8{margin-top:32px}
-    .mb-2{margin-bottom:8px} .mb-4{margin-bottom:16px} .mb-6{margin-bottom:24px}
+    .mb-2{margin-bottom:8px} .mb-4{margin-bottom:16px}
+    .hidden { display:none !important; }
+    .text-right { text-align: right; }
+    .nowrap { white-space: nowrap; }
+
+    /* Inputs: manter contraste do tema; reforçar placeholder */
+    .input { border-radius:10px; padding:10px 12px; font-size:1rem; color: inherit; width: 100%; }
+    .input::placeholder { opacity:.55; } /* solução memorizada: placeholder ~55% */
+    .button { border-radius:10px; padding:10px 12px; font-size:1rem; font-weight:700; cursor:pointer; }
+    .button:disabled { opacity:.55; cursor:not-allowed; }
+
+    /* Tabela: herda cores; apenas espaçamento */
+    .table { width:100%; border-collapse:collapse; }
+    .table th, .table td { padding:10px; text-align:left; font-size:.95rem; vertical-align:top; }
+
+    /* Upload: sem forçar fundo claro */
+    .upload-area { border:2px dashed currentColor; border-radius:12px; padding:18px; cursor:pointer; }
+    .upload-area:focus { outline: none; box-shadow: 0 0 0 3px rgba(15,157,88,.25); }
+
+    /* Mensagens */
+    .msg { border-radius:8px; padding:10px; font-weight:700; }
+    .msg.ok { border:1px solid; }
+    .msg.err { border:1px solid; }
+
+    /* Badge simples (sem alterar paleta) */
+    .badge { display:inline-flex; align-items:center; gap:6px; font-weight:700; font-size:.85rem; padding:4px 10px; border-radius:999px; border:1px solid currentColor; opacity:.9; }
   </style>
 </head>
 <body class="app-shell">
-  <!-- Header dinâmico pelo layout.js -->
+  <!-- Header dinâmico -->
   <header id="app-header"></header>
 
   <main class="app-main">
-    <section class="container" style="max-width:1100px;margin:0 auto;padding:16px;">
-      <div class="row">
-        <div class="col" style="flex-basis:100%;">
-          <h1 class="title-xl">Preços e Serviços</h1>
-          <div class="mt-2 help">
-            Defina aqui o que o seu MEI Robô vende. Esses dados são usados para entender pedidos dos seus clientes,
-            responder com naturalidade e <b>propor agendamentos com duração correta</b>.<br />
-            <span class="muted">
-              Dica: os “apelidos” (ex.: <i>pezinho</i>, <i>corte social</i>) serão aprendidos automaticamente ao longo do uso (NLU por IA),
-              mas você pode informar <span class="kbd">sinonimos</span> no CSV para acelerar.
-            </span>
-          </div>
-        </div>
+    <section class="container">
+      <h1 class="title-xl">Preços e Serviços</h1>
+      <div class="mt-2 help">
+        Cadastre aqui o que você faz e quanto cobra. Esses dados ajudam o MEI Robô a entender o pedido do seu cliente,
+        responder natural e <b>propor agendamentos com duração correta do serviço</b>.
+        <div class="mt-1">Exemplo: <i>Corte masculino — R$ 45,00 — 30 minutos</i>.</div>
       </div>
 
-      <!-- Status / Onboarding -->
-      <div class="mt-4 row">
-        <div class="col card">
-          <div class="badge gray" id="env-badge">Produção</div>
-          <div class="mt-2"><b>Usuário:</b> <span id="user-email" class="value">—</span></div>
-          <div class="mt-1"><b>UID:</b> <span id="user-uid" class="value">—</span></div>
-          <div class="mt-1"><b>Verificado:</b> <span id="user-verified" class="value">—</span></div>
-          <div class="mt-2 help">
-            Se o e-mail não estiver verificado, a importação ficará desabilitada. Você ainda poderá visualizar sua lista.
+      <!-- 1) Adicionar serviço (formulário simples) -->
+      <div class="mt-4 card">
+        <div class="badge">Adicionar serviço</div>
+        <div class="row mt-2">
+          <div class="col">
+            <label for="f-nome">Nome do serviço</label>
+            <input id="f-nome" class="input" placeholder="Ex.: Corte masculino" maxlength="80" />
+            <div class="help mt-1">Use um nome simples que o cliente reconheça.</div>
+          </div>
+          <div class="col">
+            <label for="f-preco">Preço (R$)</label>
+            <input id="f-preco" class="input" placeholder="Ex.: 45,00" inputmode="decimal" />
+            <div class="help mt-1">Use vírgula para centavos (ex.: 60,00).</div>
+          </div>
+          <div class="col">
+            <label for="f-dur">Tempo do serviço (minutos)</label>
+            <input id="f-dur" class="input" placeholder="Ex.: 30" inputmode="numeric" />
+            <div class="help mt-1">De 1 a 360 minutos.</div>
           </div>
         </div>
-
-        <!-- Importação -->
-        <div class="col card">
-          <div class="toolbar">
-            <div class="badge">Importar CSV</div>
-            <span class="help">Cabeçalho:</span>
-            <span class="kbd">slug</span>,
-            <span class="kbd">nome</span>,
-            <span class="kbd">precoBase</span>,
-            <span class="kbd">duracaoMin</span>,
-            <span class="kbd">sinonimos</span>
-          </div>
-
-          <div class="mt-2 upload-area" id="dropzone" tabindex="0" role="button" aria-label="Selecione um arquivo CSV">
-            <div><b>Selecione seu arquivo CSV</b> ou arraste aqui.</div>
-            <div class="help mt-1">
-              Tamanho máximo: 1MB. <span class="kbd">sinonimos</span> separados por <span class="kbd">;</span>.
-              Ex.: <span class="kbd">corte;tesoura;maquina</span>
-            </div>
-            <input id="file-input" type="file" accept=".csv,text/csv" class="hidden" />
-          </div>
-
-          <div class="mt-2 toolbar">
-            <button id="btn-preview" class="button ghost" disabled>Pré-visualizar</button>
-            <button id="btn-import" class="button primary" disabled>Importar para minha conta</button>
-            <button id="btn-sample" class="button" title="Baixar modelo CSV com exemplos">Baixar modelo CSV</button>
-            <button id="btn-excel" class="button" disabled title="Em breve: Excel/PDF com ajuda de IA">Importar Excel/PDF (em breve)</button>
-          </div>
-
-          <div id="import-msg" class="mt-2 hidden"></div>
-          <div id="preview-wrap" class="mt-2 hidden">
-            <div class="help"><b>Prévia do CSV</b> (primeiras linhas):</div>
-            <table class="table" id="preview-table" aria-label="Prévia do CSV"></table>
+        <div class="row mt-2">
+          <div class="col" style="flex-basis:100%;">
+            <label for="f-aka">Outros nomes (opcional)</label>
+            <input id="f-aka" class="input" placeholder="Como os clientes pedem? Ex.: pezinho; corte social" maxlength="200" />
+            <div class="help mt-1">Separe por ponto e vírgula <b>;</b></div>
           </div>
         </div>
+        <div class="mt-2 toolbar">
+          <button id="btn-add" class="button">Salvar serviço</button>
+          <button id="btn-clear" class="button">Limpar</button>
+        </div>
+        <div id="add-msg" class="mt-2 msg hidden"></div>
       </div>
 
-      <!-- Lista de serviços -->
+      <!-- 2) Seus serviços (lista + busca + paginação) -->
       <div class="mt-4 card">
         <div class="toolbar">
-          <div class="badge gray">Serviços cadastrados</div>
-          <input id="search" class="input" placeholder="Buscar por nome, slug ou sinônimos…" style="flex:1 1 280px" />
+          <div class="badge">Seus serviços</div>
+          <input id="search" class="input" placeholder="Buscar por nome ou outros nomes…" style="flex:1 1 280px" />
           <div class="help">Resultados: <span id="count">0</span></div>
         </div>
 
@@ -130,52 +106,85 @@
           <table class="table" id="svc-table" aria-label="Tabela de serviços">
             <thead>
               <tr>
-                <th>Slug</th>
-                <th>Nome</th>
+                <th>Serviço</th>
                 <th class="nowrap">Preço (R$)</th>
-                <th class="nowrap">Duração (min)</th>
-                <th>Sinônimos</th>
+                <th class="nowrap">Tempo (min)</th>
+                <th>Outros nomes</th>
+                <th class="nowrap">Anexos</th>
               </tr>
             </thead>
-            <tbody id="svc-body"><tr><td colspan="5" class="muted">Carregando…</td></tr></tbody>
+            <tbody id="svc-body"><tr><td colspan="5">Carregando…</td></tr></tbody>
           </table>
           <div class="mt-2 text-right">
-            <button id="prev" class="button ghost" disabled>Anterior</button>
-            <button id="next" class="button ghost" disabled>Próximo</button>
+            <button id="prev" class="button" disabled>Anterior</button>
+            <button id="next" class="button" disabled>Próximo</button>
           </div>
         </div>
 
         <div class="mt-2 help">
-          Observações:
-          <ul style="margin:6px 0 0 20px">
-            <li>Você poderá anexar catálogos, manuais e folders por serviço em breve (PDF/Imagens/Vídeo curto).</li>
-            <li>Apelidos locais serão aprendidos automaticamente ao longo do uso (IA/NLU com cache).</li>
-          </ul>
+          Em breve: você poderá anexar fotos, panfletos e PDFs de cada serviço direto por aqui.
+        </div>
+      </div>
+
+      <!-- 3) Importar planilha (opcional) -->
+      <div class="mt-4 card">
+        <div class="badge">Importar planilha (opcional)</div>
+        <div class="help mt-1">
+          Se você já tem sua tabela, pode importar para acelerar. Aceita planilha <b>.csv</b>.
+          Em breve: Excel / PDF.
+        </div>
+
+        <div class="mt-2 upload-area" id="dropzone" tabindex="0" role="button" aria-label="Escolher arquivo de planilha">
+          <div><b>Escolher arquivo</b> ou arraste aqui.</div>
+          <div class="help mt-1">
+            Colunas esperadas: <b>nome do serviço</b>, <b>preço (R$)</b>, <b>tempo (min)</b>, <b>outros nomes (opcional)</b>.
+          </div>
+          <input id="file-input" type="file" accept=".csv,text/csv" class="hidden" />
+        </div>
+
+        <div class="mt-2 toolbar">
+          <button id="btn-preview" class="button" disabled>Ver prévia</button>
+          <button id="btn-import" class="button" disabled>Importar</button>
+          <button id="btn-sample" class="button" title="Baixar exemplo">Baixar exemplo de planilha</button>
+          <button id="btn-excel" class="button" disabled title="Em breve: Excel/PDF com ajuda de IA">Importar Excel/PDF (em breve)</button>
+        </div>
+
+        <div id="import-msg" class="mt-2 msg hidden"></div>
+        <div id="preview-wrap" class="mt-2 hidden">
+          <div class="help"><b>Prévia (primeiras linhas)</b>:</div>
+          <table class="table" id="preview-table" aria-label="Prévia da planilha"></table>
+        </div>
+      </div>
+
+      <!-- 4) Status simples da conta -->
+      <div class="mt-4 card">
+        <div class="badge">Status da sua conta</div>
+        <div class="mt-2"><b>E-mail:</b> <span id="user-email">—</span></div>
+        <div class="mt-1"><b>Conta verificada:</b> <span id="user-verified">—</span></div>
+        <div class="help mt-1">
+          Para importar planilha, verifique seu e-mail (se ainda não verificou).
         </div>
       </div>
 
       <!-- Navegação -->
       <div class="mt-6 row">
         <div class="col">
-          <button id="btn-back" class="button ghost">← Voltar (Configuração)</button>
-        </div>
-        <div class="col" style="text-align:center;">
-          <button id="btn-logout" class="button warn">Sair</button>
+          <button id="btn-back" class="button">← Voltar (Configuração)</button>
         </div>
         <div class="col" style="text-align:right;">
-          <button id="btn-next" class="button primary">Próximo (Contatos)</button>
+          <button id="btn-next" class="button">Próximo (Contatos)</button>
         </div>
       </div>
     </section>
   </main>
 
-  <!-- Footer dinâmico pelo layout.js -->
+  <!-- Footer dinâmico -->
   <footer id="app-footer"></footer>
 
-  <!-- Loader de header/footer canônico -->
+  <!-- Loader de header/footer -->
   <script src="/assets/layout.js"></script>
 
-  <!-- Firebase init + helpers do projeto -->
+  <!-- Firebase + helpers do projeto -->
   <script src="/assets/firebase-init.js"></script>
   <script src="/assets/backend-patch.js"></script>
 
@@ -183,11 +192,12 @@
   <script>
     (function(){
       const log = (...a) => console.log('[precos]', ...a);
-      const qs = sel => document.querySelector(sel);
+      const $ = (sel) => document.querySelector(sel);
       const byId = id => document.getElementById(id);
       const params = new URLSearchParams(location.search);
+      let REDIRECTING_TO_LOGIN = false;
 
-      // ===== Fallback header/footer se layout.js falhar =====
+      // ===== Fallback header/footer =====
       async function ensureHeaderFooter() {
         try {
           const hdr = document.querySelector('header.app-header');
@@ -206,19 +216,15 @@
       let currentUser = null;
       let isVerified = false;
       let uid = null;
+
       const PAGE_SIZE = 10;
-      let dataAll = [];     // todos serviços (cache local)
-      let dataView = [];    // filtrado
+      let dataAll = [];
+      let dataView = [];
       let page = 0;
 
       // ===== Navegação =====
       byId('btn-back').onclick = () => location.href = '/pages/configuracao.html';
       byId('btn-next').onclick = () => location.href = '/pages/contatos.html';
-      byId('btn-logout').onclick = async () => {
-        try { await firebase.auth().signOut(); } catch(e){}
-        try { localStorage.removeItem('uid'); localStorage.removeItem('idToken'); localStorage.removeItem('isAdmin'); } catch(e){}
-        location.href = '/pages/login.html';
-      };
 
       // ===== Sessão de validação opcional =====
       async function maybeCleanSession() {
@@ -229,26 +235,106 @@
         }
       }
 
-      // ===== UI helpers =====
+      // ===== Helpers UI =====
       function setMsg(el, type, text) {
-        el.classList.remove('hidden'); el.classList.remove('error','success');
-        if (type === 'error') el.classList.add('error');
-        if (type === 'success') el.classList.add('success');
+        el.classList.remove('hidden','ok','err'); el.classList.add('msg');
+        el.classList.add(type === 'error' ? 'err' : 'ok');
         el.textContent = text;
       }
       function clearMsg(el){ el.classList.add('hidden'); el.textContent=''; }
 
-      // ===== Sample CSV =====
+      // ===== Slugify (gerado automaticamente a partir do nome) =====
+      function slugify(str){
+        return String(str || '')
+          .normalize('NFD').replace(/\p{Diacritic}/gu,'')
+          .toLowerCase()
+          .replace(/[^a-z0-9]+/g,'-')
+          .replace(/^-+|-+$/g,'')
+          .slice(0, 80);
+      }
+
+      // ===== Parse de preço BRL ("45,00" ou "45.00") =====
+      function parsePriceBRL(s){
+        if (!s) return NaN;
+        let x = String(s).trim().replace(/\s+/g,'');
+        // remover separador de milhar (ponto) e trocar vírgula por ponto
+        x = x.replace(/\./g,'').replace(',', '.');
+        return Number(x);
+      }
+
+      // ===== Formulário Adicionar Serviço =====
+      byId('btn-clear').onclick = () => {
+        byId('f-nome').value=''; byId('f-preco').value=''; byId('f-dur').value=''; byId('f-aka').value='';
+        clearMsg(byId('add-msg'));
+        byId('f-nome').focus();
+      };
+
+      byId('btn-add').onclick = async () => {
+        clearMsg(byId('add-msg'));
+        if (!currentUser) { setMsg(byId('add-msg'),'error','Sessão expirada. Faça login novamente.'); return; }
+
+        const nome = byId('f-nome').value.trim();
+        const precoStr = byId('f-preco').value.trim();
+        const durStr = byId('f-dur').value.trim();
+        const akaStr = byId('f-aka').value.trim();
+
+        if (!nome) { setMsg(byId('add-msg'),'error','Informe o nome do serviço.'); return; }
+        if (nome.length > 80) { setMsg(byId('add-msg'),'error','Nome muito longo (máx. 80 caracteres).'); return; }
+
+        const preco = parsePriceBRL(precoStr);
+        if (!(preco >= 0)) { setMsg(byId('add-msg'),'error','Preço inválido. Use formato 45,00.'); return; }
+        if (preco > 99999.99) { setMsg(byId('add-msg'),'error','Preço muito alto.'); return; }
+
+        const dur = parseInt(durStr, 10);
+        if (!(dur >= 1 && dur <= 360)) { setMsg(byId('add-msg'),'error','Tempo inválido. Use de 1 a 360 minutos.'); return; }
+
+        const sinonimos = akaStr ? akaStr.split(';').map(s=>s.trim()).filter(Boolean) : [];
+
+        const slug = slugify(nome);
+        if (!slug) { setMsg(byId('add-msg'),'error','Não foi possível gerar um identificador para este nome.'); return; }
+
+        // Verifica se já existe serviço com o mesmo identificador
+        try {
+          const db = firebase.firestore();
+          const col = db.collection('profissionais').doc(uid).collection('produtosEServicos');
+          const dup = await col.where('slug','==',slug).limit(1).get();
+          if (!dup.empty) {
+            setMsg(byId('add-msg'),'error','Este serviço já existe na sua lista.');
+            return;
+          }
+
+          // Salva
+          const now = firebase.firestore.FieldValue.serverTimestamp();
+          await col.add({
+            slug,
+            nome,
+            precoBase: Number(preco.toFixed(2)),
+            duracaoMin: dur,
+            sinonimos,
+            createdAt: now,
+            updatedAt: now
+          });
+
+          setMsg(byId('add-msg'),'ok','Serviço salvo com sucesso.');
+          byId('btn-clear').click();
+          await loadServices(); // recarrega lista
+        } catch(e) {
+          console.error('[precos] add error', e);
+          setMsg(byId('add-msg'),'error','Não foi possível salvar agora. Tente novamente.');
+        }
+      };
+
+      // ===== Amostra de planilha (CSV) =====
       function getSampleCsvBlob() {
         const rows = [
-          'slug,nome,precoBase,duracaoMin,sinonimos',
-          'corte-masculino,Corte masculino,45.00,30,"corte;tesoura;maquina"',
-          'corte-infantil,Corte infantil,35.00,30,"corte crianca;cabelo infantil;tesoura"',
-          'barba,Barba tradicional,30.00,20,"barbear;navalha;aparatem"',
-          'corte-e-barba,Combo corte + barba,70.00,60,"combo;pacote"',
-          'sombra-progressiva,Sombra e acabamento,25.00,15,"acabamento;contorno;finitura"',
-          'hidratacao,Hidratação capilar,60.00,40,"tratamento;mascara capilar"',
-          'pigmentacao,Pigmentação/Correção,80.00,45,"tonalizante;correcao de falhas;pigmento"'
+          'nome do servico,preco (R$),tempo (min),outros nomes',
+          'Corte masculino,45,30,"corte; pezinho; maquina"',
+          'Corte infantil,35,30,"cabelo infantil; tesoura"',
+          'Barba tradicional,30,20,"barbear; navalha"',
+          'Combo corte + barba,70,60,"combo; pacote"',
+          'Sombra e acabamento,25,15,"acabamento; contorno"',
+          'Hidratação capilar,60,40,"tratamento; mascara capilar"',
+          'Pigmentação/Correção,80,45,"tonalizante; correcao de falhas"'
         ].join('\n');
         return new Blob([rows], {type:'text/csv;charset=utf-8'});
       }
@@ -256,19 +342,18 @@
         const blob = getSampleCsvBlob();
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
-        a.href = url; a.download = 'modelo-precos.csv'; a.click();
-        setTimeout(()=>URL.revokeObjectURL(url), 2000);
+        a.href = url; a.download = 'exemplo-planilha.csv'; a.click();
+        setTimeout(()=>URL.revokeObjectURL(url), 1500);
       };
 
-      // ===== Upload CSV (drag & drop + input) =====
+      // ===== Upload de planilha (CSV) =====
       const drop = byId('dropzone');
       const finput = byId('file-input');
       drop.addEventListener('click', ()=>finput.click());
       drop.addEventListener('keydown', (e)=>{ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); finput.click(); }});
-      drop.addEventListener('dragover', e=>{ e.preventDefault(); drop.style.background='#f1f5f9'; });
-      drop.addEventListener('dragleave', e=>{ drop.style.background='#fff'; });
+      drop.addEventListener('dragover', e=>{ e.preventDefault(); });
       drop.addEventListener('drop', e=>{
-        e.preventDefault(); drop.style.background='#fff';
+        e.preventDefault();
         if (e.dataTransfer.files?.length) { finput.files = e.dataTransfer.files; onFileSelected(); }
       });
       finput.addEventListener('change', onFileSelected);
@@ -290,14 +375,12 @@
         reader.readAsText(f, 'UTF-8');
       }
 
-      // ===== CSV parsing simples (espera vírgulas e ; nos sinônimos) =====
+      // ===== Parser simples da planilha (mapeando para nosso canônico) =====
       function parseCsvBasic(text){
         const lines = text.split(/\r?\n/).map(l=>l.trim()).filter(Boolean);
         if (!lines.length) return { header:[], rows:[] };
-        const header = lines[0].split(',').map(h=>h.trim());
+        const headerRaw = lines[0].split(',').map(h=>h.trim().toLowerCase());
         const rows = lines.slice(1).map(line=>{
-          // split básico por vírgula; campos "com aspas" mantêm ; nos sinônimos
-          // (para v1 é suficiente – evitamos complexidade de CSV completo)
           const cols = [];
           let cur = ''; let inQ = false;
           for (let i=0;i<line.length;i++){
@@ -309,31 +392,37 @@
           cols.push(cur);
           return cols.map(c=>c.trim());
         });
-        return { header, rows };
+        return { header: headerRaw, rows };
       }
 
-      // ===== Pré-visualização =====
+      // ===== Ver prévia da planilha =====
       byId('btn-preview').onclick = ()=>{
         clearMsg(byId('import-msg'));
         const { header, rows } = parseCsvBasic(csvText);
-        const needed = ['slug','nome','precoBase','duracaoMin','sinonimos'];
-        const lower = header.map(h=>h.toLowerCase());
-        const ok = needed.every(n=>lower.includes(n));
-        if (!ok) { setMsg(byId('import-msg'),'error','Cabeçalho inválido. Use: slug,nome,precoBase,duracaoMin,sinonimos'); return; }
+        // Aceitar nomes de colunas levemente diferentes
+        const mapKeys = {
+          nome: ['nome do servico','nome','servico'],
+          preco: ['preco (r$)','preco','valor','preco r$'],
+          tempo: ['tempo (min)','duracao','min','duracao (min)','tempo'],
+          outros: ['outros nomes','sinonimos','apelidos']
+        };
+        function pick(obj, keys){ for (const k of keys) { const i = header.indexOf(k); if (i>=0) return obj[i]; } return ''; }
 
         const t = byId('preview-table');
         t.innerHTML = '';
         const thead = document.createElement('thead'), trh = document.createElement('tr');
-        needed.forEach(n=>{ const th=document.createElement('th'); th.textContent=n; trh.appendChild(th); });
+        ['nome do servico','preco (R$)','tempo (min)','outros nomes'].forEach(n=>{ const th=document.createElement('th'); th.textContent=n; trh.appendChild(th); });
         thead.appendChild(trh); t.appendChild(thead);
+
         const tbody = document.createElement('tbody');
         rows.slice(0,10).forEach(cols=>{
-          const map = {};
-          lower.forEach((h,i)=> map[h] = cols[i] ?? '');
           const tr = document.createElement('tr');
-          needed.forEach(n=>{
-            const td = document.createElement('td'); td.textContent = map[n] || '';
-            tr.appendChild(td);
+          const nome = pick(cols, mapKeys.nome);
+          const preco = pick(cols, mapKeys.preco);
+          const tempo = pick(cols, mapKeys.tempo);
+          const outros = pick(cols, mapKeys.outros);
+          [nome, preco, tempo, outros].forEach(v=>{
+            const td = document.createElement('td'); td.textContent = v || ''; tr.appendChild(td);
           });
           tbody.appendChild(tr);
         });
@@ -341,57 +430,45 @@
         byId('preview-wrap').classList.remove('hidden');
       };
 
-      // ===== Importação para o backend =====
+      // ===== Importar planilha (usa backend existente) =====
       const BACKEND_BASE = window.BACKEND_BASE || 'https://mei-robo-prod.onrender.com';
-      async function doImportCsv(){
+      byId('btn-import').onclick = async ()=>{
         clearMsg(byId('import-msg'));
         if (!currentUser) { setMsg(byId('import-msg'),'error','Sessão expirada. Faça login novamente.'); return; }
-        if (!isVerified) { setMsg(byId('import-msg'),'error','Seu e-mail não está verificado. Verifique para habilitar a importação.'); return; }
-        if (!finput.files?.[0]) { setMsg(byId('import-msg'),'error','Selecione um CSV antes.'); return; }
+        if (!isVerified) { setMsg(byId('import-msg'),'error','Verifique seu e-mail para importar planilha.'); return; }
+        if (!finput.files?.[0]) { setMsg(byId('import-msg'),'error','Escolha um arquivo primeiro.'); return; }
 
         const fd = new FormData();
         fd.append('file', finput.files[0], finput.files[0].name);
-        // fd.append('dryRun', 'false'); // opcional
-
-        const token = await currentUser.getIdToken(true);
-        byId('btn-import').disabled = true; byId('btn-preview').disabled = true;
 
         try {
+          const token = await currentUser.getIdToken(true);
           const url = BACKEND_BASE.replace(/\/$/,'') + '/api/importar-precos';
           const res = await fetch(url, { method:'POST', headers: { 'Authorization': 'Bearer ' + token }, body: fd });
           const text = await res.text();
-          let json;
-          try { json = JSON.parse(text); } catch { json = { ok:false, error: 'Resposta inesperada do servidor', raw:text }; }
+          let json; try { json = JSON.parse(text); } catch { json = { ok:false, error: 'Resposta inesperada do servidor' }; }
           if (!res.ok || json.ok === false) {
-            const msg = json?.error || ('Falha HTTP ' + res.status);
-            setMsg(byId('import-msg'),'error','Erro ao importar: ' + msg);
+            setMsg(byId('import-msg'),'error', json?.error || ('Falha HTTP ' + res.status));
           } else {
             const det = `Importados: ${json.imported ?? 0}` + (json.skipped ? ` | Ignorados: ${json.skipped}` : '');
-            setMsg(byId('import-msg'),'success','Importação concluída. ' + det);
-            // recarrega lista
-            loadServices().catch(()=>{});
+            setMsg(byId('import-msg'),'ok','Importação concluída. ' + det);
+            await loadServices();
           }
         } catch(e) {
-          setMsg(byId('import-msg'),'error','Erro de rede/servidor ao importar.');
           console.error('[precos] import error', e);
-        } finally {
-          byId('btn-import').disabled = !csvText || !isVerified;
-          byId('btn-preview').disabled = !csvText;
+          setMsg(byId('import-msg'),'error','Não foi possível importar agora.');
         }
-      }
-      byId('btn-import').onclick = doImportCsv;
+      };
 
-      // ===== Firestore: listar serviços =====
+      // ===== Lista de serviços (Firestore) =====
       async function loadServices(){
         const db = firebase.firestore();
         const col = db.collection('profissionais').doc(uid).collection('produtosEServicos');
-        // leitura simples; se o volume crescer, migrar para paginação via startAfter
         const snap = await col.orderBy('nome').get();
         dataAll = snap.docs.map(d=>{
           const v = d.data() || {};
           return {
             id: d.id,
-            slug: v.slug || '',
             nome: v.nome || '',
             precoBase: typeof v.precoBase === 'number' ? v.precoBase : parseFloat(v.precoBase || '0') || 0,
             duracaoMin: typeof v.duracaoMin === 'number' ? v.duracaoMin : parseInt(v.duracaoMin || '0') || 0,
@@ -401,36 +478,34 @@
         applyFilter();
       }
 
+      function normalize(t) { return String(t||'').toLowerCase().normalize('NFD').replace(/\p{Diacritic}/gu,''); }
+
       function applyFilter(){
-        const q = (byId('search').value || '').toLowerCase().normalize('NFD').replace(/\p{Diacritic}/gu,'');
-        if (!q) dataView = dataAll.slice();
-        else {
-          dataView = dataAll.filter(s=>{
-            const norm = (t)=> String(t||'').toLowerCase().normalize('NFD').replace(/\p{Diacritic}/gu,'');
-            return norm(s.slug).includes(q) || norm(s.nome).includes(q) || norm((s.sinonimos||[]).join(' ')).includes(q);
-          });
-        }
+        const q = normalize(byId('search').value || '');
+        dataView = !q ? dataAll.slice() : dataAll.filter(s =>
+          normalize(s.nome).includes(q) || normalize((s.sinonimos||[]).join(' ')).includes(q)
+        );
         page = 0;
         renderTable();
       }
-      byId('search').addEventListener('input', ()=>applyFilter());
+      byId('search').addEventListener('input', applyFilter);
 
       function renderTable(){
         const body = byId('svc-body');
         body.innerHTML = '';
         if (!dataView.length) {
           const tr=document.createElement('tr'); const td=document.createElement('td');
-          td.colSpan=5; td.className='muted'; td.textContent='Nenhum serviço encontrado.'; tr.appendChild(td); body.appendChild(tr);
+          td.colSpan=5; td.textContent='Nenhum serviço cadastrado ainda.'; tr.appendChild(td); body.appendChild(tr);
         } else {
           const start = page * PAGE_SIZE, end = Math.min(start + PAGE_SIZE, dataView.length);
           dataView.slice(start, end).forEach(s=>{
             const tr = document.createElement('tr');
             tr.innerHTML = `
-              <td class="kbd">${s.slug}</td>
               <td>${s.nome}</td>
               <td class="nowrap">${s.precoBase.toFixed(2)}</td>
               <td class="nowrap">${s.duracaoMin}</td>
               <td>${(s.sinonimos||[]).join(', ')}</td>
+              <td class="nowrap"><span class="help">Em breve</span></td>
             `;
             body.appendChild(tr);
           });
@@ -450,6 +525,7 @@
         return new Promise((resolve)=>{
           firebase.auth().onAuthStateChanged(async (u)=>{
             if (!u) {
+              REDIRECTING_TO_LOGIN = true;
               log('Sem sessão: redirecionando para login');
               location.href = '/pages/login.html';
               return;
@@ -459,15 +535,11 @@
             isVerified = !!u.emailVerified;
 
             byId('user-email').textContent = u.email || '(sem e-mail)';
-            byId('user-uid').textContent = u.uid;
             byId('user-verified').textContent = isVerified ? 'Sim' : 'Não';
-            if (!isVerified) {
-              // bloqueia import, mas mantém visualização
-              byId('btn-import').disabled = true;
-            } else {
-              // libera import se já houver arquivo
-              byId('btn-import').disabled = !(finput.files?.[0] && csvText);
-            }
+
+            // Importar planilha só se verificado
+            byId('btn-import').disabled = !(finput.files?.[0] && isVerified);
+
             resolve();
           });
         });
@@ -477,15 +549,15 @@
       (async function init(){
         try {
           await ensureAuth();
+          if (REDIRECTING_TO_LOGIN) return;
           await loadServices();
-          // Wire preview após auth
-          // (para ter estado de verificação)
-          // (handlers já ligados)
           log('Pronto.');
         } catch(e) {
           console.error('[precos] init error', e);
-          const tb = byId('svc-body');
-          tb.innerHTML = '<tr><td colspan="5" class="error">Falha ao carregar a página. Recarregue e verifique sua conexão.</td></tr>';
+          if (!REDIRECTING_TO_LOGIN) {
+            const tb = byId('svc-body');
+            tb.innerHTML = '<tr><td colspan="5" class="msg err">Falha ao carregar a página. Recarregue e verifique sua conexão.</td></tr>';
+          }
         }
       })();
     })();
