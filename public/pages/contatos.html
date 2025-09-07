@@ -1,0 +1,629 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Contatos e Consentimento — MEI Robô</title>
+
+  <!-- Estilos canônicos -->
+  <link rel="stylesheet" href="/assets/styles.css" />
+
+  <style>
+    /* ===== Microestilos locais (identidade + legibilidade) ===== */
+    :root {
+      --text-strong: rgba(255,255,255,0.92);
+      --text-soft: rgba(255,255,255,0.80);   /* "value-soft" */
+      --placeholder: rgba(255,255,255,0.55); /* contraste ≈55% */
+      --card-bg: rgba(255,255,255,0.04);
+      --card-bd: rgba(255,255,255,0.08);
+      --ok: #1bbb6e;
+      --warn: #efb417;
+      --bad: #ff5d5d;
+      --brand: #25D366; /* verde WhatsApp */
+    }
+    body.app-shell { color: var(--text-strong); background: #0b141a; }
+    main.app-main { min-height: 82svh; padding: 16px; }
+
+    h1 { font-size: 1.6rem; margin: 6px 0 2px; }
+    .sub { color: var(--text-soft); font-size: 0.95rem; margin-bottom: 14px; }
+
+    .row { display: grid; gap: 12px; }
+    @media (min-width: 880px){ .row-2 { grid-template-columns: 1fr 1fr; } }
+    @media (min-width: 1180px){ .row-3 { grid-template-columns: 1.2fr 1fr 1fr; } }
+
+    .card {
+      background: var(--card-bg);
+      border: 1px solid var(--card-bd);
+      border-radius: 14px;
+      padding: 14px;
+    }
+    .muted { color: var(--text-soft); }
+
+    /* Inputs: placeholders e valores legíveis */
+    input[type="text"], input[type="email"], input[type="tel"], select, textarea {
+      background: #0e1a21;
+      border: 1px solid #1f2a30;
+      border-radius: 10px;
+      padding: 10px 12px;
+      width: 100%;
+      color: var(--text-strong);
+      font-size: 0.98rem;
+      outline: none;
+    }
+    input::placeholder, textarea::placeholder { color: var(--placeholder); }
+    .value-soft { color: var(--text-soft); }
+
+    /* Tabela simples responsiva */
+    .table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.95rem;
+    }
+    .table th, .table td {
+      text-align: left; padding: 10px 8px; border-bottom: 1px solid #1f2a30;
+    }
+    .table th { color: var(--text-soft); font-weight: 600; }
+    .chip { display:inline-block; padding:3px 9px; border-radius:999px; font-size:0.82rem; border:1px solid #2a3a3f; }
+    .chip.ok { border-color: #195a44; background: rgba(27,187,110,0.08); color:#65e0a8; }
+    .chip.warn { border-color:#4a3b16; background: rgba(239,180,23,0.10); color:#ffd36a; }
+    .chip.bad { border-color:#522525; background: rgba(255,93,93,0.10); color:#ff9b9b; }
+
+    /* Botões */
+    .btn { cursor:pointer; border:1px solid #2a3a3f; background:#0f1e23; color:#dff3ea; border-radius:12px; padding:10px 14px; font-weight:700; }
+    .btn:hover { filter: brightness(1.05); }
+    .btn.primary { border-color:#1e4a36; background:#113328; color:#d4ffe9; }
+    .btn.ghost { background:transparent; color:var(--text-soft); }
+    .btn.small { padding:6px 10px; font-weight:600; border-radius:10px; }
+    .btn.block { width: 100%; }
+
+    .actions { display:flex; gap:10px; flex-wrap: wrap; align-items:center; }
+    .actions.right { justify-content: flex-end; }
+
+    .grid-2 { display:grid; gap:10px; grid-template-columns: 1fr; }
+    @media (min-width: 760px){ .grid-2 { grid-template-columns: 1fr 1fr; } }
+
+    .hint { font-size:0.85rem; color:var(--text-soft); margin-top:6px; }
+    .danger { color: var(--bad); }
+    .success { color: var(--ok); }
+    .brand { color: var(--brand); font-weight: 800; }
+
+    /* Modal simples */
+    dialog { border:1px solid #274048; background:#0b141a; color:var(--text-strong); border-radius:16px; padding:0; width:min(680px, 96vw); }
+    dialog .modal-header { padding:14px 16px; border-bottom:1px solid #1f2a30; font-weight:800; }
+    dialog .modal-body { padding:14px 16px; }
+    dialog .modal-footer { padding:12px 16px; border-top:1px solid #1f2a30; display:flex; gap:10px; justify-content:flex-end; }
+
+    .kicker { font-size:.9rem; color:var(--text-soft); margin-bottom:10px; }
+
+    /* Estado vazio */
+    .empty {
+      border:1px dashed #2a3a3f; border-radius:14px; padding:18px; text-align:center; color:var(--text-soft);
+    }
+  </style>
+</head>
+<body class="app-shell">
+  <!-- Cabeçalho dinâmico -->
+  <div id="app-header"></div>
+
+  <main class="app-main">
+    <h1>Contatos e Consentimento</h1>
+    <p class="sub">Aqui você salva as pessoas com quem fala no WhatsApp e diz como o seu <span class="brand">MEI Robô</span> deve conversar com cada uma.</p>
+
+    <div class="row row-3">
+      <!-- Estado da conta -->
+      <section class="card">
+        <strong>Estado da conta</strong>
+        <div id="accountState" class="kicker value-soft">Verificando…</div>
+        <div class="hint">Se seu e-mail ainda não estiver verificado, você pode usar a página, mas pedir consentimento automático ficará desativado.</div>
+      </section>
+
+      <!-- Ações principais -->
+      <section class="card">
+        <strong>Ações</strong>
+        <div class="actions" style="margin-top:10px;">
+          <button class="btn primary" id="btnAdd">Adicionar contato</button>
+          <button class="btn" id="btnImport">Importar contatos (CSV)</button>
+        </div>
+        <div class="hint">
+          Dica: você pode importar um arquivo CSV com cabeçalhos como
+          <code class="value-soft">nome, comoChama, categoria, tom, emojis, tamanhoMsg, preferenciaAudio, resumoRelacionamento, observacoes, telefone, email</code>.
+          Colunas extras serão ignoradas.
+        </div>
+      </section>
+
+      <!-- Ajuda rápida -->
+      <section class="card">
+        <strong>Como preencher (rápido)</strong>
+        <ul class="value-soft" style="margin-top:8px; line-height:1.5;">
+          <li><b>Nome do contato</b> — ex.: <i>“Dona Maria da Silva”</i></li>
+          <li><b>Como você chama</b> — ex.: <i>“Dona Maria”</i>, <i>“Tia Maria”</i></li>
+          <li><b>Tom</b> — <i>bem formal</i>, <i>equilibrado</i> ou <i>bem informal</i></li>
+          <li><b>Emojis</b> — <i>sem</i>, <i>poucos</i> ou <i>pode usar</i></li>
+          <li><b>Tamanho das mensagens</b> — <i>curtas</i>, <i>médias</i> ou <i>detalhadas</i></li>
+          <li><b>Resumo do relacionamento</b> — 1 a 3 linhas (ex.: “Desde 2018. Cliente de manutenção. Prefere mensagens objetivas.”)</li>
+        </ul>
+      </section>
+    </div>
+
+    <!-- Lista de contatos -->
+    <section class="card" style="margin-top:14px;">
+      <div class="actions">
+        <strong>Seus contatos</strong>
+        <span id="totalSpan" class="value-soft"></span>
+      </div>
+      <div id="emptyState" class="empty" style="display:none; margin-top:12px;">
+        Você ainda não cadastrou contatos. Clique em <b>“Adicionar contato”</b>.
+      </div>
+      <div style="overflow:auto; margin-top:8px;">
+        <table class="table" id="contactsTable" aria-label="Tabela de contatos">
+          <thead>
+            <tr>
+              <th>Nome</th>
+              <th>Categoria</th>
+              <th>Consentimento</th>
+              <th>Última interação</th>
+              <th style="min-width: 240px;">Ações</th>
+            </tr>
+          </thead>
+          <tbody id="contactsBody">
+            <!-- linhas injetadas via JS -->
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- Navegação -->
+    <div class="actions right" style="margin-top:14px;">
+      <a class="btn ghost" href="/pages/precos.html">Voltar</a>
+      <a class="btn primary" href="/pages/dashboard.html">Próximo</a>
+    </div>
+  </main>
+
+  <!-- Rodapé dinâmico -->
+  <div id="app-footer"></div>
+
+  <!-- Modais -->
+  <dialog id="modalContact">
+    <div class="modal-header">Contato</div>
+    <form id="formContact" class="modal-body">
+      <div class="grid-2">
+        <div>
+          <label for="c_nome">Nome do contato</label>
+          <input id="c_nome" name="nome" type="text" placeholder="Ex.: Dona Maria da Silva" required />
+          <div class="hint">Coloque como aparece no seu WhatsApp (se preferir).</div>
+        </div>
+        <div>
+          <label for="c_como">Como você chama essa pessoa?</label>
+          <input id="c_como" name="comoChama" type="text" placeholder="Ex.: Dona Maria, Tia Maria, Sr. João" />
+          <div class="hint">Ajuda o robô a falar do seu jeito.</div>
+        </div>
+        <div>
+          <label for="c_categoria">Categoria</label>
+          <select id="c_categoria" name="categoria">
+            <option value="">Selecione…</option>
+            <option value="cliente">Cliente</option>
+            <option value="fornecedor">Fornecedor</option>
+            <option value="colega">Colega</option>
+            <option value="concorrente">Concorrente</option>
+            <option value="colaborador">Colaborador</option>
+            <option value="amigo">Amigo</option>
+            <option value="parente">Parente</option>
+          </select>
+        </div>
+        <div>
+          <label for="c_tom">Tom de conversa</label>
+          <select id="c_tom" name="tom">
+            <option value="equilibrado">Equilibrado</option>
+            <option value="formal">Bem formal</option>
+            <option value="informal">Bem informal</option>
+          </select>
+        </div>
+        <div>
+          <label for="c_emojis">Emojis</label>
+          <select id="c_emojis" name="emojis">
+            <option value="poucos">Poucos emojis</option>
+            <option value="sem">Sem emojis</option>
+            <option value="pode">Pode usar emojis</option>
+          </select>
+        </div>
+        <div>
+          <label for="c_tamanho">Tamanho das mensagens</label>
+          <select id="c_tamanho" name="tamanhoMsg">
+            <option value="curtas">Curtas</option>
+            <option value="medias">Médias</option>
+            <option value="detalhadas">Detalhadas</option>
+          </select>
+        </div>
+        <div>
+          <label for="c_audio">Preferência de áudio</label>
+          <select id="c_audio" name="preferenciaAudio">
+            <option value="permitido">Pode responder com áudio</option>
+            <option value="texto">Prefiro só texto</option>
+          </select>
+        </div>
+        <div>
+          <label for="c_tel">Telefone</label>
+          <input id="c_tel" name="telefone" type="tel" placeholder="Ex.: 51998765432 (apenas números)" />
+        </div>
+        <div>
+          <label for="c_email">E-mail</label>
+          <input id="c_email" name="email" type="email" placeholder="Ex.: cliente@email.com" />
+        </div>
+        <div>
+          <label for="c_resumo">Resumo do relacionamento</label>
+          <textarea id="c_resumo" name="resumoRelacionamento" rows="2" placeholder="Ex.: Desde 2018. Cliente de manutenção. Prefere mensagens objetivas."></textarea>
+        </div>
+        <div>
+          <label for="c_obs">Observações</label>
+          <textarea id="c_obs" name="observacoes" rows="2" placeholder="Ex.: Gosta de ser chamado de 'Dona Maria'. Evitar áudio à noite."></textarea>
+        </div>
+      </div>
+      <input type="hidden" id="c_id" name="id" value="" />
+    </form>
+    <div class="modal-footer">
+      <button class="btn ghost" id="btnCancelContact" type="button">Cancelar</button>
+      <button class="btn primary" id="btnSaveContact" type="button">Salvar</button>
+    </div>
+  </dialog>
+
+  <dialog id="modalConsent">
+    <div class="modal-header">Consentimento</div>
+    <div class="modal-body">
+      <div id="consentInfo" class="kicker">Carregando…</div>
+      <div class="actions" style="margin-top:10px;">
+        <button class="btn small" id="btnConsentManual">Registrar manualmente</button>
+        <button class="btn small" id="btnConsentAuto" disabled title="Em breve">Pedir consentimento (automático)</button>
+      </div>
+      <div class="hint">O consentimento autoriza o envio de mensagens. O pedido automático depende de configurações da Meta/YCloud.</div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn primary" id="btnCloseConsent" type="button">Fechar</button>
+    </div>
+  </dialog>
+
+  <!-- Upload CSV (oculto) -->
+  <input type="file" id="csvInput" accept=".csv,text/csv" style="display:none" />
+
+  <!-- Scripts canônicos -->
+  <script src="/assets/layout.js" defer></script>
+  <script src="/assets/firebase-init.js" defer></script>
+  <script src="/assets/backend-patch.js" defer></script>
+
+  <script>
+  (function(){
+    const $ = (q) => document.querySelector(q);
+    const tableBody = $("#contactsBody");
+    const emptyState = $("#emptyState");
+    const totalSpan = $("#totalSpan");
+    const accountState = $("#accountState");
+
+    const btnAdd = $("#btnAdd");
+    const btnImport = $("#btnImport");
+    const csvInput = $("#csvInput");
+
+    const modalContact = $("#modalContact");
+    const btnCancelContact = $("#btnCancelContact");
+    const btnSaveContact = $("#btnSaveContact");
+
+    const modalConsent = $("#modalConsent");
+    const consentInfo = $("#consentInfo");
+    const btnConsentManual = $("#btnConsentManual");
+    const btnConsentAuto = $("#btnConsentAuto");
+    const btnCloseConsent = $("#btnCloseConsent");
+
+    let CURRENT_USER = null;
+    let CURRENT_EDIT_ID = null; // contato em edição
+    let CURRENT_CONSENT_ID = null;
+
+    function showEmpty(show){
+      emptyState.style.display = show ? "block" : "none";
+    }
+
+    function addRow(id, data){
+      const tr = document.createElement("tr");
+      const status = (data.consentimento && data.consentimento.status) || "pendente";
+      const statusChip = status === "consentido" ? "ok" : (status === "negado" ? "bad" : "warn");
+      const ultima = data.ultimaInteracaoEm ? new Date(data.ultimaInteracaoEm.seconds*1000).toLocaleString() : "—";
+      tr.innerHTML = `
+        <td>${escapeHtml(data.nome || "—")}</td>
+        <td><span class="chip">${escapeHtml(data.categoria || "—")}</span></td>
+        <td><span class="chip ${statusChip}">${escapeHtml(status)}</span></td>
+        <td class="value-soft">${ultima}</td>
+        <td>
+          <div class="actions">
+            <button class="btn small" data-edit="${id}">Editar</button>
+            <button class="btn small" data-consent="${id}">Consentimento</button>
+          </div>
+        </td>
+      `;
+      tableBody.appendChild(tr);
+    }
+
+    function clearTable(){
+      tableBody.innerHTML = "";
+    }
+
+    function escapeHtml(s){
+      return String(s ?? "").replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+    }
+
+    function openModal(dialog){ if (!dialog.open) dialog.showModal(); }
+    function closeModal(dialog){ if (dialog.open) dialog.close(); }
+
+    function fillContactForm(data){
+      $("#c_id").value = data.id || "";
+      $("#c_nome").value = data.nome || "";
+      $("#c_como").value = data.comoChama || "";
+      $("#c_categoria").value = data.categoria || "";
+      $("#c_tom").value = data.tom || "equilibrado";
+      $("#c_emojis").value = data.emojis || "poucos";
+      $("#c_tamanho").value = data.tamanhoMsg || "curtas";
+      $("#c_audio").value = data.preferenciaAudio || "permitido";
+      $("#c_tel").value = data.telefone || "";
+      $("#c_email").value = data.email || "";
+      $("#c_resumo").value = data.resumoRelacionamento || "";
+      $("#c_obs").value = data.observacoes || "";
+    }
+
+    function readContactForm(){
+      return {
+        id: $("#c_id").value || undefined,
+        nome: $("#c_nome").value.trim(),
+        comoChama: $("#c_como").value.trim(),
+        categoria: $("#c_categoria").value || "",
+        tom: $("#c_tom").value || "equilibrado",
+        emojis: $("#c_emojis").value || "poucos",
+        tamanhoMsg: $("#c_tamanho").value || "curtas",
+        preferenciaAudio: $("#c_audio").value || "permitido",
+        telefone: $("#c_tel").value.trim(),
+        email: $("#c_email").value.trim(),
+        resumoRelacionamento: $("#c_resumo").value.trim(),
+        observacoes: $("#c_obs").value.trim()
+      };
+    }
+
+    function updateAccountStateUI(user){
+      if (!user){
+        accountState.innerHTML = 'Redirecionando para login…';
+        return;
+      }
+      if (user.emailVerified){
+        accountState.innerHTML = '<span class="chip ok">Conta verificada</span> — você pode solicitar consentimento automático quando disponível.';
+      } else {
+        accountState.innerHTML = '<span class="chip warn">Verifique seu e-mail</span> — é rápido e libera recursos extras.';
+        // pedido automático desativado
+        btnConsentAuto.setAttribute('disabled', 'disabled');
+        btnConsentAuto.title = 'Ative após verificar seu e-mail';
+      }
+    }
+
+    async function ensureAuth(){
+      if (!window.firebase || !firebase?.auth){
+        console.warn('[contatos] firebase não encontrado — modo visual.');
+        updateAccountStateUI(null);
+        // sem firebase, não dá pra seguir — mantém a página útil
+        setTimeout(()=>{ window.location.href = '/pages/login.html'; }, 1200);
+        return null;
+      }
+      const user = await new Promise(resolve=>{
+        const off = firebase.auth().onAuthStateChanged(u=>{
+          off(); resolve(u||null);
+        });
+      });
+      if (!user){
+        updateAccountStateUI(null);
+        window.location.href = '/pages/login.html';
+        return null;
+      }
+      CURRENT_USER = user;
+      updateAccountStateUI(user);
+      return user;
+    }
+
+    // ===== Firestore helpers (compat v8) =====
+    function fs(){
+      if (!firebase?.firestore) return null;
+      return firebase.firestore();
+    }
+    function pathClientes(uid){
+      return fs().collection('profissionais').doc(uid).collection('clientes');
+    }
+
+    async function loadContacts(){
+      const db = fs();
+      if (!db || !CURRENT_USER) return;
+      clearTable();
+      const snap = await pathClientes(CURRENT_USER.uid).orderBy('nome','asc').get().catch(e=>{
+        console.error('[contatos] loadContacts', e);
+        return { empty: true, forEach: ()=>{} };
+      });
+      let total = 0;
+      if (!snap.empty){
+        snap.forEach(doc=>{
+          total++;
+          addRow(doc.id, doc.data());
+        });
+      }
+      totalSpan.textContent = total ? `(${total})` : '';
+      showEmpty(!total);
+    }
+
+    async function upsertContact(data){
+      const db = fs(); if (!db || !CURRENT_USER) return;
+      const col = pathClientes(CURRENT_USER.uid);
+      const payload = {
+        nome: data.nome || '',
+        comoChama: data.comoChama || '',
+        categoria: data.categoria || '',
+        tom: data.tom || 'equilibrado',
+        emojis: data.emojis || 'poucos',
+        tamanhoMsg: data.tamanhoMsg || 'curtas',
+        preferenciaAudio: data.preferenciaAudio || 'permitido',
+        telefone: data.telefone || '',
+        email: data.email || '',
+        resumoRelacionamento: data.resumoRelacionamento || '',
+        observacoes: data.observacoes || '',
+        // consentimento mantém se já houver
+      };
+      if (data.id){
+        await col.doc(data.id).set(payload, { merge:true });
+      } else {
+        await col.add(payload);
+      }
+    }
+
+    async function setConsentManual(contatoId){
+      const db = fs(); if (!db || !CURRENT_USER) return;
+      const ref = pathClientes(CURRENT_USER.uid).doc(contatoId);
+      const now = firebase.firestore.FieldValue.serverTimestamp?.() || new Date();
+      await ref.set({
+        consentimento:{
+          status:'consentido',
+          origem:'manual',
+          atualizadoEm: now
+        }
+      }, { merge:true });
+    }
+
+    // ===== Eventos UI =====
+    btnAdd?.addEventListener('click', ()=>{
+      CURRENT_EDIT_ID = null;
+      fillContactForm({});
+      openModal(modalContact);
+    });
+
+    btnCancelContact?.addEventListener('click', ()=> closeModal(modalContact));
+
+    btnSaveContact?.addEventListener('click', async ()=>{
+      const data = readContactForm();
+      if (!data.nome){
+        alert('Informe o nome do contato.'); return;
+      }
+      btnSaveContact.disabled = true;
+      try{
+        data.id = CURRENT_EDIT_ID || undefined;
+        await upsertContact(data);
+        await loadContacts();
+        closeModal(modalContact);
+      } catch(e){
+        console.error('[contatos] salvar', e);
+        alert('Não foi possível salvar. Tente novamente.');
+      } finally{
+        btnSaveContact.disabled = false;
+      }
+    });
+
+    // Delegação para botões da tabela (Editar / Consentimento)
+    tableBody?.addEventListener('click', async (ev)=>{
+      const t = ev.target;
+      const editId = t?.getAttribute?.('data-edit');
+      const consId = t?.getAttribute?.('data-consent');
+      if (editId){
+        CURRENT_EDIT_ID = editId;
+        try{
+          const doc = await pathClientes(CURRENT_USER.uid).doc(editId).get();
+          fillContactForm({ id: editId, ...(doc.data()||{}) });
+          openModal(modalContact);
+        } catch(e){
+          console.error('[contatos] abrir edição', e);
+          alert('Não foi possível abrir este contato.');
+        }
+      } else if (consId){
+        CURRENT_CONSENT_ID = consId;
+        // mostra estado atual
+        try{
+          const doc = await pathClientes(CURRENT_USER.uid).doc(consId).get();
+          const c = doc.data()||{};
+          const st = (c.consentimento && c.consentimento.status) || 'pendente';
+          const dt = (c.consentimento && c.consentimento.atualizadoEm) ? new Date(c.consentimento.atualizadoEm.seconds*1000).toLocaleString() : '—';
+          consentInfo.innerHTML = `Status atual: <b>${escapeHtml(st)}</b> — Atualizado: <span class="value-soft">${dt}</span>`;
+        }catch(e){
+          consentInfo.textContent = 'Não foi possível carregar o estado.';
+        }
+        openModal(modalConsent);
+      }
+    });
+
+    btnConsentManual?.addEventListener('click', async ()=>{
+      if (!CURRENT_CONSENT_ID) return;
+      btnConsentManual.disabled = true;
+      try{
+        await setConsentManual(CURRENT_CONSENT_ID);
+        await loadContacts();
+        consentInfo.innerHTML = `<span class="success">Consentimento registrado manualmente.</span>`;
+      }catch(e){
+        console.error('[contatos] consent manual', e);
+        alert('Falha ao registrar consentimento.');
+      }finally{
+        btnConsentManual.disabled = false;
+      }
+    });
+
+    btnCloseConsent?.addEventListener('click', ()=> closeModal(modalConsent));
+
+    // Importar CSV
+    btnImport?.addEventListener('click', ()=> csvInput.click());
+    csvInput?.addEventListener('change', ()=>{
+      const file = csvInput.files?.[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = async (e)=>{
+        const text = e.target.result;
+        const rows = parseCSV(text);
+        if (!rows.length){ alert('CSV vazio.'); return; }
+        try{
+          for (const r of rows){
+            await upsertContact({
+              nome: r.nome || '',
+              comoChama: r.comoChama || '',
+              categoria: r.categoria || '',
+              tom: r.tom || 'equilibrado',
+              emojis: r.emojis || 'poucos',
+              tamanhoMsg: r.tamanhoMsg || 'curtas',
+              preferenciaAudio: r.preferenciaAudio || 'permitido',
+              telefone: r.telefone || '',
+              email: r.email || '',
+              resumoRelacionamento: r.resumoRelacionamento || '',
+              observacoes: r.observacoes || ''
+            });
+          }
+          await loadContacts();
+          alert('Importação concluída.');
+        } catch(e){
+          console.error('[contatos] importar CSV', e);
+          alert('Falha ao importar. Verifique o arquivo.');
+        } finally {
+          csvInput.value = '';
+        }
+      };
+      reader.readAsText(file, 'utf-8');
+    });
+
+    // CSV parser simples (cabecalhos por vírgula ou ponto-e-vírgula)
+    function parseCSV(text){
+      const lines = text.split(/\r?\n/).filter(l=>l.trim().length);
+      if (!lines.length) return [];
+      let header = lines.shift();
+      // Suporta separador ; ou ,
+      const sep = header.includes(';') ? ';' : ',';
+      const keys = header.split(sep).map(s=>s.trim());
+      const out = [];
+      for (const line of lines){
+        const cols = line.split(sep);
+        const obj = {};
+        keys.forEach((k,i)=> obj[k] = (cols[i]||'').trim());
+        out.push(obj);
+      }
+      return out;
+    }
+
+    // ===== Bootstrap =====
+    window.addEventListener('load', async ()=>{
+      const user = await ensureAuth();
+      if (!user) return;
+      await loadContacts();
+    });
+  })();
+  </script>
+</body>
+</html>
