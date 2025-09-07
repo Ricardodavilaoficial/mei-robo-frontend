@@ -8,7 +8,7 @@
   <!-- Estilos canônicos do projeto -->
   <link rel="stylesheet" href="/assets/styles.css" />
 
-  <!-- Microlayout e ajustes de legibilidade (herdando a paleta do tema escuro) -->
+  <!-- Microlayout e legibilidade (herdando a paleta do tema escuro) -->
   <style>
     .app-main { min-height: 82svh; }
     .container { max-width: 1100px; margin: 0 auto; padding: 16px; }
@@ -30,11 +30,11 @@
     .button { border-radius:10px; padding:10px 12px; font-size:1rem; font-weight:700; cursor:pointer; }
     .button:disabled { opacity:.55; cursor:not-allowed; }
 
-    /* Tabela: herda cores; apenas espaçamento */
+    /* Tabela */
     .table { width:100%; border-collapse:collapse; }
     .table th, .table td { padding:10px; text-align:left; font-size:.95rem; vertical-align:top; }
 
-    /* Upload: sem forçar fundo claro */
+    /* Upload */
     .upload-area { border:2px dashed currentColor; border-radius:12px; padding:18px; cursor:pointer; }
     .upload-area:focus { outline: none; box-shadow: 0 0 0 3px rgba(15,157,88,.25); }
 
@@ -43,7 +43,7 @@
     .msg.ok { border:1px solid; }
     .msg.err { border:1px solid; }
 
-    /* Badge simples (sem alterar paleta) */
+    /* Badge simples */
     .badge { display:inline-flex; align-items:center; gap:6px; font-weight:700; font-size:.85rem; padding:4px 10px; border-radius:999px; border:1px solid currentColor; opacity:.9; }
   </style>
 </head>
@@ -82,9 +82,9 @@
         </div>
         <div class="row mt-2">
           <div class="col" style="flex-basis:100%;">
-            <label for="f-aka">Outros nomes (opcional)</label>
-            <input id="f-aka" class="input" placeholder="Como os clientes pedem? Ex.: pezinho; corte social" maxlength="200" />
-            <div class="help mt-1">Separe por ponto e vírgula <b>;</b></div>
+            <label for="f-info">Complete aqui outras informações do serviço (opcional)</label>
+            <input id="f-info" class="input" placeholder="Ex.: a domicílio, feminino, infantil, unhas de gel, acabamento, hidráulica" maxlength="200" />
+            <div class="help mt-1">Separe por vírgulas. Escreva palavras que ajudem a identificar o serviço (onde, para quem, variações, material, estilo). Evite colocar preço ou tempo aqui.</div>
           </div>
         </div>
         <div class="mt-2 toolbar">
@@ -98,7 +98,7 @@
       <div class="mt-4 card">
         <div class="toolbar">
           <div class="badge">Seus serviços</div>
-          <input id="search" class="input" placeholder="Buscar por nome ou outros nomes…" style="flex:1 1 280px" />
+          <input id="search" class="input" placeholder="Buscar por nome ou outras informações…" style="flex:1 1 280px" />
           <div class="help">Resultados: <span id="count">0</span></div>
         </div>
 
@@ -109,7 +109,7 @@
                 <th>Serviço</th>
                 <th class="nowrap">Preço (R$)</th>
                 <th class="nowrap">Tempo (min)</th>
-                <th>Outros nomes</th>
+                <th>Outras informações</th>
                 <th class="nowrap">Anexos</th>
               </tr>
             </thead>
@@ -130,14 +130,15 @@
       <div class="mt-4 card">
         <div class="badge">Importar planilha (opcional)</div>
         <div class="help mt-1">
-          Se você já tem sua tabela, pode importar para acelerar. Aceita planilha <b>.csv</b>.
-          Em breve: Excel / PDF.
+          Se você já tem sua tabela, pode importar para acelerar. Aceita planilha <b>.csv</b>. Em breve: Excel / PDF.
         </div>
+
+        <div id="import-ready" class="mt-2 help"></div>
 
         <div class="mt-2 upload-area" id="dropzone" tabindex="0" role="button" aria-label="Escolher arquivo de planilha">
           <div><b>Escolher arquivo</b> ou arraste aqui.</div>
           <div class="help mt-1">
-            Colunas esperadas: <b>nome do serviço</b>, <b>preço (R$)</b>, <b>tempo (min)</b>, <b>outros nomes (opcional)</b>.
+            Colunas esperadas: <b>nome do serviço</b>, <b>preço (R$)</b>, <b>tempo (min)</b>, <b>outras informações (opcional)</b>.
           </div>
           <input id="file-input" type="file" accept=".csv,text/csv" class="hidden" />
         </div>
@@ -153,16 +154,7 @@
         <div id="preview-wrap" class="mt-2 hidden">
           <div class="help"><b>Prévia (primeiras linhas)</b>:</div>
           <table class="table" id="preview-table" aria-label="Prévia da planilha"></table>
-        </div>
-      </div>
-
-      <!-- 4) Status simples da conta -->
-      <div class="mt-4 card">
-        <div class="badge">Status da sua conta</div>
-        <div class="mt-2"><b>E-mail:</b> <span id="user-email">—</span></div>
-        <div class="mt-1"><b>Conta verificada:</b> <span id="user-verified">—</span></div>
-        <div class="help mt-1">
-          Para importar planilha, verifique seu e-mail (se ainda não verificou).
+          <div id="preview-note" class="help mt-2 hidden"></div>
         </div>
       </div>
 
@@ -257,14 +249,23 @@
       function parsePriceBRL(s){
         if (!s) return NaN;
         let x = String(s).trim().replace(/\s+/g,'');
-        // remover separador de milhar (ponto) e trocar vírgula por ponto
         x = x.replace(/\./g,'').replace(',', '.');
         return Number(x);
       }
 
+      // ===== Normalizador de lista (vírgulas e ";") =====
+      function splitTags(s) {
+        if (!s) return [];
+        return String(s)
+          .split(/[;,]/)               // aceita vírgula e ";"
+          .map(v => v.trim())
+          .filter(Boolean)
+          .slice(0, 15);               // limite saudável
+      }
+
       // ===== Formulário Adicionar Serviço =====
       byId('btn-clear').onclick = () => {
-        byId('f-nome').value=''; byId('f-preco').value=''; byId('f-dur').value=''; byId('f-aka').value='';
+        byId('f-nome').value=''; byId('f-preco').value=''; byId('f-dur').value=''; byId('f-info').value='';
         clearMsg(byId('add-msg'));
         byId('f-nome').focus();
       };
@@ -276,7 +277,7 @@
         const nome = byId('f-nome').value.trim();
         const precoStr = byId('f-preco').value.trim();
         const durStr = byId('f-dur').value.trim();
-        const akaStr = byId('f-aka').value.trim();
+        const infoStr = byId('f-info').value.trim();
 
         if (!nome) { setMsg(byId('add-msg'),'error','Informe o nome do serviço.'); return; }
         if (nome.length > 80) { setMsg(byId('add-msg'),'error','Nome muito longo (máx. 80 caracteres).'); return; }
@@ -288,53 +289,47 @@
         const dur = parseInt(durStr, 10);
         if (!(dur >= 1 && dur <= 360)) { setMsg(byId('add-msg'),'error','Tempo inválido. Use de 1 a 360 minutos.'); return; }
 
-        const sinonimos = akaStr ? akaStr.split(';').map(s=>s.trim()).filter(Boolean) : [];
-
+        const outrasInfo = splitTags(infoStr);
         const slug = slugify(nome);
         if (!slug) { setMsg(byId('add-msg'),'error','Não foi possível gerar um identificador para este nome.'); return; }
 
-        // Verifica se já existe serviço com o mesmo identificador
         try {
           const db = firebase.firestore();
           const col = db.collection('profissionais').doc(uid).collection('produtosEServicos');
           const dup = await col.where('slug','==',slug).limit(1).get();
-          if (!dup.empty) {
-            setMsg(byId('add-msg'),'error','Este serviço já existe na sua lista.');
-            return;
-          }
+          if (!dup.empty) { setMsg(byId('add-msg'),'error','Este serviço já existe na sua lista.'); return; }
 
-          // Salva
           const now = firebase.firestore.FieldValue.serverTimestamp();
           await col.add({
             slug,
             nome,
             precoBase: Number(preco.toFixed(2)),
             duracaoMin: dur,
-            sinonimos,
+            sinonimos: outrasInfo, // usamos o mesmo campo para compatibilidade
             createdAt: now,
             updatedAt: now
           });
 
           setMsg(byId('add-msg'),'ok','Serviço salvo com sucesso.');
           byId('btn-clear').click();
-          await loadServices(); // recarrega lista
+          await loadServices();
         } catch(e) {
           console.error('[precos] add error', e);
           setMsg(byId('add-msg'),'error','Não foi possível salvar agora. Tente novamente.');
         }
       };
 
-      // ===== Amostra de planilha (CSV) =====
+      // ===== Amostra de planilha (CSV) — linguagem MEI =====
       function getSampleCsvBlob() {
         const rows = [
-          'nome do servico,preco (R$),tempo (min),outros nomes',
-          'Corte masculino,45,30,"corte; pezinho; maquina"',
-          'Corte infantil,35,30,"cabelo infantil; tesoura"',
-          'Barba tradicional,30,20,"barbear; navalha"',
-          'Combo corte + barba,70,60,"combo; pacote"',
-          'Sombra e acabamento,25,15,"acabamento; contorno"',
-          'Hidratação capilar,60,40,"tratamento; mascara capilar"',
-          'Pigmentação/Correção,80,45,"tonalizante; correcao de falhas"'
+          'nome do servico,preco (R$),tempo (min),outras informacoes',
+          'Corte masculino,45,30,"corte, pezinho, maquina"',
+          'Corte infantil,35,30,"cabelo infantil, tesoura"',
+          'Barba tradicional,30,20,"barbear, navalha"',
+          'Combo corte + barba,70,60,"combo, pacote"',
+          'Sombra e acabamento,25,15,"acabamento, contorno"',
+          'Hidratação capilar,60,40,"tratamento, mascara capilar"',
+          'Pigmentação/Correção,80,45,"tonalizante, correcao de falhas"'
         ].join('\n');
         return new Blob([rows], {type:'text/csv;charset=utf-8'});
       }
@@ -375,11 +370,12 @@
         reader.readAsText(f, 'UTF-8');
       }
 
-      // ===== Parser simples da planilha (mapeando para nosso canônico) =====
+      // ===== Parser simples =====
       function parseCsvBasic(text){
         const lines = text.split(/\r?\n/).map(l=>l.trim()).filter(Boolean);
         if (!lines.length) return { header:[], rows:[] };
-        const headerRaw = lines[0].split(',').map(h=>h.trim().toLowerCase());
+        const headerRaw = lines[0].split(',').map(h=>h.trim());
+        const header = headerRaw.map(h=>h.toLowerCase());
         const rows = lines.slice(1).map(line=>{
           const cols = [];
           let cur = ''; let inQ = false;
@@ -392,61 +388,106 @@
           cols.push(cur);
           return cols.map(c=>c.trim());
         });
-        return { header: headerRaw, rows };
+        return { headerRaw, header, rows };
       }
 
-      // ===== Ver prévia da planilha =====
+      // mapeamento flexível de nomes de coluna
+      const colMap = {
+        nome: ['nome do servico','nome','servico','descrição','descricao'],
+        preco: ['preco (r$)','preco','valor','preco r$','preço','preço (r$)'],
+        tempo: ['tempo (min)','duracao','min','duracao (min)','tempo'],
+        outras: ['outras informacoes','outras informações','outros nomes','sinonimos','apelidos','palavras-chave','detalhes']
+      };
+      function pickBy(header, cols, keys){
+        for (const k of keys) { const i = header.indexOf(k); if (i>=0) return cols[i] ?? ''; }
+        return '';
+      }
+      function findExtras(header){
+        const known = new Set([ ...colMap.nome, ...colMap.preco, ...colMap.tempo, ...colMap.outras ]);
+        return header.filter(h => !known.has(h));
+      }
+
+      // ===== Prévia da planilha =====
       byId('btn-preview').onclick = ()=>{
         clearMsg(byId('import-msg'));
-        const { header, rows } = parseCsvBasic(csvText);
-        // Aceitar nomes de colunas levemente diferentes
-        const mapKeys = {
-          nome: ['nome do servico','nome','servico'],
-          preco: ['preco (r$)','preco','valor','preco r$'],
-          tempo: ['tempo (min)','duracao','min','duracao (min)','tempo'],
-          outros: ['outros nomes','sinonimos','apelidos']
-        };
-        function pick(obj, keys){ for (const k of keys) { const i = header.indexOf(k); if (i>=0) return obj[i]; } return ''; }
+        const { headerRaw, header, rows } = parseCsvBasic(csvText);
 
         const t = byId('preview-table');
         t.innerHTML = '';
         const thead = document.createElement('thead'), trh = document.createElement('tr');
-        ['nome do servico','preco (R$)','tempo (min)','outros nomes'].forEach(n=>{ const th=document.createElement('th'); th.textContent=n; trh.appendChild(th); });
+        ['nome do servico','preco (R$)','tempo (min)','outras informacoes'].forEach(n=>{ const th=document.createElement('th'); th.textContent=n; trh.appendChild(th); });
         thead.appendChild(trh); t.appendChild(thead);
 
         const tbody = document.createElement('tbody');
         rows.slice(0,10).forEach(cols=>{
           const tr = document.createElement('tr');
-          const nome = pick(cols, mapKeys.nome);
-          const preco = pick(cols, mapKeys.preco);
-          const tempo = pick(cols, mapKeys.tempo);
-          const outros = pick(cols, mapKeys.outros);
-          [nome, preco, tempo, outros].forEach(v=>{
+          const vNome = pickBy(header, cols, colMap.nome);
+          const vPreco = pickBy(header, cols, colMap.preco);
+          const vTempo = pickBy(header, cols, colMap.tempo);
+          const vOutras = pickBy(header, cols, colMap.outras);
+          [vNome, vPreco, vTempo, vOutras].forEach(v=>{
             const td = document.createElement('td'); td.textContent = v || ''; tr.appendChild(td);
           });
           tbody.appendChild(tr);
         });
         t.appendChild(tbody);
+
+        // Nota sobre colunas extra
+        const extras = findExtras(header);
+        const note = byId('preview-note');
+        if (extras.length) {
+          note.textContent = 'Atenção: as seguintes colunas serão ignoradas nesta importação: ' + extras.join(', ') + '. Você poderá informar esses detalhes durante o agendamento.';
+          note.classList.remove('hidden');
+        } else {
+          note.classList.add('hidden');
+          note.textContent = '';
+        }
+
         byId('preview-wrap').classList.remove('hidden');
       };
 
-      // ===== Importar planilha (usa backend existente) =====
+      // ===== Importar planilha (transforma para CSV canônico e envia) =====
       const BACKEND_BASE = window.BACKEND_BASE || 'https://mei-robo-prod.onrender.com';
       byId('btn-import').onclick = async ()=>{
         clearMsg(byId('import-msg'));
         if (!currentUser) { setMsg(byId('import-msg'),'error','Sessão expirada. Faça login novamente.'); return; }
-        if (!isVerified) { setMsg(byId('import-msg'),'error','Verifique seu e-mail para importar planilha.'); return; }
+        if (!isVerified) { setMsg(byId('import-msg'),'error','⚠️ Confirme seu e-mail para importar.'); return; }
         if (!finput.files?.[0]) { setMsg(byId('import-msg'),'error','Escolha um arquivo primeiro.'); return; }
 
-        const fd = new FormData();
-        fd.append('file', finput.files[0], finput.files[0].name);
-
         try {
+          // 1) Reparseia o CSV original
+          const { header, rows } = parseCsvBasic(csvText);
+          // 2) Constrói CSV canônico para o backend: slug,nome,precoBase,duracaoMin,sinonimos
+          const out = [];
+          out.push('slug,nome,precoBase,duracaoMin,sinonimos');
+          rows.forEach(cols=>{
+            const nome = pickBy(header, cols, colMap.nome);
+            const precoRaw = pickBy(header, cols, colMap.preco);
+            const tempoRaw = pickBy(header, cols, colMap.tempo);
+            const outrasRaw = pickBy(header, cols, colMap.outras);
+
+            if (!nome) return; // pula linhas vazias
+            const slug = slugify(nome);
+            const preco = parsePriceBRL(precoRaw);
+            const tempo = parseInt(String(tempoRaw).replace(/\D/g,''), 10);
+            const tags = splitTags(outrasRaw).join(';'); // backend espera ";"
+
+            // valida mínimos; se preço/tempo ausentes, coloca 0/0 para backend validar
+            out.push([slug, `"${nome.replace(/"/g,'""')}"`, isFinite(preco)?preco.toFixed(2):'0.00', isFinite(tempo)?tempo:0, `"${tags.replace(/"/g,'""')}"`].join(','));
+          });
+          const canonicalBlob = new Blob([out.join('\n')], {type:'text/csv;charset=utf-8'});
+          const canonicalFile = new File([canonicalBlob], 'importado.csv', { type: 'text/csv' });
+
+          // 3) Envia para o backend
           const token = await currentUser.getIdToken(true);
           const url = BACKEND_BASE.replace(/\/$/,'') + '/api/importar-precos';
+          const fd = new FormData();
+          fd.append('file', canonicalFile, canonicalFile.name);
+
           const res = await fetch(url, { method:'POST', headers: { 'Authorization': 'Bearer ' + token }, body: fd });
           const text = await res.text();
           let json; try { json = JSON.parse(text); } catch { json = { ok:false, error: 'Resposta inesperada do servidor' }; }
+
           if (!res.ok || json.ok === false) {
             setMsg(byId('import-msg'),'error', json?.error || ('Falha HTTP ' + res.status));
           } else {
@@ -534,12 +575,16 @@
             uid = u.uid;
             isVerified = !!u.emailVerified;
 
-            byId('user-email').textContent = u.email || '(sem e-mail)';
-            byId('user-verified').textContent = isVerified ? 'Sim' : 'Não';
+            // status curto no bloco de importação
+            const ready = byId('import-ready');
+            if (isVerified) {
+              ready.textContent = '✅ Pronto para importar';
+            } else {
+              ready.innerHTML = '⚠️ Para importar, confirme seu e-mail. <a href="/verify-email.html">Verificar agora</a>';
+            }
 
-            // Importar planilha só se verificado
+            // habilita botões conforme estado
             byId('btn-import').disabled = !(finput.files?.[0] && isVerified);
-
             resolve();
           });
         });
