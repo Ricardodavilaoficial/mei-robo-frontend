@@ -9,26 +9,35 @@
   <link rel="stylesheet" href="/assets/styles.css" />
 
   <style>
-    /* ===== Microestilos locais (identidade + legibilidade) ===== */
+    /* ===== Identidade & legibilidade ===== */
     :root {
       --text-strong: rgba(255,255,255,0.92);
-      --text-soft: rgba(255,255,255,0.80);   /* "value-soft" */
-      --placeholder: rgba(255,255,255,0.55); /* contraste ≈55% */
+      --text-soft: rgba(255,255,255,0.80);    /* value-soft */
+      --placeholder: rgba(255,255,255,0.55);  /* contraste ~55% */
       --card-bg: rgba(255,255,255,0.04);
       --card-bd: rgba(255,255,255,0.08);
       --ok: #1bbb6e;
       --warn: #efb417;
       --bad: #ff5d5d;
       --brand: #25D366; /* verde WhatsApp */
+      --green: #1db954; /* verde padrão botões */
     }
     body.app-shell { color: var(--text-strong); background: #0b141a; }
-    main.app-main { min-height: 82svh; padding: 16px; }
+
+    /* Container central padrão (consistente com páginas anteriores) */
+    .container {
+      max-width: 1120px;
+      margin: 0 auto;
+      padding: 16px;
+    }
+    @media (min-width: 960px){ .container { padding: 20px 24px; } }
+
+    main.app-main { min-height: 82svh; }
 
     h1 { font-size: 1.6rem; margin: 6px 0 2px; }
-    .sub { color: var(--text-soft); font-size: 0.95rem; margin-bottom: 14px; }
+    .sub { color: var(--text-soft); font-size: 0.95rem; margin-bottom: 16px; }
 
     .row { display: grid; gap: 12px; }
-    @media (min-width: 880px){ .row-2 { grid-template-columns: 1fr 1fr; } }
     @media (min-width: 1180px){ .row-3 { grid-template-columns: 1.2fr 1fr 1fr; } }
 
     .card {
@@ -40,6 +49,7 @@
     .muted { color: var(--text-soft); }
 
     /* Inputs: placeholders e valores legíveis */
+    label { display:block; margin-bottom: 6px; font-weight: 600; }
     input[type="text"], input[type="email"], input[type="tel"], select, textarea {
       background: #0e1a21;
       border: 1px solid #1f2a30;
@@ -52,16 +62,11 @@
     }
     input::placeholder, textarea::placeholder { color: var(--placeholder); }
     .value-soft { color: var(--text-soft); }
+    .hint { font-size:0.85rem; color: var(--text-soft); margin-top:6px; }
 
-    /* Tabela simples responsiva */
-    .table {
-      width: 100%;
-      border-collapse: collapse;
-      font-size: 0.95rem;
-    }
-    .table th, .table td {
-      text-align: left; padding: 10px 8px; border-bottom: 1px solid #1f2a30;
-    }
+    /* Tabela */
+    .table { width: 100%; border-collapse: collapse; font-size: 0.95rem; }
+    .table th, .table td { text-align: left; padding: 10px 8px; border-bottom: 1px solid #1f2a30; }
     .table th { color: var(--text-soft); font-weight: 600; }
     .chip { display:inline-block; padding:3px 9px; border-radius:999px; font-size:0.82rem; border:1px solid #2a3a3f; }
     .chip.ok { border-color: #195a44; background: rgba(27,187,110,0.08); color:#65e0a8; }
@@ -71,7 +76,7 @@
     /* Botões */
     .btn { cursor:pointer; border:1px solid #2a3a3f; background:#0f1e23; color:#dff3ea; border-radius:12px; padding:10px 14px; font-weight:700; }
     .btn:hover { filter: brightness(1.05); }
-    .btn.primary { border-color:#1e4a36; background:#113328; color:#d4ffe9; }
+    .btn.primary { border-color:#1f6c3e; background: var(--green); color: #06130d; } /* verde padrão */
     .btn.ghost { background:transparent; color:var(--text-soft); }
     .btn.small { padding:6px 10px; font-weight:600; border-radius:10px; }
     .btn.block { width: 100%; }
@@ -79,26 +84,34 @@
     .actions { display:flex; gap:10px; flex-wrap: wrap; align-items:center; }
     .actions.right { justify-content: flex-end; }
 
+    /* Rodapé de navegação: botões nos cantos */
+    .nav-bottom {
+      display: flex; align-items: center; margin-top: 16px;
+    }
+    .nav-bottom .left { flex: 1; }
+    .nav-bottom .right { flex: 1; display: flex; justify-content: flex-end; }
+
+    /* Grids */
     .grid-2 { display:grid; gap:10px; grid-template-columns: 1fr; }
     @media (min-width: 760px){ .grid-2 { grid-template-columns: 1fr 1fr; } }
 
-    .hint { font-size:0.85rem; color: var(--text-soft); margin-top:6px; }
-    .danger { color: var(--bad); }
-    .success { color: var(--ok); }
-    .brand { color: var(--brand); font-weight: 800; }
+    /* Estado vazio */
+    .empty { border:1px dashed #2a3a3f; border-radius:14px; padding:18px; text-align:center; color:var(--text-soft); }
 
-    /* Modal simples */
+    /* Modal */
     dialog { border:1px solid #274048; background:#0b141a; color:var(--text-strong); border-radius:16px; padding:0; width:min(680px, 96vw); }
     dialog .modal-header { padding:14px 16px; border-bottom:1px solid #1f2a30; font-weight:800; }
     dialog .modal-body { padding:14px 16px; }
     dialog .modal-footer { padding:12px 16px; border-top:1px solid #1f2a30; display:flex; gap:10px; justify-content:flex-end; }
 
-    .kicker { font-size:.9rem; color:var(--text-soft); margin-bottom:10px; }
+    /* Barra superior: estado da conta + importar */
+    .topbar { display: grid; gap: 12px; margin-bottom: 12px; }
+    @media (min-width: 960px){ .topbar { grid-template-columns: 1.2fr 1fr; } }
 
-    /* Estado vazio */
-    .empty {
-      border:1px dashed #2a3a3f; border-radius:14px; padding:18px; text-align:center; color:var(--text-soft);
-    }
+    /* Campo de busca acima da lista */
+    .list-actions { display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin: 6px 0 8px; }
+    .list-actions .spacer { flex:1; }
+
   </style>
 </head>
 <body class="app-shell">
@@ -106,91 +119,180 @@
   <div id="app-header"></div>
 
   <main class="app-main">
-    <h1>Contatos e Consentimento</h1>
-    <p class="sub">Aqui você salva as pessoas com quem fala no WhatsApp e diz como o seu <span class="brand">MEI Robô</span> deve conversar com cada uma.</p>
+    <div class="container">
+      <h1>Contatos e Consentimento</h1>
+      <p class="sub">Cadastre suas pessoas e diga como o seu <span class="brand">MEI Robô</span> deve conversar com cada uma.</p>
 
-    <div class="row row-3">
-      <!-- Estado da conta -->
-      <section class="card">
-        <strong>Estado da conta</strong>
-        <div id="accountState" class="kicker value-soft">Verificando…</div>
-        <div class="hint">Se seu e-mail ainda não estiver verificado, você pode usar a página, mas pedir consentimento automático ficará desativado.</div>
+      <div class="topbar">
+        <!-- Estado da conta -->
+        <section class="card">
+          <strong>Estado da conta</strong>
+          <div id="accountState" class="value-soft" style="margin-top:6px;">Verificando…</div>
+          <div class="hint" style="margin-top:6px;">
+            Se seu e-mail não estiver verificado, pedir consentimento automático ficará desativado.
+          </div>
+        </section>
+
+        <!-- Importação simples (sem jargão) -->
+        <section class="card">
+          <strong>Importar contatos</strong>
+          <p class="value-soft" style="margin:8px 0 10px;">
+            Se você já usa <b>planilha</b>, pode importar aqui.
+          </p>
+          <button class="btn" id="btnImport">Importar planilha (.csv)</button>
+          <input type="file" id="csvInput" accept=".csv,text/csv" style="display:none" />
+          <div class="hint">Se a sua planilha tiver colunas a mais, tudo bem.</div>
+        </section>
+      </div>
+
+      <!-- FORMULÁRIO PRINCIPAL: ADICIONAR NOVO CONTATO -->
+      <section class="card" id="newContactCard" aria-labelledby="nc_title">
+        <strong id="nc_title">Adicionar novo contato</strong>
+        <p class="value-soft" style="margin:6px 0 12px;">Preencha rapidinho; isso ajuda o robô a falar do seu jeito.</p>
+
+        <form id="formNewContact" class="grid-2" autocomplete="off">
+          <div>
+            <label for="n_nome">Nome do contato</label>
+            <input id="n_nome" name="nome" type="text" placeholder="Ex.: Dona Maria da Silva" required />
+            <div class="hint">Como aparece no seu WhatsApp (se preferir).</div>
+          </div>
+          <div>
+            <label for="n_como">Como você chama essa pessoa?</label>
+            <input id="n_como" name="comoChama" type="text" placeholder="Ex.: Dona Maria, Tia Maria, Sr. João" />
+            <div class="hint">Ajuda o robô a falar do seu jeito.</div>
+          </div>
+
+          <div>
+            <label for="n_categoria">Categoria</label>
+            <select id="n_categoria" name="categoria">
+              <option value="">Selecione…</option>
+              <option value="cliente">Cliente</option>
+              <option value="fornecedor">Fornecedor</option>
+              <option value="colega">Colega</option>
+              <option value="concorrente">Concorrente</option>
+              <option value="colaborador">Colaborador</option>
+              <option value="amigo">Amigo</option>
+              <option value="parente">Parente</option>
+            </select>
+          </div>
+          <div>
+            <label for="n_tom">Tom de conversa</label>
+            <select id="n_tom" name="tom">
+              <option value="equilibrado">Equilibrado</option>
+              <option value="formal">Bem formal</option>
+              <option value="informal">Bem informal</option>
+            </select>
+            <div class="hint">Como o robô deve falar com esta pessoa.</div>
+          </div>
+
+          <div>
+            <label for="n_emojis">Emojis</label>
+            <select id="n_emojis" name="emojis">
+              <option value="poucos">Poucos emojis</option>
+              <option value="sem">Sem emojis</option>
+              <option value="pode">Pode usar emojis</option>
+            </select>
+          </div>
+          <div>
+            <label for="n_tamanho">Tamanho das mensagens</label>
+            <select id="n_tamanho" name="tamanhoMsg">
+              <option value="curtas">Curtas</option>
+              <option value="medias">Médias</option>
+              <option value="detalhadas">Detalhadas</option>
+            </select>
+          </div>
+
+          <div>
+            <label for="n_audio">Preferência de áudio</label>
+            <select id="n_audio" name="preferenciaAudio">
+              <option value="permitido">Pode responder com áudio</option>
+              <option value="texto">Prefiro só texto</option>
+            </select>
+          </div>
+          <div>
+            <label for="n_tel">Telefone</label>
+            <input id="n_tel" name="telefone" type="tel" placeholder="Ex.: 51998765432 (apenas números)" />
+          </div>
+
+          <div>
+            <label for="n_email">E-mail</label>
+            <input id="n_email" name="email" type="email" placeholder="Ex.: cliente@email.com" />
+          </div>
+          <div>
+            <label for="n_resumo">Resumo do relacionamento</label>
+            <textarea id="n_resumo" name="resumoRelacionamento" rows="2" placeholder="Ex.: Desde 2018. Cliente de manutenção. Prefere mensagens objetivas."></textarea>
+          </div>
+
+          <div class="grid-2" style="grid-column: 1 / -1;">
+            <div>
+              <label for="n_obs">Observações</label>
+              <textarea id="n_obs" name="observacoes" rows="2" placeholder="Ex.: Gosta de ser chamado de 'Dona Maria'. Evitar áudio à noite."></textarea>
+            </div>
+            <div style="align-self:end; display:flex; gap:10px; justify-content:flex-end;">
+              <button class="btn primary" id="btnSaveNew" type="submit">Salvar contato</button>
+            </div>
+          </div>
+        </form>
       </section>
 
-      <!-- Ações principais -->
-      <section class="card">
-        <strong>Ações</strong>
-        <div class="actions" style="margin-top:10px;">
-          <button class="btn primary" id="btnAdd">Adicionar contato</button>
-          <button class="btn" id="btnImport">Importar contatos (CSV)</button>
+      <!-- LISTA DE CONTATOS -->
+      <section class="card" style="margin-top:14px;">
+        <div class="list-actions">
+          <strong>Seus contatos</strong>
+          <span id="totalSpan" class="value-soft"></span>
+          <div class="spacer"></div>
+          <input id="searchBox" type="text" placeholder="Pesquisar contatos" style="max-width: 260px;" />
         </div>
-        <div class="hint">
-          Dica: você pode importar um arquivo CSV com cabeçalhos como
-          <code class="value-soft">nome, comoChama, categoria, tom, emojis, tamanhoMsg, preferenciaAudio, resumoRelacionamento, observacoes, telefone, email</code>.
-          Colunas extras serão ignoradas.
+
+        <div id="emptyState" class="empty" style="display:none; margin-top:12px;">
+          Você ainda não cadastrou contatos. Preencha acima e clique em <b>Salvar contato</b>.
+        </div>
+
+        <div style="overflow:auto; margin-top:8px;">
+          <table class="table" id="contactsTable" aria-label="Tabela de contatos">
+            <thead>
+              <tr>
+                <th>Nome</th>
+                <th>Categoria</th>
+                <th>Consentimento</th>
+                <th>Última interação</th>
+                <th style="min-width: 240px;">Ações</th>
+              </tr>
+            </thead>
+            <tbody id="contactsBody">
+              <!-- linhas injetadas via JS -->
+            </tbody>
+          </table>
+        </div>
+        <div class="hint" style="margin-top:10px;">
+          Consentimento é a autorização dessa pessoa para você mandar mensagem. Se ela falar com você primeiro, você pode responder em até 24 horas.
         </div>
       </section>
 
-      <!-- Ajuda rápida -->
-      <section class="card">
-        <strong>Como preencher (rápido)</strong>
-        <ul class="value-soft" style="margin-top:8px; line-height:1.5;">
-          <li><b>Nome do contato</b> — ex.: <i>“Dona Maria da Silva”</i></li>
-          <li><b>Como você chama</b> — ex.: <i>“Dona Maria”</i>, <i>“Tia Maria”</i></li>
-          <li><b>Tom</b> — <i>bem formal</i>, <i>equilibrado</i> ou <i>bem informal</i></li>
-          <li><b>Emojis</b> — <i>sem</i>, <i>poucos</i> ou <i>pode usar</i></li>
-          <li><b>Tamanho das mensagens</b> — <i>curtas</i>, <i>médias</i> ou <i>detalhadas</i></li>
-          <li><b>Resumo do relacionamento</b> — 1 a 3 linhas (ex.: “Desde 2018. Cliente de manutenção. Prefere mensagens objetivas.”)</li>
-        </ul>
-      </section>
-    </div>
-
-    <!-- Lista de contatos -->
-    <section class="card" style="margin-top:14px;">
-      <div class="actions">
-        <strong>Seus contatos</strong>
-        <span id="totalSpan" class="value-soft"></span>
+      <!-- Navegação inferior (verdes padrão, cantos opostos) -->
+      <div class="nav-bottom">
+        <div class="left">
+          <a class="btn primary" href="/pages/precos.html">Voltar</a>
+        </div>
+        <div class="right">
+          <a class="btn primary" href="/pages/dashboard.html">Próximo</a>
+        </div>
       </div>
-      <div id="emptyState" class="empty" style="display:none; margin-top:12px;">
-        Você ainda não cadastrou contatos. Clique em <b>“Adicionar contato”</b>.
-      </div>
-      <div style="overflow:auto; margin-top:8px;">
-        <table class="table" id="contactsTable" aria-label="Tabela de contatos">
-          <thead>
-            <tr>
-              <th>Nome</th>
-              <th>Categoria</th>
-              <th>Consentimento</th>
-              <th>Última interação</th>
-              <th style="min-width: 240px;">Ações</th>
-            </tr>
-          </thead>
-          <tbody id="contactsBody">
-            <!-- linhas injetadas via JS -->
-          </tbody>
-        </table>
-      </div>
-    </section>
-
-    <!-- Navegação -->
-    <div class="actions right" style="margin-top:14px;">
-      <a class="btn ghost" href="/pages/precos.html">Voltar</a>
-      <a class="btn primary" href="/pages/dashboard.html">Próximo</a>
     </div>
   </main>
 
   <!-- Rodapé dinâmico -->
   <div id="app-footer"></div>
 
-  <!-- Modais -->
+  <!-- Modal apenas para editar e consentimento -->
   <dialog id="modalContact">
-    <div class="modal-header">Contato</div>
+    <div class="modal-header">Editar contato</div>
     <form id="formContact" class="modal-body">
       <div class="grid-2">
         <div>
           <label for="c_nome">Nome do contato</label>
           <input id="c_nome" name="nome" type="text" placeholder="Ex.: Dona Maria da Silva" required />
-          <div class="hint">Coloque como aparece no seu WhatsApp (se preferir).</div>
+          <div class="hint">Como aparece no seu WhatsApp (se preferir).</div>
         </div>
         <div>
           <label for="c_como">Como você chama essa pessoa?</label>
@@ -269,20 +371,17 @@
   <dialog id="modalConsent">
     <div class="modal-header">Consentimento</div>
     <div class="modal-body">
-      <div id="consentInfo" class="kicker">Carregando…</div>
+      <div id="consentInfo" class="value-soft">Carregando…</div>
       <div class="actions" style="margin-top:10px;">
         <button class="btn small" id="btnConsentManual">Registrar manualmente</button>
         <button class="btn small" id="btnConsentAuto" disabled title="Em breve">Pedir consentimento (automático)</button>
       </div>
-      <div class="hint">O consentimento autoriza o envio de mensagens. O pedido automático depende de configurações da Meta/YCloud.</div>
+      <div class="hint">Consentimento é a autorização dessa pessoa para você mandar mensagem.</div>
     </div>
     <div class="modal-footer">
       <button class="btn primary" id="btnCloseConsent" type="button">Fechar</button>
     </div>
   </dialog>
-
-  <!-- Upload CSV (oculto) -->
-  <input type="file" id="csvInput" accept=".csv,text/csv" style="display:none" />
 
   <!-- Scripts canônicos -->
   <script src="/assets/layout.js" defer></script>
@@ -292,15 +391,38 @@
   <script>
   (function(){
     const $ = (q) => document.querySelector(q);
+
+    /* DOM refs */
+    const accountState = $("#accountState");
+
+    // Inline form (novo contato)
+    const formNew = $("#formNewContact");
+    const btnSaveNew = $("#btnSaveNew");
+    const NC = {
+      nome: $("#n_nome"),
+      comoChama: $("#n_como"),
+      categoria: $("#n_categoria"),
+      tom: $("#n_tom"),
+      emojis: $("#n_emojis"),
+      tamanhoMsg: $("#n_tamanho"),
+      preferenciaAudio: $("#n_audio"),
+      telefone: $("#n_tel"),
+      email: $("#n_email"),
+      resumoRelacionamento: $("#n_resumo"),
+      observacoes: $("#n_obs")
+    };
+
+    // Lista
     const tableBody = $("#contactsBody");
     const emptyState = $("#emptyState");
     const totalSpan = $("#totalSpan");
-    const accountState = $("#accountState");
+    const searchBox = $("#searchBox");
 
-    const btnAdd = $("#btnAdd");
+    // Import
     const btnImport = $("#btnImport");
     const csvInput = $("#csvInput");
 
+    // Modal editar/consentimento
     const modalContact = $("#modalContact");
     const btnCancelContact = $("#btnCancelContact");
     const btnSaveContact = $("#btnSaveContact");
@@ -311,316 +433,209 @@
     const btnConsentAuto = $("#btnConsentAuto");
     const btnCloseConsent = $("#btnCloseConsent");
 
+    /* Estado interno */
     let CURRENT_USER = null;
-    let CURRENT_EDIT_ID = null; // contato em edição
+    let CURRENT_EDIT_ID = null;
     let CURRENT_CONSENT_ID = null;
+    let CURRENT_ROWS = [];     // [{id, data}...]
 
-    /* === NOVO: modo de validação por query (?validate=1) === */
+    /* Modo de validação por query (?validate=1) */
     function isValidateMode(){
       try { return new URLSearchParams(location.search).has('validate'); }
       catch { return false; }
     }
 
-    function showEmpty(show){
-      emptyState.style.display = show ? "block" : "none";
+    /* Utils */
+    function escapeHtml(s){
+      return String(s ?? "").replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
     }
-
     function formatWhen(ts){
       if (!ts) return "—";
       try{
-        // Firestore Timestamp?
-        if (typeof ts === 'object' && 'seconds' in ts) return new Date(ts.seconds*1000).toLocaleString();
-        // epoch millis (number) ou Date.now result
+        if (typeof ts === 'object' && ts && 'seconds' in ts) return new Date(ts.seconds*1000).toLocaleString();
         if (typeof ts === 'number') return new Date(ts).toLocaleString();
         return "—";
       }catch{ return "—"; }
     }
+    function showEmpty(show){ emptyState.style.display = show ? "block" : "none"; }
 
-    function addRow(id, data){
-      const tr = document.createElement("tr");
-      const status = (data.consentimento && data.consentimento.status) || "pendente";
-      const statusChip = status === "consentido" ? "ok" : (status === "negado" ? "bad" : "warn");
-      const ultima = formatWhen(data.ultimaInteracaoEm);
-      const disabledAttr = isValidateMode() ? 'disabled title="Indisponível no modo de validação"' : '';
-      tr.innerHTML = `
-        <td>${escapeHtml(data.nome || "—")}</td>
-        <td><span class="chip">${escapeHtml(data.categoria || "—")}</span></td>
-        <td><span class="chip ${statusChip}">${escapeHtml(status)}</span></td>
-        <td class="value-soft">${ultima}</td>
-        <td>
-          <div class="actions">
-            <button class="btn small" data-edit="${id}" ${disabledAttr}>Editar</button>
-            <button class="btn small" data-consent="${id}" ${disabledAttr}>Consentimento</button>
-          </div>
-        </td>
-      `;
-      tableBody.appendChild(tr);
-    }
+    /* Firestore helpers (compat v8) */
+    function fs(){ return (window.firebase?.firestore) ? firebase.firestore() : null; }
+    function pathClientes(uid){ return fs().collection('profissionais').doc(uid).collection('clientes'); }
 
-    function clearTable(){ tableBody.innerHTML = ""; }
-
-    function escapeHtml(s){
-      return String(s ?? "").replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
-    }
-
-    function openModal(dialog){ if (!dialog.open) dialog.showModal(); }
-    function closeModal(dialog){ if (dialog.open) dialog.close(); }
-
-    function fillContactForm(data){
-      $("#c_id").value = data.id || "";
-      $("#c_nome").value = data.nome || "";
-      $("#c_como").value = data.comoChama || "";
-      $("#c_categoria").value = data.categoria || "";
-      $("#c_tom").value = data.tom || "equilibrado";
-      $("#c_emojis").value = data.emojis || "poucos";
-      $("#c_tamanho").value = data.tamanhoMsg || "curtas";
-      $("#c_audio").value = data.preferenciaAudio || "permitido";
-      $("#c_tel").value = data.telefone || "";
-      $("#c_email").value = data.email || "";
-      $("#c_resumo").value = data.resumoRelacionamento || "";
-      $("#c_obs").value = data.observacoes || "";
-    }
-
-    function readContactForm(){
-      return {
-        id: $("#c_id").value || undefined,
-        nome: $("#c_nome").value.trim(),
-        comoChama: $("#c_como").value.trim(),
-        categoria: $("#c_categoria").value || "",
-        tom: $("#c_tom").value || "equilibrado",
-        emojis: $("#c_emojis").value || "poucos",
-        tamanhoMsg: $("#c_tamanho").value || "curtas",
-        preferenciaAudio: $("#c_audio").value || "permitido",
-        telefone: $("#c_tel").value.trim(),
-        email: $("#c_email").value.trim(),
-        resumoRelacionamento: $("#c_resumo").value.trim(),
-        observacoes: $("#c_obs").value.trim()
-      };
-    }
-
-    function updateAccountStateUI(user){
-      if (!user){
-        if (isValidateMode()){
-          accountState.innerHTML = '<span class="chip warn">Modo de validação (não logado)</span> — recursos de edição desativados.';
-        } else {
-          accountState.innerHTML = 'Redirecionando para login…';
+    /* Render */
+    function renderRows(filter = ""){
+      tableBody.innerHTML = "";
+      const term = filter.trim().toLowerCase();
+      let count = 0;
+      for (const {id, data} of CURRENT_ROWS){
+        const status = (data.consentimento && data.consentimento.status) || "pendente";
+        const categoria = data.categoria || "";
+        const nome = data.nome || "";
+        if (term){
+          const hay = (nome+" "+categoria+" "+status).toLowerCase();
+          if (!hay.includes(term)) continue;
         }
-        return;
+        count++;
+        const statusChip = status === "consentido" ? "ok" : (status === "negado" ? "bad" : "warn");
+        const ultima = formatWhen(data.ultimaInteracaoEm);
+        const disabledAttr = isValidateMode() ? 'disabled title="Indisponível no modo de validação"' : '';
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
+          <td>${escapeHtml(nome || "—")}</td>
+          <td><span class="chip">${escapeHtml(categoria || "—")}</span></td>
+          <td><span class="chip ${statusChip}">${escapeHtml(status)}</span></td>
+          <td class="value-soft">${ultima}</td>
+          <td>
+            <div class="actions">
+              <button class="btn small" data-edit="${id}" ${disabledAttr}>Editar</button>
+              <button class="btn small" data-consent="${id}" ${disabledAttr}>Consentimento</button>
+            </div>
+          </td>
+        `;
+        tableBody.appendChild(tr);
       }
-      if (user.emailVerified){
-        accountState.innerHTML = '<span class="chip ok">Conta verificada</span> — você pode solicitar consentimento automático quando disponível.';
-      } else {
-        accountState.innerHTML = '<span class="chip warn">Verifique seu e-mail</span> — é rápido e libera recursos extras.';
-        btnConsentAuto.setAttribute('disabled', 'disabled');
-        btnConsentAuto.title = 'Ative após verificar seu e-mail';
-      }
+      totalSpan.textContent = count ? `(${count})` : '';
+      showEmpty(!count);
     }
 
-    /* popula UI demo quando sem login + ?validate=1 */
-    function demoPopulate(){
-      // Desativa ações de escrita
-      btnAdd?.setAttribute('disabled','disabled');
-      btnAdd?.setAttribute('title','Indisponível no modo de validação');
-      btnImport?.setAttribute('disabled','disabled');
-      btnImport?.setAttribute('title','Indisponível no modo de validação');
-      btnSaveContact?.setAttribute('disabled','disabled');
-      btnConsentManual?.setAttribute('disabled','disabled');
-      btnConsentAuto?.setAttribute('disabled','disabled');
-
-      clearTable();
-      const samples = [
-        { nome:'Dona Maria da Silva', categoria:'cliente',   consentimento:{status:'consentido'}, ultimaInteracaoEm: Date.now()-86400000 },
-        { nome:'Seu João Mecânico',   categoria:'fornecedor', consentimento:{status:'pendente'},  ultimaInteracaoEm: Date.now()-3600*1000*5 },
-        { nome:'Tia Ana',             categoria:'parente',    consentimento:{status:'negado'},    ultimaInteracaoEm: null }
-      ];
-      samples.forEach((c, i)=> addRow('demo-'+i, c));
-      totalSpan.textContent = `(${samples.length})`;
-      showEmpty(false);
-    }
-
-    async function ensureAuth(){
-      // Firebase ausente?
-      if (!window.firebase || !firebase?.auth){
-        console.warn('[contatos] firebase não encontrado.');
-        if (isValidateMode()){
-          updateAccountStateUI(null);
-          demoPopulate();
-          return { demo:true };
-        }
-        updateAccountStateUI(null);
-        setTimeout(()=>{ window.location.href = '/pages/login.html'; }, 300);
-        return null;
-      }
-
-      // Observa auth
-      const user = await new Promise(resolve=>{
-        const off = firebase.auth().onAuthStateChanged(u=>{ off(); resolve(u||null); });
-      });
-
-      if (!user){
-        if (isValidateMode()){
-          updateAccountStateUI(null);
-          demoPopulate();
-          return { demo:true };
-        }
-        updateAccountStateUI(null);
-        window.location.href = '/pages/login.html';
-        return null;
-      }
-
-      CURRENT_USER = user;
-      updateAccountStateUI(user);
-      return user;
-    }
-
-    // ===== Firestore helpers (compat v8) =====
-    function fs(){ return (firebase?.firestore) ? firebase.firestore() : null; }
-    function pathClientes(uid){
-      return fs().collection('profissionais').doc(uid).collection('clientes');
-    }
-
+    /* Carregar contatos (modo normal) */
     async function loadContacts(){
       const db = fs();
       if (!db || !CURRENT_USER) return;
-      clearTable();
+      CURRENT_ROWS = [];
       const snap = await pathClientes(CURRENT_USER.uid).orderBy('nome','asc').get().catch(e=>{
         console.error('[contatos] loadContacts', e);
         return { empty: true, forEach: ()=>{} };
       });
-      let total = 0;
       if (!snap.empty){
         snap.forEach(doc=>{
-          total++;
-          addRow(doc.id, doc.data());
+          CURRENT_ROWS.push({ id: doc.id, data: doc.data() });
         });
       }
-      totalSpan.textContent = total ? `(${total})` : '';
-      showEmpty(!total);
+      renderRows(searchBox.value);
     }
 
-    async function upsertContact(data){
+    /* Popula demo (modo validação) */
+    function demoPopulate(){
+      // desativa escrita
+      btnSaveNew?.setAttribute('disabled','disabled');
+      Object.values(NC).forEach(el => el?.setAttribute?.('disabled','disabled'));
+      btnImport?.setAttribute('disabled','disabled');
+      btnImport?.setAttribute('title','Indisponível no modo de validação');
+      btnConsentManual?.setAttribute('disabled','disabled');
+      btnConsentAuto?.setAttribute('disabled','disabled');
+
+      CURRENT_ROWS = [
+        { id:'demo-1', data:{ nome:'Dona Maria da Silva', categoria:'cliente', consentimento:{status:'consentido'},  ultimaInteracaoEm: Date.now()-86400000 } },
+        { id:'demo-2', data:{ nome:'Seu João Mecânico',   categoria:'fornecedor', consentimento:{status:'pendente'}, ultimaInteracaoEm: Date.now()-3600*1000*5 } },
+        { id:'demo-3', data:{ nome:'Tia Ana',             categoria:'parente',  consentimento:{status:'negado'},    ultimaInteracaoEm: null } },
+      ];
+      renderRows("");
+      // estado da conta
+      accountState.innerHTML = '<span class="chip warn">Modo de validação (não logado)</span> — recursos de edição desativados.';
+    }
+
+    /* Auth gate */
+    async function ensureAuth(){
+      if (!window.firebase || !firebase?.auth){
+        console.warn('[contatos] firebase não encontrado.');
+        if (isValidateMode()){ demoPopulate(); return { demo:true }; }
+        accountState.innerHTML = 'Redirecionando para login…';
+        setTimeout(()=>{ window.location.href = '/pages/login.html'; }, 300);
+        return null;
+      }
+      const user = await new Promise(resolve=>{
+        const off = firebase.auth().onAuthStateChanged(u=>{ off(); resolve(u||null); });
+      });
+      if (!user){
+        if (isValidateMode()){ demoPopulate(); return { demo:true }; }
+        accountState.innerHTML = 'Redirecionando para login…';
+        window.location.href = '/pages/login.html';
+        return null;
+      }
+      CURRENT_USER = user;
+      if (user.emailVerified){
+        accountState.innerHTML = '<span class="chip ok">Conta verificada</span> — você pode pedir consentimento automático quando disponível.';
+      } else {
+        accountState.innerHTML = '<span class="chip warn">Verifique seu e-mail</span> — é rápido e libera recursos extras.';
+        btnConsentAuto?.setAttribute('disabled','disabled');
+        btnConsentAuto.title = 'Ative após verificar seu e-mail';
+      }
+      return user;
+    }
+
+    /* CRUD */
+    async function upsertContact(payload, id){
       const db = fs(); if (!db || !CURRENT_USER) return;
       const col = pathClientes(CURRENT_USER.uid);
-      const payload = {
-        nome: data.nome || '',
-        comoChama: data.comoChama || '',
-        categoria: data.categoria || '',
-        tom: data.tom || 'equilibrado',
-        emojis: data.emojis || 'poucos',
-        tamanhoMsg: data.tamanhoMsg || 'curtas',
-        preferenciaAudio: data.preferenciaAudio || 'permitido',
-        telefone: data.telefone || '',
-        email: data.email || '',
-        resumoRelacionamento: data.resumoRelacionamento || '',
-        observacoes: data.observacoes || ''
-      };
-      if (data.id){
-        await col.doc(data.id).set(payload, { merge:true });
+      if (id){
+        await col.doc(id).set(payload, { merge:true });
       } else {
         await col.add(payload);
       }
     }
-
     async function setConsentManual(contatoId){
       const db = fs(); if (!db || !CURRENT_USER) return;
       const ref = pathClientes(CURRENT_USER.uid).doc(contatoId);
       const now = (firebase.firestore.FieldValue.serverTimestamp?.() || new Date());
       await ref.set({
-        consentimento:{
-          status:'consentido',
-          origem:'manual',
-          atualizadoEm: now
-        }
+        consentimento:{ status:'consentido', origem:'manual', atualizadoEm: now }
       }, { merge:true });
     }
 
-    // ===== Eventos UI =====
-    btnAdd?.addEventListener('click', ()=>{
-      if (isValidateMode()) return;
-      CURRENT_EDIT_ID = null;
-      fillContactForm({});
-      openModal(modalContact);
-    });
+    /* Leitura do formulário novo */
+    function readNewForm(){
+      return {
+        nome: NC.nome.value.trim(),
+        comoChama: NC.comoChama.value.trim(),
+        categoria: NC.categoria.value || "",
+        tom: NC.tom.value || "equilibrado",
+        emojis: NC.emojis.value || "poucos",
+        tamanhoMsg: NC.tamanhoMsg.value || "curtas",
+        preferenciaAudio: NC.preferenciaAudio.value || "permitido",
+        telefone: NC.telefone.value.trim(),
+        email: NC.email.value.trim(),
+        resumoRelacionamento: NC.resumoRelacionamento.value.trim(),
+        observacoes: NC.observacoes.value.trim()
+      };
+    }
+    function resetNewForm(){
+      formNew.reset();
+      NC.tom.value = "equilibrado";
+      NC.emojis.value = "poucos";
+      NC.tamanhoMsg.value = "curtas";
+      NC.preferenciaAudio.value = "permitido";
+    }
 
-    btnCancelContact?.addEventListener('click', ()=> closeModal(modalContact));
-
-    btnSaveContact?.addEventListener('click', async ()=>{
+    /* Eventos */
+    formNew?.addEventListener('submit', async (ev)=>{
+      ev.preventDefault();
       if (isValidateMode()) return;
-      const data = readContactForm();
+      const data = readNewForm();
       if (!data.nome){
-        alert('Informe o nome do contato.'); return;
+        alert('Informe o nome do contato.');
+        return;
       }
-      btnSaveContact.disabled = true;
+      btnSaveNew.disabled = true;
       try{
-        data.id = CURRENT_EDIT_ID || undefined;
-        await upsertContact(data);
+        await upsertContact(data, null);
+        resetNewForm();
         await loadContacts();
-        closeModal(modalContact);
+        alert('Contato salvo.');
       } catch(e){
-        console.error('[contatos] salvar', e);
+        console.error('[contatos] salvar novo', e);
         alert('Não foi possível salvar. Tente novamente.');
-      } finally{
-        btnSaveContact.disabled = false;
+      } finally {
+        btnSaveNew.disabled = false;
       }
     });
 
-    // Delegação para botões da tabela (Editar / Consentimento)
-    tableBody?.addEventListener('click', async (ev)=>{
-      const t = ev.target;
-      const editId = t?.getAttribute?.('data-edit');
-      const consId = t?.getAttribute?.('data-consent');
-      if (isValidateMode()) return;
-
-      if (editId){
-        CURRENT_EDIT_ID = editId;
-        try{
-          const doc = await pathClientes(CURRENT_USER.uid).doc(editId).get();
-          fillContactForm({ id: editId, ...(doc.data()||{}) });
-          openModal(modalContact);
-        } catch(e){
-          console.error('[contatos] abrir edição', e);
-          alert('Não foi possível abrir este contato.');
-        }
-      } else if (consId){
-        CURRENT_CONSENT_ID = consId;
-        try{
-          const doc = await pathClientes(CURRENT_USER.uid).doc(consId).get();
-          const c = doc.data()||{};
-          const st = (c.consentimento && c.consentimento.status) || 'pendente';
-          const dt = (c.consentimento && c.consentimento.atualizadoEm)
-            ? formatWhen(c.consentimento.atualizadoEm.seconds ? {seconds: c.consentimento.atualizadoEm.seconds} : c.consentimento.atualizadoEm)
-            : '—';
-          consentInfo.innerHTML = `Status atual: <b>${escapeHtml(st)}</b> — Atualizado: <span class="value-soft">${dt}</span>`;
-        }catch(e){
-          consentInfo.textContent = 'Não foi possível carregar o estado.';
-        }
-        openModal(modalConsent);
-      }
-    });
-
-    btnConsentManual?.addEventListener('click', async ()=>{
-      if (isValidateMode() || !CURRENT_CONSENT_ID) return;
-      btnConsentManual.disabled = true;
-      try{
-        await setConsentManual(CURRENT_CONSENT_ID);
-        await loadContacts();
-        consentInfo.innerHTML = `<span class="success">Consentimento registrado manualmente.</span>`;
-      }catch(e){
-        console.error('[contatos] consent manual', e);
-        alert('Falha ao registrar consentimento.');
-      }finally{
-        btnConsentManual.disabled = false;
-      }
-    });
-
-    btnCloseConsent?.addEventListener('click', ()=> closeModal(modalConsent));
-
-    // Importar CSV
+    // Importar planilha
     btnImport?.addEventListener('click', ()=>{
       if (isValidateMode()) return;
       csvInput.click();
     });
-
     csvInput?.addEventListener('change', ()=>{
       if (isValidateMode()){ csvInput.value=''; return; }
       const file = csvInput.files?.[0];
@@ -629,7 +644,7 @@
       reader.onload = async (e)=>{
         const text = e.target.result;
         const rows = parseCSV(text);
-        if (!rows.length){ alert('CSV vazio.'); return; }
+        if (!rows.length){ alert('Arquivo vazio.'); return; }
         try{
           for (const r of rows){
             await upsertContact({
@@ -644,7 +659,7 @@
               email: r.email || '',
               resumoRelacionamento: r.resumoRelacionamento || '',
               observacoes: r.observacoes || ''
-            });
+            }, null);
           }
           await loadContacts();
           alert('Importação concluída.');
@@ -658,7 +673,7 @@
       reader.readAsText(file, 'utf-8');
     });
 
-    // CSV parser simples (cabecalhos por vírgula ou ponto-e-vírgula)
+    // Parser CSV simples (; ou ,)
     function parseCSV(text){
       const lines = text.split(/\r?\n/).filter(l=>l.trim().length);
       if (!lines.length) return [];
@@ -675,12 +690,117 @@
       return out;
     }
 
-    // ===== Bootstrap =====
+    // Editar / Consentimento na tabela
+    tableBody?.addEventListener('click', async (ev)=>{
+      const t = ev.target;
+      const editId = t?.getAttribute?.('data-edit');
+      const consId = t?.getAttribute?.('data-consent');
+      if (isValidateMode()) return;
+
+      if (editId){
+        CURRENT_EDIT_ID = editId;
+        try{
+          const doc = await pathClientes(CURRENT_USER.uid).doc(editId).get();
+          const c = doc.data()||{};
+          $("#c_id").value = editId;
+          $("#c_nome").value = c.nome || "";
+          $("#c_como").value = c.comoChama || "";
+          $("#c_categoria").value = c.categoria || "";
+          $("#c_tom").value = c.tom || "equilibrado";
+          $("#c_emojis").value = c.emojis || "poucos";
+          $("#c_tamanho").value = c.tamanhoMsg || "curtas";
+          $("#c_audio").value = c.preferenciaAudio || "permitido";
+          $("#c_tel").value = c.telefone || "";
+          $("#c_email").value = c.email || "";
+          $("#c_resumo").value = c.resumoRelacionamento || "";
+          $("#c_obs").value = c.observacoes || "";
+          if (!modalContact.open) modalContact.showModal();
+        }catch(e){
+          console.error('[contatos] abrir edição', e);
+          alert('Não foi possível abrir este contato.');
+        }
+      } else if (consId){
+        CURRENT_CONSENT_ID = consId;
+        try{
+          const doc = await pathClientes(CURRENT_USER.uid).doc(consId).get();
+          const c = doc.data()||{};
+          const st = (c.consentimento && c.consentimento.status) || 'pendente';
+          const dt = (c.consentimento && c.consentimento.atualizadoEm)
+            ? formatWhen(c.consentimento.atualizadoEm.seconds ? {seconds:c.consentimento.atualizadoEm.seconds} : c.consentimento.atualizadoEm)
+            : '—';
+          consentInfo.innerHTML = `Status atual: <b>${escapeHtml(st)}</b> — Atualizado: <span class="value-soft">${dt}</span>`;
+        }catch(e){
+          consentInfo.textContent = 'Não foi possível carregar o estado.';
+        }
+        if (!modalConsent.open) modalConsent.showModal();
+      }
+    });
+
+    // Salvar edição (modal)
+    btnSaveContact?.addEventListener('click', async ()=>{
+      if (isValidateMode()) return;
+      const data = {
+        id: $("#c_id").value || undefined,
+        nome: $("#c_nome").value.trim(),
+        comoChama: $("#c_como").value.trim(),
+        categoria: $("#c_categoria").value || "",
+        tom: $("#c_tom").value || "equilibrado",
+        emojis: $("#c_emojis").value || "poucos",
+        tamanhoMsg: $("#c_tamanho").value || "curtas",
+        preferenciaAudio: $("#c_audio").value || "permitido",
+        telefone: $("#c_tel").value.trim(),
+        email: $("#c_email").value.trim(),
+        resumoRelacionamento: $("#c_resumo").value.trim(),
+        observacoes: $("#c_obs").value.trim()
+      };
+      if (!data.nome){ alert('Informe o nome do contato.'); return; }
+      btnSaveContact.disabled = true;
+      try{
+        await upsertContact({
+          nome: data.nome, comoChama: data.comoChama, categoria: data.categoria,
+          tom: data.tom, emojis: data.emojis, tamanhoMsg: data.tamanhoMsg,
+          preferenciaAudio: data.preferenciaAudio, telefone: data.telefone, email: data.email,
+          resumoRelacionamento: data.resumoRelacionamento, observacoes: data.observacoes
+        }, data.id);
+        await loadContacts();
+        modalContact.close();
+      }catch(e){
+        console.error('[contatos] salvar edicao', e);
+        alert('Não foi possível salvar.');
+      }finally{
+        btnSaveContact.disabled = false;
+      }
+    });
+    btnCancelContact?.addEventListener('click', ()=> modalContact.close());
+
+    // Consentimento manual
+    btnConsentManual?.addEventListener('click', async ()=>{
+      if (isValidateMode() || !CURRENT_CONSENT_ID) return;
+      btnConsentManual.disabled = true;
+      try{
+        await setConsentManual(CURRENT_CONSENT_ID);
+        await loadContacts();
+        consentInfo.innerHTML = `<span class="success">Consentimento registrado manualmente.</span>`;
+      }catch(e){
+        console.error('[contatos] consent manual', e);
+        alert('Falha ao registrar consentimento.');
+      }finally{
+        btnConsentManual.disabled = false;
+      }
+    });
+    btnCloseConsent?.addEventListener('click', ()=> modalConsent.close());
+
+    // Busca
+    searchBox?.addEventListener('input', ()=>{
+      renderRows(searchBox.value);
+    });
+
+    // Bootstrap
     window.addEventListener('load', async ()=>{
-      const user = await ensureAuth();
-      if (!user) return;       // sem login (e sem validate) já redirecionou
-      if (user.demo) return;   // modo validação: UI demo pronta
-      await loadContacts();    // modo normal
+      const u = await ensureAuth();
+      if (!u) return;
+      if (u.demo) return;   // modo validação
+      await loadContacts();
     });
   })();
   </script>
