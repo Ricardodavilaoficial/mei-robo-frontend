@@ -82,7 +82,7 @@
     .grid-2 { display:grid; gap:10px; grid-template-columns: 1fr; }
     @media (min-width: 760px){ .grid-2 { grid-template-columns: 1fr 1fr; } }
 
-    .hint { font-size:0.85rem; color:var(--text-soft); margin-top:6px; }
+    .hint { font-size:0.85rem; color: var(--text-soft); margin-top:6px; }
     .danger { color: var(--bad); }
     .success { color: var(--ok); }
     .brand { color: var(--brand); font-weight: 800; }
@@ -315,15 +315,33 @@
     let CURRENT_EDIT_ID = null; // contato em edição
     let CURRENT_CONSENT_ID = null;
 
+    /* === NOVO: modo de validação por query (?validate=1) === */
+    function isValidateMode(){
+      try { return new URLSearchParams(location.search).has('validate'); }
+      catch { return false; }
+    }
+
     function showEmpty(show){
       emptyState.style.display = show ? "block" : "none";
+    }
+
+    function formatWhen(ts){
+      if (!ts) return "—";
+      try{
+        // Firestore Timestamp?
+        if (typeof ts === 'object' && 'seconds' in ts) return new Date(ts.seconds*1000).toLocaleString();
+        // epoch millis (number) ou Date.now result
+        if (typeof ts === 'number') return new Date(ts).toLocaleString();
+        return "—";
+      }catch{ return "—"; }
     }
 
     function addRow(id, data){
       const tr = document.createElement("tr");
       const status = (data.consentimento && data.consentimento.status) || "pendente";
       const statusChip = status === "consentido" ? "ok" : (status === "negado" ? "bad" : "warn");
-      const ultima = data.ultimaInteracaoEm ? new Date(data.ultimaInteracaoEm.seconds*1000).toLocaleString() : "—";
+      const ultima = formatWhen(data.ultimaInteracaoEm);
+      const disabledAttr = isValidateMode() ? 'disabled title="Indisponível no modo de validação"' : '';
       tr.innerHTML = `
         <td>${escapeHtml(data.nome || "—")}</td>
         <td><span class="chip">${escapeHtml(data.categoria || "—")}</span></td>
@@ -331,17 +349,15 @@
         <td class="value-soft">${ultima}</td>
         <td>
           <div class="actions">
-            <button class="btn small" data-edit="${id}">Editar</button>
-            <button class="btn small" data-consent="${id}">Consentimento</button>
+            <button class="btn small" data-edit="${id}" ${disabledAttr}>Editar</button>
+            <button class="btn small" data-consent="${id}" ${disabledAttr}>Consentimento</button>
           </div>
         </td>
       `;
       tableBody.appendChild(tr);
     }
 
-    function clearTable(){
-      tableBody.innerHTML = "";
-    }
+    function clearTable(){ tableBody.innerHTML = ""; }
 
     function escapeHtml(s){
       return String(s ?? "").replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
@@ -384,47 +400,81 @@
 
     function updateAccountStateUI(user){
       if (!user){
-        accountState.innerHTML = 'Redirecionando para login…';
+        if (isValidateMode()){
+          accountState.innerHTML = '<span class="chip warn">Modo de validação (não logado)</span> — recursos de edição desativados.';
+        } else {
+          accountState.innerHTML = 'Redirecionando para login…';
+        }
         return;
       }
       if (user.emailVerified){
         accountState.innerHTML = '<span class="chip ok">Conta verificada</span> — você pode solicitar consentimento automático quando disponível.';
       } else {
         accountState.innerHTML = '<span class="chip warn">Verifique seu e-mail</span> — é rápido e libera recursos extras.';
-        // pedido automático desativado
         btnConsentAuto.setAttribute('disabled', 'disabled');
         btnConsentAuto.title = 'Ative após verificar seu e-mail';
       }
     }
 
+    /* popula UI demo quando sem login + ?validate=1 */
+    function demoPopulate(){
+      // Desativa ações de escrita
+      btnAdd?.setAttribute('disabled','disabled');
+      btnAdd?.setAttribute('title','Indisponível no modo de validação');
+      btnImport?.setAttribute('disabled','disabled');
+      btnImport?.setAttribute('title','Indisponível no modo de validação');
+      btnSaveContact?.setAttribute('disabled','disabled');
+      btnConsentManual?.setAttribute('disabled','disabled');
+      btnConsentAuto?.setAttribute('disabled','disabled');
+
+      clearTable();
+      const samples = [
+        { nome:'Dona Maria da Silva', categoria:'cliente',   consentimento:{status:'consentido'}, ultimaInteracaoEm: Date.now()-86400000 },
+        { nome:'Seu João Mecânico',   categoria:'fornecedor', consentimento:{status:'pendente'},  ultimaInteracaoEm: Date.now()-3600*1000*5 },
+        { nome:'Tia Ana',             categoria:'parente',    consentimento:{status:'negado'},    ultimaInteracaoEm: null }
+      ];
+      samples.forEach((c, i)=> addRow('demo-'+i, c));
+      totalSpan.textContent = `(${samples.length})`;
+      showEmpty(false);
+    }
+
     async function ensureAuth(){
+      // Firebase ausente?
       if (!window.firebase || !firebase?.auth){
-        console.warn('[contatos] firebase não encontrado — modo visual.');
+        console.warn('[contatos] firebase não encontrado.');
+        if (isValidateMode()){
+          updateAccountStateUI(null);
+          demoPopulate();
+          return { demo:true };
+        }
         updateAccountStateUI(null);
-        // sem firebase, não dá pra seguir — mantém a página útil
-        setTimeout(()=>{ window.location.href = '/pages/login.html'; }, 1200);
+        setTimeout(()=>{ window.location.href = '/pages/login.html'; }, 300);
         return null;
       }
+
+      // Observa auth
       const user = await new Promise(resolve=>{
-        const off = firebase.auth().onAuthStateChanged(u=>{
-          off(); resolve(u||null);
-        });
+        const off = firebase.auth().onAuthStateChanged(u=>{ off(); resolve(u||null); });
       });
+
       if (!user){
+        if (isValidateMode()){
+          updateAccountStateUI(null);
+          demoPopulate();
+          return { demo:true };
+        }
         updateAccountStateUI(null);
         window.location.href = '/pages/login.html';
         return null;
       }
+
       CURRENT_USER = user;
       updateAccountStateUI(user);
       return user;
     }
 
     // ===== Firestore helpers (compat v8) =====
-    function fs(){
-      if (!firebase?.firestore) return null;
-      return firebase.firestore();
-    }
+    function fs(){ return (firebase?.firestore) ? firebase.firestore() : null; }
     function pathClientes(uid){
       return fs().collection('profissionais').doc(uid).collection('clientes');
     }
@@ -462,8 +512,7 @@
         telefone: data.telefone || '',
         email: data.email || '',
         resumoRelacionamento: data.resumoRelacionamento || '',
-        observacoes: data.observacoes || '',
-        // consentimento mantém se já houver
+        observacoes: data.observacoes || ''
       };
       if (data.id){
         await col.doc(data.id).set(payload, { merge:true });
@@ -475,7 +524,7 @@
     async function setConsentManual(contatoId){
       const db = fs(); if (!db || !CURRENT_USER) return;
       const ref = pathClientes(CURRENT_USER.uid).doc(contatoId);
-      const now = firebase.firestore.FieldValue.serverTimestamp?.() || new Date();
+      const now = (firebase.firestore.FieldValue.serverTimestamp?.() || new Date());
       await ref.set({
         consentimento:{
           status:'consentido',
@@ -487,6 +536,7 @@
 
     // ===== Eventos UI =====
     btnAdd?.addEventListener('click', ()=>{
+      if (isValidateMode()) return;
       CURRENT_EDIT_ID = null;
       fillContactForm({});
       openModal(modalContact);
@@ -495,6 +545,7 @@
     btnCancelContact?.addEventListener('click', ()=> closeModal(modalContact));
 
     btnSaveContact?.addEventListener('click', async ()=>{
+      if (isValidateMode()) return;
       const data = readContactForm();
       if (!data.nome){
         alert('Informe o nome do contato.'); return;
@@ -518,6 +569,8 @@
       const t = ev.target;
       const editId = t?.getAttribute?.('data-edit');
       const consId = t?.getAttribute?.('data-consent');
+      if (isValidateMode()) return;
+
       if (editId){
         CURRENT_EDIT_ID = editId;
         try{
@@ -530,12 +583,13 @@
         }
       } else if (consId){
         CURRENT_CONSENT_ID = consId;
-        // mostra estado atual
         try{
           const doc = await pathClientes(CURRENT_USER.uid).doc(consId).get();
           const c = doc.data()||{};
           const st = (c.consentimento && c.consentimento.status) || 'pendente';
-          const dt = (c.consentimento && c.consentimento.atualizadoEm) ? new Date(c.consentimento.atualizadoEm.seconds*1000).toLocaleString() : '—';
+          const dt = (c.consentimento && c.consentimento.atualizadoEm)
+            ? formatWhen(c.consentimento.atualizadoEm.seconds ? {seconds: c.consentimento.atualizadoEm.seconds} : c.consentimento.atualizadoEm)
+            : '—';
           consentInfo.innerHTML = `Status atual: <b>${escapeHtml(st)}</b> — Atualizado: <span class="value-soft">${dt}</span>`;
         }catch(e){
           consentInfo.textContent = 'Não foi possível carregar o estado.';
@@ -545,7 +599,7 @@
     });
 
     btnConsentManual?.addEventListener('click', async ()=>{
-      if (!CURRENT_CONSENT_ID) return;
+      if (isValidateMode() || !CURRENT_CONSENT_ID) return;
       btnConsentManual.disabled = true;
       try{
         await setConsentManual(CURRENT_CONSENT_ID);
@@ -562,8 +616,13 @@
     btnCloseConsent?.addEventListener('click', ()=> closeModal(modalConsent));
 
     // Importar CSV
-    btnImport?.addEventListener('click', ()=> csvInput.click());
+    btnImport?.addEventListener('click', ()=>{
+      if (isValidateMode()) return;
+      csvInput.click();
+    });
+
     csvInput?.addEventListener('change', ()=>{
+      if (isValidateMode()){ csvInput.value=''; return; }
       const file = csvInput.files?.[0];
       if (!file) return;
       const reader = new FileReader();
@@ -604,7 +663,6 @@
       const lines = text.split(/\r?\n/).filter(l=>l.trim().length);
       if (!lines.length) return [];
       let header = lines.shift();
-      // Suporta separador ; ou ,
       const sep = header.includes(';') ? ';' : ',';
       const keys = header.split(sep).map(s=>s.trim());
       const out = [];
@@ -620,8 +678,9 @@
     // ===== Bootstrap =====
     window.addEventListener('load', async ()=>{
       const user = await ensureAuth();
-      if (!user) return;
-      await loadContacts();
+      if (!user) return;       // sem login (e sem validate) já redirecionou
+      if (user.demo) return;   // modo validação: UI demo pronta
+      await loadContacts();    // modo normal
     });
   })();
   </script>
