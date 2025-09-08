@@ -5,109 +5,74 @@
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Contatos e Consentimento — MEI Robô</title>
 
-  <!-- Estilos canônicos -->
   <link rel="stylesheet" href="/assets/styles.css" />
-
   <style>
-    /* ===== Identidade & legibilidade ===== */
-    :root {
-      --text-strong: rgba(255,255,255,0.92);
-      --text-soft: rgba(255,255,255,0.80);
-      --placeholder: rgba(255,255,255,0.55);
-      --card-bg: rgba(255,255,255,0.04);
-      --card-bd: rgba(255,255,255,0.08);
-      --ok: #1bbb6e;
-      --warn: #efb417;
-      --bad: #ff5d5d;
-      --brand: #25D366;  /* verde WhatsApp */
-      --green: #1db954;  /* verde padrão botões */
-      --bg: #0b141a;
-      --input-bg: #0e1a21;
-      --input-bd: #1f2a30;
+    :root{
+      --text-strong: rgba(255,255,255,.92);
+      --text-soft: rgba(255,255,255,.80);
+      --placeholder: rgba(255,255,255,.55);
+      --card-bg: rgba(255,255,255,.04);
+      --card-bd: rgba(255,255,255,.08);
+      --ok:#1bbb6e; --warn:#efb417; --bad:#ff5d5d;
+      --brand:#25D366; --green:#1db954;
+      --bg:#0b141a; --input-bg:#0e1a21; --input-bd:#1f2a30;
     }
-    body.app-shell { color: var(--text-strong); background: var(--bg); }
-
-    /* Container central (padrão das páginas anteriores) */
-    .container { max-width: 1120px; margin: 0 auto; padding: 16px; }
-    @media (min-width: 960px){ .container { padding: 20px 24px; } }
-
-    main.app-main { min-height: 82svh; }
-
-    h1 { font-size: 1.6rem; margin: 6px 0 2px; }
-    .sub { color: var(--text-soft); font-size: 0.95rem; margin-bottom: 16px; }
-
-    .card {
-      background: var(--card-bg);
-      border: 1px solid var(--card-bd);
-      border-radius: 14px;
-      padding: 14px;
+    body.app-shell{color:var(--text-strong);background:var(--bg);}
+    .container{max-width:1120px;margin:0 auto;padding:16px;}
+    @media(min-width:960px){.container{padding:20px 24px}}
+    main.app-main{min-height:82svh}
+    h1{font-size:1.6rem;margin:6px 0 2px}
+    .sub{color:var(--text-soft);font-size:.95rem;margin-bottom:16px}
+    .card{background:var(--card-bg);border:1px solid var(--card-bd);border-radius:14px;padding:14px}
+    label{display:block;margin-bottom:6px;font-weight:600}
+    input[type="text"],input[type="email"],input[type="tel"],select,textarea{
+      background:var(--input-bg);border:1px solid var(--input-bd);border-radius:10px;
+      padding:10px 12px;width:100%;color:var(--text-strong);font-size:.98rem;outline:none
     }
-
-    /* Inputs */
-    label { display:block; margin-bottom: 6px; font-weight: 600; }
-    input[type="text"], input[type="email"], input[type="tel"], select, textarea {
-      background: var(--input-bg);
-      border: 1px solid var(--input-bd);
-      border-radius: 10px;
-      padding: 10px 12px;
-      width: 100%;
-      color: var(--text-strong);
-      font-size: 0.98rem;
-      outline: none;
-    }
-    input::placeholder, textarea::placeholder { color: var(--placeholder); }
-    .hint { font-size:0.85rem; color: var(--text-soft); margin-top:6px; }
-    .value-soft { color: var(--text-soft); }
-
-    /* Tabela */
-    .table { width: 100%; border-collapse: collapse; font-size: 0.95rem; }
-    .table th, .table td { text-align: left; padding: 10px 8px; border-bottom: 1px solid #1f2a30; }
-    .table th { color: var(--text-soft); font-weight: 600; }
-    .chip { display:inline-block; padding:3px 9px; border-radius:999px; font-size:0.82rem; border:1px solid #2a3a3f; }
-    .chip.ok { border-color: #195a44; background: rgba(27,187,110,0.08); color:#65e0a8; }
-    .chip.warn { border-color:#4a3b16; background: rgba(239,180,23,0.10); color:#ffd36a; }
-    .chip.bad { border-color:#522525; background: rgba(255,93,93,0.10); color:#ff9b9b; }
-
-    /* Botões */
-    .btn { cursor:pointer; border:1px solid #2a3a3f; background:#0f1e23; color:#dff3ea; border-radius:12px; padding:10px 14px; font-weight:700; }
-    .btn:hover { filter: brightness(1.05); }
-    .btn.primary { border-color:#1f6c3e; background: var(--green); color: #06130d; }
-    .btn.ghost { background:transparent; color:var(--text-soft); }
-    .btn.small { padding:6px 10px; font-weight:600; border-radius:10px; }
-    .btn.block { width: 100%; }
-
-    .actions { display:flex; gap:10px; flex-wrap: wrap; align-items:center; }
-
-    /* Rodapé de navegação (botões nos cantos) */
-    .nav-bottom { display: flex; align-items: center; margin-top: 16px; }
-    .nav-bottom .left { flex: 1; }
-    .nav-bottom .right { flex: 1; display: flex; justify-content: flex-end; }
-
-    /* Grids */
-    .grid-2 { display:grid; gap:10px; grid-template-columns: 1fr; }
-    @media (min-width: 760px){ .grid-2 { grid-template-columns: 1fr 1fr; } }
-
-    /* Estado vazio */
-    .empty { border:1px dashed #2a3a3f; border-radius:14px; padding:18px; text-align:center; color:var(--text-soft); }
-
-    /* Modal */
-    dialog { border:1px solid #274048; background:#0b141a; color:var(--text-strong); border-radius:16px; padding:0; width:min(680px, 96vw); }
-    dialog .modal-header { padding:14px 16px; border-bottom:1px solid #1f2a30; font-weight:800; }
-    dialog .modal-body { padding:14px 16px; }
-    dialog .modal-footer { padding:12px 16px; border-top:1px solid #1f2a30; display:flex; gap:10px; justify-content:flex-end; }
-
-    /* Ações da lista */
-    .list-actions { display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin: 6px 0 8px; }
-    .list-actions .spacer { flex:1; }
+    input::placeholder,textarea::placeholder{color:var(--placeholder)}
+    .hint{font-size:.85rem;color:var(--text-soft);margin-top:6px}
+    .value-soft{color:var(--text-soft)}
+    .table{width:100%;border-collapse:collapse;font-size:.95rem}
+    .table th,.table td{padding:10px 8px;border-bottom:1px solid #1f2a30;text-align:left}
+    .table th{color:var(--text-soft);font-weight:600}
+    .chip{display:inline-block;padding:3px 9px;border-radius:999px;font-size:.82rem;border:1px solid #2a3a3f}
+    .chip.ok{border-color:#195a44;background:rgba(27,187,110,.08);color:#65e0a8}
+    .chip.warn{border-color:#4a3b16;background:rgba(239,180,23,.10);color:#ffd36a}
+    .chip.bad{border-color:#522525;background:rgba(255,93,93,.10);color:#ff9b9b}
+    .btn{cursor:pointer;border:1px solid #2a3a3f;background:#0f1e23;color:#dff3ea;border-radius:12px;padding:10px 14px;font-weight:700}
+    .btn:hover{filter:brightness(1.05)}
+    .btn.primary{border-color:#1f6c3e;background:var(--green);color:#06130d}
+    .btn.ghost{background:transparent;color:var(--text-soft)}
+    .btn.small{padding:6px 10px;font-weight:600;border-radius:10px}
+    .btn.block{width:100%}
+    .actions{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+    .nav-bottom{display:flex;align-items:center;margin-top:16px}
+    .nav-bottom .left{flex:1}
+    .nav-bottom .right{flex:1;display:flex;justify-content:flex-end}
+    .grid-2{display:grid;gap:10px;grid-template-columns:1fr}
+    @media(min-width:760px){.grid-2{grid-template-columns:1fr 1fr}}
+    .empty{border:1px dashed #2a3a3f;border-radius:14px;padding:18px;text-align:center;color:var(--text-soft)}
+    dialog{border:1px solid #274048;background:#0b141a;color:var(--text-strong);border-radius:16px;padding:0;width:min(860px,96vw)}
+    dialog .modal-header{padding:14px 16px;border-bottom:1px solid #1f2a30;font-weight:800}
+    dialog .modal-body{padding:14px 16px}
+    dialog .modal-footer{padding:12px 16px;border-top:1px solid #1f2a30;display:flex;gap:10px;justify-content:flex-end}
+    /* Finos (colapsável) */
+    details.finos>summary{cursor:pointer;list-style:none}
+    details.finos>summary::-webkit-details-marker{display:none}
+    details.finos summary{padding:8px 0;font-weight:700}
+    .muted{color:var(--text-soft)}
+    .list-actions{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin:6px 0 8px}
+    .list-actions .spacer{flex:1}
+    .note{font-size:.85rem;color:var(--text-soft)}
+    .bar{height:8px;background:#0f1e23;border:1px solid #2a3a3f;border-radius:999px;overflow:hidden}
+    .bar>span{display:block;height:100%;background:#1db954;width:0%}
   </style>
 </head>
 <body class="app-shell">
-  <!-- Cabeçalho dinâmico -->
   <div id="app-header"></div>
 
   <main class="app-main">
     <div class="container">
-      <!-- Título + explicação aprovados -->
       <h1>Fale do seu jeito com cada contato</h1>
       <p class="sub">
         Aqui você ajusta como o MEI Robô fala com cada pessoa. Esta é uma conta comercial do WhatsApp:
@@ -115,20 +80,20 @@
         Para <b>chamar primeiro</b>, é preciso a <b>autorização</b> da pessoa (uma única vez) e usar uma <b>mensagem pronta aprovada pela Meta</b> para abrir a conversa.
       </p>
 
-      <!-- 1) ADICIONAR NOVO CONTATO (PRIMEIRA CAIXA) -->
+      <!-- 1) ADICIONAR NOVO CONTATO -->
       <section class="card" aria-labelledby="nc_title">
         <strong id="nc_title">Adicionar novo contato</strong>
-        <p class="value-soft" style="margin:6px 0 12px;">Capriche nos detalhes: seu MEI Robô vai conversar como você.</p>
+        <p class="value-soft" style="margin:6px 0 12px;">Capriche nos detalhes: seu MEI Robô vai conversar como você, <b>como se fosse você</b>.</p>
 
         <form id="formNewContact" class="grid-2" autocomplete="off">
           <div>
             <label for="n_nome">Nome do contato</label>
-            <input id="n_nome" name="nome" type="text" placeholder="Ex.: Dona Maria da Silva" required />
-            <div class="hint">Como aparece no seu WhatsApp (se preferir).</div>
+            <input id="n_nome" name="nome" type="text" placeholder="Maria da Silva" required />
+            <div class="hint">O nome completo que você sabe ou como aparece no seu WhatsApp.</div>
           </div>
           <div>
             <label for="n_como">Como você chama essa pessoa?</label>
-            <input id="n_como" name="comoChama" type="text" placeholder="Ex.: Dona Maria, Tia Maria, Sr. João" />
+            <input id="n_como" name="comoChama" type="text" placeholder="Dona Mia, Dona Mariazinha" />
             <div class="hint">Ajuda o robô a falar do seu jeito.</div>
           </div>
 
@@ -143,6 +108,7 @@
               <option value="colaborador">Colaborador</option>
               <option value="amigo">Amigo</option>
               <option value="parente">Parente</option>
+              <option value="outro">Outro</option>
             </select>
           </div>
           <div>
@@ -155,52 +121,95 @@
             <div class="hint">Como o robô deve falar com esta pessoa.</div>
           </div>
 
+          <!-- Ajustes finos (opcional) -->
+          <div style="grid-column:1/-1">
+            <details class="finos">
+              <summary>Ajustes finos (opcional) <span class="muted">— isso aparece <b>de vez em quando</b>, quando fizer sentido. Não é toda hora.</span></summary>
+              <div class="grid-2" style="margin-top:8px">
+                <div>
+                  <label for="n_slang">Gírias</label>
+                  <select id="n_slang">
+                    <option value="0">Não usar — fala limpa</option>
+                    <option value="1" selected>De leve — só uma ou outra</option>
+                    <option value="2">Pode usar — bem solto</option>
+                  </select>
+                </div>
+                <div>
+                  <label for="n_humor">Humor</label>
+                  <select id="n_humor">
+                    <option value="0">Nada — direto ao ponto</option>
+                    <option value="1" selected>Leve quando combinar</option>
+                    <option value="2">Pode usar — pode brincar mais</option>
+                  </select>
+                </div>
+                <div>
+                  <label for="n_anedotas">Anedotas</label>
+                  <select id="n_anedotas">
+                    <option value="nunca" selected>Desativadas — sem historinhas</option>
+                    <option value="rara">De vez em quando — curtinhas, no assunto</option>
+                  </select>
+                  <div class="hint">No máximo <b>1 frase</b>, só se combinar com o papo.</div>
+                </div>
+                <div style="align-self:end">
+                  <label><input type="checkbox" id="n_ptbr" checked> Português certinho — sem erro e sem abreviação</label>
+                </div>
+              </div>
+            </details>
+          </div>
+
           <div>
             <label for="n_emojis">Emojis</label>
             <select id="n_emojis" name="emojis">
-              <option value="poucos">Poucos emojis</option>
+              <option value="poucos" selected>Poucos emojis</option>
               <option value="sem">Sem emojis</option>
               <option value="pode">Pode usar emojis</option>
             </select>
           </div>
           <div>
-            <label for="n_tamanho">Tamanho das mensagens</label>
+            <label for="n_tamanho">Tamanho das suas respostas</label>
             <select id="n_tamanho" name="tamanhoMsg">
-              <option value="curtas">Curtas</option>
+              <option value="curtas" selected>Curtas</option>
               <option value="medias">Médias</option>
               <option value="detalhadas">Detalhadas</option>
             </select>
           </div>
 
           <div>
-            <label for="n_audio">Preferência de áudio</label>
-            <select id="n_audio" name="preferenciaAudio">
-              <option value="permitido">Pode responder com áudio</option>
-              <option value="texto">Prefiro só texto</option>
+            <label for="n_audio_rule">Preferência de áudio</label>
+            <select id="n_audio_rule">
+              <option value="off">Prefiro só texto</option>
+              <option value="match" selected>Usar áudio quando receber áudio (padrão)</option>
+              <option value="sometime">Áudio às vezes (quando fizer sentido)</option>
             </select>
+            <div class="hint">Para combinar <b>horário</b>, <b>preço</b> ou <b>endereço</b>, usamos <b>texto</b> para ficar claro. Se a pessoa mandar áudio e <b>pedir por escrito</b>, a resposta vai em <b>texto</b>.</div>
           </div>
           <div>
-            <label for="n_tel">Telefone</label>
-            <input id="n_tel" name="telefone" type="tel" placeholder="Ex.: 51998765432 (apenas números)" />
-          </div>
-
-          <div>
-            <label for="n_email">E-mail</label>
-            <input id="n_email" name="email" type="email" placeholder="Ex.: cliente@email.com" />
-          </div>
-          <div>
-            <label for="n_resumo">Resumo do relacionamento</label>
-            <textarea id="n_resumo" name="resumoRelacionamento" rows="2" placeholder="Ex.: Desde 2018. Cliente de manutenção. Prefere mensagens objetivas."></textarea>
+            <label for="n_speech_rate">Velocidade do áudio</label>
+            <select id="n_speech_rate">
+              <option value="slow">Mais devagar</option>
+              <option value="normal" selected>Ritmo normal</option>
+              <option value="fast">Um pouco mais rápido</option>
+            </select>
+            <div class="hint">Escolha o ritmo mais parecido com o seu. Em mensagens sensíveis, evitamos muito rápido.</div>
+            <div style="margin-top:6px">
+              <label><input type="checkbox" id="n_clear_pauses" checked> Pausas claras — para não soar corrido</label>
+            </div>
           </div>
 
           <div class="grid-2" style="grid-column: 1 / -1;">
             <div>
+              <label for="n_resumo">Resumo do relacionamento</label>
+              <textarea id="n_resumo" name="resumoRelacionamento" rows="2" maxlength="200" placeholder="Ex.: Desde 2018. Cliente de manutenção. Prefere mensagens objetivas."></textarea>
+              <div class="hint">Até 200 caracteres.</div>
+            </div>
+            <div>
               <label for="n_obs">Observações</label>
-              <textarea id="n_obs" name="observacoes" rows="2" placeholder="Ex.: Gosta de ser chamado de 'Dona Maria'. Evitar áudio à noite."></textarea>
+              <textarea id="n_obs" name="observacoes" rows="2" placeholder="Ex.: Gosta de ser chamada de 'Maria'. Evitar áudio à noite."></textarea>
             </div>
-            <div style="align-self:end; display:flex; gap:10px; justify-content:flex-end;">
-              <button class="btn primary" id="btnSaveNew" type="submit">Salvar contato</button>
-            </div>
+          </div>
+
+          <div style="grid-column:1/-1; display:flex; justify-content:flex-end; gap:10px">
+            <button class="btn primary" id="btnSaveNew" type="submit">Salvar contato</button>
           </div>
         </form>
       </section>
@@ -211,14 +220,14 @@
           <strong>Seus contatos</strong>
           <span id="totalSpan" class="value-soft"></span>
           <div class="list-actions spacer"></div>
-          <input id="searchBox" type="text" placeholder="Pesquisar contatos" style="max-width: 260px;" />
+          <input id="searchBox" type="text" placeholder="Pesquisar contatos" style="max-width:260px" />
         </div>
 
-        <div id="emptyState" class="empty" style="display:none; margin-top:12px;">
+        <div id="emptyState" class="empty" style="display:none;margin-top:12px;">
           Você ainda não cadastrou contatos. Preencha acima e clique em <b>Salvar contato</b>.
         </div>
 
-        <div style="overflow:auto; margin-top:8px;">
+        <div style="overflow:auto;margin-top:8px;">
           <table class="table" id="contactsTable" aria-label="Tabela de contatos">
             <thead>
               <tr>
@@ -226,12 +235,10 @@
                 <th>Categoria</th>
                 <th>Autorização (WhatsApp)</th>
                 <th>Última interação</th>
-                <th style="min-width: 260px;">Ações</th>
+                <th style="min-width:320px;">Ações</th>
               </tr>
             </thead>
-            <tbody id="contactsBody">
-              <!-- linhas injetadas via JS -->
-            </tbody>
+            <tbody id="contactsBody"></tbody>
           </table>
         </div>
 
@@ -241,7 +248,7 @@
         </div>
       </section>
 
-      <!-- 3) IMPORTAR CONTATOS (OPCIONAL) -->
+      <!-- 3) IMPORTAR CONTATOS -->
       <section class="card" style="margin-top:14px;">
         <strong>Importar contatos (opcional)</strong>
         <p class="value-soft" style="margin:8px 0 10px;">
@@ -255,39 +262,34 @@
         <div class="hint">Se sua planilha tiver colunas a mais, tudo bem — a gente ignora o que não usar.</div>
       </section>
 
-      <!-- Rodapé: Voltar (esq) e Próximo (dir) -->
       <div class="nav-bottom">
-        <div class="left">
-          <a class="btn primary" href="/pages/precos.html">Voltar</a>
-        </div>
-        <div class="right">
-          <a class="btn primary" href="/pages/dashboard.html">Próximo</a>
-        </div>
+        <div class="left"><a class="btn primary" href="/pages/precos.html">Voltar</a></div>
+        <div class="right"><a class="btn primary" href="/pages/dashboard.html">Próximo</a></div>
       </div>
     </div>
   </main>
 
-  <!-- Rodapé dinâmico -->
   <div id="app-footer"></div>
 
-  <!-- Modais: editar contato + autorização -->
+  <!-- MODAL: Editar contato -->
   <dialog id="modalContact">
     <div class="modal-header">Editar contato</div>
     <form id="formContact" class="modal-body">
       <div class="grid-2">
         <div>
           <label for="c_nome">Nome do contato</label>
-          <input id="c_nome" name="nome" type="text" placeholder="Ex.: Dona Maria da Silva" required />
-          <div class="hint">Como aparece no seu WhatsApp (se preferir).</div>
+          <input id="c_nome" type="text" placeholder="Maria da Silva" required />
+          <div class="hint">O nome completo que você sabe ou como aparece no seu WhatsApp.</div>
         </div>
         <div>
           <label for="c_como">Como você chama essa pessoa?</label>
-          <input id="c_como" name="comoChama" type="text" placeholder="Ex.: Dona Maria, Tia Maria, Sr. João" />
+          <input id="c_como" type="text" placeholder="Dona Mia, Dona Mariazinha" />
           <div class="hint">Ajuda o robô a falar do seu jeito.</div>
         </div>
+
         <div>
           <label for="c_categoria">Categoria</label>
-          <select id="c_categoria" name="categoria">
+          <select id="c_categoria">
             <option value="">Selecione…</option>
             <option value="cliente">Cliente</option>
             <option value="fornecedor">Fornecedor</option>
@@ -296,57 +298,95 @@
             <option value="colaborador">Colaborador</option>
             <option value="amigo">Amigo</option>
             <option value="parente">Parente</option>
+            <option value="outro">Outro</option>
           </select>
         </div>
         <div>
           <label for="c_tom">Tom de conversa</label>
-          <select id="c_tom" name="tom">
+          <select id="c_tom">
             <option value="equilibrado">Equilibrado</option>
             <option value="formal">Bem formal</option>
             <option value="informal">Bem informal</option>
           </select>
         </div>
+
+        <!-- Finos dentro do modal -->
+        <div>
+          <label for="c_slang">Gírias</label>
+          <select id="c_slang">
+            <option value="0">Não usar — fala limpa</option>
+            <option value="1">De leve — só uma ou outra</option>
+            <option value="2">Pode usar — bem solto</option>
+          </select>
+        </div>
+        <div>
+          <label for="c_humor">Humor</label>
+          <select id="c_humor">
+            <option value="0">Nada — direto ao ponto</option>
+            <option value="1">Leve quando combinar</option>
+            <option value="2">Pode usar — pode brincar mais</option>
+          </select>
+        </div>
+        <div>
+          <label for="c_anedotas">Anedotas</label>
+          <select id="c_anedotas">
+            <option value="nunca">Desativadas</option>
+            <option value="rara">De vez em quando</option>
+          </select>
+          <div class="hint">No máximo 1 frase, só se combinar com o papo.</div>
+        </div>
+        <div style="align-self:end">
+          <label><input type="checkbox" id="c_ptbr"> Português certinho — sem erro e sem abreviação</label>
+        </div>
+
         <div>
           <label for="c_emojis">Emojis</label>
-          <select id="c_emojis" name="emojis">
+          <select id="c_emojis">
             <option value="poucos">Poucos emojis</option>
             <option value="sem">Sem emojis</option>
             <option value="pode">Pode usar emojis</option>
           </select>
         </div>
         <div>
-          <label for="c_tamanho">Tamanho das mensagens</label>
-          <select id="c_tamanho" name="tamanhoMsg">
+          <label for="c_tamanho">Tamanho das suas respostas</label>
+          <select id="c_tamanho">
             <option value="curtas">Curtas</option>
             <option value="medias">Médias</option>
             <option value="detalhadas">Detalhadas</option>
           </select>
         </div>
+
         <div>
-          <label for="c_audio">Preferência de áudio</label>
-          <select id="c_audio" name="preferenciaAudio">
-            <option value="permitido">Pode responder com áudio</option>
-            <option value="texto">Prefiro só texto</option>
+          <label for="c_audio_rule">Preferência de áudio</label>
+          <select id="c_audio_rule">
+            <option value="off">Prefiro só texto</option>
+            <option value="match">Usar áudio quando receber áudio (padrão)</option>
+            <option value="sometime">Áudio às vezes (quando fizer sentido)</option>
           </select>
+          <div class="hint">Para horário, preço ou endereço, usamos <b>texto</b>. Se pedirem “por escrito”, a resposta vai em <b>texto</b>.</div>
         </div>
         <div>
-          <label for="c_tel">Telefone</label>
-          <input id="c_tel" name="telefone" type="tel" placeholder="Ex.: 51998765432 (apenas números)" />
+          <label for="c_speech_rate">Velocidade do áudio</label>
+          <select id="c_speech_rate">
+            <option value="slow">Mais devagar</option>
+            <option value="normal">Ritmo normal</option>
+            <option value="fast">Um pouco mais rápido</option>
+          </select>
+          <div style="margin-top:6px">
+            <label><input type="checkbox" id="c_clear_pauses"> Pausas claras — para não soar corrido</label>
+          </div>
         </div>
-        <div>
-          <label for="c_email">E-mail</label>
-          <input id="c_email" name="email" type="email" placeholder="Ex.: cliente@email.com" />
-        </div>
+
         <div>
           <label for="c_resumo">Resumo do relacionamento</label>
-          <textarea id="c_resumo" name="resumoRelacionamento" rows="2" placeholder="Ex.: Desde 2018. Cliente de manutenção. Prefere mensagens objetivas."></textarea>
+          <textarea id="c_resumo" rows="2" maxlength="200" placeholder="Ex.: Desde 2018. Cliente de manutenção. Prefere mensagens objetivas."></textarea>
         </div>
         <div>
           <label for="c_obs">Observações</label>
-          <textarea id="c_obs" name="observacoes" rows="2" placeholder="Ex.: Gosta de ser chamado de 'Dona Maria'. Evitar áudio à noite."></textarea>
+          <textarea id="c_obs" rows="2" placeholder="Ex.: Gosta de ser chamada de 'Maria'. Evitar áudio à noite."></textarea>
         </div>
       </div>
-      <input type="hidden" id="c_id" name="id" value="" />
+      <input type="hidden" id="c_id" value="" />
     </form>
     <div class="modal-footer">
       <button class="btn ghost" id="btnCancelContact" type="button">Cancelar</button>
@@ -354,6 +394,7 @@
     </div>
   </dialog>
 
+  <!-- MODAL: Autorização -->
   <dialog id="modalConsent">
     <div class="modal-header">Autorização (WhatsApp)</div>
     <div class="modal-body">
@@ -369,47 +410,80 @@
     </div>
   </dialog>
 
-  <!-- Scripts canônicos -->
+  <!-- MODAL: Acervo do contato -->
+  <dialog id="modalAcervo">
+    <div class="modal-header">Acervo do contato</div>
+    <div class="modal-body">
+      <div class="grid-2">
+        <div>
+          <label for="a_notes">Anotações rápidas</label>
+          <textarea id="a_notes" rows="3" maxlength="500" placeholder="Serviços feitos, preferências, combinados…"></textarea>
+          <div class="hint">Até 500 caracteres. O robô usa só o necessário, quando fizer sentido.</div>
+        </div>
+        <div>
+          <label for="a_tags">Tags</label>
+          <input id="a_tags" type="text" placeholder="Ex.: revisão anual; corte social; manual" />
+          <div class="hint">Separe com ponto e vírgula (;)</div>
+        </div>
+      </div>
+
+      <div class="card" style="margin-top:10px;">
+        <strong>Arquivos (imagens/PDF)</strong>
+        <div class="actions" style="margin:8px 0;">
+          <input type="file" id="a_file" accept="image/*,.pdf" />
+          <button class="btn small" id="btnUpload">Enviar</button>
+          <span class="value-soft" id="a_limit">Limite: 5 MB por arquivo · 25 MB por contato</span>
+        </div>
+        <div class="bar" aria-label="Progresso do upload" style="margin:6px 0 10px;display:none;"><span id="upProg"></span></div>
+        <div id="filesList" class="value-soft">Carregando arquivos…</div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn ghost" id="btnCloseAcervo" type="button">Fechar</button>
+      <button class="btn primary" id="btnSaveAcervo" type="button">Salvar anotações</button>
+    </div>
+  </dialog>
+
+  <input type="file" id="csvInput" accept=".csv,text/csv" style="display:none" />
+
   <script src="/assets/layout.js" defer></script>
   <script src="/assets/firebase-init.js" defer></script>
   <script src="/assets/backend-patch.js" defer></script>
 
   <script>
   (function(){
-    const $ = (q) => document.querySelector(q);
+    const $ = (q)=>document.querySelector(q);
 
     /* ====== Refs ====== */
-    // Form novo contato
     const formNew = $("#formNewContact");
     const btnSaveNew = $("#btnSaveNew");
     const NC = {
-      nome: $("#n_nome"),
-      comoChama: $("#n_como"),
-      categoria: $("#n_categoria"),
+      nome: $("#n_nome"), comoChama: $("#n_como"), categoria: $("#n_categoria"),
       tom: $("#n_tom"),
-      emojis: $("#n_emojis"),
-      tamanhoMsg: $("#n_tamanho"),
-      preferenciaAudio: $("#n_audio"),
-      telefone: $("#n_tel"),
-      email: $("#n_email"),
-      resumoRelacionamento: $("#n_resumo"),
-      observacoes: $("#n_obs")
+      slang: $("#n_slang"), humor: $("#n_humor"), anedotas: $("#n_anedotas"), ptbr: $("#n_ptbr"),
+      emojis: $("#n_emojis"), tamanho: $("#n_tamanho"),
+      audioRule: $("#n_audio_rule"), speechRate: $("#n_speech_rate"), clearPauses: $("#n_clear_pauses"),
+      telefone: $("#n_tel"), email: $("#n_email"),
+      resumoRelacionamento: $("#n_resumo"), observacoes: $("#n_obs")
     };
 
-    // Lista
     const tableBody = $("#contactsBody");
     const emptyState = $("#emptyState");
     const totalSpan = $("#totalSpan");
     const searchBox = $("#searchBox");
 
-    // Import
     const btnImport = $("#btnImport");
     const csvInput = $("#csvInput");
 
-    // Modal editar/consentimento
     const modalContact = $("#modalContact");
-    const btnCancelContact = $("#btnCancelContact");
-    const btnSaveContact = $("#btnSaveContact");
+    const C = {
+      id: $("#c_id"), nome: $("#c_nome"), comoChama: $("#c_como"), categoria: $("#c_categoria"),
+      tom: $("#c_tom"), slang: $("#c_slang"), humor: $("#c_humor"), anedotas: $("#c_anedotas"), ptbr: $("#c_ptbr"),
+      emojis: $("#c_emojis"), tamanho: $("#c_tamanho"),
+      audioRule: $("#c_audio_rule"), speechRate: $("#c_speech_rate"), clearPauses: $("#c_clear_pauses"),
+      resumoRelacionamento: $("#c_resumo"), observacoes: $("#c_obs"),
+      btnCancel: $("#btnCancelContact"), btnSave: $("#btnSaveContact")
+    };
 
     const modalConsent = $("#modalConsent");
     const consentInfo = $("#consentInfo");
@@ -417,361 +491,469 @@
     const btnConsentAuto = $("#btnConsentAuto");
     const btnCloseConsent = $("#btnCloseConsent");
 
+    const modalAcervo = $("#modalAcervo");
+    const a_notes = $("#a_notes"), a_tags = $("#a_tags");
+    const a_file = $("#a_file"), btnUpload = $("#btnUpload");
+    const filesList = $("#filesList");
+    const upBar = document.querySelector(".bar"); const upProg = $("#upProg");
+    const btnSaveAcervo = $("#btnSaveAcervo"); const btnCloseAcervo = $("#btnCloseAcervo");
+
     /* ====== Estado ====== */
     let CURRENT_USER = null;
+    let CURRENT_ROWS = [];
     let CURRENT_EDIT_ID = null;
     let CURRENT_CONSENT_ID = null;
-    let CURRENT_ROWS = [];   // [{id, data}...]
+    let CURRENT_ACERVO_ID = null;
+    const LIMITS = { fileMax: 5 * 1024 * 1024, contactMax: 25 * 1024 * 1024 }; // 5MB / 25MB
 
-    /* ====== Util ====== */
-    function isValidateMode(){
-      try { return new URLSearchParams(location.search).has('validate'); }
-      catch { return false; }
-    }
-    function escapeHtml(s){
-      return String(s ?? "").replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
-    }
+    /* ====== Utils ====== */
+    function isValidateMode(){ try{ return new URLSearchParams(location.search).has('validate'); }catch{ return false; } }
+    function escapeHtml(s){ return String(s??"").replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
     function formatWhen(ts){
-      if (!ts) return "—";
+      if(!ts) return "—";
       try{
-        if (typeof ts === 'object' && ts && 'seconds' in ts) return new Date(ts.seconds*1000).toLocaleString();
-        if (typeof ts === 'number') return new Date(ts).toLocaleString();
+        if(typeof ts==='object' && ts && 'seconds' in ts) return new Date(ts.seconds*1000).toLocaleString();
+        if(typeof ts==='number') return new Date(ts).toLocaleString();
         return "—";
-      }catch{ return "—"; }
+      }catch{return "—";}
     }
-    function showEmpty(show){ emptyState.style.display = show ? "block" : "none"; }
+    function showEmpty(b){ emptyState.style.display = b ? "block":"none"; }
 
-    /* Firestore helpers (compat v8) */
-    function fs(){ return (window.firebase?.firestore) ? firebase.firestore() : null; }
+    function fs(){ return (window.firebase?.firestore) ? firebase.firestore(): null; }
+    function st(){ return (window.firebase?.storage) ? firebase.storage(): null; }
     function pathClientes(uid){ return fs().collection('profissionais').doc(uid).collection('clientes'); }
 
-    /* Render */
-    function renderRows(filter = ""){
-      tableBody.innerHTML = "";
-      const term = filter.trim().toLowerCase();
-      let count = 0;
-      for (const {id, data} of CURRENT_ROWS){
+    function styleCodeFrom(d){
+      const T = d.tom==='informal'?'INF':(d.tom==='formal'?'FOR':'EQ');
+      const G = String(d.slang ?? 1);
+      const H = String(d.humor ?? 1);
+      const AN = (d.anecdotesAllow?1:0);
+      const F = d.anecdotesFreq==='rara'?'RARA':'NUNCA';
+      const PT = d.ptBrStrict?1:0;
+      const E = d.emojis==='sem'?'SEM':(d.emojis==='poucos'?'POU':'POD');
+      const L = d.tamanhoMsg==='detalhadas'?'D':(d.tamanhoMsg==='medias'?'M':'C');
+      const AR = d.audioRule==='off'?'OFF':(d.audioRule==='sometime'?'SM':'MT'); // MT=match
+      const SR = d.speechRate==='fast'?'FS':(d.speechRate==='slow'?'SL':'NM');
+      const CP = d.clearPauses?1:0;
+      return `T=${T};G=${G};H=${H};AN=${AN};F=${F};PT=${PT};E=${E};L=${L};AR=${AR};SR=${SR};CP=${CP}`;
+    }
+
+    function normalizeAudioLegacy(doc){
+      // Mapear preferenciaAudio legado para audioRule
+      if(doc.audioRule) return doc.audioRule;
+      const legacy = doc.preferenciaAudio;
+      if(legacy==='texto') return 'off';
+      if(legacy==='permitido') return 'match'; // legado vira match
+      return 'match';
+    }
+
+    /* ====== Render ====== */
+    function renderRows(filter=""){
+      tableBody.innerHTML=""; const term = filter.trim().toLowerCase(); let c=0;
+      for(const {id,data} of CURRENT_ROWS){
         const status = (data.consentimento && data.consentimento.status) || "pendente";
-        const categoria = data.categoria || "";
-        const nome = data.nome || "";
-        if (term){
-          const hay = (nome+" "+categoria+" "+status).toLowerCase();
-          if (!hay.includes(term)) continue;
-        }
-        count++;
-        const statusChip = status === "consentido" ? "ok" : (status === "negado" ? "bad" : "warn");
+        const categoria = data.categoria || ""; const nome = data.nome || "";
+        if(term){ const hay=(nome+" "+categoria+" "+status).toLowerCase(); if(!hay.includes(term)) continue; }
+        c++;
+        const chipClass = status==='consentido'?'ok':(status==='negado'?'bad':'warn');
         const ultima = formatWhen(data.ultimaInteracaoEm);
         const disabledAttr = isValidateMode() ? 'disabled title="Indisponível no modo de validação"' : '';
         const tr = document.createElement("tr");
         tr.innerHTML = `
-          <td>${escapeHtml(nome || "—")}</td>
-          <td><span class="chip">${escapeHtml(categoria || "—")}</span></td>
-          <td><span class="chip ${statusChip}">${escapeHtml(status)}</span></td>
+          <td>${escapeHtml(nome||"—")}</td>
+          <td><span class="chip">${escapeHtml(categoria||"—")}</span></td>
+          <td><span class="chip ${chipClass}">${escapeHtml(status)}</span></td>
           <td class="value-soft">${ultima}</td>
           <td>
             <div class="actions">
               <button class="btn small" data-edit="${id}" ${disabledAttr}>Editar</button>
+              <button class="btn small" data-acervo="${id}" ${disabledAttr}>Acervo</button>
               <button class="btn small" data-consent="${id}" ${disabledAttr} title="Marque aqui quando a pessoa autoriza receber suas mensagens.">Autorização (WhatsApp)</button>
             </div>
-          </td>
-        `;
+          </td>`;
         tableBody.appendChild(tr);
       }
-      totalSpan.textContent = count ? `(${count})` : '';
-      showEmpty(!count);
+      totalSpan.textContent = c ? `(${c})` : '';
+      showEmpty(!c);
     }
 
-    /* Carregar contatos (modo normal) */
     async function loadContacts(){
-      const db = fs();
-      if (!db || !CURRENT_USER) return;
+      const db = fs(); if(!db || !CURRENT_USER) return;
       CURRENT_ROWS = [];
       const snap = await pathClientes(CURRENT_USER.uid).orderBy('nome','asc').get().catch(e=>{
-        console.error('[contatos] loadContacts', e);
-        return { empty: true, forEach: ()=>{} };
+        console.error('[contatos] loadContacts', e); return {empty:true, forEach:()=>{}};
       });
-      if (!snap.empty){
-        snap.forEach(doc=>{
-          CURRENT_ROWS.push({ id: doc.id, data: doc.data() });
-        });
+      if(!snap.empty){
+        snap.forEach(doc=> CURRENT_ROWS.push({id:doc.id, data:doc.data()}));
       }
       renderRows(searchBox.value);
     }
 
-    /* Popula demo (modo validação) */
     function demoPopulate(){
-      // desativa escrita
-      btnSaveNew?.setAttribute('disabled','disabled');
-      Object.values(NC).forEach(el => el?.setAttribute?.('disabled','disabled'));
-      btnImport?.setAttribute('disabled','disabled');
-      btnImport?.setAttribute('title','Indisponível no modo de validação');
-      btnConsentManual?.setAttribute('disabled','disabled');
-      btnConsentAuto?.setAttribute('disabled','disabled');
-
       CURRENT_ROWS = [
-        { id:'demo-1', data:{ nome:'Dona Maria da Silva', categoria:'cliente',   consentimento:{status:'consentido'},  ultimaInteracaoEm: Date.now()-86400000 } },
-        { id:'demo-2', data:{ nome:'Seu João Mecânico',   categoria:'fornecedor', consentimento:{status:'pendente'},   ultimaInteracaoEm: Date.now()-3600*1000*5 } },
-        { id:'demo-3', data:{ nome:'Tia Ana',             categoria:'parente',    consentimento:{status:'negado'},     ultimaInteracaoEm: null } },
+        {id:'demo-1', data:{ nome:'Maria da Silva', categoria:'cliente',   consentimento:{status:'consentido'},  ultimaInteracaoEm: Date.now()-86400000 }},
+        {id:'demo-2', data:{ nome:'Seu João Mecânico', categoria:'fornecedor', consentimento:{status:'pendente'}, ultimaInteracaoEm: Date.now()-3600*1000*5 }},
+        {id:'demo-3', data:{ nome:'Tia Ana', categoria:'parente', consentimento:{status:'negado'}, ultimaInteracaoEm:null }},
       ];
       renderRows("");
     }
 
-    /* Auth gate (sem banner; silencioso no ?validate=1) */
     async function ensureAuth(){
-      if (!window.firebase || !firebase?.auth){
-        if (isValidateMode()){ demoPopulate(); return { demo:true }; }
-        setTimeout(()=>{ window.location.href = '/pages/login.html'; }, 150);
+      if(!window.firebase || !firebase?.auth){
+        if(isValidateMode()){ demoPopulate(); return {demo:true}; }
+        setTimeout(()=>location.href='/pages/login.html',150);
         return null;
       }
-      const user = await new Promise(resolve=>{
-        const off = firebase.auth().onAuthStateChanged(u=>{ off(); resolve(u||null); });
+      const user = await new Promise(r=>{
+        const off=firebase.auth().onAuthStateChanged(u=>{off(); r(u||null);});
       });
-      if (!user){
-        if (isValidateMode()){ demoPopulate(); return { demo:true }; }
-        window.location.href = '/pages/login.html';
-        return null;
+      if(!user){
+        if(isValidateMode()){ demoPopulate(); return {demo:true}; }
+        location.href='/pages/login.html'; return null;
       }
-      CURRENT_USER = user;
-      // botão “automático” continua travado se email não verificado
-      if (!user.emailVerified){
-        btnConsentAuto?.setAttribute('disabled','disabled');
-        btnConsentAuto.title = 'Verifique seu e-mail para liberar esta função';
-      }
+      CURRENT_USER=user;
+      // bloquear automático se email não verificado
+      if(!user.emailVerified){ btnConsentAuto?.setAttribute('disabled','disabled'); btnConsentAuto.title='Verifique seu e-mail para liberar esta função'; }
       return user;
     }
 
-    /* CRUD */
-    async function upsertContact(payload, id){
-      const db = fs(); if (!db || !CURRENT_USER) return;
-      const col = pathClientes(CURRENT_USER.uid);
-      if (id){
-        await col.doc(id).set(payload, { merge:true });
-      } else {
-        await col.add(payload);
-      }
-    }
-    async function setConsentManual(contatoId){
-      const db = fs(); if (!db || !CURRENT_USER) return;
-      const ref = pathClientes(CURRENT_USER.uid).doc(contatoId);
-      const now = (firebase.firestore.FieldValue.serverTimestamp?.() || new Date());
-      await ref.set({
-        consentimento:{ status:'consentido', origem:'manual', atualizadoEm: now }
-      }, { merge:true });
+    /* ====== CRUD ====== */
+    async function upsertContact(data, id){
+      const db=fs(); if(!db || !CURRENT_USER) return;
+      const col=pathClientes(CURRENT_USER.uid);
+      const payload={
+        nome:data.nome||'', comoChama:data.comoChama||'', categoria:data.categoria||'',
+        tom:data.tom||'equilibrado',
+        slang: Number(data.slang ?? 1),
+        humor: Number(data.humor ?? 1),
+        anecdotesAllow: data.anecdotesAllow===true || data.anedotas==='rara',
+        anecdotesFreq: data.anecdotesFreq || (data.anedotas==='rara'?'rara':'nunca'),
+        ptBrStrict: !!data.ptBrStrict,
+        emojis: data.emojis||'poucos',
+        tamanhoMsg: data.tamanhoMsg||'curtas',
+        audioRule: data.audioRule||'match',
+        speechRate: data.speechRate||'normal',
+        clearPauses: !!data.clearPauses,
+        telefone: data.telefone||'',
+        email: data.email||'',
+        resumoRelacionamento: (data.resumoRelacionamento||'').slice(0,200),
+        observacoes: data.observacoes||'',
+      };
+      // compat legado
+      payload.preferenciaAudio = (payload.audioRule==='off')?'texto':'permitido';
+      // style code compacto
+      payload.styleCode = styleCodeFrom(payload);
+
+      if(id){ await col.doc(id).set(payload,{merge:true}); }
+      else { await col.add(payload); }
     }
 
-    /* Leitura/Reset do formulário novo */
+    async function setConsentManual(contatoId){
+      const db=fs(); if(!db || !CURRENT_USER) return;
+      const ref=pathClientes(CURRENT_USER.uid).doc(contatoId);
+      const now = (firebase.firestore.FieldValue.serverTimestamp?.() || new Date());
+      await ref.set({ consentimento:{ status:'consentido', origem:'manual', atualizadoEm: now } }, {merge:true});
+    }
+
+    /* ====== New form ====== */
     function readNewForm(){
       return {
         nome: NC.nome.value.trim(),
-        comoChama: NC.comoChama.value.trim(),
+        comoChama: NC.comoChama?.value?.trim() || "",
         categoria: NC.categoria.value || "",
         tom: NC.tom.value || "equilibrado",
+        slang: Number(NC.slang.value||1),
+        humor: Number(NC.humor.value||1),
+        anecdotesAllow: (NC.anedotas.value==='rara'),
+        anecdotesFreq: NC.anedotas.value,
+        ptBrStrict: !!NC.ptbr.checked,
         emojis: NC.emojis.value || "poucos",
-        tamanhoMsg: NC.tamanhoMsg.value || "curtas",
-        preferenciaAudio: NC.preferenciaAudio.value || "permitido",
-        telefone: NC.telefone.value.trim(),
-        email: NC.email.value.trim(),
+        tamanhoMsg: NC.tamanho.value || "curtas",
+        audioRule: NC.audioRule.value || "match",
+        speechRate: NC.speechRate.value || "normal",
+        clearPauses: !!NC.clearPauses.checked,
+        telefone: NC.telefone?.value?.trim() || "",
+        email: NC.email?.value?.trim() || "",
         resumoRelacionamento: NC.resumoRelacionamento.value.trim(),
         observacoes: NC.observacoes.value.trim()
       };
     }
     function resetNewForm(){
       formNew.reset();
-      NC.tom.value = "equilibrado";
-      NC.emojis.value = "poucos";
-      NC.tamanhoMsg.value = "curtas";
-      NC.preferenciaAudio.value = "permitido";
+      NC.tom.value="equilibrado";
+      NC.slang.value="1"; NC.humor.value="1"; NC.anedotas.value="nunca"; NC.ptbr.checked=true;
+      NC.emojis.value="poucos"; NC.tamanho.value="curtas";
+      NC.audioRule.value="match"; NC.speechRate.value="normal"; NC.clearPauses.checked=true;
     }
 
-    /* Eventos */
     formNew?.addEventListener('submit', async (ev)=>{
       ev.preventDefault();
-      if (isValidateMode()) return;
-      const data = readNewForm();
-      if (!data.nome){ alert('Informe o nome do contato.'); return; }
-      btnSaveNew.disabled = true;
+      if(isValidateMode()) return;
+      const data=readNewForm();
+      if(!data.nome){ alert('Informe o nome do contato.'); return; }
+      btnSaveNew.disabled=true;
       try{
-        await upsertContact(data, null);
+        await upsertContact(data,null);
         resetNewForm();
         await loadContacts();
         alert('Contato salvo.');
-      } catch(e){
+      }catch(e){
         console.error('[contatos] salvar novo', e);
         alert('Não foi possível salvar. Tente novamente.');
-      } finally {
-        btnSaveNew.disabled = false;
-      }
+      }finally{ btnSaveNew.disabled=false; }
     });
 
-    // Importar CSV
-    btnImport?.addEventListener('click', ()=>{
-      if (isValidateMode()) return;
-      csvInput.click();
-    });
+    /* ====== Import CSV ====== */
+    btnImport?.addEventListener('click',()=>{ if(isValidateMode())return; csvInput.click(); });
     csvInput?.addEventListener('change', ()=>{
-      if (isValidateMode()){ csvInput.value=''; return; }
-      const file = csvInput.files?.[0];
-      if (!file) return;
-      const reader = new FileReader();
-      reader.onload = async (e)=>{
-        const text = e.target.result;
-        const rows = parseCSV(text);
-        if (!rows.length){ alert('Arquivo vazio.'); return; }
+      if(isValidateMode()){ csvInput.value=''; return; }
+      const file=csvInput.files?.[0]; if(!file) return;
+      const reader=new FileReader();
+      reader.onload=async (e)=>{
+        const rows=parseCSV(e.target.result);
+        if(!rows.length){ alert('Arquivo vazio.'); return; }
         try{
-          for (const r of rows){
+          for(const r of rows){
             await upsertContact({
-              nome: r.nome || '',
-              comoChama: r.comoChama || '',
-              categoria: r.categoria || '',
-              tom: r.tom || 'equilibrado',
-              emojis: r.emojis || 'poucos',
-              tamanhoMsg: r.tamanhoMsg || 'curtas',
-              preferenciaAudio: r.preferenciaAudio || 'permitido',
-              telefone: r.telefone || '',
-              email: r.email || '',
-              resumoRelacionamento: r.resumoRelacionamento || '',
-              observacoes: r.observacoes || ''
+              nome:r.nome||'', comoChama:r.comoChama||'', categoria:r.categoria||'',
+              tom:r.tom||'equilibrado',
+              slang: num(r.slang,1), humor: num(r.humor,1),
+              anecdotesAllow: (r.anedotas==='rara'), anecdotesFreq: (r.anedotas==='rara'?'rara':'nunca'),
+              ptBrStrict: bool(r.ptBrStrict,true),
+              emojis:r.emojis||'poucos',
+              tamanhoMsg:r.tamanhoMsg||'curtas',
+              audioRule: (r.audioRule||'match'),
+              speechRate: (r.speechRate||'normal'),
+              clearPauses: bool(r.clearPauses,true),
+              telefone:r.telefone||'', email:r.email||'',
+              resumoRelacionamento:r.resumoRelacionamento||'',
+              observacoes:r.observacoes||''
             }, null);
           }
-          await loadContacts();
-          alert('Importação concluída.');
-        } catch(e){
+          await loadContacts(); alert('Importação concluída.');
+        }catch(e){
           console.error('[contatos] importar CSV', e);
           alert('Falha ao importar. Verifique o arquivo.');
-        } finally {
-          csvInput.value = '';
-        }
+        }finally{ csvInput.value=''; }
       };
-      reader.readAsText(file, 'utf-8');
+      reader.readAsText(file,'utf-8');
     });
-
-    // Parser CSV simples (; ou ,)
     function parseCSV(text){
-      const lines = text.split(/\r?\n/).filter(l=>l.trim().length);
-      if (!lines.length) return [];
-      let header = lines.shift();
-      const sep = header.includes(';') ? ';' : ',';
-      const keys = header.split(sep).map(s=>s.trim());
-      const out = [];
-      for (const line of lines){
-        const cols = line.split(sep);
-        const obj = {};
-        keys.forEach((k,i)=> obj[k] = (cols[i]||'').trim());
+      const lines=text.split(/\r?\n/).filter(l=>l.trim().length);
+      if(!lines.length) return [];
+      let header=lines.shift(); const sep=header.includes(';')?';':',';
+      const keys=header.split(sep).map(s=>s.trim()); const out=[];
+      for(const line of lines){
+        const cols=line.split(sep); const obj={};
+        keys.forEach((k,i)=> obj[k]=(cols[i]||'').trim());
         out.push(obj);
       }
       return out;
     }
+    function num(v,def){ const n=Number(v); return Number.isFinite(n)?n:def; }
+    function bool(v,def){ if(v===true||v==='true'||v==='1')return true; if(v===false||v==='false'||v==='0')return false; return def; }
 
-    // Editar / Autorização
+    /* ====== Tabela ações ====== */
     tableBody?.addEventListener('click', async (ev)=>{
-      const t = ev.target;
-      const editId = t?.getAttribute?.('data-edit');
-      const consId = t?.getAttribute?.('data-consent');
-      if (isValidateMode()) return;
+      const t=ev.target;
+      const idEdit = t?.getAttribute?.('data-edit');
+      const idCons = t?.getAttribute?.('data-consent');
+      const idAcervo = t?.getAttribute?.('data-acervo');
+      if(isValidateMode()) return;
 
-      if (editId){
-        CURRENT_EDIT_ID = editId;
-        try{
-          const doc = await pathClientes(CURRENT_USER.uid).doc(editId).get();
-          const c = doc.data()||{};
-          $("#c_id").value = editId;
-          $("#c_nome").value = c.nome || "";
-          $("#c_como").value = c.comoChama || "";
-          $("#c_categoria").value = c.categoria || "";
-          $("#c_tom").value = c.tom || "equilibrado";
-          $("#c_emojis").value = c.emojis || "poucos";
-          $("#c_tamanho").value = c.tamanhoMsg || "curtas";
-          $("#c_audio").value = c.preferenciaAudio || "permitido";
-          $("#c_tel").value = c.telefone || "";
-          $("#c_email").value = c.email || "";
-          $("#c_resumo").value = c.resumoRelacionamento || "";
-          $("#c_obs").value = c.observacoes || "";
-          if (!modalContact.open) modalContact.showModal();
-        }catch(e){
-          console.error('[contatos] abrir edição', e);
-          alert('Não foi possível abrir este contato.');
-        }
-      } else if (consId){
-        CURRENT_CONSENT_ID = consId;
-        try{
-          const doc = await pathClientes(CURRENT_USER.uid).doc(consId).get();
-          const c = doc.data()||{};
-          const st = (c.consentimento && c.consentimento.status) || 'pendente';
-          const dt = (c.consentimento && c.consentimento.atualizadoEm)
-            ? formatWhen(c.consentimento.atualizadoEm.seconds ? {seconds:c.consentimento.atualizadoEm.seconds} : c.consentimento.atualizadoEm)
-            : '—';
-          consentInfo.innerHTML = `Status atual: <b>${escapeHtml(st)}</b> — Atualizado: <span class="value-soft">${dt}</span>`;
-        }catch(e){
-          consentInfo.textContent = 'Não foi possível carregar o estado.';
-        }
-        if (!modalConsent.open) modalConsent.showModal();
-      }
+      if(idEdit){ await openEdit(idEdit); }
+      else if(idCons){ await openConsent(idCons); }
+      else if(idAcervo){ await openAcervo(idAcervo); }
     });
 
-    // Salvar edição (modal)
-    btnSaveContact?.addEventListener('click', async ()=>{
-      if (isValidateMode()) return;
-      const data = {
-        id: $("#c_id").value || undefined,
-        nome: $("#c_nome").value.trim(),
-        comoChama: $("#c_como").value.trim(),
-        categoria: $("#c_categoria").value || "",
-        tom: $("#c_tom").value || "equilibrado",
-        emojis: $("#c_emojis").value || "poucos",
-        tamanhoMsg: $("#c_tamanho").value || "curtas",
-        preferenciaAudio: $("#c_audio").value || "permitido",
-        telefone: $("#c_tel").value.trim(),
-        email: $("#c_email").value.trim(),
-        resumoRelacionamento: $("#c_resumo").value.trim(),
-        observacoes: $("#c_obs").value.trim()
-      };
-      if (!data.nome){ alert('Informe o nome do contato.'); return; }
-      btnSaveContact.disabled = true;
+    async function openEdit(id){
+      CURRENT_EDIT_ID=id;
       try{
-        await upsertContact({
-          nome: data.nome, comoChama: data.comoChama, categoria: data.categoria,
-          tom: data.tom, emojis: data.emojis, tamanhoMsg: data.tamanhoMsg,
-          preferenciaAudio: data.preferenciaAudio, telefone: data.telefone, email: data.email,
-          resumoRelacionamento: data.resumoRelacionamento, observacoes: data.observacoes
-        }, data.id);
+        const doc=await pathClientes(CURRENT_USER.uid).doc(id).get();
+        const c=doc.data()||{};
+        $("#c_id").value = id;
+        C.nome.value = c.nome||""; C.comoChama.value=c.comoChama||"";
+        C.categoria.value = c.categoria||"";
+        C.tom.value = c.tom||"equilibrado";
+        C.slang.value = String(c.slang ?? 1);
+        C.humor.value = String(c.humor ?? 1);
+        C.anedotas.value = c.anecdotesAllow?'rara':(c.anecdotesFreq||'nunca');
+        C.ptbr.checked = !!c.ptBrStrict;
+        C.emojis.value = c.emojis||"poucos";
+        C.tamanho.value = c.tamanhoMsg||"curtas";
+        C.audioRule.value = normalizeAudioLegacy(c);
+        C.speechRate.value = c.speechRate||"normal";
+        C.clearPauses.checked = !!c.clearPauses;
+        C.resumoRelacionamento.value = c.resumoRelacionamento||"";
+        C.observacoes.value = c.observacoes||"";
+        if(!modalContact.open) modalContact.showModal();
+      }catch(e){ console.error('[contatos] abrir edição', e); alert('Não foi possível abrir este contato.'); }
+    }
+
+    C.btnSave?.addEventListener('click', async ()=>{
+      if(isValidateMode()) return;
+      const data={
+        id: C.id.value||undefined,
+        nome: C.nome.value.trim(),
+        comoChama: C.comoChama.value.trim(),
+        categoria: C.categoria.value||"",
+        tom: C.tom.value||"equilibrado",
+        slang: Number(C.slang.value||1),
+        humor: Number(C.humor.value||1),
+        anecdotesAllow: (C.anedotas.value==='rara'),
+        anecdotesFreq: C.anedotas.value,
+        ptBrStrict: !!C.ptbr.checked,
+        emojis: C.emojis.value||"poucos",
+        tamanhoMsg: C.tamanho.value||"curtas",
+        audioRule: C.audioRule.value||"match",
+        speechRate: C.speechRate.value||"normal",
+        clearPauses: !!C.clearPauses.checked,
+        resumoRelacionamento: C.resumoRelacionamento.value.trim(),
+        observacoes: C.observacoes.value.trim()
+      };
+      if(!data.nome){ alert('Informe o nome do contato.'); return; }
+      C.btnSave.disabled=true;
+      try{
+        await upsertContact(data, data.id);
         await loadContacts();
         modalContact.close();
-      }catch(e){
-        console.error('[contatos] salvar edicao', e);
-        alert('Não foi possível salvar.');
-      }finally{
-        btnSaveContact.disabled = false;
-      }
+      }catch(e){ console.error('[contatos] salvar edicao', e); alert('Não foi possível salvar.'); }
+      finally{ C.btnSave.disabled=false; }
     });
-    btnCancelContact?.addEventListener('click', ()=> modalContact.close());
+    C.btnCancel?.addEventListener('click', ()=> modalContact.close());
 
-    // Marcar autorização manual
+    async function openConsent(id){
+      CURRENT_CONSENT_ID=id;
+      try{
+        const doc=await pathClientes(CURRENT_USER.uid).doc(id).get();
+        const c=doc.data()||{};
+        const st=(c.consentimento&&c.consentimento.status)||'pendente';
+        const dt=(c.consentimento&&c.consentimento.atualizadoEm)
+          ? formatWhen(c.consentimento.atualizadoEm.seconds?{seconds:c.consentimento.atualizadoEm.seconds}:c.consentimento.atualizadoEm)
+          :'—';
+        consentInfo.innerHTML = `Status atual: <b>${escapeHtml(st)}</b> — Atualizado: <span class="value-soft">${dt}</span>`;
+      }catch{ consentInfo.textContent='Não foi possível carregar o estado.'; }
+      if(!modalConsent.open) modalConsent.showModal();
+    }
     btnConsentManual?.addEventListener('click', async ()=>{
-      if (isValidateMode() || !CURRENT_CONSENT_ID) return;
-      btnConsentManual.disabled = true;
+      if(isValidateMode() || !CURRENT_CONSENT_ID) return;
+      btnConsentManual.disabled=true;
       try{
         await setConsentManual(CURRENT_CONSENT_ID);
         await loadContacts();
         consentInfo.innerHTML = `<span class="chip ok">Autorizado</span> — salvo.`;
-      }catch(e){
-        console.error('[contatos] consent manual', e);
-        alert('Falha ao marcar autorização.');
-      }finally{
-        btnConsentManual.disabled = false;
-      }
+      }catch(e){ console.error('[contatos] consent manual',e); alert('Falha ao marcar autorização.'); }
+      finally{ btnConsentManual.disabled=false; }
     });
     btnCloseConsent?.addEventListener('click', ()=> modalConsent.close());
 
-    // Busca
+    /* ====== Acervo ====== */
+    async function openAcervo(id){
+      CURRENT_ACERVO_ID=id;
+      if(isValidateMode()){
+        a_notes.value=''; a_tags.value=''; filesList.textContent='Modo de validação: arquivos desativados.'; if(!modalAcervo.open) modalAcervo.showModal(); return;
+      }
+      try{
+        // carregar notas/tags
+        const doc=await pathClientes(CURRENT_USER.uid).doc(id).get();
+        const c=doc.data()||{};
+        a_notes.value = (c.acervo && c.acervo.notes) || '';
+        a_tags.value = (c.acervo && c.acervo.tags && c.acervo.tags.join('; ')) || '';
+
+        await refreshFilesList();
+        if(!modalAcervo.open) modalAcervo.showModal();
+      }catch(e){ console.error('[acervo] abrir', e); alert('Não foi possível abrir o acervo.'); }
+    }
+
+    async function refreshFilesList(){
+      filesList.textContent='Carregando…';
+      const db=fs(); if(!db || !CURRENT_USER || !CURRENT_ACERVO_ID){ filesList.textContent='Indisponível.'; return; }
+      const fileCol=pathClientes(CURRENT_USER.uid).doc(CURRENT_ACERVO_ID).collection('files');
+      const snap=await fileCol.orderBy('createdAt','desc').get().catch(e=>{console.error('[acervo] listar',e);return{empty:true,forEach:()=>{}};});
+      let html=''; let total=0;
+      if(!snap.empty){
+        snap.forEach(doc=>{
+          const f=doc.data(); total += Number(f.size||0);
+          html += `<div style="display:flex;justify-content:space-between;gap:10px;align-items:center;padding:6px 0;border-bottom:1px solid #1f2a30">
+            <div class="value-soft">
+              <div><b>${escapeHtml(f.name||'arquivo')}</b> <span class="muted">(${((f.size||0)/1024/1024).toFixed(2)} MB)</span></div>
+              <div class="note">${escapeHtml(f.note||'')}</div>
+            </div>
+            <div class="actions">
+              <a class="btn small" href="${escapeHtml(f.url||'#')}" target="_blank" rel="noopener">Abrir</a>
+            </div>
+          </div>`;
+        });
+      }
+      const usedMB=(total/1024/1024).toFixed(2);
+      filesList.innerHTML = (html||'<div class="value-soft">Nenhum arquivo enviado ainda.</div>') + `<div class="hint" style="margin-top:8px">Usado: <b>${usedMB} MB</b> de <b>${(LIMITS.contactMax/1024/1024).toFixed(0)} MB</b> por contato.</div>`;
+      // salvar usage
+      await pathClientes(CURRENT_USER.uid).doc(CURRENT_ACERVO_ID).set({ acervo:{ usage:{ totalBytes: total, maxBytesPerContact: LIMITS.contactMax } } }, {merge:true});
+    }
+
+    btnUpload?.addEventListener('click', async ()=>{
+      if(isValidateMode() || !CURRENT_ACERVO_ID) return;
+      const file=a_file.files?.[0]; if(!file){ alert('Escolha um arquivo.'); return; }
+      if(file.size > LIMITS.fileMax){ alert('Arquivo maior que 5 MB.'); return; }
+      try{
+        // checar quota rápida (soma atual + arquivo)
+        const doc=await pathClientes(CURRENT_USER.uid).doc(CURRENT_ACERVO_ID).get();
+        const used = ((doc.data()?.acervo?.usage?.totalBytes)||0);
+        if(used + file.size > LIMITS.contactMax){ alert('Limite por contato atingido. Exclua algo ou mude de plano.'); return; }
+
+        const storage=st(); const db=fs(); if(!storage || !db){ alert('Storage indisponível.'); return; }
+        const ext = (file.name.split('.').pop()||'').toLowerCase();
+        const isImg = file.type.startsWith('image/');
+        const isPdf = ext==='pdf' || file.type==='application/pdf';
+        if(!isImg && !isPdf){ alert('Apenas imagens ou PDF.'); return; }
+
+        const path=`users/${CURRENT_USER.uid}/contacts/${CURRENT_ACERVO_ID}/${Date.now()}_${file.name.replace(/[^a-zA-Z0-9._-]/g,'_')}`;
+        const ref=storage.ref().child(path);
+
+        upBar.style.display='block'; upProg.style.width='0%';
+        await new Promise((resolve,reject)=>{
+          const task=ref.put(file);
+          task.on('state_changed', snap=>{
+            const pct = (snap.bytesTransferred/snap.totalBytes)*100; upProg.style.width = pct.toFixed(0)+'%';
+          }, reject, resolve);
+        });
+
+        const url = await ref.getDownloadURL();
+        const meta = {
+          name:file.name,type:file.type,size:file.size,storagePath:path,url,
+          createdAt: firebase.firestore.FieldValue.serverTimestamp?.() || new Date()
+        };
+        await pathClientes(CURRENT_USER.uid).doc(CURRENT_ACERVO_ID).collection('files').add(meta);
+        upBar.style.display='none'; a_file.value='';
+        await refreshFilesList();
+      }catch(e){ console.error('[acervo] upload',e); alert('Falha no upload.'); upBar.style.display='none'; }
+    });
+
+    btnSaveAcervo?.addEventListener('click', async ()=>{
+      if(isValidateMode() || !CURRENT_ACERVO_ID) return;
+      const notes = a_notes.value.slice(0,500);
+      const tags = a_tags.value.split(';').map(s=>s.trim()).filter(Boolean);
+      try{
+        await pathClientes(CURRENT_USER.uid).doc(CURRENT_ACERVO_ID).set({ acervo:{ notes: notes, tags: tags } }, {merge:true});
+        alert('Anotações salvas.');
+      }catch(e){ console.error('[acervo] salvar',e); alert('Não foi possível salvar.'); }
+    });
+    btnCloseAcervo?.addEventListener('click', ()=> modalAcervo.close());
+
+    /* ====== Consent ====== */
+    btnCloseConsent?.addEventListener('click', ()=> modalConsent.close());
+
+    /* ====== Busca ====== */
     searchBox?.addEventListener('input', ()=> renderRows(searchBox.value));
 
-    // Bootstrap
+    /* ====== Bootstrap ====== */
     window.addEventListener('load', async ()=>{
       const u = await ensureAuth();
-      if (!u) return;
-      if (u.demo) return; // modo validação
+      if(!u) return;
+      if(u.demo){ demoPopulate(); return; }
       await loadContacts();
     });
+
   })();
   </script>
 </body>
