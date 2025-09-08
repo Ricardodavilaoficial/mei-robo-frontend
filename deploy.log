@@ -1,0 +1,115 @@
+[2025-09-03T20:13:34.600Z] > command requires scopes: ["email","openid","https://www.googleapis.com/auth/cloudplatformprojects.readonly","https://www.googleapis.com/auth/firebase","https://www.googleapis.com/auth/cloud-platform"]
+[2025-09-03T20:13:34.602Z] > authorizing via signed-in user (ricardodavilaoficial@gmail.com)
+[2025-09-03T20:13:34.602Z] [iam] checking project mei-robo-prod for permissions ["firebase.projects.get","firebasehosting.sites.update"]
+[2025-09-03T20:13:34.603Z] Checked if tokens are valid: true, expires at: 1756931492900
+[2025-09-03T20:13:34.603Z] Checked if tokens are valid: true, expires at: 1756931492900
+[2025-09-03T20:13:34.605Z] >>> [apiv2][query] POST https://cloudresourcemanager.googleapis.com/v1/projects/mei-robo-prod:testIamPermissions [none]
+[2025-09-03T20:13:34.606Z] >>> [apiv2][(partial)header] POST https://cloudresourcemanager.googleapis.com/v1/projects/mei-robo-prod:testIamPermissions x-goog-quota-user=projects/mei-robo-prod
+[2025-09-03T20:13:34.606Z] >>> [apiv2][body] POST https://cloudresourcemanager.googleapis.com/v1/projects/mei-robo-prod:testIamPermissions {"permissions":["firebase.projects.get","firebasehosting.sites.update"]}
+[2025-09-03T20:13:35.566Z] <<< [apiv2][status] POST https://cloudresourcemanager.googleapis.com/v1/projects/mei-robo-prod:testIamPermissions 200
+[2025-09-03T20:13:35.566Z] <<< [apiv2][body] POST https://cloudresourcemanager.googleapis.com/v1/projects/mei-robo-prod:testIamPermissions {"permissions":["firebase.projects.get","firebasehosting.sites.update"]}
+[2025-09-03T20:13:35.567Z] Checked if tokens are valid: true, expires at: 1756931492900
+[2025-09-03T20:13:35.567Z] Checked if tokens are valid: true, expires at: 1756931492900
+[2025-09-03T20:13:35.567Z] >>> [apiv2][query] GET https://firebase.googleapis.com/v1beta1/projects/mei-robo-prod [none]
+[2025-09-03T20:13:36.014Z] <<< [apiv2][status] GET https://firebase.googleapis.com/v1beta1/projects/mei-robo-prod 200
+[2025-09-03T20:13:36.014Z] <<< [apiv2][body] GET https://firebase.googleapis.com/v1beta1/projects/mei-robo-prod {"projectId":"mei-robo-prod","projectNumber":"161054994911","displayName":"mei-robo-prod","name":"projects/mei-robo-prod","resources":{"hostingSite":"mei-robo-prod"},"state":"ACTIVE","etag":"1_b2946546-d4e1-47d5-bf51-9312b48411ec"}
+
+=== Deploying to 'mei-robo-prod'...
+
+i  deploying hosting 
+[2025-09-03T20:13:36.019Z] Checked if tokens are valid: true, expires at: 1756931492900
+[2025-09-03T20:13:36.020Z] Checked if tokens are valid: true, expires at: 1756931492900
+[2025-09-03T20:13:36.020Z] >>> [apiv2][query] POST https://firebasehosting.googleapis.com/v1beta1/projects/-/sites/mei-robo-prod/versions [none]
+[2025-09-03T20:13:36.020Z] >>> [apiv2][body] POST https://firebasehosting.googleapis.com/v1beta1/projects/-/sites/mei-robo-prod/versions {"status":"CREATED","labels":{"deployment-tool":"cli-firebase"}}
+[2025-09-03T20:13:37.287Z] <<< [apiv2][status] POST https://firebasehosting.googleapis.com/v1beta1/projects/-/sites/mei-robo-prod/versions 200
+[2025-09-03T20:13:37.287Z] <<< [apiv2][body] POST https://firebasehosting.googleapis.com/v1beta1/projects/-/sites/mei-robo-prod/versions {"name":"projects/161054994911/sites/mei-robo-prod/versions/3aa06f57fb4c94dd","status":"CREATED","config":{},"labels":{"deployment-tool":"cli-firebase"}}
+i  hosting[mei-robo-prod]: beginning deploy... 
+i  hosting[mei-robo-prod]: found 27 files in Fontend GPT/public 
+[2025-09-03T20:13:37.305Z] [hosting] uploading with 200 concurrency
+[2025-09-03T20:13:37.310Z] Checked if tokens are valid: true, expires at: 1756931492900
+[2025-09-03T20:13:37.310Z] Checked if tokens are valid: true, expires at: 1756931492900
+[2025-09-03T20:13:37.312Z] [hosting] hash cache [Rm9udGVuZCBHUFRccHVibGlj] stored for 27 files
+[2025-09-03T20:13:37.312Z] [hosting][hash queue][FINAL] {"max":3,"min":0,"avg":0,"active":0,"complete":27,"success":27,"errored":0,"retried":0,"total":27,"elapsed":5}
+[2025-09-03T20:13:37.312Z] >>> [apiv2][query] POST https://firebasehosting.googleapis.com/v1beta1/projects/161054994911/sites/mei-robo-prod/versions/3aa06f57fb4c94dd:populateFiles [none]
+[2025-09-03T20:13:37.312Z] >>> [apiv2][body] POST https://firebasehosting.googleapis.com/v1beta1/projects/161054994911/sites/mei-robo-prod/versions/3aa06f57fb4c94dd:populateFiles {"files":{"/verify-email.html":"c37e1840dc5c0ee27e7d4812500ad7bfb3ee29f33b790310a41e9c42c6ec6675","/termos.html":"faf6e3d4f9cc0e94666a29afd1998f9cbc8ae634444682ec1d0226419eeedf5f","/ROCKET.txt":"8296c036f4417757148d623014ec33224014274316a8052fd3b9a4a6b52105cc","/privacidade.html":"dae40fc532642fcc4f06b29c951cc1b202d2d8a33340205913a431f877f33ddf","/payload.json":"ad937c194a0899687aed14bd157e38c342b619a4e919a106ada1311c88171247","/login-test.html":"a276c52a03d36981e5b81c6718d6bce30290f13ff1e9f79cd4cb67e96d33cd07","/index.html":"5697e73969b3b6a6f13bbe755036332cddaaada40171f8fc7e1856211105d6b8","/cookies.html":"a8090b51dcb1532c0f6aa3130c48b9217cd544b6762c62eeeec75ca5adad75e3","/consentimento-voz.html":"34def53f7f04e2b63dc47b0631790879947182459aea845d2c6fa93345cc59ee","/cadastro.html":"25ea1076c731164137cbe1025e48632f7243630680b1020f4fdcb5f4d58e9ec6","/bem-vindo.html":"732d5103e7d3d07c12c67e4e9aea72d83199ba2da4bff132465890a8bb8da83f","/partials/header.html":"a2405aa39001d9a383a6b8f56c5993c22261cdc902983592b7eb61d16e4e6670","/partials/footer.html":"84f81a57505671edbda983a879eab0d476f9d3258609a93409175bbc9fd5487f","/pages/login.html":"314ad84cacbc01a229e80c3398a1899f259f6903bec82bbf5ff41866cf1037b8","/pages/dashboard.html":"850ce229f82381ec0687fe79e88e4d7fa2fc49c37d5f822a48a718162e2b444a","/pages/configuracao.html":"685a11eeb92861335ebdf317414e9dbc376dfa08accfb9917d4b7afe0eabed23","/pages/ativar.html":"87da7a003e42f569c3da8fd82b0147dcfe20c35a22162c70f9a7ed3af735f293","/pages/agenda.html":"3e759dad2e1b997bf8c408ae4d31c608745e3e3cb674da804c592355303746b1","/pages/admin-cupons.html":"71145e926db655f6fbe0568575c4b07c5c0aa63eb8d713ed5a89e1d1bcf916a2","/assets/styles.css":"468325749e97f9b2856ccc04e6883e7e867175d35a8d675b503cd08e35dad640","/assets/mei-robo-icon.png":"d4e9e97413287323efc49c2fefe867fbf2c7c580720914145f5b69f04d9e90ad","/assets/layout.js":"f271765a9f96b93a11a7895a29529ed636a20e3159b11468dd83befd3abeb612","/assets/firebase-init.js":"1842e11ab3c7443a534945ed44aeb6b9b658c54832fcf839a87b56a84838ecf6","/assets/cookies.js":"a8c09de93c79fe5e1992ab605e85c19536971373c6f6e1298c695f7f1e253587","/assets/backend-patch.js":"15a44cc1c30b1a8431df4a2c8efe26658094f86c5b955ad0c698dc91bb6cf645","/assets/auth.js":"e7cb2b03483a94565ff5865d02139bc47f0ec51c9e7bfc1e635514368aec2ccf","/assets/api-test.js":"f0a3fa339171cfcb95a7d15ef7a8721fae9fb5dac4e4d77d8ab8a8fe5287bc76"}}
+[2025-09-03T20:13:37.623Z] <<< [apiv2][status] POST https://firebasehosting.googleapis.com/v1beta1/projects/161054994911/sites/mei-robo-prod/versions/3aa06f57fb4c94dd:populateFiles 200
+[2025-09-03T20:13:37.624Z] <<< [apiv2][body] POST https://firebasehosting.googleapis.com/v1beta1/projects/161054994911/sites/mei-robo-prod/versions/3aa06f57fb4c94dd:populateFiles {"uploadUrl":"https://upload-firebasehosting.googleapis.com/upload/sites/mei-robo-prod/versions/3aa06f57fb4c94dd/files"}
+[2025-09-03T20:13:37.625Z] [hosting][populate queue][FINAL] {"max":315,"min":315,"avg":315,"active":0,"complete":1,"success":1,"errored":0,"retried":0,"total":1,"elapsed":315}
+[2025-09-03T20:13:37.625Z] [hosting] uploads queued: 0
+[2025-09-03T20:13:37.625Z] [hosting][upload queue][FINAL] {"max":0,"min":9999999999,"avg":0,"active":0,"complete":0,"success":0,"errored":0,"retried":0,"total":0,"elapsed":1756930417625}
+i  hosting: upload complete 
++  hosting[mei-robo-prod]: file upload complete 
+[2025-09-03T20:13:37.626Z] [hosting] deploy completed after 336ms
+[2025-09-03T20:13:37.626Z] [
+  {
+    "config": {
+      "public": "Fontend GPT/public",
+      "ignore": [
+        "firebase.json",
+        "**/.*",
+        "**/node_modules/**"
+      ],
+      "headers": [
+        {
+          "source": "**",
+          "headers": [
+            {
+              "key": "Strict-Transport-Security",
+              "value": "max-age=31536000; includeSubDomains; preload"
+            },
+            {
+              "key": "X-Content-Type-Options",
+              "value": "nosniff"
+            },
+            {
+              "key": "Referrer-Policy",
+              "value": "same-origin"
+            },
+            {
+              "key": "X-Frame-Options",
+              "value": "DENY"
+            },
+            {
+              "key": "X-Robots-Tag",
+              "value": "noindex, nofollow, noarchive"
+            }
+          ]
+        },
+        {
+          "source": "**/*.html",
+          "headers": [
+            {
+              "key": "Cache-Control",
+              "value": "no-store"
+            }
+          ]
+        }
+      ],
+      "site": "mei-robo-prod"
+    },
+    "version": "projects/161054994911/sites/mei-robo-prod/versions/3aa06f57fb4c94dd"
+  }
+]
+i  hosting[mei-robo-prod]: finalizing version... 
+[2025-09-03T20:13:37.627Z] Checked if tokens are valid: true, expires at: 1756931492900
+[2025-09-03T20:13:37.627Z] Checked if tokens are valid: true, expires at: 1756931492900
+[2025-09-03T20:13:37.628Z] >>> [apiv2][query] PATCH https://firebasehosting.googleapis.com/v1beta1/projects/-/sites/mei-robo-prod/versions/3aa06f57fb4c94dd updateMask=status%2Cconfig
+[2025-09-03T20:13:37.628Z] >>> [apiv2][body] PATCH https://firebasehosting.googleapis.com/v1beta1/projects/-/sites/mei-robo-prod/versions/3aa06f57fb4c94dd {"status":"FINALIZED","config":{"headers":[{"glob":"**","headers":{"Strict-Transport-Security":"max-age=31536000; includeSubDomains; preload","X-Content-Type-Options":"nosniff","Referrer-Policy":"same-origin","X-Frame-Options":"DENY","X-Robots-Tag":"noindex, nofollow, noarchive"}},{"glob":"**/*.html","headers":{"Cache-Control":"no-store"}}]}}
+[2025-09-03T20:13:37.860Z] <<< [apiv2][status] PATCH https://firebasehosting.googleapis.com/v1beta1/projects/-/sites/mei-robo-prod/versions/3aa06f57fb4c94dd 200
+[2025-09-03T20:13:37.860Z] <<< [apiv2][body] PATCH https://firebasehosting.googleapis.com/v1beta1/projects/-/sites/mei-robo-prod/versions/3aa06f57fb4c94dd {"name":"projects/161054994911/sites/mei-robo-prod/versions/3aa06f57fb4c94dd","status":"FINALIZED","config":{"headers":[{"headers":{"Referrer-Policy":"same-origin","X-Frame-Options":"DENY","X-Robots-Tag":"noindex, nofollow, noarchive","Strict-Transport-Security":"max-age=31536000; includeSubDomains; preload","X-Content-Type-Options":"nosniff"},"glob":"**"},{"headers":{"Cache-Control":"no-store"},"glob":"**/*.html"}]},"labels":{"deployment-tool":"cli-firebase"},"createTime":"2025-09-03T20:13:37.105858Z","createUser":{"email":"ricardodavilaoficial@gmail.com"},"finalizeTime":"2025-09-03T20:13:37.920348Z","finalizeUser":{"email":"ricardodavilaoficial@gmail.com"}}
+[2025-09-03T20:13:37.861Z] [hosting] finalized version for mei-robo-prod:[object Object]
++  hosting[mei-robo-prod]: version finalized 
+i  hosting[mei-robo-prod]: releasing new version... 
+[2025-09-03T20:13:37.861Z] Checked if tokens are valid: true, expires at: 1756931492900
+[2025-09-03T20:13:37.861Z] Checked if tokens are valid: true, expires at: 1756931492900
+[2025-09-03T20:13:37.861Z] >>> [apiv2][query] POST https://firebasehosting.googleapis.com/v1beta1/projects/-/sites/mei-robo-prod/channels/live/releases versionName=projects%2F161054994911%2Fsites%2Fmei-robo-prod%2Fversions%2F3aa06f57fb4c94dd
+[2025-09-03T20:13:37.861Z] >>> [apiv2][body] POST https://firebasehosting.googleapis.com/v1beta1/projects/-/sites/mei-robo-prod/channels/live/releases {}
+[2025-09-03T20:13:38.176Z] <<< [apiv2][status] POST https://firebasehosting.googleapis.com/v1beta1/projects/-/sites/mei-robo-prod/channels/live/releases 200
+[2025-09-03T20:13:38.176Z] <<< [apiv2][body] POST https://firebasehosting.googleapis.com/v1beta1/projects/-/sites/mei-robo-prod/channels/live/releases {"name":"projects/161054994911/sites/mei-robo-prod/channels/live/releases/1756930417668000","version":{"name":"projects/161054994911/sites/mei-robo-prod/versions/3aa06f57fb4c94dd","status":"FINALIZED","config":{"headers":[{"headers":{"X-Robots-Tag":"noindex, nofollow, noarchive","Strict-Transport-Security":"max-age=31536000; includeSubDomains; preload","X-Content-Type-Options":"nosniff","Referrer-Policy":"same-origin","X-Frame-Options":"DENY"},"glob":"**"},{"headers":{"Cache-Control":"no-store"},"glob":"**/*.html"}]},"labels":{"deployment-tool":"cli-firebase"},"createTime":"2025-09-03T20:13:37.105858Z","createUser":{"email":"ricardodavilaoficial@gmail.com","imageUrl":"https://lh3.googleusercontent.com/a/ACg8ocJEN2YngwmIdz2MbIJVA2Xxjk5SlGW3x07neqEo_Jn7HV7ABzo"},"finalizeTime":"2025-09-03T20:13:37.920348Z","finalizeUser":{"email":"ricardodavilaoficial@gmail.com","imageUrl":"https://lh3.googleusercontent.com/a/ACg8ocJEN2YngwmIdz2MbIJVA2Xxjk5SlGW3x07neqEo_Jn7HV7ABzo"}},"type":"DEPLOY","releaseTime":"2025-09-03T20:13:37.668Z","releaseUser":{"email":"ricardodavilaoficial@gmail.com","imageUrl":"https://lh3.googleusercontent.com/a/ACg8ocJEN2YngwmIdz2MbIJVA2Xxjk5SlGW3x07neqEo_Jn7HV7ABzo"}}
+[2025-09-03T20:13:38.176Z] [hosting] release: {"name":"projects/161054994911/sites/mei-robo-prod/channels/live/releases/1756930417668000","version":{"name":"projects/161054994911/sites/mei-robo-prod/versions/3aa06f57fb4c94dd","status":"FINALIZED","config":{"headers":[{"headers":{"X-Robots-Tag":"noindex, nofollow, noarchive","Strict-Transport-Security":"max-age=31536000; includeSubDomains; preload","X-Content-Type-Options":"nosniff","Referrer-Policy":"same-origin","X-Frame-Options":"DENY"},"glob":"**"},{"headers":{"Cache-Control":"no-store"},"glob":"**/*.html"}]},"labels":{"deployment-tool":"cli-firebase"},"createTime":"2025-09-03T20:13:37.105858Z","createUser":{"email":"ricardodavilaoficial@gmail.com","imageUrl":"https://lh3.googleusercontent.com/a/ACg8ocJEN2YngwmIdz2MbIJVA2Xxjk5SlGW3x07neqEo_Jn7HV7ABzo"},"finalizeTime":"2025-09-03T20:13:37.920348Z","finalizeUser":{"email":"ricardodavilaoficial@gmail.com","imageUrl":"https://lh3.googleusercontent.com/a/ACg8ocJEN2YngwmIdz2MbIJVA2Xxjk5SlGW3x07neqEo_Jn7HV7ABzo"}},"type":"DEPLOY","releaseTime":"2025-09-03T20:13:37.668Z","releaseUser":{"email":"ricardodavilaoficial@gmail.com","imageUrl":"https://lh3.googleusercontent.com/a/ACg8ocJEN2YngwmIdz2MbIJVA2Xxjk5SlGW3x07neqEo_Jn7HV7ABzo"}}
++  hosting[mei-robo-prod]: release complete 
+
++  Deploy complete! 
+
+Project Console: https://console.firebase.google.com/project/mei-robo-prod/overview
+Hosting URL: https://mei-robo-prod.web.app

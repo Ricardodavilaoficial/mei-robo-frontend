@@ -67,6 +67,18 @@
     .bar{height:8px;background:#0f1e23;border:1px solid #2a3a3f;border-radius:999px;overflow:hidden}
     .bar>span{display:block;height:100%;background:#1db954;width:0%}
     .badge{display:inline-block;padding:2px 8px;border-radius:999px;border:1px solid #2a3a3f;font-size:.78rem}
+
+    /* Microfrase importante ao lado do título da lista */
+    .micro-important{
+      display:inline-block;
+      padding:6px 10px;
+      border-radius:10px;
+      background: rgba(37,211,102,0.12);   /* brand suave */
+      border:1px solid #1f6c3e;
+      color:#d4ffe9;
+      font-weight:700;
+      font-size:.9rem;
+    }
   </style>
 </head>
 <body class="app-shell">
@@ -220,6 +232,12 @@
         <div class="list-actions">
           <strong>Seus contatos</strong>
           <span id="totalSpan" class="value-soft"></span>
+
+          <!-- Microfrase importante e visível -->
+          <span class="micro-important">
+            IMPORTANTE: para <b>INICIAR A CONVERSA</b>, peça pelo seu WhatsApp pessoal para a pessoa mandar um “Oi” para o número do seu <b>MEI Robô</b>. Depois use o botão: <b>Autorização (WhatsApp)</b>.
+          </span>
+
           <div class="list-actions spacer"></div>
           <input id="searchBox" type="text" placeholder="Pesquisar contatos" style="max-width:260px" />
         </div>
@@ -513,7 +531,7 @@
     const consentInfo = $("#consentInfo");
     const btnGenLink = $("#btnGenLink");
     const btnRequestOptin = $("#btnRequestOptin");
-    const btnSendConfirmation = $("#btnSendConfirmation");
+    theBtnSendConfirmation = $("#btnSendConfirmation"); // not used without backend, kept for UI
     const btnMarkExternal = $("#btnMarkExternal");
     const btnCloseConsent = $("#btnCloseConsent");
     const linkArea = $("#linkArea");
@@ -537,7 +555,7 @@
 
     /* ====== Utils ====== */
     function isValidateMode(){ try{ return new URLSearchParams(location.search).has('validate'); }catch{ return false; } }
-    function escapeHtml(s){ return String(s??"").replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
+    function escapeHtml(s){ return String(s??"").replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39'}[m])); }
     function formatWhen(ts){
       if(!ts) return "—";
       try{
@@ -592,7 +610,6 @@
         c++;
         const chipClass = status==='consentido'?'ok':(status==='negado'?'bad':'warn');
         const ultima = formatWhen(data.ultimaInteracaoEm);
-        const disabledAttr = isValidateMode() ? '' : ''; // vitrine: permite abrir modais
         const tr = document.createElement("tr");
         tr.innerHTML = `
           <td>${escapeHtml(nome||"—")}</td>
@@ -798,7 +815,6 @@
     async function openEdit(id){
       CURRENT_EDIT_ID=id;
       if(isValidateMode()){
-        // vitrine: mostra modal com valores exemplo
         $("#c_id").value = id;
         C.nome.value = 'Maria da Silva'; C.comoChama.value='Dona Maria';
         C.categoria.value = 'cliente';
@@ -867,7 +883,6 @@
 
     /* ====== Autorização (UI-only) ====== */
     function businessPhone(){
-      // configurável no header/app; se não tiver, só avisa
       return (window.APP?.businessPhone || window.APP?.wabaPhone || "").replace(/\D/g,'');
     }
     function buildWaLink(){
@@ -880,7 +895,6 @@
     async function openConsent(id){
       CURRENT_CONSENT_ID=id;
 
-      // vitrine: carrega doc real se possível, senão mostra exemplo
       let st='pendente', updated='—', lastInbound=false;
       if(isValidateMode()){
         const row = CURRENT_ROWS.find(r=>r.id===id);
@@ -902,10 +916,9 @@
 
       consentInfo.innerHTML = `Status: <b>${escapeHtml(st)}</b> <span class="value-soft">• Atualizado: ${escapeHtml(updated)}</span> ${lastInbound ? '• <span class="chip ok">Janela 24h ativa</span>' : '• <span class="chip warn">Sem mensagem recente</span>'}`;
 
-      // Estados dos botões (sem backend ainda)
       btnGenLink.disabled = false;
       btnRequestOptin.disabled = !lastInbound || (st==='consentido');
-      btnSendConfirmation.disabled = (st!=='consentido');
+      theBtnSendConfirmation.disabled = (st!=='consentido');
       btnMarkExternal.disabled = false;
 
       linkArea.style.display='none';
@@ -926,11 +939,10 @@
     });
 
     btnRequestOptin?.addEventListener('click', ()=>{
-      // placeholder (sem backend): apenas instrução
       alert('Quando a pessoa mandar um “Oi”, você pede autorização aqui. (Envio automático será habilitado quando conectarmos ao WhatsApp comercial.)');
     });
 
-    btnSendConfirmation?.addEventListener('click', ()=>{
+    theBtnSendConfirmation?.addEventListener('click', ()=>{
       alert('Depois que a pessoa responder “SIM”, você confirma aqui. (Mensagem de confirmação será habilitada quando conectarmos ao WhatsApp comercial.)');
     });
 
