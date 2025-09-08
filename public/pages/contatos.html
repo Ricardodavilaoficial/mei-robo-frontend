@@ -66,6 +66,7 @@
     .note{font-size:.85rem;color:var(--text-soft)}
     .bar{height:8px;background:#0f1e23;border:1px solid #2a3a3f;border-radius:999px;overflow:hidden}
     .bar>span{display:block;height:100%;background:#1db954;width:0%}
+    .badge{display:inline-block;padding:2px 8px;border-radius:999px;border:1px solid #2a3a3f;font-size:.78rem}
   </style>
 </head>
 <body class="app-shell">
@@ -235,7 +236,7 @@
                 <th>Categoria</th>
                 <th>Autorização (WhatsApp)</th>
                 <th>Última interação</th>
-                <th style="min-width:320px;">Ações</th>
+                <th style="min-width:360px;">Ações</th>
               </tr>
             </thead>
             <tbody id="contactsBody"></tbody>
@@ -394,16 +395,39 @@
     </div>
   </dialog>
 
-  <!-- MODAL: Autorização -->
+  <!-- MODAL: Autorização (atualizado: sem QR, linguagem MEI) -->
   <dialog id="modalConsent">
     <div class="modal-header">Autorização (WhatsApp)</div>
     <div class="modal-body">
-      <div id="consentInfo" class="value-soft">Carregando…</div>
-      <div class="actions" style="margin-top:10px;">
-        <button class="btn small" id="btnConsentManual">Marcar como autorizado</button>
-        <button class="btn small" id="btnConsentAuto" disabled title="Em breve">Pedir autorização (automático)</button>
+      <!-- guia simples -->
+      <section class="card" style="margin-bottom:10px;">
+        <strong>Como liberar este contato para receber seus avisos</strong>
+        <ol class="value-soft" style="margin-top:8px; line-height:1.5;">
+          <li>O cliente manda um <b>“Oi”</b> para o seu número comercial.</li>
+          <li>Aqui na plataforma, clique em <b>Pedir autorização agora</b>.</li>
+          <li>Ele responde <b>SIM</b> no WhatsApp.</li>
+          <li>Você clica em <b>Confirmar autorização</b>.</li>
+        </ol>
+        <div class="hint" style="margin-top:6px;">
+          Pronto: esse contato recebe lembretes e avisos. Para parar, ele manda <b>SAIR</b>.
+        </div>
+      </section>
+
+      <div id="consentInfo" class="value-soft" style="margin-bottom:8px;">Carregando…</div>
+
+      <div class="actions" style="margin-top:8px; flex-wrap:wrap;">
+        <button class="btn small" id="btnGenLink">Gerar link do WhatsApp</button>
+        <button class="btn small" id="btnRequestOptin" disabled>Pedir autorização agora</button>
+        <button class="btn small" id="btnSendConfirmation" disabled>Confirmar autorização</button>
+        <button class="btn small" id="btnMarkExternal">Marcar autorização externa</button>
       </div>
-      <div class="hint">Guarde aqui quando a pessoa disser que autoriza receber suas mensagens.</div>
+
+      <!-- link gerado (sem QR) -->
+      <div class="hint" id="linkArea" style="display:none; margin-top:8px;">
+        Link para abrir o seu WhatsApp: <a id="waLink" href="#" target="_blank" rel="noopener" class="badge">abrir</a>
+        <button class="btn small" id="btnCopyLink" type="button">Copiar link</button>
+        <div style="margin-top:6px;">Toque no link. Seu WhatsApp abre. Peça para a pessoa mandar um <b>“Oi”</b>.</div>
+      </div>
     </div>
     <div class="modal-footer">
       <button class="btn primary" id="btnCloseConsent" type="button">Fechar</button>
@@ -487,9 +511,14 @@
 
     const modalConsent = $("#modalConsent");
     const consentInfo = $("#consentInfo");
-    const btnConsentManual = $("#btnConsentManual");
-    const btnConsentAuto = $("#btnConsentAuto");
+    const btnGenLink = $("#btnGenLink");
+    const btnRequestOptin = $("#btnRequestOptin");
+    const btnSendConfirmation = $("#btnSendConfirmation");
+    const btnMarkExternal = $("#btnMarkExternal");
     const btnCloseConsent = $("#btnCloseConsent");
+    const linkArea = $("#linkArea");
+    const waLink = $("#waLink");
+    const btnCopyLink = $("#btnCopyLink");
 
     const modalAcervo = $("#modalAcervo");
     const a_notes = $("#a_notes"), a_tags = $("#a_tags");
@@ -517,6 +546,13 @@
         return "—";
       }catch{return "—";}
     }
+    function within24h(ts){
+      try{
+        const t = ts?.seconds ? ts.seconds*1000 : (typeof ts==='number' ? ts : 0);
+        if(!t) return false;
+        return (Date.now() - t) <= (24*60*60*1000);
+      }catch{return false;}
+    }
     function showEmpty(b){ emptyState.style.display = b ? "block":"none"; }
 
     function fs(){ return (window.firebase?.firestore) ? firebase.firestore(): null; }
@@ -539,11 +575,10 @@
     }
 
     function normalizeAudioLegacy(doc){
-      // Mapear preferenciaAudio legado para audioRule
       if(doc.audioRule) return doc.audioRule;
       const legacy = doc.preferenciaAudio;
       if(legacy==='texto') return 'off';
-      if(legacy==='permitido') return 'match'; // legado vira match
+      if(legacy==='permitido') return 'match';
       return 'match';
     }
 
@@ -557,7 +592,7 @@
         c++;
         const chipClass = status==='consentido'?'ok':(status==='negado'?'bad':'warn');
         const ultima = formatWhen(data.ultimaInteracaoEm);
-        const disabledAttr = isValidateMode() ? 'disabled title="Indisponível no modo de validação"' : '';
+        const disabledAttr = isValidateMode() ? '' : ''; // vitrine: permite abrir modais
         const tr = document.createElement("tr");
         tr.innerHTML = `
           <td>${escapeHtml(nome||"—")}</td>
@@ -566,9 +601,9 @@
           <td class="value-soft">${ultima}</td>
           <td>
             <div class="actions">
-              <button class="btn small" data-edit="${id}" ${disabledAttr}>Editar</button>
-              <button class="btn small" data-acervo="${id}" ${disabledAttr}>Acervo</button>
-              <button class="btn small" data-consent="${id}" ${disabledAttr} title="Marque aqui quando a pessoa autoriza receber suas mensagens.">Autorização (WhatsApp)</button>
+              <button class="btn small" data-edit="${id}">Editar</button>
+              <button class="btn small" data-acervo="${id}">Acervo</button>
+              <button class="btn small" data-consent="${id}" title="Autorize aqui para poder chamar primeiro.">Autorização (WhatsApp)</button>
             </div>
           </td>`;
         tableBody.appendChild(tr);
@@ -612,8 +647,6 @@
         location.href='/pages/login.html'; return null;
       }
       CURRENT_USER=user;
-      // bloquear automático se email não verificado
-      if(!user.emailVerified){ btnConsentAuto?.setAttribute('disabled','disabled'); btnConsentAuto.title='Verifique seu e-mail para liberar esta função'; }
       return user;
     }
 
@@ -639,20 +672,17 @@
         resumoRelacionamento: (data.resumoRelacionamento||'').slice(0,200),
         observacoes: data.observacoes||'',
       };
-      // compat legado
       payload.preferenciaAudio = (payload.audioRule==='off')?'texto':'permitido';
-      // style code compacto
       payload.styleCode = styleCodeFrom(payload);
-
       if(id){ await col.doc(id).set(payload,{merge:true}); }
       else { await col.add(payload); }
     }
 
-    async function setConsentManual(contatoId){
+    async function setConsentExternal(contatoId){
       const db=fs(); if(!db || !CURRENT_USER) return;
       const ref=pathClientes(CURRENT_USER.uid).doc(contatoId);
       const now = (firebase.firestore.FieldValue.serverTimestamp?.() || new Date());
-      await ref.set({ consentimento:{ status:'consentido', origem:'manual', atualizadoEm: now } }, {merge:true});
+      await ref.set({ consentimento:{ status:'consentido', origem:'externo', atualizadoEm: now } }, {merge:true});
     }
 
     /* ====== New form ====== */
@@ -759,15 +789,28 @@
       const idEdit = t?.getAttribute?.('data-edit');
       const idCons = t?.getAttribute?.('data-consent');
       const idAcervo = t?.getAttribute?.('data-acervo');
-      if(isValidateMode()) return;
 
-      if(idEdit){ await openEdit(idEdit); }
-      else if(idCons){ await openConsent(idCons); }
-      else if(idAcervo){ await openAcervo(idAcervo); }
+      if(idEdit){ await openEdit(idEdit); return; }
+      if(idCons){ await openConsent(idCons); return; }
+      if(idAcervo){ await openAcervo(idAcervo); return; }
     });
 
     async function openEdit(id){
       CURRENT_EDIT_ID=id;
+      if(isValidateMode()){
+        // vitrine: mostra modal com valores exemplo
+        $("#c_id").value = id;
+        C.nome.value = 'Maria da Silva'; C.comoChama.value='Dona Maria';
+        C.categoria.value = 'cliente';
+        C.tom.value = 'equilibrado';
+        C.slang.value = "1"; C.humor.value="1"; C.anedotas.value='nunca'; C.ptbr.checked=true;
+        C.emojis.value='poucos'; C.tamanho.value='curtas';
+        C.audioRule.value='match'; C.speechRate.value='normal'; C.clearPauses.checked=true;
+        C.resumoRelacionamento.value='Desde 2018. Cliente de manutenção.';
+        C.observacoes.value="Evitar áudio à noite.";
+        if(!modalContact.open) modalContact.showModal();
+        return;
+      }
       try{
         const doc=await pathClientes(CURRENT_USER.uid).doc(id).get();
         const c=doc.data()||{};
@@ -793,7 +836,7 @@
     C.btnSave?.addEventListener('click', async ()=>{
       if(isValidateMode()) return;
       const data={
-        id: C.id.value||undefined,
+        id: $("#c_id").value||undefined,
         nome: C.nome.value.trim(),
         comoChama: C.comoChama.value.trim(),
         categoria: C.categoria.value||"",
@@ -822,29 +865,84 @@
     });
     C.btnCancel?.addEventListener('click', ()=> modalContact.close());
 
+    /* ====== Autorização (UI-only) ====== */
+    function businessPhone(){
+      // configurável no header/app; se não tiver, só avisa
+      return (window.APP?.businessPhone || window.APP?.wabaPhone || "").replace(/\D/g,'');
+    }
+    function buildWaLink(){
+      const phone = businessPhone();
+      const base = phone ? `https://wa.me/${phone}` : `https://wa.me/`;
+      const text = encodeURIComponent("Oi");
+      return `${base}?text=${text}`;
+    }
+
     async function openConsent(id){
       CURRENT_CONSENT_ID=id;
-      try{
-        const doc=await pathClientes(CURRENT_USER.uid).doc(id).get();
-        const c=doc.data()||{};
-        const st=(c.consentimento&&c.consentimento.status)||'pendente';
-        const dt=(c.consentimento&&c.consentimento.atualizadoEm)
-          ? formatWhen(c.consentimento.atualizadoEm.seconds?{seconds:c.consentimento.atualizadoEm.seconds}:c.consentimento.atualizadoEm)
-          :'—';
-        consentInfo.innerHTML = `Status atual: <b>${escapeHtml(st)}</b> — Atualizado: <span class="value-soft">${dt}</span>`;
-      }catch{ consentInfo.textContent='Não foi possível carregar o estado.'; }
+
+      // vitrine: carrega doc real se possível, senão mostra exemplo
+      let st='pendente', updated='—', lastInbound=false;
+      if(isValidateMode()){
+        const row = CURRENT_ROWS.find(r=>r.id===id);
+        const c = row?.data || {};
+        st = (c.consentimento && c.consentimento.status) || 'pendente';
+        updated = '—';
+        lastInbound = within24h(c.ultimaInteracaoEm);
+      } else {
+        try{
+          const doc=await pathClientes(CURRENT_USER.uid).doc(id).get();
+          const c=doc.data()||{};
+          st=(c.consentimento&&c.consentimento.status)||'pendente';
+          updated=(c.consentimento&&c.consentimento.atualizadoEm)
+            ? formatWhen(c.consentimento.atualizadoEm.seconds?{seconds:c.consentimento.atualizadoEm.seconds}:c.consentimento.atualizadoEm)
+            : '—';
+          lastInbound = within24h(c.ultimaInteracaoEm);
+        }catch{ st='pendente'; lastInbound=false; }
+      }
+
+      consentInfo.innerHTML = `Status: <b>${escapeHtml(st)}</b> <span class="value-soft">• Atualizado: ${escapeHtml(updated)}</span> ${lastInbound ? '• <span class="chip ok">Janela 24h ativa</span>' : '• <span class="chip warn">Sem mensagem recente</span>'}`;
+
+      // Estados dos botões (sem backend ainda)
+      btnGenLink.disabled = false;
+      btnRequestOptin.disabled = !lastInbound || (st==='consentido');
+      btnSendConfirmation.disabled = (st!=='consentido');
+      btnMarkExternal.disabled = false;
+
+      linkArea.style.display='none';
       if(!modalConsent.open) modalConsent.showModal();
     }
-    btnConsentManual?.addEventListener('click', async ()=>{
-      if(isValidateMode() || !CURRENT_CONSENT_ID) return;
-      btnConsentManual.disabled=true;
-      try{
-        await setConsentManual(CURRENT_CONSENT_ID);
-        await loadContacts();
-        consentInfo.innerHTML = `<span class="chip ok">Autorizado</span> — salvo.`;
-      }catch(e){ console.error('[contatos] consent manual',e); alert('Falha ao marcar autorização.'); }
-      finally{ btnConsentManual.disabled=false; }
+
+    btnGenLink?.addEventListener('click', ()=>{
+      const link = buildWaLink();
+      waLink.href = link;
+      linkArea.style.display='block';
+      if(!businessPhone()){
+        alert('Configure seu número comercial para abrir já com seu WhatsApp. Por enquanto, o link abre o WhatsApp para você começar o “Oi”.');
+      }
     });
+
+    btnCopyLink?.addEventListener('click', async ()=>{
+      try{ await navigator.clipboard.writeText(waLink.href); alert('Link copiado.'); }catch{ alert('Não foi possível copiar.'); }
+    });
+
+    btnRequestOptin?.addEventListener('click', ()=>{
+      // placeholder (sem backend): apenas instrução
+      alert('Quando a pessoa mandar um “Oi”, você pede autorização aqui. (Envio automático será habilitado quando conectarmos ao WhatsApp comercial.)');
+    });
+
+    btnSendConfirmation?.addEventListener('click', ()=>{
+      alert('Depois que a pessoa responder “SIM”, você confirma aqui. (Mensagem de confirmação será habilitada quando conectarmos ao WhatsApp comercial.)');
+    });
+
+    btnMarkExternal?.addEventListener('click', async ()=>{
+      if(isValidateMode() || !CURRENT_CONSENT_ID) return;
+      try{
+        await setConsentExternal(CURRENT_CONSENT_ID);
+        await loadContacts();
+        alert('Autorização marcada.');
+      }catch(e){ console.error('[contatos] marcar externo',e); alert('Falha ao marcar.'); }
+    });
+
     btnCloseConsent?.addEventListener('click', ()=> modalConsent.close());
 
     /* ====== Acervo ====== */
@@ -854,12 +952,10 @@
         a_notes.value=''; a_tags.value=''; filesList.textContent='Modo de validação: arquivos desativados.'; if(!modalAcervo.open) modalAcervo.showModal(); return;
       }
       try{
-        // carregar notas/tags
         const doc=await pathClientes(CURRENT_USER.uid).doc(id).get();
         const c=doc.data()||{};
         a_notes.value = (c.acervo && c.acervo.notes) || '';
         a_tags.value = (c.acervo && c.acervo.tags && c.acervo.tags.join('; ')) || '';
-
         await refreshFilesList();
         if(!modalAcervo.open) modalAcervo.showModal();
       }catch(e){ console.error('[acervo] abrir', e); alert('Não foi possível abrir o acervo.'); }
@@ -887,7 +983,6 @@
       }
       const usedMB=(total/1024/1024).toFixed(2);
       filesList.innerHTML = (html||'<div class="value-soft">Nenhum arquivo enviado ainda.</div>') + `<div class="hint" style="margin-top:8px">Usado: <b>${usedMB} MB</b> de <b>${(LIMITS.contactMax/1024/1024).toFixed(0)} MB</b> por contato.</div>`;
-      // salvar usage
       await pathClientes(CURRENT_USER.uid).doc(CURRENT_ACERVO_ID).set({ acervo:{ usage:{ totalBytes: total, maxBytesPerContact: LIMITS.contactMax } } }, {merge:true});
     }
 
@@ -896,7 +991,6 @@
       const file=a_file.files?.[0]; if(!file){ alert('Escolha um arquivo.'); return; }
       if(file.size > LIMITS.fileMax){ alert('Arquivo maior que 5 MB.'); return; }
       try{
-        // checar quota rápida (soma atual + arquivo)
         const doc=await pathClientes(CURRENT_USER.uid).doc(CURRENT_ACERVO_ID).get();
         const used = ((doc.data()?.acervo?.usage?.totalBytes)||0);
         if(used + file.size > LIMITS.contactMax){ alert('Limite por contato atingido. Exclua algo ou mude de plano.'); return; }
@@ -910,7 +1004,7 @@
         const path=`users/${CURRENT_USER.uid}/contacts/${CURRENT_ACERVO_ID}/${Date.now()}_${file.name.replace(/[^a-zA-Z0-9._-]/g,'_')}`;
         const ref=storage.ref().child(path);
 
-        upBar.style.display='block'; upProg.style.width='0%';
+        document.querySelector('.bar').style.display='block'; upProg.style.width='0%';
         await new Promise((resolve,reject)=>{
           const task=ref.put(file);
           task.on('state_changed', snap=>{
@@ -924,9 +1018,9 @@
           createdAt: firebase.firestore.FieldValue.serverTimestamp?.() || new Date()
         };
         await pathClientes(CURRENT_USER.uid).doc(CURRENT_ACERVO_ID).collection('files').add(meta);
-        upBar.style.display='none'; a_file.value='';
+        document.querySelector('.bar').style.display='none'; a_file.value='';
         await refreshFilesList();
-      }catch(e){ console.error('[acervo] upload',e); alert('Falha no upload.'); upBar.style.display='none'; }
+      }catch(e){ console.error('[acervo] upload',e); alert('Falha no upload.'); document.querySelector('.bar').style.display='none'; }
     });
 
     btnSaveAcervo?.addEventListener('click', async ()=>{
@@ -939,9 +1033,6 @@
       }catch(e){ console.error('[acervo] salvar',e); alert('Não foi possível salvar.'); }
     });
     btnCloseAcervo?.addEventListener('click', ()=> modalAcervo.close());
-
-    /* ====== Consent ====== */
-    btnCloseConsent?.addEventListener('click', ()=> modalConsent.close());
 
     /* ====== Busca ====== */
     searchBox?.addEventListener('input', ()=> renderRows(searchBox.value));
