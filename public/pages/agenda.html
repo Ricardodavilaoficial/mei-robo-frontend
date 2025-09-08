@@ -4,36 +4,38 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Agenda — MEI Robô</title>
-  
-  <!-- Caminhos absolutos canônicos -->
   <link rel="stylesheet" href="/assets/styles.css" />
-  
   <style>
-    /* ===== Agenda (V1.0) — microestilos locais ===== */
-    :root{
-      --card-bg:#0f1513; /* tema escuro herdado */
-      --card-br:#1d2b26;
-      --muted:#9fb0aa;
-      --soft:#cfe3dc;
-    }
+    /* ===== Agenda (V1.1) — foco mobile-first + calendário enxuto ===== */
+    :root{ --card-bg:#0f1513; --card-br:#1d2b26; --muted:#9fb0aa; --soft:#cfe3dc; }
     body{background:#0b100e;color:#eaf5f0}
     .app-shell{min-height:82svh}
-    .toolbar{display:flex;gap:.5rem;align-items:center;flex-wrap:wrap}
-    .toolbar .group{display:flex;gap:.5rem;align-items:center}
-    .input,select{background:#0e1512;border:1px solid #2a3a34;color:#eaf5f0;border-radius:10px;padding:.6rem .8rem}
+    .input,select,textarea{background:#0e1512;border:1px solid #2a3a34;color:#eaf5f0;border-radius:10px;padding:.6rem .8rem}
     .input::placeholder{color:rgba(234,245,240,.55)}
     .badge{display:inline-flex;align-items:center;gap:.35rem;border:1px solid #b8f3cf;background:#e8fff2;color:#0d7a56;border-radius:999px;padding:3px 10px;font-weight:800;font-size:.8rem;white-space:nowrap}
-    .badge.soft{background:transparent;color:var(--soft);border-color:#3b524a}
-    .status-chip{border-radius:999px;padding:2px 8px;border:1px solid #284036;font-size:.75rem}
-    .status-agendado{background:#103d2b}
-    .status-reagendar{background:#3a3110}
-    .status-cancelado{background:#3a1510;opacity:.7}
-    .status-no_show{background:#2b2b2b}
+    .muted{color:var(--muted)}
+    .tiny{font-size:.78rem}
     .section{border:1px solid var(--card-br);background:var(--card-bg);border-radius:16px;padding:1rem}
+    .divider{height:1px;background:#1c2a25;margin:.8rem 0}
+
+    /* Barra superior compacta */
+    .topbar{display:flex;gap:.6rem;align-items:center;flex-wrap:wrap}
+    .topbar .search{flex:1 1 auto}
+    .chip{border:1px solid #2a3a34;border-radius:999px;padding:.35rem .65rem}
+
+    /* Calendário tirinha */
+    .cal-strip{display:flex;gap:.5rem;overflow-x:auto;padding-bottom:.2rem}
+    .cal-day{min-width:64px;border:1px solid #2a3a34;background:#0e1512;border-radius:12px;padding:.5rem .6rem;text-align:center}
+    .cal-day .wd{font-size:.7rem;color:var(--muted)}
+    .cal-day .dt{font-weight:900;font-size:1.1rem}
+    .cal-day.active{outline:2px solid #0d7a56}
+
+    /* Lista */
     .list{display:flex;flex-direction:column;gap:.6rem}
-    .item{display:grid;grid-template-columns:48px 1fr auto;gap:.8rem;align-items:center;border:1px solid #1c2a25;background:#0e1512;border-radius:14px;padding:.7rem}
-    .avatar{width:48px;height:48px;border-radius:12px;background:#0b3326;border:1px solid #114733;display:flex;align-items:center;justify-content:center;font-weight:900}
+    .item{display:grid;grid-template-columns:44px 1fr auto;gap:.8rem;align-items:center;border:1px solid #1c2a25;background:#0e1512;border-radius:14px;padding:.7rem}
+    .avatar{width:44px;height:44px;border-radius:12px;background:#0b3326;border:1px solid #114733;display:flex;align-items:center;justify-content:center;font-weight:900}
     .meta{color:var(--muted);font-size:.86rem}
+    .price{font-weight:900}
     .actions{display:flex;gap:.35rem}
     .btn{border:1px solid #2a3a34;background:#0f1513;border-radius:10px;padding:.45rem .7rem;color:#eaf5f0;font-weight:700}
     .btn:hover{background:#13201b}
@@ -42,96 +44,108 @@
     .btn.danger{border-color:#6a1c17;background:#3a1510}
     .btn.ghost{background:transparent}
     .fab{position:fixed;right:16px;bottom:16px;border-radius:999px;padding:1rem 1.1rem;font-size:1rem;box-shadow:0 10px 28px rgba(0,0,0,.4)}
-    .grid{display:grid;gap:.8rem}
-    @media(min-width:768px){
-      .grid{grid-template-columns:1fr 320px}
-    }
-    .section-title{display:flex;align-items:center;justify-content:space-between;margin-bottom:.5rem}
+
     .kpis{display:flex;gap:.5rem;flex-wrap:wrap}
-    .kpis .k{border:1px solid var(--card-br);background:var(--card-bg);border-radius:12px;padding:.6rem .8rem}
+    .kpis .k{border:1px solid var(--card-br);background:var(--card-bg);border-radius:12px;padding:.5rem .7rem}
     .k .n{font-size:1.1rem;font-weight:900}
     .empty{border:1px dashed #3b524a;border-radius:16px;padding:1.2rem;color:var(--muted);text-align:center}
-    .muted{color:var(--muted)}
-    .tiny{font-size:.78rem}
-    .divider{height:1px;background:#1c2a25;margin:.8rem 0}
-    dialog{border:1px solid var(--card-br);background:var(--card-bg);border-radius:16px;color:#eaf5f0;padding:0;max-width:520px;width:92vw}
+
+    /* Modal */
+    dialog{border:1px solid var(--card-br);background:var(--card-bg);border-radius:16px;color:#eaf5f0;padding:0;max-width:560px;width:92vw}
     dialog .hd{display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--card-br);padding:.9rem 1rem}
     dialog .bd{padding:1rem}
     dialog .ft{display:flex;gap:.5rem;justify-content:flex-end;border-top:1px solid var(--card-br);padding:.9rem 1rem}
     .row{display:flex;gap:.6rem;flex-wrap:wrap}
     .row>.col{flex:1 1 160px}
-    .note{border:1px dashed #3b524a;border-radius:12px;padding:.6rem .7rem}
-    .switch{display:inline-flex;align-items:center;gap:.5rem}
-    .switch input{accent-color:#0d7a56}
+
+    /* Status chip */
+    .status{border-radius:999px;padding:2px 8px;border:1px solid #284036;font-size:.75rem}
+    .s-ag{background:#103d2b}
+    .s-rg{background:#3a3110}
+    .s-cl{background:#3a1510;opacity:.7}
+    .s-ns{background:#2b2b2b}
+
+    @media(min-width:900px){ .grid{display:grid;grid-template-columns:1fr 320px;gap:.8rem} }
   </style>
 </head>
 <body class="app-shell">
-  <!-- Loader + Header/Footer canônicos via /assets/layout.js (com fallback) -->
   <div id="app-header"></div>
   <main class="app-main container" style="padding:16px 14px 92px">
 
-    <!-- Barra topo / contexto -->
-    <div class="section" style="margin-bottom:.8rem">
-      <div class="toolbar">
-        <span class="badge" id="validateBadge" hidden>🔒 Modo validação ativo</span>
-        <span class="badge soft">Agenda · V1.0</span>
-        <div class="group tiny muted" id="tzInfo">Brasil (America/Sao_Paulo)</div>
+    <!-- Topbar: busca + filtros resumidos -->
+    <div class="section">
+      <div class="topbar">
+        <input id="q" class="input search" placeholder="Buscar cliente, serviço ou observação…" />
+        <button id="btnFilters" class="btn">Filtros</button>
+        <button id="btnToday" class="btn ghost tiny">Hoje</button>
       </div>
       <div class="divider"></div>
-      <div class="toolbar" style="justify-content:space-between">
-        <div class="group" style="flex:1 1 auto">
-          <input class="input" id="q" placeholder="Buscar por cliente/serviço…" style="width:100%"/>
-        </div>
-        <div class="group">
-          <select id="fStatus" class="input" title="Filtrar status">
-            <option value="">Todos</option>
-            <option value="agendado">Agendado</option>
-            <option value="reagendar">Reagendar</option>
-            <option value="cancelado">Cancelado</option>
-            <option value="no_show">No‑show</option>
-          </select>
-        </div>
-        <div class="group">
-          <select id="fRange" class="input" title="Período">
-            <option value="hoje">Hoje</option>
-            <option value="amanha">Amanhã</option>
-            <option value="7d" selected>Próx. 7 dias</option>
-          </select>
-        </div>
+
+      <!-- Calendário tirinha (7 dias) -->
+      <div id="calStrip" class="cal-strip" aria-label="Selecionar dia"></div>
+
+      <!-- KPIs enxutos -->
+      <div class="kpis" style="margin-top:.6rem">
+        <div class="k tiny"><div class="n" id="kAg">0</div><div>Agendado</div></div>
+        <div class="k tiny"><div class="n" id="kRg">0</div><div>Reagendar</div></div>
+        <div class="k tiny"><div class="n" id="kNs">0</div><div>No‑show</div></div>
+      </div>
+
+      <!-- Badge de validação (mostra só em validate=1) -->
+      <div id="validateRow" class="tiny" style="margin-top:.6rem" hidden>
+        <span class="badge">🔒 Modo validação ativo</span>
+        <span class="muted">Visual de produção, sem gravar dados</span>
       </div>
     </div>
 
-    <div class="grid">
-      <!-- Lista -->
+    <div class="grid" style="margin-top:.8rem">
+      <!-- Lista do dia selecionado -->
       <section class="section">
-        <div class="section-title">
-          <h2 style="font-weight:900">Próximos compromissos</h2>
-          <div class="kpis">
-            <div class="k tiny"><div class="n" id="kAg">0</div><div>Agendado</div></div>
-            <div class="k tiny"><div class="n" id="kRg">0</div><div>Reagendar</div></div>
-            <div class="k tiny"><div class="n" id="kNs">0</div><div>No‑show</div></div>
-          </div>
-        </div>
+        <h2 style="font-weight:900;margin-bottom:.6rem" id="dayTitle">Hoje</h2>
         <div id="list" class="list"></div>
-        <div id="empty" class="empty" hidden>Nenhum agendamento no período selecionado.</div>
+        <div id="empty" class="empty" hidden>Sem agendamentos para este dia.</div>
       </section>
 
-      <!-- Lateral: Regras simples / Preferências -->
+      <!-- Lateral: preferências rápidas -->
       <aside class="section" aria-label="Preferências da agenda">
-        <h3 style="font-weight:900;margin-bottom:.6rem">Regras simples</h3>
-        <div class="tiny muted" style="margin-bottom:.8rem">Horário de atendimento padrão: 08:00–19:00, intervalo de 30 min. Timezone: America/Sao_Paulo.</div>
-        <div class="row" style="margin-bottom:.8rem">
-          <label class="switch tiny"><input type="checkbox" id="prefOverlap"/> Permitir encaixe imediato (±5 min)</label>
-          <label class="switch tiny"><input type="checkbox" id="prefSms"/> Enviar lembrete (WhatsApp) 2h antes</label>
-        </div>
-        <div class="note tiny">Dica: você pode reagendar rápido pela lista, sem abrir o item. Em mensagens sensíveis (preço/prazo/instruções), priorizamos resposta em <b>texto</b> para ficar claro.</div>
+        <h3 style="font-weight:900;margin-bottom:.6rem">Preferências rápidas</h3>
+        <label class="tiny"><input type="checkbox" id="prefOverlap" style="accent-color:#0d7a56"/> Permitir encaixe imediato (±5 min)</label><br />
+        <label class="tiny"><input type="checkbox" id="prefReminder" style="accent-color:#0d7a56"/> Enviar lembrete (WhatsApp) 2h antes</label>
+        <div class="divider"></div>
+        <div class="tiny muted">Timezone: America/Sao_Paulo · Atendimento: 08:00–19:00 · Intervalo: 30 min</div>
       </aside>
     </div>
 
-    <!-- FAB: Novo -->
-    <button id="fabNew" class="btn primary fab">＋ Novo agendamento</button>
+    <!-- FAB: Novo agendamento -->
+    <button id="fabNew" class="btn primary fab">＋ Novo</button>
 
-    <!-- Modal: Novo / Editar -->
+    <!-- Modal de filtros -->
+    <dialog id="dlgFilters">
+      <div class="hd"><strong>Filtros</strong><button class="btn ghost" id="fClose">✕</button></div>
+      <div class="bd">
+        <div class="row">
+          <div class="col"><label class="tiny muted">Status</label>
+            <select id="fStatus" class="input">
+              <option value="">Todos</option>
+              <option value="agendado">Agendado</option>
+              <option value="reagendar">Reagendar</option>
+              <option value="cancelado">Cancelado</option>
+              <option value="no_show">No‑show</option>
+            </select>
+          </div>
+          <div class="col"><label class="tiny muted">Período</label>
+            <select id="fRange" class="input">
+              <option value="dia" selected>Dia selecionado</option>
+              <option value="3d">Próx. 3 dias</option>
+              <option value="7d">Próx. 7 dias</option>
+            </select>
+          </div>
+        </div>
+      </div>
+      <div class="ft"><button class="btn" id="fApply">Aplicar</button></div>
+    </dialog>
+
+    <!-- Modal: Novo/Editar -->
     <dialog id="dlg">
       <div class="hd"><strong id="dlgTitle">Novo agendamento</strong><button class="btn ghost" id="dlgClose">✕</button></div>
       <div class="bd">
@@ -142,6 +156,9 @@
         <div class="row">
           <div class="col"><label class="tiny muted">Data</label><input id="fData" type="date" class="input"/></div>
           <div class="col"><label class="tiny muted">Hora</label><input id="fHora" type="time" class="input" step="900"/></div>
+          <div class="col"><label class="tiny muted">Preço (R$)</label><input id="fPreco" class="input" inputmode="decimal" placeholder="Ex.: 40,00"/></div>
+        </div>
+        <div class="row">
           <div class="col"><label class="tiny muted">Status</label>
             <select id="fStatusEdit" class="input">
               <option value="agendado" selected>Agendado</option>
@@ -155,7 +172,7 @@
           <label class="tiny muted">Observações</label>
           <textarea id="fObs" class="input" rows="3" placeholder="Campo livre (opcional)"></textarea>
         </div>
-        <div class="note tiny" style="margin-top:.6rem">Exemplo de entendimento por IA: “Olá João, aqui é o Pedro. Quero agendar um corte de cabelo para meu filho Carlos, de 12 anos.” ⟶ Serviço: <b>Corte infantil</b>; Cliente: <b>Carlos</b>; Idade: <b>12</b>.</div>
+        <div class="tiny muted" style="margin-top:.6rem">Exemplo de entendimento por IA: “Quero agendar corte para meu filho Carlos, 12 anos.” ⟶ Serviço: <b>Corte infantil</b>; Cliente: <b>Carlos</b>; Idade: <b>12</b>.</div>
       </div>
       <div class="ft">
         <button class="btn ghost" id="btnExcluir" hidden>Excluir</button>
@@ -166,7 +183,6 @@
   </main>
   <div id="app-footer"></div>
 
-  <!-- Scripts canônicos -->
   <script src="/assets/layout.js" defer></script>
   <script src="/assets/firebase-init.js" defer></script>
   <script src="/assets/backend-patch.js" defer></script>
@@ -175,18 +191,28 @@
   ;(() => {
     const qs = new URLSearchParams(location.search)
     const validate = qs.get('validate') === '1'
-    const validateBadge = document.getElementById('validateBadge')
-    const fabNew = document.getElementById('fabNew')
+
+    // UI refs
+    const validateRow = document.getElementById('validateRow')
     const listEl = document.getElementById('list')
     const emptyEl = document.getElementById('empty')
+    const dayTitle = document.getElementById('dayTitle')
+    const calStrip = document.getElementById('calStrip')
     const kAg = document.getElementById('kAg'), kRg = document.getElementById('kRg'), kNs = document.getElementById('kNs')
 
-    // Filtros
+    // Topbar
     const q = document.getElementById('q')
+    const btnFilters = document.getElementById('btnFilters')
+    const btnToday = document.getElementById('btnToday')
+
+    // Filters modal
+    const dlgFilters = document.getElementById('dlgFilters')
+    const fClose = document.getElementById('fClose')
+    const fApply = document.getElementById('fApply')
     const fStatus = document.getElementById('fStatus')
     const fRange = document.getElementById('fRange')
 
-    // Modal
+    // Editor modal
     const dlg = document.getElementById('dlg')
     const dlgTitle = document.getElementById('dlgTitle')
     const dlgClose = document.getElementById('dlgClose')
@@ -194,60 +220,60 @@
     const fServico = document.getElementById('fServico')
     const fData = document.getElementById('fData')
     const fHora = document.getElementById('fHora')
+    const fPreco = document.getElementById('fPreco')
     const fStatusEdit = document.getElementById('fStatusEdit')
     const fObs = document.getElementById('fObs')
     const btnSalvar = document.getElementById('btnSalvar')
     const btnExcluir = document.getElementById('btnExcluir')
+    const fabNew = document.getElementById('fabNew')
 
     // Estado
-    let current = null // item sendo editado
-    let items = []     // itens carregados
+    let items = []
+    let current = null
+    let selectedDayIdx = 0 // 0..6
 
-    // Modo validação
-    if (validate) {
-      validateBadge.hidden = false
-      fabNew.title = 'Modo validação ativo — sem gravar em produção'
-    }
+    if (validate) validateRow.hidden = false
 
-    // Helpers
+    // ===== Calendário (7 dias) =====
     const tz = 'America/Sao_Paulo'
-    const toDateInput = (d) => new Date(d).toISOString().slice(0,10)
-    const toTimeInput = (d) => new Date(d).toTimeString().slice(0,5)
-
-    const fmtHour = (d) => new Intl.DateTimeFormat('pt-BR', { hour:'2-digit', minute:'2-digit', timeZone: tz }).format(d)
-    const fmtDayLabel = (d) => {
-      const now = new Date(); const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
-      const dd = new Date(d.getFullYear(), d.getMonth(), d.getDate())
-      const diff = Math.round((dd - today)/86400000)
-      if (diff === 0) return 'Hoje'
-      if (diff === 1) return 'Amanhã'
-      if (diff < 7 && diff > 1) return d.toLocaleDateString('pt-BR', { weekday:'long' })
-      return d.toLocaleDateString('pt-BR')
+    const days = [...Array(7)].map((_,i)=>{
+      const d = new Date(); d.setHours(0,0,0,0); d.setDate(d.getDate()+i); return d
+    })
+    function buildCalStrip(){
+      calStrip.innerHTML = ''
+      days.forEach((d,idx)=>{
+        const el = document.createElement('button')
+        el.className = 'cal-day' + (idx===selectedDayIdx? ' active' : '')
+        el.innerHTML = `<div class="wd">${d.toLocaleDateString('pt-BR',{weekday:'short'})}</div><div class="dt">${String(d.getDate()).padStart(2,'0')}</div>`
+        el.addEventListener('click',()=>{ selectedDayIdx=idx; buildCalStrip(); render() })
+        calStrip.appendChild(el)
+      })
     }
 
-    const statusClass = (s) => ({
-      agendado:'status-agendado', reagendar:'status-reagendar', cancelado:'status-cancelado', 'no_show':'status-no_show'
-    })[s] || ''
+    // ===== Render =====
+    function withinRange(dateISO){
+      const base = new Date(days[selectedDayIdx])
+      const dt = new Date(dateISO)
+      const r = fRange.value
+      const end = new Date(base)
+      if (r==='3d') end.setDate(end.getDate()+2)
+      else if (r==='7d') end.setDate(end.getDate()+6)
+      return dt >= base && dt <= end
+    }
 
     function render(){
-      // Filtros
       const term = q.value.trim().toLowerCase()
       const st = fStatus.value
-      const now = new Date()
-      let min = new Date(now)
-      let max = new Date(now)
-      if (fRange.value === 'hoje') { min.setHours(0,0,0,0); max.setHours(23,59,59,999) }
-      else if (fRange.value === 'amanha') { const t = new Date(now); t.setDate(t.getDate()+1); min = new Date(t.setHours(0,0,0,0)); max = new Date(t.setHours(23,59,59,999)) }
-      else { max.setDate(max.getDate()+7) }
-
-      const filtered = items.filter(x => {
-        const t = new Date(x.when)
-        const inRange = t >= min && t <= max
-        const txt = (x.cliente+' '+(x.servico||'')).toLowerCase()
-        const byTerm = term ? txt.includes(term) : true
-        const byStatus = st ? x.status === st : true
-        return inRange && byTerm && byStatus
+      const filtered = items.filter(x=>{
+        const txt = (x.cliente+' '+(x.servico||'')+' '+(x.obs||'')).toLowerCase()
+        const byTerm = term? txt.includes(term) : true
+        const byStatus = st? x.status===st : true
+        return byTerm && byStatus && withinRange(x.when)
       }).sort((a,b)=> new Date(a.when) - new Date(b.when))
+
+      const base = days[selectedDayIdx]
+      const label = selectedDayIdx===0? 'Hoje' : (selectedDayIdx===1? 'Amanhã' : base.toLocaleDateString('pt-BR', {weekday:'long', day:'2-digit', month:'2-digit'}))
+      dayTitle.textContent = label
 
       // KPIs
       kAg.textContent = filtered.filter(i=>i.status==='agendado').length
@@ -255,31 +281,22 @@
       kNs.textContent = filtered.filter(i=>i.status==='no_show').length
 
       listEl.innerHTML = ''
-      if (!filtered.length){ emptyEl.hidden = false; return } else { emptyEl.hidden = true }
+      if (!filtered.length){ emptyEl.hidden=false; return } else { emptyEl.hidden=true }
 
-      let lastLabel = ''
       for (const it of filtered){
         const d = new Date(it.when)
-        const dayLabel = fmtDayLabel(d)
-        if (dayLabel !== lastLabel){
-          const h = document.createElement('div')
-          h.className = 'tiny muted'
-          h.style.margin = '.5rem 0 .1rem'
-          h.textContent = dayLabel
-          listEl.appendChild(h)
-          lastLabel = dayLabel
-        }
         const el = document.createElement('div')
         el.className = 'item'
+        const price = it.preco ? ` · <span class="price">R$ ${fmtMoney(it.preco)}</span>` : ''
         el.innerHTML = `
           <div class="avatar">${(it.cliente||'?').slice(0,2).toUpperCase()}</div>
           <div>
             <div style="display:flex;gap:.5rem;align-items:center;flex-wrap:wrap">
               <strong>${it.cliente||'—'}</strong>
               <span class="meta">${fmtHour(d)}</span>
-              <span class="status-chip ${statusClass(it.status)} tiny">${(it.status||'agendado').replace('_','-')}</span>
+              ${statusChip(it.status)}
             </div>
-            <div class="meta">${it.servico||'—'}${it.obs? ' · '+it.obs: ''}</div>
+            <div class="meta">${it.servico||'—'}${price}${it.obs? ' · '+it.obs: ''}</div>
           </div>
           <div class="actions">
             <button class="btn warn tiny" data-act="reagendar">Reagendar</button>
@@ -295,12 +312,19 @@
       }
     }
 
+    function statusChip(s){
+      const map = { agendado:['s-ag','Agendado'], reagendar:['s-rg','Reagendar'], cancelado:['s-cl','Cancelado'], no_show:['s-ns','No‑show'] }
+      const [cls,txt] = map[s] || map.agendado
+      return `<span class="status ${cls} tiny">${txt}</span>`
+    }
+
+    function fmtHour(d){ return new Intl.DateTimeFormat('pt-BR',{hour:'2-digit',minute:'2-digit',timeZone:tz}).format(d) }
+    function fmtMoney(v){ try{ const n = Number(String(v).replace(',','.')); return n.toFixed(2).replace('.',',') }catch{ return v }
+    }
+
+    // ===== Ações =====
     function handleAction(item, act){
-      if (validate){
-        toast('🔒 Modo validação: ação simulada '+act)
-        if (act==='editar') openModal(item)
-        return
-      }
+      if (validate){ toast('🔒 Validação: '+act+' (simulado)'); if (act==='editar') openModal(item); return }
       if (act==='editar') return openModal(item)
       if (act==='reagendar'){ item.status='reagendar'; saveItem(item,true) }
       if (act==='cancelar'){ item.status='cancelado'; saveItem(item,true) }
@@ -313,6 +337,7 @@
       btnExcluir.hidden = !item
       fCliente.value = item?.cliente||''
       fServico.value = item?.servico||''
+      fPreco.value = item?.preco? fmtMoney(item.preco) : ''
       const d = item? new Date(item.when) : new Date()
       fData.value = toDateInput(d)
       fHora.value = toTimeInput(d)
@@ -325,103 +350,86 @@
     fabNew.addEventListener('click', ()=> openModal(null))
 
     btnSalvar.addEventListener('click', ()=>{
-      if (validate){ toast('🔒 Modo validação: nada será gravado.'); return }
+      if (validate){ toast('🔒 Validação: nada será gravado.'); return }
       const when = new Date(fData.value + 'T' + fHora.value + ':00')
+      const preco = parseFloat(String(fPreco.value||'').replace('.','').replace(',','.'))
       const payload = {
         cliente: fCliente.value.trim(),
         servico: fServico.value.trim(),
+        preco: isNaN(preco)? null : Number(preco.toFixed(2)),
         status: fStatusEdit.value,
         obs: fObs.value.trim()||null,
         when: when.toISOString(),
         atualizadoEm: new Date().toISOString(),
       }
       if (!payload.cliente || !fData.value || !fHora.value){ toast('Preencha cliente, data e hora.'); return }
-      if (current){
-        Object.assign(current, payload)
-        saveItem(current,false)
-      } else {
-        payload.criadoEm = new Date().toISOString()
-        saveItem(payload,false)
-      }
+      if (current){ Object.assign(current, payload); saveItem(current,false) }
+      else { payload.criadoEm = new Date().toISOString(); saveItem(payload,false) }
       dlg.close()
     })
 
     btnExcluir.addEventListener('click', ()=>{
-      if (validate){ toast('🔒 Modo validação: exclusão simulada.'); return }
+      if (validate){ toast('🔒 Validação: exclusão simulada.'); return }
       if (!current) return
-      deleteItem(current)
-      dlg.close()
+      deleteItem(current); dlg.close()
     })
 
+    // Filtros
+    btnFilters.addEventListener('click', ()=> dlgFilters.showModal())
+    fClose.addEventListener('click', ()=> dlgFilters.close())
+    fApply.addEventListener('click', ()=>{ dlgFilters.close(); render() })
+    btnToday.addEventListener('click', ()=>{ selectedDayIdx=0; buildCalStrip(); render() })
     q.addEventListener('input', render)
-    fStatus.addEventListener('change', render)
-    fRange.addEventListener('change', render)
 
-    // ====== Data layer ======
-    // Produção: busca em Firestore (profissionais/{uid}/agendamentos)
-    // Campos: {cliente, servico, when(ISO), status, obs, criadoEm, atualizadoEm}
+    // ===== Data layer =====
+    const toDateInput = (d) => new Date(d).toISOString().slice(0,10)
+    const toTimeInput = (d) => new Date(d).toTimeString().slice(0,5)
+
     async function load(){
-      if (validate){
-        items = demoItems()
-        render(); return
-      }
+      if (validate){ items = demoItems(); buildCalStrip(); render(); return }
       try{
-        // Requer firebase já inicializado por /assets/firebase-init.js
-        const auth = window.firebase?.auth?.()
-        const db = window.firebase?.firestore?.()
+        const auth = window.firebase?.auth?.(); const db = window.firebase?.firestore?.();
         const uid = auth?.currentUser?.uid
-        if (!uid){ items = []; render(); toast('Faça login para ver a agenda.'); return }
-        const start = new Date();
-        const end = new Date(); end.setDate(end.getDate()+7)
+        if (!uid){ items=[]; buildCalStrip(); render(); return toast('Faça login para ver a agenda.') }
+        const start = new Date(); start.setHours(0,0,0,0)
+        const end = new Date(start); end.setDate(end.getDate()+7)
         const snap = await db.collection('profissionais').doc(uid).collection('agendamentos')
-          .where('when', '>=', start.toISOString())
-          .where('when', '<=', end.toISOString())
-          .get()
+          .where('when','>=',start.toISOString()).where('when','<=',end.toISOString()).get()
         items = snap.docs.map(d=> ({ id:d.id, ...d.data() }))
-        render()
+        buildCalStrip(); render()
       }catch(e){ console.error(e); toast('Falha ao carregar agenda.') }
     }
 
     async function saveItem(item, silent){
       try{
-        const auth = window.firebase?.auth?.()
-        const db = window.firebase?.firestore?.()
-        const uid = auth?.currentUser?.uid
-        if (!uid) return toast('Sessão expirada. Faça login.')
-        if (item.id){
-          await db.collection('profissionais').doc(uid).collection('agendamentos').doc(item.id).set(item, { merge:true })
-        } else {
-          const ref = await db.collection('profissionais').doc(uid).collection('agendamentos').add(item)
-          item.id = ref.id
-        }
-        if (!silent) toast('Agendamento salvo.')
-        await load()
+        const auth = window.firebase?.auth?.(); const db = window.firebase?.firestore?.();
+        const uid = auth?.currentUser?.uid; if (!uid) return toast('Sessão expirada. Faça login.')
+        const col = db.collection('profissionais').doc(uid).collection('agendamentos')
+        if (item.id){ await col.doc(item.id).set(item,{merge:true}) }
+        else { const ref = await col.add(item); item.id = ref.id }
+        if (!silent) toast('Agendamento salvo.'); await load()
       }catch(e){ console.error(e); toast('Erro ao salvar.') }
     }
 
     async function deleteItem(item){
       try{
-        const auth = window.firebase?.auth?.()
-        const db = window.firebase?.firestore?.()
-        const uid = auth?.currentUser?.uid
-        if (!uid) return toast('Sessão expirada. Faça login.')
-        if (!item.id) return
-        await db.collection('profissionais').doc(uid).collection('agendamentos').doc(item.id).delete()
-        toast('Agendamento excluído.')
-        await load()
+        const auth = window.firebase?.auth?.(); const db = window.firebase?.firestore?.();
+        const uid = auth?.currentUser?.uid; if (!uid) return toast('Sessão expirada. Faça login.')
+        if (!item.id) return; await db.collection('profissionais').doc(uid).collection('agendamentos').doc(item.id).delete()
+        toast('Agendamento excluído.'); await load()
       }catch(e){ console.error(e); toast('Erro ao excluir.') }
     }
 
-    // ====== Demo (validate=1) ======
+    // ===== Demo (validate=1) =====
     function demoItems(){
       const base = new Date();
       const d1 = new Date(base); d1.setHours(10,0,0,0)
       const d2 = new Date(base); d2.setDate(d2.getDate()+1); d2.setHours(14,30,0,0)
       const d3 = new Date(base); d3.setDate(d3.getDate()+2); d3.setHours(9,30,0,0)
       return [
-        {id:'d1', cliente:'Carlos', servico:'Corte infantil', when:d1.toISOString(), status:'agendado', obs:'12 anos', criadoEm:new Date().toISOString(), atualizadoEm:new Date().toISOString()},
-        {id:'d2', cliente:'Ana Paula', servico:'Coloração', when:d2.toISOString(), status:'reagendar', obs:null, criadoEm:new Date().toISOString(), atualizadoEm:new Date().toISOString()},
-        {id:'d3', cliente:'Rafael', servico:'Barba', when:d3.toISOString(), status:'no_show', obs:'Avisou atraso', criadoEm:new Date().toISOString(), atualizadoEm:new Date().toISOString()},
+        {id:'d1', cliente:'Carlos', servico:'Corte infantil', preco:40, when:d1.toISOString(), status:'agendado', obs:'12 anos', criadoEm:new Date().toISOString(), atualizadoEm:new Date().toISOString()},
+        {id:'d2', cliente:'Ana Paula', servico:'Coloração', preco:120, when:d2.toISOString(), status:'reagendar', obs:null, criadoEm:new Date().toISOString(), atualizadoEm:new Date().toISOString()},
+        {id:'d3', cliente:'Rafael', servico:'Barba', preco:35, when:d3.toISOString(), status:'no_show', obs:'Avisou atraso', criadoEm:new Date().toISOString(), atualizadoEm:new Date().toISOString()},
       ]
     }
 
@@ -430,11 +438,9 @@
       let t = document.getElementById('__toast');
       if (!t){ t = document.createElement('div'); t.id='__toast'; document.body.appendChild(t);
         t.style.position='fixed'; t.style.left='50%'; t.style.bottom='20px'; t.style.transform='translateX(-50%)'; t.style.background='#0d7a56'; t.style.color='#fff'; t.style.padding='10px 14px'; t.style.borderRadius='10px'; t.style.fontWeight='800'; t.style.zIndex='9999'; }
-      t.textContent = msg; t.style.opacity='1';
-      setTimeout(()=>{ t.style.transition='opacity .3s'; t.style.opacity='0' }, 1500)
+      t.textContent = msg; t.style.opacity='1'; setTimeout(()=>{ t.style.transition='opacity .3s'; t.style.opacity='0' }, 1500)
     }
 
-    // Start
     document.addEventListener('DOMContentLoaded', load)
   })()
   </script>
