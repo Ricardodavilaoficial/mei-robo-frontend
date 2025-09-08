@@ -12,24 +12,23 @@
     /* ===== Identidade & legibilidade ===== */
     :root {
       --text-strong: rgba(255,255,255,0.92);
-      --text-soft: rgba(255,255,255,0.80);    /* value-soft */
-      --placeholder: rgba(255,255,255,0.55);  /* contraste ~55% */
+      --text-soft: rgba(255,255,255,0.80);
+      --placeholder: rgba(255,255,255,0.55);
       --card-bg: rgba(255,255,255,0.04);
       --card-bd: rgba(255,255,255,0.08);
       --ok: #1bbb6e;
       --warn: #efb417;
       --bad: #ff5d5d;
-      --brand: #25D366; /* verde WhatsApp */
-      --green: #1db954; /* verde padrão botões */
+      --brand: #25D366;  /* verde WhatsApp */
+      --green: #1db954;  /* verde padrão botões */
+      --bg: #0b141a;
+      --input-bg: #0e1a21;
+      --input-bd: #1f2a30;
     }
-    body.app-shell { color: var(--text-strong); background: #0b141a; }
+    body.app-shell { color: var(--text-strong); background: var(--bg); }
 
-    /* Container central padrão (consistente com páginas anteriores) */
-    .container {
-      max-width: 1120px;
-      margin: 0 auto;
-      padding: 16px;
-    }
+    /* Container central (padrão das páginas anteriores) */
+    .container { max-width: 1120px; margin: 0 auto; padding: 16px; }
     @media (min-width: 960px){ .container { padding: 20px 24px; } }
 
     main.app-main { min-height: 82svh; }
@@ -37,22 +36,18 @@
     h1 { font-size: 1.6rem; margin: 6px 0 2px; }
     .sub { color: var(--text-soft); font-size: 0.95rem; margin-bottom: 16px; }
 
-    .row { display: grid; gap: 12px; }
-    @media (min-width: 1180px){ .row-3 { grid-template-columns: 1.2fr 1fr 1fr; } }
-
     .card {
       background: var(--card-bg);
       border: 1px solid var(--card-bd);
       border-radius: 14px;
       padding: 14px;
     }
-    .muted { color: var(--text-soft); }
 
-    /* Inputs: placeholders e valores legíveis */
+    /* Inputs */
     label { display:block; margin-bottom: 6px; font-weight: 600; }
     input[type="text"], input[type="email"], input[type="tel"], select, textarea {
-      background: #0e1a21;
-      border: 1px solid #1f2a30;
+      background: var(--input-bg);
+      border: 1px solid var(--input-bd);
       border-radius: 10px;
       padding: 10px 12px;
       width: 100%;
@@ -61,8 +56,8 @@
       outline: none;
     }
     input::placeholder, textarea::placeholder { color: var(--placeholder); }
-    .value-soft { color: var(--text-soft); }
     .hint { font-size:0.85rem; color: var(--text-soft); margin-top:6px; }
+    .value-soft { color: var(--text-soft); }
 
     /* Tabela */
     .table { width: 100%; border-collapse: collapse; font-size: 0.95rem; }
@@ -76,18 +71,15 @@
     /* Botões */
     .btn { cursor:pointer; border:1px solid #2a3a3f; background:#0f1e23; color:#dff3ea; border-radius:12px; padding:10px 14px; font-weight:700; }
     .btn:hover { filter: brightness(1.05); }
-    .btn.primary { border-color:#1f6c3e; background: var(--green); color: #06130d; } /* verde padrão */
+    .btn.primary { border-color:#1f6c3e; background: var(--green); color: #06130d; }
     .btn.ghost { background:transparent; color:var(--text-soft); }
     .btn.small { padding:6px 10px; font-weight:600; border-radius:10px; }
     .btn.block { width: 100%; }
 
     .actions { display:flex; gap:10px; flex-wrap: wrap; align-items:center; }
-    .actions.right { justify-content: flex-end; }
 
-    /* Rodapé de navegação: botões nos cantos */
-    .nav-bottom {
-      display: flex; align-items: center; margin-top: 16px;
-    }
+    /* Rodapé de navegação (botões nos cantos) */
+    .nav-bottom { display: flex; align-items: center; margin-top: 16px; }
     .nav-bottom .left { flex: 1; }
     .nav-bottom .right { flex: 1; display: flex; justify-content: flex-end; }
 
@@ -104,14 +96,9 @@
     dialog .modal-body { padding:14px 16px; }
     dialog .modal-footer { padding:12px 16px; border-top:1px solid #1f2a30; display:flex; gap:10px; justify-content:flex-end; }
 
-    /* Barra superior: estado da conta + importar */
-    .topbar { display: grid; gap: 12px; margin-bottom: 12px; }
-    @media (min-width: 960px){ .topbar { grid-template-columns: 1.2fr 1fr; } }
-
-    /* Campo de busca acima da lista */
+    /* Ações da lista */
     .list-actions { display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin: 6px 0 8px; }
     .list-actions .spacer { flex:1; }
-
   </style>
 </head>
 <body class="app-shell">
@@ -120,35 +107,18 @@
 
   <main class="app-main">
     <div class="container">
-      <h1>Contatos e Consentimento</h1>
-      <p class="sub">Cadastre suas pessoas e diga como o seu <span class="brand">MEI Robô</span> deve conversar com cada uma.</p>
+      <!-- Título + explicação aprovados -->
+      <h1>Fale do seu jeito com cada contato</h1>
+      <p class="sub">
+        Aqui você ajusta como o MEI Robô fala com cada pessoa. Esta é uma conta comercial do WhatsApp:
+        quando te chamarem, você pode responder dentro de <b>24 horas</b> — e o robô usa o <b>seu jeito</b> que você definiu aqui.
+        Para <b>chamar primeiro</b>, é preciso a <b>autorização</b> da pessoa (uma única vez) e usar uma <b>mensagem pronta aprovada pela Meta</b> para abrir a conversa.
+      </p>
 
-      <div class="topbar">
-        <!-- Estado da conta -->
-        <section class="card">
-          <strong>Estado da conta</strong>
-          <div id="accountState" class="value-soft" style="margin-top:6px;">Verificando…</div>
-          <div class="hint" style="margin-top:6px;">
-            Se seu e-mail não estiver verificado, pedir consentimento automático ficará desativado.
-          </div>
-        </section>
-
-        <!-- Importação simples (sem jargão) -->
-        <section class="card">
-          <strong>Importar contatos</strong>
-          <p class="value-soft" style="margin:8px 0 10px;">
-            Se você já usa <b>planilha</b>, pode importar aqui.
-          </p>
-          <button class="btn" id="btnImport">Importar planilha (.csv)</button>
-          <input type="file" id="csvInput" accept=".csv,text/csv" style="display:none" />
-          <div class="hint">Se a sua planilha tiver colunas a mais, tudo bem.</div>
-        </section>
-      </div>
-
-      <!-- FORMULÁRIO PRINCIPAL: ADICIONAR NOVO CONTATO -->
-      <section class="card" id="newContactCard" aria-labelledby="nc_title">
+      <!-- 1) ADICIONAR NOVO CONTATO (PRIMEIRA CAIXA) -->
+      <section class="card" aria-labelledby="nc_title">
         <strong id="nc_title">Adicionar novo contato</strong>
-        <p class="value-soft" style="margin:6px 0 12px;">Preencha rapidinho; isso ajuda o robô a falar do seu jeito.</p>
+        <p class="value-soft" style="margin:6px 0 12px;">Capriche nos detalhes: seu MEI Robô vai conversar como você.</p>
 
         <form id="formNewContact" class="grid-2" autocomplete="off">
           <div>
@@ -235,12 +205,12 @@
         </form>
       </section>
 
-      <!-- LISTA DE CONTATOS -->
+      <!-- 2) LISTA DE CONTATOS -->
       <section class="card" style="margin-top:14px;">
         <div class="list-actions">
           <strong>Seus contatos</strong>
           <span id="totalSpan" class="value-soft"></span>
-          <div class="spacer"></div>
+          <div class="list-actions spacer"></div>
           <input id="searchBox" type="text" placeholder="Pesquisar contatos" style="max-width: 260px;" />
         </div>
 
@@ -254,9 +224,9 @@
               <tr>
                 <th>Nome</th>
                 <th>Categoria</th>
-                <th>Consentimento</th>
+                <th>Autorização (WhatsApp)</th>
                 <th>Última interação</th>
-                <th style="min-width: 240px;">Ações</th>
+                <th style="min-width: 260px;">Ações</th>
               </tr>
             </thead>
             <tbody id="contactsBody">
@@ -264,12 +234,28 @@
             </tbody>
           </table>
         </div>
+
         <div class="hint" style="margin-top:10px;">
-          Consentimento é a autorização dessa pessoa para você mandar mensagem. Se ela falar com você primeiro, você pode responder em até 24 horas.
+          <b>Importante:</b> se a pessoa falar com você (mesmo que não esteja nos seus contatos), você pode responder em até <b>24 horas</b>.
+          Para <b>iniciar</b> a conversa (ou falar <b>depois de 24h</b>), use <b>mensagem pronta aprovada pela Meta</b> e tenha a <b>autorização</b> da pessoa.
         </div>
       </section>
 
-      <!-- Navegação inferior (verdes padrão, cantos opostos) -->
+      <!-- 3) IMPORTAR CONTATOS (OPCIONAL) -->
+      <section class="card" style="margin-top:14px;">
+        <strong>Importar contatos (opcional)</strong>
+        <p class="value-soft" style="margin:8px 0 10px;">
+          Tem seus contatos numa planilha? Exporte como <b>CSV</b> e importe aqui.
+        </p>
+        <div class="actions">
+          <button class="btn" id="btnImport">Importar arquivo (.CSV)</button>
+          <a class="btn ghost" id="btnCsvSample" href="/assets/samples/contatos-modelo.csv" download>Baixar modelo (.CSV)</a>
+          <input type="file" id="csvInput" accept=".csv,text/csv" style="display:none" />
+        </div>
+        <div class="hint">Se sua planilha tiver colunas a mais, tudo bem — a gente ignora o que não usar.</div>
+      </section>
+
+      <!-- Rodapé: Voltar (esq) e Próximo (dir) -->
       <div class="nav-bottom">
         <div class="left">
           <a class="btn primary" href="/pages/precos.html">Voltar</a>
@@ -284,7 +270,7 @@
   <!-- Rodapé dinâmico -->
   <div id="app-footer"></div>
 
-  <!-- Modal apenas para editar e consentimento -->
+  <!-- Modais: editar contato + autorização -->
   <dialog id="modalContact">
     <div class="modal-header">Editar contato</div>
     <form id="formContact" class="modal-body">
@@ -369,14 +355,14 @@
   </dialog>
 
   <dialog id="modalConsent">
-    <div class="modal-header">Consentimento</div>
+    <div class="modal-header">Autorização (WhatsApp)</div>
     <div class="modal-body">
       <div id="consentInfo" class="value-soft">Carregando…</div>
       <div class="actions" style="margin-top:10px;">
-        <button class="btn small" id="btnConsentManual">Registrar manualmente</button>
-        <button class="btn small" id="btnConsentAuto" disabled title="Em breve">Pedir consentimento (automático)</button>
+        <button class="btn small" id="btnConsentManual">Marcar como autorizado</button>
+        <button class="btn small" id="btnConsentAuto" disabled title="Em breve">Pedir autorização (automático)</button>
       </div>
-      <div class="hint">Consentimento é a autorização dessa pessoa para você mandar mensagem.</div>
+      <div class="hint">Guarde aqui quando a pessoa disser que autoriza receber suas mensagens.</div>
     </div>
     <div class="modal-footer">
       <button class="btn primary" id="btnCloseConsent" type="button">Fechar</button>
@@ -392,10 +378,8 @@
   (function(){
     const $ = (q) => document.querySelector(q);
 
-    /* DOM refs */
-    const accountState = $("#accountState");
-
-    // Inline form (novo contato)
+    /* ====== Refs ====== */
+    // Form novo contato
     const formNew = $("#formNewContact");
     const btnSaveNew = $("#btnSaveNew");
     const NC = {
@@ -433,19 +417,17 @@
     const btnConsentAuto = $("#btnConsentAuto");
     const btnCloseConsent = $("#btnCloseConsent");
 
-    /* Estado interno */
+    /* ====== Estado ====== */
     let CURRENT_USER = null;
     let CURRENT_EDIT_ID = null;
     let CURRENT_CONSENT_ID = null;
-    let CURRENT_ROWS = [];     // [{id, data}...]
+    let CURRENT_ROWS = [];   // [{id, data}...]
 
-    /* Modo de validação por query (?validate=1) */
+    /* ====== Util ====== */
     function isValidateMode(){
       try { return new URLSearchParams(location.search).has('validate'); }
       catch { return false; }
     }
-
-    /* Utils */
     function escapeHtml(s){
       return String(s ?? "").replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
     }
@@ -489,7 +471,7 @@
           <td>
             <div class="actions">
               <button class="btn small" data-edit="${id}" ${disabledAttr}>Editar</button>
-              <button class="btn small" data-consent="${id}" ${disabledAttr}>Consentimento</button>
+              <button class="btn small" data-consent="${id}" ${disabledAttr} title="Marque aqui quando a pessoa autoriza receber suas mensagens.">Autorização (WhatsApp)</button>
             </div>
           </td>
         `;
@@ -527,22 +509,18 @@
       btnConsentAuto?.setAttribute('disabled','disabled');
 
       CURRENT_ROWS = [
-        { id:'demo-1', data:{ nome:'Dona Maria da Silva', categoria:'cliente', consentimento:{status:'consentido'},  ultimaInteracaoEm: Date.now()-86400000 } },
-        { id:'demo-2', data:{ nome:'Seu João Mecânico',   categoria:'fornecedor', consentimento:{status:'pendente'}, ultimaInteracaoEm: Date.now()-3600*1000*5 } },
-        { id:'demo-3', data:{ nome:'Tia Ana',             categoria:'parente',  consentimento:{status:'negado'},    ultimaInteracaoEm: null } },
+        { id:'demo-1', data:{ nome:'Dona Maria da Silva', categoria:'cliente',   consentimento:{status:'consentido'},  ultimaInteracaoEm: Date.now()-86400000 } },
+        { id:'demo-2', data:{ nome:'Seu João Mecânico',   categoria:'fornecedor', consentimento:{status:'pendente'},   ultimaInteracaoEm: Date.now()-3600*1000*5 } },
+        { id:'demo-3', data:{ nome:'Tia Ana',             categoria:'parente',    consentimento:{status:'negado'},     ultimaInteracaoEm: null } },
       ];
       renderRows("");
-      // estado da conta
-      accountState.innerHTML = '<span class="chip warn">Modo de validação (não logado)</span> — recursos de edição desativados.';
     }
 
-    /* Auth gate */
+    /* Auth gate (sem banner; silencioso no ?validate=1) */
     async function ensureAuth(){
       if (!window.firebase || !firebase?.auth){
-        console.warn('[contatos] firebase não encontrado.');
         if (isValidateMode()){ demoPopulate(); return { demo:true }; }
-        accountState.innerHTML = 'Redirecionando para login…';
-        setTimeout(()=>{ window.location.href = '/pages/login.html'; }, 300);
+        setTimeout(()=>{ window.location.href = '/pages/login.html'; }, 150);
         return null;
       }
       const user = await new Promise(resolve=>{
@@ -550,17 +528,14 @@
       });
       if (!user){
         if (isValidateMode()){ demoPopulate(); return { demo:true }; }
-        accountState.innerHTML = 'Redirecionando para login…';
         window.location.href = '/pages/login.html';
         return null;
       }
       CURRENT_USER = user;
-      if (user.emailVerified){
-        accountState.innerHTML = '<span class="chip ok">Conta verificada</span> — você pode pedir consentimento automático quando disponível.';
-      } else {
-        accountState.innerHTML = '<span class="chip warn">Verifique seu e-mail</span> — é rápido e libera recursos extras.';
+      // botão “automático” continua travado se email não verificado
+      if (!user.emailVerified){
         btnConsentAuto?.setAttribute('disabled','disabled');
-        btnConsentAuto.title = 'Ative após verificar seu e-mail';
+        btnConsentAuto.title = 'Verifique seu e-mail para liberar esta função';
       }
       return user;
     }
@@ -584,7 +559,7 @@
       }, { merge:true });
     }
 
-    /* Leitura do formulário novo */
+    /* Leitura/Reset do formulário novo */
     function readNewForm(){
       return {
         nome: NC.nome.value.trim(),
@@ -613,10 +588,7 @@
       ev.preventDefault();
       if (isValidateMode()) return;
       const data = readNewForm();
-      if (!data.nome){
-        alert('Informe o nome do contato.');
-        return;
-      }
+      if (!data.nome){ alert('Informe o nome do contato.'); return; }
       btnSaveNew.disabled = true;
       try{
         await upsertContact(data, null);
@@ -631,7 +603,7 @@
       }
     });
 
-    // Importar planilha
+    // Importar CSV
     btnImport?.addEventListener('click', ()=>{
       if (isValidateMode()) return;
       csvInput.click();
@@ -690,7 +662,7 @@
       return out;
     }
 
-    // Editar / Consentimento na tabela
+    // Editar / Autorização
     tableBody?.addEventListener('click', async (ev)=>{
       const t = ev.target;
       const editId = t?.getAttribute?.('data-edit');
@@ -773,17 +745,17 @@
     });
     btnCancelContact?.addEventListener('click', ()=> modalContact.close());
 
-    // Consentimento manual
+    // Marcar autorização manual
     btnConsentManual?.addEventListener('click', async ()=>{
       if (isValidateMode() || !CURRENT_CONSENT_ID) return;
       btnConsentManual.disabled = true;
       try{
         await setConsentManual(CURRENT_CONSENT_ID);
         await loadContacts();
-        consentInfo.innerHTML = `<span class="success">Consentimento registrado manualmente.</span>`;
+        consentInfo.innerHTML = `<span class="chip ok">Autorizado</span> — salvo.`;
       }catch(e){
         console.error('[contatos] consent manual', e);
-        alert('Falha ao registrar consentimento.');
+        alert('Falha ao marcar autorização.');
       }finally{
         btnConsentManual.disabled = false;
       }
@@ -791,15 +763,13 @@
     btnCloseConsent?.addEventListener('click', ()=> modalConsent.close());
 
     // Busca
-    searchBox?.addEventListener('input', ()=>{
-      renderRows(searchBox.value);
-    });
+    searchBox?.addEventListener('input', ()=> renderRows(searchBox.value));
 
     // Bootstrap
     window.addEventListener('load', async ()=>{
       const u = await ensureAuth();
       if (!u) return;
-      if (u.demo) return;   // modo validação
+      if (u.demo) return; // modo validação
       await loadContacts();
     });
   })();
