@@ -1,3 +1,0 @@
-[33m59ab6d8[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmain[m[33m, [m[1;31morigin/main[m[33m, [m[1;31morigin/HEAD[m[33m)[m feat(precos): campo amplo de outras informações; importação com transformação para CSV canônico; microcopy MEI; aviso de verificação no bloco de importação
-[33me43b282[m feat(precos): UI MEI com formulário de adicionar serviço + importação simples e tema escuro por herança
-[33md7e2595[m feat(frontend): adiciona /pages/precos.html (lista Firestore + import CSV v1)
