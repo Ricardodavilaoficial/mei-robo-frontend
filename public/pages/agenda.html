@@ -6,180 +6,133 @@
   <title>Agenda — MEI Robô</title>
   <link rel="stylesheet" href="/assets/styles.css" />
   <style>
-    /* ===== Agenda (V1.1) — foco mobile-first + calendário enxuto ===== */
-    :root{ --card-bg:#0f1513; --card-br:#1d2b26; --muted:#9fb0aa; --soft:#cfe3dc; }
+    /* ===== Agenda (V1.3) — "caderno do dia" com horários ocupados/vazios, fiel à identidade ===== */
+    :root{ --card-bg:#0f1513; --card-br:#1d2b26; --muted:#9fb0aa; --soft:#cfe3dc; --accent:#0d7a56; }
     body{background:#0b100e;color:#eaf5f0}
     .app-shell{min-height:82svh}
     .input,select,textarea{background:#0e1512;border:1px solid #2a3a34;color:#eaf5f0;border-radius:10px;padding:.6rem .8rem}
     .input::placeholder{color:rgba(234,245,240,.55)}
-    .badge{display:inline-flex;align-items:center;gap:.35rem;border:1px solid #b8f3cf;background:#e8fff2;color:#0d7a56;border-radius:999px;padding:3px 10px;font-weight:800;font-size:.8rem;white-space:nowrap}
-    .muted{color:var(--muted)}
-    .tiny{font-size:.78rem}
+    .btn{border:1px solid #2a3a34;background:#0f1513;border-radius:10px;padding:.5rem .8rem;color:#eaf5f0;font-weight:700}
+    .btn:hover{background:#13201b}
+    .btn.primary{background:var(--accent);border-color:var(--accent)}
+    .btn.ghost{background:transparent}
     .section{border:1px solid var(--card-br);background:var(--card-bg);border-radius:16px;padding:1rem}
     .divider{height:1px;background:#1c2a25;margin:.8rem 0}
+    .muted{color:var(--muted)}
+    .tiny{font-size:.78rem}
 
-    /* Barra superior compacta */
-    .topbar{display:flex;gap:.6rem;align-items:center;flex-wrap:wrap}
-    .topbar .search{flex:1 1 auto}
-    .chip{border:1px solid #2a3a34;border-radius:999px;padding:.35rem .65rem}
+    /* HERO */
+    .kpis{display:flex;gap:.5rem;flex-wrap:wrap}
+    .kpis .k{border:1px solid var(--card-br);background:var(--card-bg);border-radius:12px;padding:.5rem .7rem}
+    .k .n{font-size:1.1rem;font-weight:900}
 
-    /* Calendário tirinha */
-    .cal-strip{display:flex;gap:.5rem;overflow-x:auto;padding-bottom:.2rem}
-    .cal-day{min-width:64px;border:1px solid #2a3a34;background:#0e1512;border-radius:12px;padding:.5rem .6rem;text-align:center}
-    .cal-day .wd{font-size:.7rem;color:var(--muted)}
-    .cal-day .dt{font-weight:900;font-size:1.1rem}
-    .cal-day.active{outline:2px solid #0d7a56}
+    /* CADERNO DO DIA */
+    .daybook{display:grid;gap:.6rem}
+    @media(min-width:900px){ .daybook{grid-template-columns:1fr 1fr} }
+    .page{border:1px solid #1c2a25;background:#0e1512;border-radius:14px;padding:.8rem}
+    .page .hd{display:flex;align-items:center;justify-content:space-between;margin-bottom:.4rem}
+    .page .hd .nm{font-weight:900}
+    .grid{display:grid;grid-template-columns:86px 1fr;gap:.4rem}
+    .slot{display:flex;gap:.5rem;align-items:center;border:1px dashed #22352e;border-radius:10px;padding:.45rem .55rem}
+    .slot.busy{border-style:solid;background:#11241d}
+    .slot .h{font-weight:900;width:70px}
+    .slot .txt{flex:1}
+    .slot .price{font-weight:900}
 
-    /* Lista */
+    /* LISTA DO DIA (compacta) */
     .list{display:flex;flex-direction:column;gap:.6rem}
     .item{display:grid;grid-template-columns:44px 1fr auto;gap:.8rem;align-items:center;border:1px solid #1c2a25;background:#0e1512;border-radius:14px;padding:.7rem}
     .avatar{width:44px;height:44px;border-radius:12px;background:#0b3326;border:1px solid #114733;display:flex;align-items:center;justify-content:center;font-weight:900}
     .meta{color:var(--muted);font-size:.86rem}
-    .price{font-weight:900}
-    .actions{display:flex;gap:.35rem}
-    .btn{border:1px solid #2a3a34;background:#0f1513;border-radius:10px;padding:.45rem .7rem;color:#eaf5f0;font-weight:700}
-    .btn:hover{background:#13201b}
-    .btn.primary{background:#0d7a56;border-color:#0d7a56}
-    .btn.warn{border-color:#5a3f11;background:#3a2a0f}
-    .btn.danger{border-color:#6a1c17;background:#3a1510}
-    .btn.ghost{background:transparent}
-    .fab{position:fixed;right:16px;bottom:16px;border-radius:999px;padding:1rem 1.1rem;font-size:1rem;box-shadow:0 10px 28px rgba(0,0,0,.4)}
 
-    .kpis{display:flex;gap:.5rem;flex-wrap:wrap}
-    .kpis .k{border:1px solid var(--card-br);background:var(--card-bg);border-radius:12px;padding:.5rem .7rem}
-    .k .n{font-size:1.1rem;font-weight:900}
-    .empty{border:1px dashed #3b524a;border-radius:16px;padding:1.2rem;color:var(--muted);text-align:center}
-
-    /* Modal */
-    dialog{border:1px solid var(--card-br);background:var(--card-bg);border-radius:16px;color:#eaf5f0;padding:0;max-width:560px;width:92vw}
-    dialog .hd{display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--card-br);padding:.9rem 1rem}
-    dialog .bd{padding:1rem}
-    dialog .ft{display:flex;gap:.5rem;justify-content:flex-end;border-top:1px solid var(--card-br);padding:.9rem 1rem}
-    .row{display:flex;gap:.6rem;flex-wrap:wrap}
-    .row>.col{flex:1 1 160px}
-
-    /* Status chip */
+    /* STATUS */
     .status{border-radius:999px;padding:2px 8px;border:1px solid #284036;font-size:.75rem}
     .s-ag{background:#103d2b}
     .s-rg{background:#3a3110}
     .s-cl{background:#3a1510;opacity:.7}
     .s-ns{background:#2b2b2b}
 
-    @media(min-width:900px){ .grid{display:grid;grid-template-columns:1fr 320px;gap:.8rem} }
+    /* MODALS */
+    dialog{border:1px solid var(--card-br);background:var(--card-bg);border-radius:16px;color:#eaf5f0;padding:0;max-width:620px;width:92vw}
+    dialog .hd{display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--card-br);padding:.9rem 1rem}
+    dialog .bd{padding:1rem}
+    dialog .ft{display:flex;gap:.5rem;justify-content:flex-end;border-top:1px solid var(--card-br);padding:.9rem 1rem}
+
+    .fab{position:fixed;right:16px;bottom:16px;border-radius:999px;padding:1rem 1.1rem;font-size:1rem;box-shadow:0 10px 28px rgba(0,0,0,.4)}
   </style>
 </head>
 <body class="app-shell">
   <div id="app-header"></div>
   <main class="app-main container" style="padding:16px 14px 92px">
 
-    <!-- Topbar: busca + filtros resumidos -->
-    <div class="section">
-      <div class="topbar">
-        <input id="q" class="input search" placeholder="Buscar cliente, serviço ou observação…" />
-        <button id="btnFilters" class="btn">Filtros</button>
-        <button id="btnToday" class="btn ghost tiny">Hoje</button>
+    <!-- HERO: Hoje / Amanhã / 7 dias -->
+    <section class="section" style="margin-bottom:.8rem">
+      <div class="kpis">
+        <div class="k tiny"><div class="n" id="kHoje">0</div><div>Hoje</div></div>
+        <div class="k tiny"><div class="n" id="kAmanha">0</div><div>Amanhã</div></div>
+        <div class="k tiny"><div class="n" id="k7d">0</div><div>Próx. 7 dias</div></div>
       </div>
       <div class="divider"></div>
-
-      <!-- Calendário tirinha (7 dias) -->
-      <div id="calStrip" class="cal-strip" aria-label="Selecionar dia"></div>
-
-      <!-- KPIs enxutos -->
-      <div class="kpis" style="margin-top:.6rem">
-        <div class="k tiny"><div class="n" id="kAg">0</div><div>Agendado</div></div>
-        <div class="k tiny"><div class="n" id="kRg">0</div><div>Reagendar</div></div>
-        <div class="k tiny"><div class="n" id="kNs">0</div><div>No‑show</div></div>
+      <div style="display:flex;gap:.6rem;flex-wrap:wrap;align-items:center">
+        <button id="btnHoje" class="btn">Hoje</button>
+        <button id="btnAmanha" class="btn ghost tiny">Amanhã</button>
+        <button id="btnSemana" class="btn ghost tiny">Semana</button>
+        <div style="flex:1 1 auto"></div>
+        <button id="btnNovo" class="btn primary">＋ Novo</button>
       </div>
+    </section>
 
-      <!-- Badge de validação (mostra só em validate=1) -->
-      <div id="validateRow" class="tiny" style="margin-top:.6rem" hidden>
-        <span class="badge">🔒 Modo validação ativo</span>
-        <span class="muted">Visual de produção, sem gravar dados</span>
+    <!-- CADERNO: Hoje (página) + Amanhã (página) -->
+    <section class="daybook">
+      <div class="page" id="pageHoje">
+        <div class="hd"><span class="nm">Hoje</span><span class="tiny muted">08:00–19:00 · intervalos de 30 min</span></div>
+        <div class="grid" id="gridHoje"></div>
       </div>
-    </div>
+      <div class="page" id="pageAmanha">
+        <div class="hd"><span class="nm">Amanhã</span><span class="tiny muted">08:00–19:00 · intervalos de 30 min</span></div>
+        <div class="grid" id="gridAmanha"></div>
+      </div>
+    </section>
 
-    <div class="grid" style="margin-top:.8rem">
-      <!-- Lista do dia selecionado -->
-      <section class="section">
-        <h2 style="font-weight:900;margin-bottom:.6rem" id="dayTitle">Hoje</h2>
-        <div id="list" class="list"></div>
-        <div id="empty" class="empty" hidden>Sem agendamentos para este dia.</div>
-      </section>
+    <!-- Lista detalhada (dia corrente) -->
+    <section class="section" style="margin-top:.8rem">
+      <div style="display:flex;align-items:center;justify-content:space-between">
+        <h3 id="dayTitle" style="font-weight:900">Hoje</h3>
+        <div>
+          <button id="btnFiltros" class="btn ghost tiny">Filtros</button>
+          <button id="btnBuscar" class="btn ghost tiny">Buscar</button>
+        </div>
+      </div>
+      <div id="list" class="list"></div>
+      <div id="empty" class="section tiny muted" hidden>Sem agendamentos para este dia.</div>
+    </section>
 
-      <!-- Lateral: preferências rápidas -->
-      <aside class="section" aria-label="Preferências da agenda">
-        <h3 style="font-weight:900;margin-bottom:.6rem">Preferências rápidas</h3>
-        <label class="tiny"><input type="checkbox" id="prefOverlap" style="accent-color:#0d7a56"/> Permitir encaixe imediato (±5 min)</label><br />
-        <label class="tiny"><input type="checkbox" id="prefReminder" style="accent-color:#0d7a56"/> Enviar lembrete (WhatsApp) 2h antes</label>
-        <div class="divider"></div>
-        <div class="tiny muted">Timezone: America/Sao_Paulo · Atendimento: 08:00–19:00 · Intervalo: 30 min</div>
-      </aside>
-    </div>
+    <!-- Modais -->
+    <dialog id="dlgBusca"><div class="hd"><strong>Buscar</strong><button class="btn ghost" id="bClose">✕</button></div><div class="bd"><input id="q" class="input" placeholder="Cliente, serviço, observação…"/></div><div class="ft"><button class="btn" id="bApply">Aplicar</button></div></dialog>
+    <dialog id="dlgFiltros"><div class="hd"><strong>Filtros</strong><button class="btn ghost" id="fClose">✕</button></div><div class="bd">
+      <div style="display:flex;gap:.6rem;flex-wrap:wrap">
+        <div style="flex:1 1 160px"><label class="tiny muted">Status</label><select id="fStatus" class="input"><option value="">Todos</option><option value="agendado">Agendado</option><option value="reagendar">Reagendar</option><option value="cancelado">Cancelado</option><option value="no_show">No‑show</option></select></div>
+        <div style="flex:1 1 160px"><label class="tiny muted">Período</label><select id="fRange" class="input"><option value="dia">Dia selecionado</option><option value="3d">Próx. 3 dias</option><option value="7d" selected>Próx. 7 dias</option></select></div>
+      </div>
+      <div class="tiny muted" style="margin-top:.6rem">Timezone: America/Sao_Paulo · 08:00–19:00 · Intervalo 30 min</div>
+    </div><div class="ft"><button class="btn" id="fApply">Aplicar</button></div></dialog>
 
-    <!-- FAB: Novo agendamento -->
+    <dialog id="dlg"><div class="hd"><strong id="dlgTitle">Novo agendamento</strong><button class="btn ghost" id="dlgClose">✕</button></div><div class="bd">
+      <div style="display:flex;gap:.6rem;flex-wrap:wrap">
+        <div style="flex:1 1 160px"><label class="tiny muted">Cliente</label><input id="fCliente" class="input" placeholder="Ex.: Carlos"/></div>
+        <div style="flex:1 1 160px"><label class="tiny muted">Serviço/nota</label><input id="fServico" class="input" placeholder="Ex.: Corte infantil"/></div>
+      </div>
+      <div style="display:flex;gap:.6rem;flex-wrap:wrap;margin-top:.6rem">
+        <div style="flex:1 1 120px"><label class="tiny muted">Data</label><input id="fData" type="date" class="input"/></div>
+        <div style="flex:1 1 120px"><label class="tiny muted">Hora</label><input id="fHora" type="time" class="input" step="900"/></div>
+        <div style="flex:1 1 120px"><label class="tiny muted">Preço (R$)</label><input id="fPreco" class="input" inputmode="decimal" placeholder="Ex.: 40,00"/></div>
+        <div style="flex:1 1 160px"><label class="tiny muted">Status</label><select id="fStatusEdit" class="input"><option value="agendado" selected>Agendado</option><option value="reagendar">Reagendar</option><option value="cancelado">Cancelado</option><option value="no_show">No‑show</option></select></div>
+      </div>
+      <div style="margin-top:.6rem"><label class="tiny muted">Observações</label><textarea id="fObs" class="input" rows="3" placeholder="Campo livre (opcional)"></textarea></div>
+      <div class="tiny muted" style="margin-top:.6rem">Exemplo de IA: “Agendar corte para meu filho Carlos, 12 anos.” ⟶ Serviço: <b>Corte infantil</b>; Cliente: <b>Carlos</b>; Idade: <b>12</b>.</div>
+    </div><div class="ft"><button class="btn ghost" id="btnExcluir" hidden>Excluir</button><button class="btn" id="btnSalvar">Salvar</button></div></dialog>
+
     <button id="fabNew" class="btn primary fab">＋ Novo</button>
-
-    <!-- Modal de filtros -->
-    <dialog id="dlgFilters">
-      <div class="hd"><strong>Filtros</strong><button class="btn ghost" id="fClose">✕</button></div>
-      <div class="bd">
-        <div class="row">
-          <div class="col"><label class="tiny muted">Status</label>
-            <select id="fStatus" class="input">
-              <option value="">Todos</option>
-              <option value="agendado">Agendado</option>
-              <option value="reagendar">Reagendar</option>
-              <option value="cancelado">Cancelado</option>
-              <option value="no_show">No‑show</option>
-            </select>
-          </div>
-          <div class="col"><label class="tiny muted">Período</label>
-            <select id="fRange" class="input">
-              <option value="dia" selected>Dia selecionado</option>
-              <option value="3d">Próx. 3 dias</option>
-              <option value="7d">Próx. 7 dias</option>
-            </select>
-          </div>
-        </div>
-      </div>
-      <div class="ft"><button class="btn" id="fApply">Aplicar</button></div>
-    </dialog>
-
-    <!-- Modal: Novo/Editar -->
-    <dialog id="dlg">
-      <div class="hd"><strong id="dlgTitle">Novo agendamento</strong><button class="btn ghost" id="dlgClose">✕</button></div>
-      <div class="bd">
-        <div class="row">
-          <div class="col"><label class="tiny muted">Cliente</label><input id="fCliente" class="input" placeholder="Ex.: Carlos"/></div>
-          <div class="col"><label class="tiny muted">Serviço/nota</label><input id="fServico" class="input" placeholder="Ex.: Corte infantil"/></div>
-        </div>
-        <div class="row">
-          <div class="col"><label class="tiny muted">Data</label><input id="fData" type="date" class="input"/></div>
-          <div class="col"><label class="tiny muted">Hora</label><input id="fHora" type="time" class="input" step="900"/></div>
-          <div class="col"><label class="tiny muted">Preço (R$)</label><input id="fPreco" class="input" inputmode="decimal" placeholder="Ex.: 40,00"/></div>
-        </div>
-        <div class="row">
-          <div class="col"><label class="tiny muted">Status</label>
-            <select id="fStatusEdit" class="input">
-              <option value="agendado" selected>Agendado</option>
-              <option value="reagendar">Reagendar</option>
-              <option value="cancelado">Cancelado</option>
-              <option value="no_show">No‑show</option>
-            </select>
-          </div>
-        </div>
-        <div style="margin-top:.6rem">
-          <label class="tiny muted">Observações</label>
-          <textarea id="fObs" class="input" rows="3" placeholder="Campo livre (opcional)"></textarea>
-        </div>
-        <div class="tiny muted" style="margin-top:.6rem">Exemplo de entendimento por IA: “Quero agendar corte para meu filho Carlos, 12 anos.” ⟶ Serviço: <b>Corte infantil</b>; Cliente: <b>Carlos</b>; Idade: <b>12</b>.</div>
-      </div>
-      <div class="ft">
-        <button class="btn ghost" id="btnExcluir" hidden>Excluir</button>
-        <button class="btn" id="btnSalvar">Salvar</button>
-      </div>
-    </dialog>
-
   </main>
   <div id="app-footer"></div>
 
@@ -188,34 +141,38 @@
   <script src="/assets/backend-patch.js" defer></script>
 
   <script>
-  ;(() => {
+  ;(()=>{
     const qs = new URLSearchParams(location.search)
-    const validate = qs.get('validate') === '1'
+    const validate = qs.get('validate')==='1'
 
-    // UI refs
-    const validateRow = document.getElementById('validateRow')
+    // Refs (caderno)
+    const gridHoje = document.getElementById('gridHoje')
+    const gridAmanha = document.getElementById('gridAmanha')
+    const dayTitle = document.getElementById('dayTitle')
     const listEl = document.getElementById('list')
     const emptyEl = document.getElementById('empty')
-    const dayTitle = document.getElementById('dayTitle')
-    const calStrip = document.getElementById('calStrip')
-    const kAg = document.getElementById('kAg'), kRg = document.getElementById('kRg'), kNs = document.getElementById('kNs')
 
-    // Topbar
+    // Modais/inputs
+    const dlg = document.getElementById('dlg')
+    const dlgTitle = document.getElementById('dlgTitle')
+    const dlgClose = document.getElementById('dlgClose')
+    const btnSalvar = document.getElementById('btnSalvar')
+    const btnExcluir = document.getElementById('btnExcluir')
+    const fabNew = document.getElementById('fabNew')
+    const btnNovoTop = document.getElementById('btnNovo')
+
+    const dlgBusca = document.getElementById('dlgBusca')
+    const bClose = document.getElementById('bClose')
+    const bApply = document.getElementById('bApply')
     const q = document.getElementById('q')
-    const btnFilters = document.getElementById('btnFilters')
-    const btnToday = document.getElementById('btnToday')
 
-    // Filters modal
-    const dlgFilters = document.getElementById('dlgFilters')
+    const dlgFiltros = document.getElementById('dlgFiltros')
     const fClose = document.getElementById('fClose')
     const fApply = document.getElementById('fApply')
     const fStatus = document.getElementById('fStatus')
     const fRange = document.getElementById('fRange')
 
-    // Editor modal
-    const dlg = document.getElementById('dlg')
-    const dlgTitle = document.getElementById('dlgTitle')
-    const dlgClose = document.getElementById('dlgClose')
+    // Campos do editor
     const fCliente = document.getElementById('fCliente')
     const fServico = document.getElementById('fServico')
     const fData = document.getElementById('fData')
@@ -223,71 +180,82 @@
     const fPreco = document.getElementById('fPreco')
     const fStatusEdit = document.getElementById('fStatusEdit')
     const fObs = document.getElementById('fObs')
-    const btnSalvar = document.getElementById('btnSalvar')
-    const btnExcluir = document.getElementById('btnExcluir')
-    const fabNew = document.getElementById('fabNew')
 
     // Estado
     let items = []
     let current = null
-    let selectedDayIdx = 0 // 0..6
+    let selectedDate = startOfDay(new Date())
 
-    if (validate) validateRow.hidden = false
+    // Eventos topo
+    document.getElementById('btnHoje').addEventListener('click',()=>{ selectedDate=startOfDay(new Date()); renderAll() })
+    document.getElementById('btnAmanha').addEventListener('click',()=>{ const d=new Date(); d.setDate(d.getDate()+1); selectedDate=startOfDay(d); renderAll() })
+    document.getElementById('btnSemana').addEventListener('click',()=>{ window.scrollTo({top:0,behavior:'smooth'}) })
+    btnNovoTop.addEventListener('click',()=> openModal(null))
+    fabNew.addEventListener('click',()=> openModal(null))
 
-    // ===== Calendário (7 dias) =====
-    const tz = 'America/Sao_Paulo'
-    const days = [...Array(7)].map((_,i)=>{
-      const d = new Date(); d.setHours(0,0,0,0); d.setDate(d.getDate()+i); return d
-    })
-    function buildCalStrip(){
-      calStrip.innerHTML = ''
-      days.forEach((d,idx)=>{
-        const el = document.createElement('button')
-        el.className = 'cal-day' + (idx===selectedDayIdx? ' active' : '')
-        el.innerHTML = `<div class="wd">${d.toLocaleDateString('pt-BR',{weekday:'short'})}</div><div class="dt">${String(d.getDate()).padStart(2,'0')}</div>`
-        el.addEventListener('click',()=>{ selectedDayIdx=idx; buildCalStrip(); render() })
-        calStrip.appendChild(el)
-      })
+    // Busca/filtros
+    document.getElementById('btnBuscar').addEventListener('click',()=> dlgBusca.showModal())
+    bClose.addEventListener('click',()=> dlgBusca.close())
+    bApply.addEventListener('click',()=>{ dlgBusca.close(); renderAll() })
+
+    document.getElementById('btnFiltros').addEventListener('click',()=> dlgFiltros.showModal())
+    fClose.addEventListener('click',()=> dlgFiltros.close())
+    fApply.addEventListener('click',()=>{ dlgFiltros.close(); renderAll() })
+
+    // Helpers
+    const tz='America/Sao_Paulo'
+    function startOfDay(d){ return new Date(d.getFullYear(), d.getMonth(), d.getDate()) }
+    const toDateInput = d=> new Date(d).toISOString().slice(0,10)
+    const toTimeInput = d=> new Date(d).toTimeString().slice(0,5)
+    const fmtHour = d=> new Intl.DateTimeFormat('pt-BR',{hour:'2-digit',minute:'2-digit',timeZone:tz}).format(d)
+    const fmtMoney = v=> { try{ const n=Number(String(v).replace(',','.')); return n.toFixed(2).replace('.',',') }catch{ return v } }
+    function statusChip(s){ const map={agendado:['s-ag','Agendado'],reagendar:['s-rg','Reagendar'],cancelado:['s-cl','Cancelado'],no_show:['s-ns','No‑show']}; const [cls,txt]=map[s]||map.agendado; return `<span class="status ${cls} tiny">${txt}</span>` }
+
+    function sameDay(a,b){ return a.getFullYear()===b.getFullYear() && a.getMonth()===b.getMonth() && a.getDate()===b.getDate() }
+
+    // Monta caderno (página) para um dia
+    function buildDayPage(container, day, all){
+      container.innerHTML=''
+      const start=8, end=19
+      for(let h=start; h<end; h++){
+        for (const m of [0,30]){
+          const slotDate = new Date(day.getFullYear(),day.getMonth(),day.getDate(),h,m)
+          const hh=String(h).padStart(2,'0'), mm=String(m).padStart(2,'0')
+          const found = all.find(i=>{ const d=new Date(i.when); return sameDay(d,day) && d.getHours()===h && d.getMinutes()===m })
+          const row = document.createElement('div'); row.className='slot'+(found?' busy':'')
+          row.innerHTML = `<span class="h">${hh}:${mm}</span><div class="txt">${found? `<b>${found.cliente}</b> · ${(found.servico||'—')}${found.preco? ` · <span class='price'>R$ ${fmtMoney(found.preco)}</span>`:''}${found.obs? ' · '+found.obs:''} ${statusChip(found.status)}` : "<span class='muted'>livre</span>"}</div>`
+          row.addEventListener('click',()=>{ if(found){ openModal(found) } else { openModal({ when: slotDate }) } })
+          container.appendChild(row)
+        }
+      }
     }
 
-    // ===== Render =====
-    function withinRange(dateISO){
-      const base = new Date(days[selectedDayIdx])
-      const dt = new Date(dateISO)
-      const r = fRange.value
-      const end = new Date(base)
-      if (r==='3d') end.setDate(end.getDate()+2)
-      else if (r==='7d') end.setDate(end.getDate()+6)
-      return dt >= base && dt <= end
-    }
-
-    function render(){
-      const term = q.value.trim().toLowerCase()
-      const st = fStatus.value
-      const filtered = items.filter(x=>{
-        const txt = (x.cliente+' '+(x.servico||'')+' '+(x.obs||'')).toLowerCase()
-        const byTerm = term? txt.includes(term) : true
-        const byStatus = st? x.status===st : true
-        return byTerm && byStatus && withinRange(x.when)
-      }).sort((a,b)=> new Date(a.when) - new Date(b.when))
-
-      const base = days[selectedDayIdx]
-      const label = selectedDayIdx===0? 'Hoje' : (selectedDayIdx===1? 'Amanhã' : base.toLocaleDateString('pt-BR', {weekday:'long', day:'2-digit', month:'2-digit'}))
+    // Render lista do dia corrente
+    function renderList(){
+      const base = selectedDate
+      const label = sameDay(base,startOfDay(new Date()))? 'Hoje' : (sameDay(base,startOfDay(new Date(Date.now()+86400000)))? 'Amanhã' : base.toLocaleDateString('pt-BR',{weekday:'long', day:'2-digit', month:'2-digit'}))
       dayTitle.textContent = label
 
-      // KPIs
-      kAg.textContent = filtered.filter(i=>i.status==='agendado').length
-      kRg.textContent = filtered.filter(i=>i.status==='reagendar').length
-      kNs.textContent = filtered.filter(i=>i.status==='no_show').length
+      const term = (q?.value||'').trim().toLowerCase()
+      const st = fStatus.value
+      const range = fRange.value
+      const end = new Date(base); if (range==='3d') end.setDate(end.getDate()+2); else if (range==='7d') end.setDate(end.getDate()+6)
 
-      listEl.innerHTML = ''
+      const filtered = items.filter(x=>{
+        const d=new Date(x.when)
+        const inRange = d>=base && d<=end
+        const txt=(x.cliente+' '+(x.servico||'')+' '+(x.obs||'')).toLowerCase()
+        const byTerm = term? txt.includes(term) : true
+        const byStatus = st? x.status===st : true
+        return inRange && byTerm && byStatus
+      }).sort((a,b)=> new Date(a.when)- new Date(b.when))
+
+      listEl.innerHTML=''
       if (!filtered.length){ emptyEl.hidden=false; return } else { emptyEl.hidden=true }
 
       for (const it of filtered){
-        const d = new Date(it.when)
-        const el = document.createElement('div')
-        el.className = 'item'
-        const price = it.preco ? ` · <span class="price">R$ ${fmtMoney(it.preco)}</span>` : ''
+        const d=new Date(it.when)
+        const el=document.createElement('div'); el.className='item'
         el.innerHTML = `
           <div class="avatar">${(it.cliente||'?').slice(0,2).toUpperCase()}</div>
           <div>
@@ -296,33 +264,70 @@
               <span class="meta">${fmtHour(d)}</span>
               ${statusChip(it.status)}
             </div>
-            <div class="meta">${it.servico||'—'}${price}${it.obs? ' · '+it.obs: ''}</div>
+            <div class="meta">${it.servico||'—'}${it.preco? ' · <b>R$ '+fmtMoney(it.preco)+'</b>':''}${it.obs? ' · '+it.obs: ''}</div>
           </div>
           <div class="actions">
-            <button class="btn warn tiny" data-act="reagendar">Reagendar</button>
-            <button class="btn danger tiny" data-act="cancelar">Cancelar</button>
-            <button class="btn tiny" data-act="no_show">No‑show</button>
+            <button class="btn ghost tiny" data-act="reagendar">Reagendar</button>
+            <button class="btn ghost tiny" data-act="cancelar">Cancelar</button>
+            <button class="btn ghost tiny" data-act="no_show">No‑show</button>
             <button class="btn tiny" data-act="editar">Editar</button>
           </div>`
-        el.querySelectorAll('button').forEach(b=>{
-          b.addEventListener('click',()=>handleAction(it,b.dataset.act))
-          if (validate) b.title = 'Modo validação (somente visual)'
-        })
+        el.querySelectorAll('button').forEach(b=> b.addEventListener('click',()=>handleAction(it,b.dataset.act)))
         listEl.appendChild(el)
       }
     }
 
-    function statusChip(s){
-      const map = { agendado:['s-ag','Agendado'], reagendar:['s-rg','Reagendar'], cancelado:['s-cl','Cancelado'], no_show:['s-ns','No‑show'] }
-      const [cls,txt] = map[s] || map.agendado
-      return `<span class="status ${cls} tiny">${txt}</span>`
+    // KPIs topo (contagens) e render geral
+    function renderHero(){
+      const today = startOfDay(new Date())
+      const tomorrow = startOfDay(new Date(Date.now()+86400000))
+      const in7 = new Date(today); in7.setDate(in7.getDate()+6)
+      document.getElementById('kHoje').textContent = items.filter(i=> sameDay(new Date(i.when),today)).length
+      document.getElementById('kAmanha').textContent = items.filter(i=> sameDay(new Date(i.when),tomorrow)).length
+      document.getElementById('k7d').textContent = items.filter(i=> new Date(i.when) <= in7).length
     }
 
-    function fmtHour(d){ return new Intl.DateTimeFormat('pt-BR',{hour:'2-digit',minute:'2-digit',timeZone:tz}).format(d) }
-    function fmtMoney(v){ try{ const n = Number(String(v).replace(',','.')); return n.toFixed(2).replace('.',',') }catch{ return v }
+    function renderAll(){
+      const today = startOfDay(new Date())
+      const tomorrow = startOfDay(new Date(Date.now()+86400000))
+      buildDayPage(gridHoje, today, items)
+      buildDayPage(gridAmanha, tomorrow, items)
+      renderHero()
+      renderList()
     }
 
-    // ===== Ações =====
+    // Editor
+    function openModal(item){
+      current = item||null
+      dlgTitle.textContent = item?.id? 'Editar agendamento':'Novo agendamento'
+      btnExcluir.hidden = !item?.id
+      fCliente.value = item?.cliente||''
+      fServico.value = item?.servico||''
+      fPreco.value = item?.preco? fmtMoney(item.preco):''
+      const d = item?.when? new Date(item.when) : (item?.when instanceof Date? item.when : selectedDate)
+      fData.value = toDateInput(d)
+      fHora.value = toTimeInput(d)
+      fStatusEdit.value = item?.status||'agendado'
+      fObs.value = item?.obs||''
+      dlg.showModal()
+    }
+    dlgClose.addEventListener('click',()=> dlg.close())
+
+    btnSalvar.addEventListener('click',()=>{
+      if (validate){ toast('🔒 Validação: nada será gravado.'); return }
+      const when = new Date(fData.value+'T'+fHora.value+':00')
+      const preco = parseFloat(String(fPreco.value||'').replace('.','').replace(',','.'))
+      const payload = { cliente:fCliente.value.trim(), servico:fServico.value.trim(), preco:isNaN(preco)? null:Number(preco.toFixed(2)), status:fStatusEdit.value, obs:fObs.value.trim()||null, when:when.toISOString(), atualizadoEm:new Date().toISOString() }
+      if (!payload.cliente || !fData.value || !fHora.value){ toast('Preencha cliente, data e hora.'); return }
+      if (current?.id){ Object.assign(current,payload); saveItem(current,false) } else { payload.criadoEm=new Date().toISOString(); saveItem(payload,false) }
+      dlg.close()
+    })
+
+    btnExcluir.addEventListener('click',()=>{
+      if (validate){ toast('🔒 Validação: exclusão simulada.'); return }
+      if (!current?.id) return; deleteItem(current); dlg.close()
+    })
+
     function handleAction(item, act){
       if (validate){ toast('🔒 Validação: '+act+' (simulado)'); if (act==='editar') openModal(item); return }
       if (act==='editar') return openModal(item)
@@ -331,115 +336,48 @@
       if (act==='no_show'){ item.status='no_show'; saveItem(item,true) }
     }
 
-    function openModal(item){
-      current = item||null
-      dlgTitle.textContent = item? 'Editar agendamento' : 'Novo agendamento'
-      btnExcluir.hidden = !item
-      fCliente.value = item?.cliente||''
-      fServico.value = item?.servico||''
-      fPreco.value = item?.preco? fmtMoney(item.preco) : ''
-      const d = item? new Date(item.when) : new Date()
-      fData.value = toDateInput(d)
-      fHora.value = toTimeInput(d)
-      fStatusEdit.value = item?.status||'agendado'
-      fObs.value = item?.obs||''
-      dlg.showModal()
-    }
-
-    dlgClose.addEventListener('click', ()=> dlg.close())
-    fabNew.addEventListener('click', ()=> openModal(null))
-
-    btnSalvar.addEventListener('click', ()=>{
-      if (validate){ toast('🔒 Validação: nada será gravado.'); return }
-      const when = new Date(fData.value + 'T' + fHora.value + ':00')
-      const preco = parseFloat(String(fPreco.value||'').replace('.','').replace(',','.'))
-      const payload = {
-        cliente: fCliente.value.trim(),
-        servico: fServico.value.trim(),
-        preco: isNaN(preco)? null : Number(preco.toFixed(2)),
-        status: fStatusEdit.value,
-        obs: fObs.value.trim()||null,
-        when: when.toISOString(),
-        atualizadoEm: new Date().toISOString(),
-      }
-      if (!payload.cliente || !fData.value || !fHora.value){ toast('Preencha cliente, data e hora.'); return }
-      if (current){ Object.assign(current, payload); saveItem(current,false) }
-      else { payload.criadoEm = new Date().toISOString(); saveItem(payload,false) }
-      dlg.close()
-    })
-
-    btnExcluir.addEventListener('click', ()=>{
-      if (validate){ toast('🔒 Validação: exclusão simulada.'); return }
-      if (!current) return
-      deleteItem(current); dlg.close()
-    })
-
-    // Filtros
-    btnFilters.addEventListener('click', ()=> dlgFilters.showModal())
-    fClose.addEventListener('click', ()=> dlgFilters.close())
-    fApply.addEventListener('click', ()=>{ dlgFilters.close(); render() })
-    btnToday.addEventListener('click', ()=>{ selectedDayIdx=0; buildCalStrip(); render() })
-    q.addEventListener('input', render)
-
-    // ===== Data layer =====
-    const toDateInput = (d) => new Date(d).toISOString().slice(0,10)
-    const toTimeInput = (d) => new Date(d).toTimeString().slice(0,5)
-
+    // Data layer
     async function load(){
-      if (validate){ items = demoItems(); buildCalStrip(); render(); return }
+      if (validate){ items = demoItems(); renderAll(); return }
       try{
-        const auth = window.firebase?.auth?.(); const db = window.firebase?.firestore?.();
-        const uid = auth?.currentUser?.uid
-        if (!uid){ items=[]; buildCalStrip(); render(); return toast('Faça login para ver a agenda.') }
-        const start = new Date(); start.setHours(0,0,0,0)
-        const end = new Date(start); end.setDate(end.getDate()+7)
-        const snap = await db.collection('profissionais').doc(uid).collection('agendamentos')
-          .where('when','>=',start.toISOString()).where('when','<=',end.toISOString()).get()
+        const auth=window.firebase?.auth?.(); const db=window.firebase?.firestore?.(); const uid=auth?.currentUser?.uid
+        if (!uid){ items=[]; renderAll(); return toast('Faça login para ver a agenda.') }
+        const start = startOfDay(new Date()); const end = new Date(start); end.setDate(end.getDate()+31)
+        const snap = await db.collection('profissionais').doc(uid).collection('agendamentos').where('when','>=',start.toISOString()).where('when','<=',end.toISOString()).get()
         items = snap.docs.map(d=> ({ id:d.id, ...d.data() }))
-        buildCalStrip(); render()
+        renderAll()
       }catch(e){ console.error(e); toast('Falha ao carregar agenda.') }
     }
 
-    async function saveItem(item, silent){
-      try{
-        const auth = window.firebase?.auth?.(); const db = window.firebase?.firestore?.();
-        const uid = auth?.currentUser?.uid; if (!uid) return toast('Sessão expirada. Faça login.')
-        const col = db.collection('profissionais').doc(uid).collection('agendamentos')
-        if (item.id){ await col.doc(item.id).set(item,{merge:true}) }
-        else { const ref = await col.add(item); item.id = ref.id }
-        if (!silent) toast('Agendamento salvo.'); await load()
-      }catch(e){ console.error(e); toast('Erro ao salvar.') }
-    }
+    async function saveItem(item, silent){ try{ const auth=window.firebase?.auth?.(); const db=window.firebase?.firestore?.(); const uid=auth?.currentUser?.uid; if(!uid) return toast('Sessão expirada. Faça login.'); const col=db.collection('profissionais').doc(uid).collection('agendamentos'); if(item.id){ await col.doc(item.id).set(item,{merge:true}) } else { const ref=await col.add(item); item.id=ref.id } if(!silent) toast('Agendamento salvo.'); await load() }catch(e){ console.error(e); toast('Erro ao salvar.') } }
+    async function deleteItem(item){ try{ const auth=window.firebase?.auth?.(); const db=window.firebase?.firestore?.(); const uid=auth?.currentUser?.uid; if(!uid) return toast('Sessão expirada. Faça login.'); if(!item.id) return; await db.collection('profissionais').doc(uid).collection('agendamentos').doc(item.id).delete(); toast('Agendamento excluído.'); await load() }catch(e){ console.error(e); toast('Erro ao excluir.') } }
 
-    async function deleteItem(item){
-      try{
-        const auth = window.firebase?.auth?.(); const db = window.firebase?.firestore?.();
-        const uid = auth?.currentUser?.uid; if (!uid) return toast('Sessão expirada. Faça login.')
-        if (!item.id) return; await db.collection('profissionais').doc(uid).collection('agendamentos').doc(item.id).delete()
-        toast('Agendamento excluído.'); await load()
-      }catch(e){ console.error(e); toast('Erro ao excluir.') }
-    }
-
-    // ===== Demo (validate=1) =====
+    // DEMO rica para validação: semana inteira preenchida em padrão realista
     function demoItems(){
-      const base = new Date();
-      const d1 = new Date(base); d1.setHours(10,0,0,0)
-      const d2 = new Date(base); d2.setDate(d2.getDate()+1); d2.setHours(14,30,0,0)
-      const d3 = new Date(base); d3.setDate(d3.getDate()+2); d3.setHours(9,30,0,0)
+      const base = startOfDay(new Date())
+      const mk=(dayOffset,h,m,cliente,servico,preco,obs,status='agendado')=>({ id: Math.random().toString(36).slice(2), cliente, servico, preco, obs, status, when: new Date(base.getFullYear(),base.getMonth(),base.getDate()+dayOffset,h,m).toISOString(), criadoEm:new Date().toISOString(), atualizadoEm:new Date().toISOString() })
       return [
-        {id:'d1', cliente:'Carlos', servico:'Corte infantil', preco:40, when:d1.toISOString(), status:'agendado', obs:'12 anos', criadoEm:new Date().toISOString(), atualizadoEm:new Date().toISOString()},
-        {id:'d2', cliente:'Ana Paula', servico:'Coloração', preco:120, when:d2.toISOString(), status:'reagendar', obs:null, criadoEm:new Date().toISOString(), atualizadoEm:new Date().toISOString()},
-        {id:'d3', cliente:'Rafael', servico:'Barba', preco:35, when:d3.toISOString(), status:'no_show', obs:'Avisou atraso', criadoEm:new Date().toISOString(), atualizadoEm:new Date().toISOString()},
+        mk(0,8,0,'Carlos','Corte infantil',40,'12 anos'),
+        mk(0,8,30,'Marina','Escova',60,null),
+        mk(0,9,0,'Rafael','Barba',35,'—','no_show'),
+        mk(0,10,0,'Ana Paula','Coloração',120,'Traga referência','reagendar'),
+        mk(0,10,30,'João V.','Corte masculino',45,null),
+        mk(0,11,30,'Patrícia','Manicure',50,null),
+        mk(0,14,0,'Dona Lúcia','Hidratação',70,null),
+        mk(0,16,30,'Bianca','Penteado',150,'Evento'),
+        mk(1,9,30,'Felipe','Corte',40,null),
+        mk(1,11,0,'Camila','Coloração raiz',130,null),
+        mk(1,15,0,'Pedro','Corte + Barba',75,'Cliente recorrente'),
+        mk(2,10,30,'Luan','Corte',40,null),
+        mk(2,13,0,'Marta','Escova',60,null),
+        mk(3,9,0,'Eduardo','Barba',35,null),
+        mk(4,17,0,'Sofia','Penteado',160,'Formatura'),
+        mk(5,10,0,'Tamires','Corte',45,null),
+        mk(6,18,30,'Diego','Coloração total',180,null)
       ]
     }
 
-    // Toast mínimo
-    function toast(msg){
-      let t = document.getElementById('__toast');
-      if (!t){ t = document.createElement('div'); t.id='__toast'; document.body.appendChild(t);
-        t.style.position='fixed'; t.style.left='50%'; t.style.bottom='20px'; t.style.transform='translateX(-50%)'; t.style.background='#0d7a56'; t.style.color='#fff'; t.style.padding='10px 14px'; t.style.borderRadius='10px'; t.style.fontWeight='800'; t.style.zIndex='9999'; }
-      t.textContent = msg; t.style.opacity='1'; setTimeout(()=>{ t.style.transition='opacity .3s'; t.style.opacity='0' }, 1500)
-    }
+    function toast(msg){ let t=document.getElementById('__toast'); if(!t){ t=document.createElement('div'); t.id='__toast'; document.body.appendChild(t); t.style.position='fixed'; t.style.left='50%'; t.style.bottom='20px'; t.style.transform='translateX(-50%)'; t.style.background= 'var(--accent)'; t.style.color='#fff'; t.style.padding='10px 14px'; t.style.borderRadius='10px'; t.style.fontWeight='800'; t.style.zIndex='9999'; } t.textContent=msg; t.style.opacity='1'; setTimeout(()=>{ t.style.transition='opacity .3s'; t.style.opacity='0' },1500) }
 
     document.addEventListener('DOMContentLoaded', load)
   })()
