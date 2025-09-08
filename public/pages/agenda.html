@@ -6,13 +6,13 @@
   <title>Agenda — MEI Robô</title>
   <link rel="stylesheet" href="/assets/styles.css" />
   <style>
-    /* ===== Agenda (V1.3) — "caderno do dia" com horários ocupados/vazios, fiel à identidade ===== */
+    /* ===== Agenda (V1.4) — correções de layout, semana resumo, busca no rodapé ===== */
     :root{ --card-bg:#0f1513; --card-br:#1d2b26; --muted:#9fb0aa; --soft:#cfe3dc; --accent:#0d7a56; }
     body{background:#0b100e;color:#eaf5f0}
     .app-shell{min-height:82svh}
     .input,select,textarea{background:#0e1512;border:1px solid #2a3a34;color:#eaf5f0;border-radius:10px;padding:.6rem .8rem}
     .input::placeholder{color:rgba(234,245,240,.55)}
-    .btn{border:1px solid #2a3a34;background:#0f1513;border-radius:10px;padding:.5rem .8rem;color:#eaf5f0;font-weight:700}
+    .btn{border:1px solid #2a3a34;background:#0f1513;border-radius:10px;padding:.55rem .85rem;color:#eaf5f0;font-weight:700}
     .btn:hover{background:#13201b}
     .btn.primary{background:var(--accent);border-color:var(--accent)}
     .btn.ghost{background:transparent}
@@ -21,25 +21,34 @@
     .muted{color:var(--muted)}
     .tiny{font-size:.78rem}
 
-    /* HERO */
-    .kpis{display:flex;gap:.5rem;flex-wrap:wrap}
-    .kpis .k{border:1px solid var(--card-br);background:var(--card-bg);border-radius:12px;padding:.5rem .7rem}
-    .k .n{font-size:1.1rem;font-weight:900}
+    /* HERO + ações rápidas */
+    .hero{display:flex;gap:.6rem;flex-wrap:wrap;align-items:center}
+    .hero .grow{flex:1 1 auto}
 
     /* CADERNO DO DIA */
-    .daybook{display:grid;gap:.6rem}
-    @media(min-width:900px){ .daybook{grid-template-columns:1fr 1fr} }
-    .page{border:1px solid #1c2a25;background:#0e1512;border-radius:14px;padding:.8rem}
-    .page .hd{display:flex;align-items:center;justify-content:space-between;margin-bottom:.4rem}
+    .daybook{display:grid;gap:1rem; margin-top:.8rem}
+    @media(min-width:1100px){ .daybook{grid-template-columns:1fr 1fr} }
+    .page{border:1px solid #1c2a25;background:#0e1512;border-radius:14px;padding:.9rem}
+    .page .hd{display:flex;align-items:center;justify-content:space-between;margin-bottom:.6rem}
     .page .hd .nm{font-weight:900}
-    .grid{display:grid;grid-template-columns:86px 1fr;gap:.4rem}
-    .slot{display:flex;gap:.5rem;align-items:center;border:1px dashed #22352e;border-radius:10px;padding:.45rem .55rem}
+    .grid{display:grid;grid-template-columns:90px 1fr;gap:.5rem}
+    .slot{display:flex;gap:.6rem;align-items:center;border:1px dashed #22352e;border-radius:10px;padding:.5rem .6rem}
     .slot.busy{border-style:solid;background:#11241d}
-    .slot .h{font-weight:900;width:70px}
-    .slot .txt{flex:1}
-    .slot .price{font-weight:900}
+    .slot .h{font-weight:900;width:72px}
+    .slot .txt{flex:1;line-height:1.25}
 
-    /* LISTA DO DIA (compacta) */
+    /* SEMANA RESUMO */
+    .week{display:grid;gap:.6rem}
+    @media(min-width:900px){ .week{grid-template-columns:repeat(7,1fr)} }
+    @media(max-width:899px){ .week{grid-template-columns:repeat(2,1fr)} }
+    .day{border:1px solid #1c2a25;background:#0e1512;border-radius:14px;padding:.6rem}
+    .day.hoy{outline:2px solid var(--accent)}
+    .day .hd{display:flex;align-items:center;justify-content:space-between;margin-bottom:.4rem}
+    .pill{display:inline-block;border:1px solid #2a3a34;border-radius:999px;padding:.15rem .5rem;font-size:.72rem}
+    .mini-slot{display:flex;justify-content:space-between;border:1px dashed #22352e;border-radius:10px;padding:.35rem .5rem;margin:.3rem 0}
+    .mini-slot.busy{border-style:solid;background:#10231c}
+
+    /* LISTA DO DIA */
     .list{display:flex;flex-direction:column;gap:.6rem}
     .item{display:grid;grid-template-columns:44px 1fr auto;gap:.8rem;align-items:center;border:1px solid #1c2a25;background:#0e1512;border-radius:14px;padding:.7rem}
     .avatar{width:44px;height:44px;border-radius:12px;background:#0b3326;border:1px solid #114733;display:flex;align-items:center;justify-content:center;font-weight:900}
@@ -53,48 +62,58 @@
     .s-ns{background:#2b2b2b}
 
     /* MODALS */
-    dialog{border:1px solid var(--card-br);background:var(--card-bg);border-radius:16px;color:#eaf5f0;padding:0;max-width:620px;width:92vw}
+    dialog{border:1px solid var(--card-br);background:var(--card-bg);border-radius:16px;color:#eaf5f0;padding:0;max-width:640px;width:92vw}
     dialog .hd{display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--card-br);padding:.9rem 1rem}
     dialog .bd{padding:1rem}
     dialog .ft{display:flex;gap:.5rem;justify-content:flex-end;border-top:1px solid var(--card-br);padding:.9rem 1rem}
 
     .fab{position:fixed;right:16px;bottom:16px;border-radius:999px;padding:1rem 1.1rem;font-size:1rem;box-shadow:0 10px 28px rgba(0,0,0,.4)}
+
+    /* RODAPÉ: busca rápida */
+    .footer-search{display:flex;gap:.6rem;flex-wrap:wrap;margin-top:.8rem}
+    .footer-search .grow{flex:1 1 220px}
   </style>
 </head>
 <body class="app-shell">
   <div id="app-header"></div>
-  <main class="app-main container" style="padding:16px 14px 92px">
+  <main class="app-main container" style="padding:16px 14px 120px">
 
-    <!-- HERO: Hoje / Amanhã / 7 dias -->
+    <!-- HERO: mini-dashboard e ações -->
     <section class="section" style="margin-bottom:.8rem">
-      <div class="kpis">
-        <div class="k tiny"><div class="n" id="kHoje">0</div><div>Hoje</div></div>
-        <div class="k tiny"><div class="n" id="kAmanha">0</div><div>Amanhã</div></div>
-        <div class="k tiny"><div class="n" id="k7d">0</div><div>Próx. 7 dias</div></div>
-      </div>
-      <div class="divider"></div>
-      <div style="display:flex;gap:.6rem;flex-wrap:wrap;align-items:center">
+      <div class="hero">
+        <div class="kpis">
+          <div class="k tiny"><div class="n" id="kHoje">0</div><div>Hoje</div></div>
+          <div class="k tiny"><div class="n" id="kAmanha">0</div><div>Amanhã</div></div>
+          <div class="k tiny"><div class="n" id="k7d">0</div><div>Próx. 7 dias</div></div>
+        </div>
+        <div class="grow"></div>
         <button id="btnHoje" class="btn">Hoje</button>
         <button id="btnAmanha" class="btn ghost tiny">Amanhã</button>
+        <input id="dtCustom" type="date" class="input" title="Selecionar data" />
         <button id="btnSemana" class="btn ghost tiny">Semana</button>
-        <div style="flex:1 1 auto"></div>
         <button id="btnNovo" class="btn primary">＋ Novo</button>
       </div>
     </section>
 
-    <!-- CADERNO: Hoje (página) + Amanhã (página) -->
+    <!-- CADERNO: Hoje + Amanhã (slots completos, sem atropelar) -->
     <section class="daybook">
       <div class="page" id="pageHoje">
         <div class="hd"><span class="nm">Hoje</span><span class="tiny muted">08:00–19:00 · intervalos de 30 min</span></div>
-        <div class="grid" id="gridHoje"></div>
+        <div class="grid" id="gridHoje" aria-label="Caderno do dia — Hoje"></div>
       </div>
       <div class="page" id="pageAmanha">
         <div class="hd"><span class="nm">Amanhã</span><span class="tiny muted">08:00–19:00 · intervalos de 30 min</span></div>
-        <div class="grid" id="gridAmanha"></div>
+        <div class="grid" id="gridAmanha" aria-label="Caderno do dia — Amanhã"></div>
       </div>
     </section>
 
-    <!-- Lista detalhada (dia corrente) -->
+    <!-- SEMANA RESUMO: 7 dias a partir da data selecionada (sem duplicar Amanhã) -->
+    <section class="section" style="margin-top:1rem">
+      <h2 style="font-weight:900;margin-bottom:.6rem">Próxima semana (resumo)</h2>
+      <div class="week" id="week"></div>
+    </section>
+
+    <!-- LISTA DETALHADA DO DIA SELECIONADO -->
     <section class="section" style="margin-top:.8rem">
       <div style="display:flex;align-items:center;justify-content:space-between">
         <h3 id="dayTitle" style="font-weight:900">Hoje</h3>
@@ -105,6 +124,22 @@
       </div>
       <div id="list" class="list"></div>
       <div id="empty" class="section tiny muted" hidden>Sem agendamentos para este dia.</div>
+    </section>
+
+    <!-- RODAPÉ: Busca rápida fixa -->
+    <section class="section" style="margin-top:.8rem">
+      <h3 style="font-weight:900;margin-bottom:.4rem">Busca rápida</h3>
+      <div class="footer-search">
+        <input id="qFooter" class="input grow" placeholder="Cliente, serviço, observação…" />
+        <select id="sStatusFooter" class="input">
+          <option value="">Todos os status</option>
+          <option value="agendado">Agendado</option>
+          <option value="reagendar">Reagendar</option>
+          <option value="cancelado">Cancelado</option>
+          <option value="no_show">No‑show</option>
+        </select>
+        <button id="btnApplyFooter" class="btn">Aplicar</button>
+      </div>
     </section>
 
     <!-- Modais -->
@@ -145,22 +180,28 @@
     const qs = new URLSearchParams(location.search)
     const validate = qs.get('validate')==='1'
 
-    // Refs (caderno)
+    // Refs
     const gridHoje = document.getElementById('gridHoje')
     const gridAmanha = document.getElementById('gridAmanha')
-    const dayTitle = document.getElementById('dayTitle')
     const listEl = document.getElementById('list')
     const emptyEl = document.getElementById('empty')
+    const dayTitle = document.getElementById('dayTitle')
+    const week = document.getElementById('week')
 
-    // Modais/inputs
-    const dlg = document.getElementById('dlg')
-    const dlgTitle = document.getElementById('dlgTitle')
-    const dlgClose = document.getElementById('dlgClose')
-    const btnSalvar = document.getElementById('btnSalvar')
-    const btnExcluir = document.getElementById('btnExcluir')
-    const fabNew = document.getElementById('fabNew')
+    const btnHoje = document.getElementById('btnHoje')
+    const btnAmanha = document.getElementById('btnAmanha')
+    const btnSemana = document.getElementById('btnSemana')
+    const dtCustom = document.getElementById('dtCustom')
+
     const btnNovoTop = document.getElementById('btnNovo')
+    const fabNew = document.getElementById('fabNew')
 
+    // Footer quick search
+    const qFooter = document.getElementById('qFooter')
+    const sStatusFooter = document.getElementById('sStatusFooter')
+    const btnApplyFooter = document.getElementById('btnApplyFooter')
+
+    // Modais
     const dlgBusca = document.getElementById('dlgBusca')
     const bClose = document.getElementById('bClose')
     const bApply = document.getElementById('bApply')
@@ -172,7 +213,10 @@
     const fStatus = document.getElementById('fStatus')
     const fRange = document.getElementById('fRange')
 
-    // Campos do editor
+    // Editor
+    const dlg = document.getElementById('dlg')
+    const dlgTitle = document.getElementById('dlgTitle')
+    const dlgClose = document.getElementById('dlgClose')
     const fCliente = document.getElementById('fCliente')
     const fServico = document.getElementById('fServico')
     const fData = document.getElementById('fData')
@@ -180,40 +224,45 @@
     const fPreco = document.getElementById('fPreco')
     const fStatusEdit = document.getElementById('fStatusEdit')
     const fObs = document.getElementById('fObs')
+    const btnSalvar = document.getElementById('btnSalvar')
+    const btnExcluir = document.getElementById('btnExcluir')
 
     // Estado
     let items = []
     let current = null
     let selectedDate = startOfDay(new Date())
 
-    // Eventos topo
-    document.getElementById('btnHoje').addEventListener('click',()=>{ selectedDate=startOfDay(new Date()); renderAll() })
-    document.getElementById('btnAmanha').addEventListener('click',()=>{ const d=new Date(); d.setDate(d.getDate()+1); selectedDate=startOfDay(d); renderAll() })
-    document.getElementById('btnSemana').addEventListener('click',()=>{ window.scrollTo({top:0,behavior:'smooth'}) })
+    // Ações rápidas
+    btnHoje.addEventListener('click',()=>{ selectedDate=startOfDay(new Date()); updateAll() })
+    btnAmanha.addEventListener('click',()=>{ const d=new Date(); d.setDate(d.getDate()+1); selectedDate=startOfDay(d); updateAll() })
+    btnSemana.addEventListener('click',()=>{ window.scrollTo({top:document.querySelector('#week').offsetTop-16,behavior:'smooth'}) })
+    dtCustom.addEventListener('change',()=>{ const d=new Date(dtCustom.value+'T00:00:00'); if(!isNaN(d)) { selectedDate=startOfDay(d); updateAll() } })
+
     btnNovoTop.addEventListener('click',()=> openModal(null))
     fabNew.addEventListener('click',()=> openModal(null))
 
-    // Busca/filtros
+    // Busca e filtros
     document.getElementById('btnBuscar').addEventListener('click',()=> dlgBusca.showModal())
     bClose.addEventListener('click',()=> dlgBusca.close())
-    bApply.addEventListener('click',()=>{ dlgBusca.close(); renderAll() })
-
+    bApply.addEventListener('click',()=>{ dlgBusca.close(); updateAll() })
     document.getElementById('btnFiltros').addEventListener('click',()=> dlgFiltros.showModal())
     fClose.addEventListener('click',()=> dlgFiltros.close())
-    fApply.addEventListener('click',()=>{ dlgFiltros.close(); renderAll() })
+    fApply.addEventListener('click',()=>{ dlgFiltros.close(); updateAll() })
+
+    // Footer quick search
+    btnApplyFooter.addEventListener('click',()=>{ q.value = qFooter.value; fStatus.value = sStatusFooter.value; updateAll() })
 
     // Helpers
     const tz='America/Sao_Paulo'
     function startOfDay(d){ return new Date(d.getFullYear(), d.getMonth(), d.getDate()) }
+    function sameDay(a,b){ return a.getFullYear()===b.getFullYear() && a.getMonth()===b.getMonth() && a.getDate()===b.getDate() }
     const toDateInput = d=> new Date(d).toISOString().slice(0,10)
     const toTimeInput = d=> new Date(d).toTimeString().slice(0,5)
     const fmtHour = d=> new Intl.DateTimeFormat('pt-BR',{hour:'2-digit',minute:'2-digit',timeZone:tz}).format(d)
     const fmtMoney = v=> { try{ const n=Number(String(v).replace(',','.')); return n.toFixed(2).replace('.',',') }catch{ return v } }
     function statusChip(s){ const map={agendado:['s-ag','Agendado'],reagendar:['s-rg','Reagendar'],cancelado:['s-cl','Cancelado'],no_show:['s-ns','No‑show']}; const [cls,txt]=map[s]||map.agendado; return `<span class="status ${cls} tiny">${txt}</span>` }
 
-    function sameDay(a,b){ return a.getFullYear()===b.getFullYear() && a.getMonth()===b.getMonth() && a.getDate()===b.getDate() }
-
-    // Monta caderno (página) para um dia
+    // Caderno do dia (Hoje/Amanhã)
     function buildDayPage(container, day, all){
       container.innerHTML=''
       const start=8, end=19
@@ -223,17 +272,46 @@
           const hh=String(h).padStart(2,'0'), mm=String(m).padStart(2,'0')
           const found = all.find(i=>{ const d=new Date(i.when); return sameDay(d,day) && d.getHours()===h && d.getMinutes()===m })
           const row = document.createElement('div'); row.className='slot'+(found?' busy':'')
-          row.innerHTML = `<span class="h">${hh}:${mm}</span><div class="txt">${found? `<b>${found.cliente}</b> · ${(found.servico||'—')}${found.preco? ` · <span class='price'>R$ ${fmtMoney(found.preco)}</span>`:''}${found.obs? ' · '+found.obs:''} ${statusChip(found.status)}` : "<span class='muted'>livre</span>"}</div>`
+          row.innerHTML = `<span class="h">${hh}:${mm}</span><div class="txt">${found? `<b>${found.cliente}</b> · ${(found.servico||'—')}${found.preco? ` · <b>R$ ${fmtMoney(found.preco)}</b>`:''}${found.obs? ' · '+found.obs:''} ${statusChip(found.status)}` : "<span class='muted'>livre</span>"}</div>`
           row.addEventListener('click',()=>{ if(found){ openModal(found) } else { openModal({ when: slotDate }) } })
           container.appendChild(row)
         }
       }
     }
 
-    // Render lista do dia corrente
+    // Semana resumo — 7 dias a partir da data selecionada
+    function renderWeek(){
+      week.innerHTML=''
+      const base = selectedDate
+      const days = [...Array(7)].map((_,i)=>{ const d=new Date(base); d.setDate(d.getDate()+i); return d })
+      days.forEach(d=>{
+        const el=document.createElement('div'); el.className='day'+(sameDay(d, selectedDate)? ' hoy':'')
+        const lbl = dayLabel(d)
+        const dayItems = items.filter(i=> sameDay(new Date(i.when), d)).sort((a,b)=> new Date(a.when)-new Date(b.when))
+        el.innerHTML = `<div class="hd"><span>${lbl}</span><span class="pill">${dayItems.length} ag.</span></div>`
+        const preview = buildMiniSlots(d, dayItems)
+        preview.forEach(s=>{
+          const li=document.createElement('div'); li.className='mini-slot'+(s.busy?' busy':'')
+          li.innerHTML = `<span>${s.h}</span><span>${s.busy? s.txt : '<span class="muted">livre</span>'}</span>`
+          li.addEventListener('click',()=>{ selectedDate = startOfDay(d); updateAll(); document.querySelector('html,body') })
+          el.appendChild(li)
+        })
+        el.addEventListener('click',()=>{ selectedDate=startOfDay(d); updateAll() })
+        week.appendChild(el)
+      })
+    }
+
+    function buildMiniSlots(day, dayItems){
+      const res=[]; const hours=[8,10,14,17] // amostra leve
+      for(const h of hours){ const m=0; const found = dayItems.find(i=>{ const d=new Date(i.when); return d.getHours()===h && d.getMinutes()===m })
+        res.push({ h: String(h).padStart(2,'0')+':00', busy: !!found, txt: found? `${found.cliente} · ${(found.servico||'—')}`:'' }) }
+      return res
+    }
+
+    // Lista detalhada do dia selecionado
     function renderList(){
       const base = selectedDate
-      const label = sameDay(base,startOfDay(new Date()))? 'Hoje' : (sameDay(base,startOfDay(new Date(Date.now()+86400000)))? 'Amanhã' : base.toLocaleDateString('pt-BR',{weekday:'long', day:'2-digit', month:'2-digit'}))
+      const label = dayLabel(base)
       dayTitle.textContent = label
 
       const term = (q?.value||'').trim().toLowerCase()
@@ -277,23 +355,40 @@
       }
     }
 
-    // KPIs topo (contagens) e render geral
+    // Rótulo de dia consistente (evita duplicar "Amanhã")
+    function dayLabel(d){
+      const today = startOfDay(new Date())
+      const tomorrow = startOfDay(new Date(Date.now()+86400000))
+      if (sameDay(d,today)) return 'Hoje'
+      if (sameDay(d,tomorrow)) return 'Amanhã'
+      return d.toLocaleDateString('pt-BR',{weekday:'short', day:'2-digit', month:'2-digit'})
+    }
+
+    // KPIs topo
     function renderHero(){
       const today = startOfDay(new Date())
       const tomorrow = startOfDay(new Date(Date.now()+86400000))
       const in7 = new Date(today); in7.setDate(in7.getDate()+6)
       document.getElementById('kHoje').textContent = items.filter(i=> sameDay(new Date(i.when),today)).length
       document.getElementById('kAmanha').textContent = items.filter(i=> sameDay(new Date(i.when),tomorrow)).length
-      document.getElementById('k7d').textContent = items.filter(i=> new Date(i.when) <= in7).length
+      document.getElementById('k7d').textContent = items.filter(i=> new Date(i.when) >= today && new Date(i.when) <= in7).length
     }
 
-    function renderAll(){
+    function updateAll(){
+      // Preenche caderno de Hoje/Amanhã
       const today = startOfDay(new Date())
       const tomorrow = startOfDay(new Date(Date.now()+86400000))
       buildDayPage(gridHoje, today, items)
       buildDayPage(gridAmanha, tomorrow, items)
-      renderHero()
+
+      // Semana a partir da data selecionada
+      renderWeek()
+
+      // Lista do dia selecionado
       renderList()
+
+      // Coloca a data escolhida no input se vier vazia
+      if (!dtCustom.value){ dtCustom.value = toDateInput(selectedDate) }
     }
 
     // Editor
@@ -338,21 +433,21 @@
 
     // Data layer
     async function load(){
-      if (validate){ items = demoItems(); renderAll(); return }
+      if (validate){ items = demoItems(); updateAll(); return }
       try{
         const auth=window.firebase?.auth?.(); const db=window.firebase?.firestore?.(); const uid=auth?.currentUser?.uid
-        if (!uid){ items=[]; renderAll(); return toast('Faça login para ver a agenda.') }
+        if (!uid){ items=[]; updateAll(); return toast('Faça login para ver a agenda.') }
         const start = startOfDay(new Date()); const end = new Date(start); end.setDate(end.getDate()+31)
         const snap = await db.collection('profissionais').doc(uid).collection('agendamentos').where('when','>=',start.toISOString()).where('when','<=',end.toISOString()).get()
         items = snap.docs.map(d=> ({ id:d.id, ...d.data() }))
-        renderAll()
+        updateAll()
       }catch(e){ console.error(e); toast('Falha ao carregar agenda.') }
     }
 
     async function saveItem(item, silent){ try{ const auth=window.firebase?.auth?.(); const db=window.firebase?.firestore?.(); const uid=auth?.currentUser?.uid; if(!uid) return toast('Sessão expirada. Faça login.'); const col=db.collection('profissionais').doc(uid).collection('agendamentos'); if(item.id){ await col.doc(item.id).set(item,{merge:true}) } else { const ref=await col.add(item); item.id=ref.id } if(!silent) toast('Agendamento salvo.'); await load() }catch(e){ console.error(e); toast('Erro ao salvar.') } }
     async function deleteItem(item){ try{ const auth=window.firebase?.auth?.(); const db=window.firebase?.firestore?.(); const uid=auth?.currentUser?.uid; if(!uid) return toast('Sessão expirada. Faça login.'); if(!item.id) return; await db.collection('profissionais').doc(uid).collection('agendamentos').doc(item.id).delete(); toast('Agendamento excluído.'); await load() }catch(e){ console.error(e); toast('Erro ao excluir.') } }
 
-    // DEMO rica para validação: semana inteira preenchida em padrão realista
+    // DEMO rica para validação
     function demoItems(){
       const base = startOfDay(new Date())
       const mk=(dayOffset,h,m,cliente,servico,preco,obs,status='agendado')=>({ id: Math.random().toString(36).slice(2), cliente, servico, preco, obs, status, when: new Date(base.getFullYear(),base.getMonth(),base.getDate()+dayOffset,h,m).toISOString(), criadoEm:new Date().toISOString(), atualizadoEm:new Date().toISOString() })
