@@ -3,16 +3,14 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Agenda — MEI Robô (V1.5-MEI)</title>
+  <title>Agenda — MEI Robô (V1.5-MEI FINAL)</title>
 
-  <!-- Assets com cache-bust -->
-  <link rel="stylesheet" href="/assets/styles.css?v=20250909c" />
+  <!-- Assets com cache-bust final -->
+  <link rel="stylesheet" href="/assets/styles.css?v=20250909f" />
 
   <style>
-    /* ===== Agenda (V1.5-MEI) — linguagem simples + week title dinâmico + filtros locais ===== */
-    :root{
-      --card-bg:#0f1513; --card-br:#1d2b26; --muted:#9fb0aa; --soft:#cfe3dc; --accent:#0d7a56; --ink:#eaf5f0; --line:#22352e; --panel:#0e1512; --pill:#2a3a34; --green:#0d7a56;
-    }
+    /* ===== Agenda (V1.5-MEI FINAL) — elegante, simétrica, sóbria ===== */
+    :root{ --card-bg:#0f1513; --card-br:#1d2b26; --muted:#9fb0aa; --soft:#cfe3dc; --accent:#0d7a56; --ink:#eaf5f0; --line:#22352e; --panel:#0e1512; --pill:#2a3a34; --green:#0d7a56; }
     body{background:#0b100e;color:var(--ink)}
     .app-shell{min-height:82svh}
 
@@ -27,33 +25,33 @@
     .tiny{font-size:.78rem}
     .muted{color:var(--muted)}
     .section{border:1px solid var(--card-br);background:var(--card-bg);border-radius:16px;padding:1rem}
-    .divider{height:1px;background:#1c2a25;margin:.8rem 0}
 
-    /* HERO + KPIs */
+    /* HERO + KPIs (largura padronizada) */
     .hero{display:flex;gap:.6rem;flex-wrap:wrap;align-items:center}
     .hero .grow{flex:1 1 auto}
     .kpis{display:flex;gap:.8rem;flex-wrap:wrap}
     .k .n{font-weight:900;font-size:1.05rem}
 
-    /* CADERNOS Hoje/Amanhã — sempre empilhados */
+    /* CADERNOS Hoje/Amanhã — empilhados e largura única */
     .daybook{display:flex;flex-direction:column;gap:1rem;margin-top:.8rem}
 
     .page{border:1px solid #1c2a25;background:var(--panel);border-radius:14px;padding:.9rem}
     .page .hd{display:flex;align-items:center;justify-content:space-between;margin-bottom:.6rem;gap:.6rem;flex-wrap:wrap}
     .grid{display:grid;grid-template-columns:88px 1fr;gap:.6rem}
 
-    .slot{display:flex;gap:.6rem;align-items:center;border:1px dashed var(--line);border-radius:10px;padding:.6rem .7rem;background:#0f1a16}
-    .slot.busy{border-style:solid;background:#11241d}
-    .slot.free{background:transparent;padding:.35rem .5rem;min-height:28px;border-style:dashed}
+    /* Slots com ALTURA ÚNICA (livre e ocupado) */
+    .slot{display:flex;gap:.6rem;align-items:center;border:1px solid var(--line);border-radius:10px;padding:.5rem .7rem;min-height:44px}
+    .slot.busy{background:#11241d; border-style:solid}
+    .slot.free{background:transparent; border-style:dashed}
     .slot .h{font-weight:900;width:80px;flex:0 0 80px}
-    .slot .txt{flex:1;line-height:1.35;word-break:anywhere;overflow-wrap:anywhere}
+    .slot .txt{flex:1;line-height:1.35;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 
     .chips{display:flex;gap:.4rem;flex-wrap:wrap}
     .chip{border:1px solid var(--pill);background:#0f1a16;border-radius:999px;padding:.25rem .6rem;font-size:.78rem;cursor:pointer}
     .chip.active{background:var(--green);border-color:var(--green);color:#042b1b}
     .chip.service{border-style:dashed}
 
-    /* SEMANA (resumo) */
+    /* SEMANA (resumo) — mesma largura; mostra só agendados */
     .week{display:grid;gap:.6rem}
     @media(min-width:900px){ .week{grid-template-columns:repeat(7,1fr)} }
     @media(max-width:899px){ .week{grid-template-columns:repeat(2,1fr)} }
@@ -61,8 +59,7 @@
     .day.hoy{outline:2px solid var(--accent)}
     .day .hd{display:flex;align-items:center;justify-content:space-between;margin-bottom:.4rem}
     .pill{display:inline-block;border:1px solid var(--pill);border-radius:999px;padding:.15rem .5rem;font-size:.72rem}
-    .mini-slot{display:flex;justify-content:space-between;border:1px dashed var(--line);border-radius:10px;padding:.45rem .55rem;margin:.35rem 0;background:#0f1a16}
-    .mini-slot.busy{border-style:solid;background:#10231c}
+    .mini-slot{display:flex;justify-content:space-between;border:1px solid var(--line);border-radius:10px;padding:.45rem .55rem;margin:.35rem 0;min-height:40px;background:#10231c}
 
     /* LISTA DO DIA */
     .list{display:flex;flex-direction:column;gap:.6rem}
@@ -117,7 +114,7 @@
       <div class="tiny muted" id="periodMeta" style="margin-top:.4rem">Exibindo: 08:00–19:00 · Intervalo 30 min · Fuso America/Sao_Paulo</div>
     </section>
 
-    <!-- CADERNO: Hoje + Amanhã (sempre empilhados) -->
+    <!-- CADERNO: Hoje + Amanhã (empilhados, mesmos tamanhos) -->
     <section class="daybook">
       <div class="page" id="pageHoje">
         <div class="hd">
@@ -242,9 +239,7 @@
           <label class="tiny muted">Observações</label>
           <textarea id="fObs" class="input" rows="3" placeholder="Campo livre (opcional)"></textarea>
         </div>
-        <div class="tiny muted" style="margin-top:.6rem">
-          Exemplo de IA: “Agendar corte para meu filho Carlos, 12 anos.” → Serviço: <b>Corte infantil</b>; Cliente: <b>Carlos</b>; Idade: <b>12</b>.
-        </div>
+        <div class="tiny muted" style="margin-top:.6rem">Exemplo de IA: “Agendar corte para meu filho Carlos, 12 anos.” → Serviço: <b>Corte infantil</b>; Cliente: <b>Carlos</b>; Idade: <b>12</b>.</div>
       </div>
       <div class="ft">
         <button class="btn ghost" id="btnExcluir" hidden>Excluir</button>
@@ -257,10 +252,10 @@
 
   <div id="app-footer"></div>
 
-  <!-- Scripts com cache-bust -->
-  <script src="/assets/layout.js?v=20250909c" defer></script>
-  <script src="/assets/firebase-init.js?v=20250909c" defer></script>
-  <script src="/assets/backend-patch.js?v=20250909c" defer></script>
+  <!-- Scripts com cache-bust final -->
+  <script src="/assets/layout.js?v=20250909f" defer></script>
+  <script src="/assets/firebase-init.js?v=20250909f" defer></script>
+  <script src="/assets/backend-patch.js?v=20250909f" defer></script>
 
   <script>
   ;(()=>{
@@ -341,10 +336,9 @@
       const [cls,txt]=map[s]||map.agendado; return `<span class="status ${cls} tiny">${txt}</span>`;
     }
 
-    // Mini-dashboard: estado ativo + reordenação
+    // Tabs
     function setActiveTab(btn){ [btnHoje,btnAmanha,btnSemana].forEach(b=> b.classList.remove('active')); btn.classList.add('active'); ;[btnHoje,btnAmanha,btnSemana].forEach(b=> b.style.order = 0); btn.style.order = -1; }
 
-    // Ações rápidas
     btnHoje.addEventListener('click',()=>{ selectedDate=startOfDay(new Date()); setActiveTab(btnHoje); updateAll(); });
     btnAmanha.addEventListener('click',()=>{ const d=new Date(); d.setDate(d.getDate()+1); selectedDate=startOfDay(d); setActiveTab(btnAmanha); updateAll(); });
     btnSemana.addEventListener('click',()=>{ setActiveTab(btnSemana); window.scrollTo({top:document.querySelector('#weekTitle').offsetTop-16,behavior:'smooth'}); });
@@ -352,7 +346,7 @@
     btnNovoTop.addEventListener('click',()=> openModal(null));
     fabNew.addEventListener('click',()=> openModal(null));
 
-    // Busca / filtros globais (rodapé)
+    // Busca / filtros globais
     document.getElementById('btnBuscar').addEventListener('click',()=> dlgBusca.showModal());
     bClose.addEventListener('click',()=> dlgBusca.close());
     bApply.addEventListener('click',()=>{ dlgBusca.close(); updateAll(); });
@@ -373,7 +367,7 @@
     document.querySelectorAll('.chips').forEach(bar=>{
       bar.addEventListener('click', (ev)=>{
         const t = ev.target.closest('.chip'); if(!t) return;
-        const scope = bar.getAttribute('data-scope'); // 'today' | 'tomorrow'
+        const scope = bar.getAttribute('data-scope');
         bar.querySelectorAll('.chip').forEach(c=>c.classList.remove('active'));
         t.classList.add('active');
         const filter = t.getAttribute('data-filter');
@@ -381,14 +375,12 @@
           const svc = prompt('Qual serviço deseja filtrar? (ex.: Corte, Coloração, Infantil)');
           filters[scope].mode = 'service';
           filters[scope].service = (svc||'').trim();
-        }else{
-          filters[scope].mode = filter; if(filter!=='service') filters[scope].service = '';
-        }
+        }else{ filters[scope].mode = filter; if(filter!=='service') filters[scope].service = '' }
         updateAll();
       });
     });
 
-    // Caderno do dia com filtros locais e busca global + colapso de livres
+    // Caderno do dia — TODOS os slots visíveis, alturas iguais
     function buildDayPage(container, day, all, scope){
       container.innerHTML='';
       const start=8, end=19;
@@ -396,94 +388,39 @@
       const stGlobal = (fStatus.value||'');
       const local = filters[scope];
 
-      // Prepara todos os slots do dia
-      const slots=[];
-      for(let h=start; h<end; h++) for (const m of [0,30]) slots.push({h, m});
+      for(let h=start; h<end; h++){
+        for (const m of [0,30]){
+          const slotDate = new Date(day.getFullYear(),day.getMonth(),day.getDate(),h,m);
+          const hh=String(h).padStart(2,'0'), mm=String(m).padStart(2,'0');
+          const found = all.find(i=>{ const d=new Date(i.when); return sameDay(d,day) && d.getHours()===h && d.getMinutes()===m });
 
-      // Fun filtro base
-      const shouldShow = (found, hh, mm)=>{
-        let show=true;
-        if(local.mode==='busy' && !found) show=false;
-        if(local.mode==='free' && found) show=false;
-        if(local.mode==='service' && found){
-          const svc=(local.service||'').toLowerCase();
-          if(svc && !(String(found.servico||'').toLowerCase().includes(svc))) show=false;
-        }
-        if(stGlobal && (!found || found.status!==stGlobal)) show=false;
-        if(term){
-          if(found){
-            const txt=(found.cliente+' '+(found.servico||'')+' '+(found.obs||'')).toLowerCase();
-            if(!txt.includes(term)) show=false;
-          } else if(!'livre'.includes(term) && !((`${String(hh).padStart(2,'0')}:${String(mm).padStart(2,'0')}`).includes(term))) show=false;
-        }
-        return show;
-      };
-
-      // Mapeia ocupação
-      const mapped = slots.map(({h,m})=>{
-        const found = all.find(i=>{ const d=new Date(i.when); return sameDay(d,day) && d.getHours()===h && d.getMinutes()===m });
-        return {h,m,found};
-      });
-
-      // Colapso de sequências livres (3+ seguidas)
-      let i=0;
-      while(i<mapped.length){
-        const {h,m,found} = mapped[i];
-        if(found){
-          if(!shouldShow(found,h,m)){ i++; continue }
-          appendBusyRow(h,m,found);
-          i++; continue;
-        }
-        // sequência de livres
-        let j=i; while(j<mapped.length && !mapped[j].found){ j++; }
-        const len = j-i; // tamanho da sequência
-        if(len>=3 && (local.mode==='all' || local.mode==='free')){
-          // Faixa colapsada
-          const a = mapped[i], b = mapped[j-1];
-          const h1 = `${String(a.h).padStart(2,'0')}:${String(a.m).padStart(2,'0')}`;
-          const h2 = `${String(b.h).padStart(2,'0')}:${String(b.m).padStart(2,'0')}`;
-          const row = document.createElement('div');
-          row.className='slot free';
-          row.innerHTML = `<span class="h">${h1}–${h2}</span><div class="txt"><span class='muted'>${len} horários livres</span> <button class="btn ghost tiny" data-act="expandir">Mostrar</button></div>`;
-          row.querySelector('button')?.addEventListener('click',(ev)=>{
-            ev.stopPropagation();
-            // expandir: inserir slots individuais no lugar desta faixa
-            row.replaceWith(...mapped.slice(i,j).map(s=> makeFreeRow(s.h,s.m)));
-          });
-          container.appendChild(row);
-        } else {
-          // slots livres individuais (compactos)
-          for(let k=i;k<j;k++){
-            const s = mapped[k];
-            if(shouldShow(null,s.h,s.m)) container.appendChild(makeFreeRow(s.h,s.m));
+          // filtros locais / globais
+          let show = true;
+          if(local.mode==='busy' && !found) show=false;
+          if(local.mode==='free' && found) show=false;
+          if(local.mode==='service' && found){ const svc=(local.service||'').toLowerCase(); if(svc && !(String(found.servico||'').toLowerCase().includes(svc))) show=false }
+          if(stGlobal && (!found || found.status!==stGlobal)) show=false;
+          if(term){
+            if(found){ const txt=(found.cliente+' '+(found.servico||'')+' '+(found.obs||'')).toLowerCase(); if(!txt.includes(term)) show=false }
+            else if(!'livre'.includes(term) && !(`${hh}:${mm}`).includes(term)) show=false
           }
+          if(!show) continue;
+
+          const row = document.createElement('div');
+          row.className='slot '+(found?'busy':'free');
+          const right = found
+            ? `<b>${found.cliente}</b> · ${(found.servico||'—')}${found.preco? ` · <b>R$ ${fmtMoney(found.preco)}</b>`:''}${found.obs? ' · '+found.obs:''} ${statusChip(found.status)}`
+            : `<span class='muted'>livre</span>`;
+          row.innerHTML = `<span class="h">${hh}:${mm}</span><div class="txt">${right}</div>`;
+          row.addEventListener('click',()=>{ if(found){ openModal(found) } else { openModal({ when: slotDate }) } });
+          container.appendChild(row);
         }
-        i=j;
       }
 
-      if(!container.children.length){
-        const empty=document.createElement('div'); empty.className='state tiny'; empty.textContent='Sem horários por aqui.'; container.appendChild(empty);
-      }
-
-      function appendBusyRow(hh,mm,found){
-        const row = document.createElement('div'); row.className='slot busy';
-        const hhmm = `${String(hh).padStart(2,'0')}:${String(mm).padStart(2,'0')}`;
-        const right = `<b>${found.cliente}</b> · ${(found.servico||'—')}${found.preco? ` · <b>R$ ${fmtMoney(found.preco)}</b>`:''}${found.obs? ' · '+found.obs:''} ${statusChip(found.status)}`;
-        row.innerHTML = `<span class="h">${hhmm}</span><div class="txt">${right}</div>`;
-        row.addEventListener('click',()=> openModal(found));
-        container.appendChild(row);
-      }
-
-      function makeFreeRow(hh,mm){
-        const row=document.createElement('div'); row.className='slot free';
-        const hhmm=`${String(hh).padStart(2,'0')}:${String(mm).padStart(2,'0')}`;
-        row.innerHTML = `<span class="h">${hhmm}</span><div class="txt"><span class='muted'>livre</span></div>`;
-        row.addEventListener('click',()=> openModal({ when: new Date(day.getFullYear(),day.getMonth(),day.getDate(),hh,mm) }));
-        return row;
-      }
+      if(!container.children.length){ const empty=document.createElement('div'); empty.className='state tiny'; empty.textContent='Sem horários por aqui.'; container.appendChild(empty) }
     }
 
-    // Semana (resumo) com busca/status aplicados + título dinâmico
+    // Semana (resumo) — somente agendados
     function renderWeek(){
       week.innerHTML='';
       const base = selectedDate;
@@ -501,27 +438,20 @@
         const lbl = dayLabel(d);
         let dayItems = items.filter(i=> sameDay(new Date(i.when), d));
         if(stGlobal) dayItems = dayItems.filter(x=> x.status===stGlobal);
-        if(term){ dayItems = dayItems.filter(x=>{ const txt=(x.cliente+' '+(x.servico||'')+' '+(x.obs||'')).toLowerCase(); return txt.includes(term); }); }
+        if(term){ dayItems = dayItems.filter(x=>{ const txt=(x.cliente+' '+(x.servico||'')+' '+(x.obs||'')).toLowerCase(); return txt.includes(term) }) }
         dayItems.sort((a,b)=> new Date(a.when)-new Date(b.when));
         el.innerHTML = `<div class="hd"><span>${lbl}</span><span class="pill">${dayItems.length} agendamentos</span></div>`;
-        buildMiniSlots(d, dayItems).forEach(s=>{
-          const li=document.createElement('div'); li.className='mini-slot'+(s.busy?' busy':'');
-          li.innerHTML = `<span>${s.h}</span><span>${s.busy? s.txt : '<span class="muted">livre</span>'}</span>`;
+        // Lista todos agendados do dia
+        dayItems.forEach(it=>{
+          const t=new Date(it.when); const hh=new Intl.DateTimeFormat('pt-BR',{hour:'2-digit',minute:'2-digit',timeZone:tz}).format(t);
+          const li=document.createElement('div'); li.className='mini-slot';
+          li.innerHTML = `<span>${hh}</span><span>${it.cliente} · ${(it.servico||'—')}</span>`;
           li.addEventListener('click',()=>{ selectedDate = startOfDay(d); updateAll(); });
           el.appendChild(li);
         });
         el.addEventListener('click',()=>{ selectedDate=startOfDay(d); updateAll(); });
         week.appendChild(el);
       });
-    }
-
-    function buildMiniSlots(day, dayItems){
-      const res=[]; const hours=[8,10,14,17];
-      for(const h of hours){
-        const found = dayItems.find(i=>{ const d=new Date(i.when); return d.getHours()===h && d.getMinutes()===0 });
-        res.push({ h: String(h).padStart(2,'0')+':00', busy: !!found, txt: found? `${found.cliente} · ${(found.servico||'—')}`:'' });
-      }
-      return res;
     }
 
     // Lista detalhada
