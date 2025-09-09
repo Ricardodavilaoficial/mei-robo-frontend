@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Orçamentos — MEI Robô (v1.0)</title>
+  <link rel="stylesheet" href="/assets/styles.css" />
+  <script src="/assets/layout.js" defer></script>
+  <style>
+    body {font-family: Arial, sans-serif; background:#0d1117; color:#e6edf3; margin:0; padding:0;}
+    main {padding:1.2rem; max-width:800px; margin:0 auto;}
+    h1 {font-size:1.6rem; margin-bottom:1rem; color:#cfe3dc;}
+    .card {background:#161b22; border:1px solid #30363d; border-radius:12px; padding:1rem; margin-bottom:1rem;}
+    .card h2 {margin-top:0; font-size:1.2rem; color:#cfe3dc;}
+    label {display:block; margin-top:.8rem; font-weight:bold;}
+    input, textarea {width:100%; padding:.6rem; border-radius:8px; border:1px solid #30363d; background:#0d1117; color:#e6edf3; margin-top:.3rem;}
+    input::placeholder, textarea::placeholder {color:#9fb0aa;}
+    button {background:#238636; color:#fff; padding:.6rem 1rem; border:none; border-radius:8px; margin-top:1rem; cursor:pointer;}
+    button:hover {background:#2ea043;}
+    .actions {display:flex; gap:.8rem; flex-wrap:wrap;}
+    .orcamento-item {border:1px dashed #30363d; border-radius:8px; padding:.6rem; margin-top:.6rem;}
+    small {color:#9fb0aa;}
+    .clausula {font-size:.85rem; margin-top:1rem; color:#9fb0aa; font-style:italic;}
+  </style>
+</head>
+<body>
+  <div id="app-header"></div>
+  <main>
+    <h1>Orçamentos</h1>
+
+    <section class="card" id="lista-orcamentos">
+      <h2>Lista de orçamentos</h2>
+      <div id="orcamentos-container">
+        <p><small>Use ?validate=1 na URL para visualizar exemplos.</small></p>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>Novo Orçamento</h2>
+      <form id="orcamento-form">
+        <label>Nome do cliente
+          <input type="text" name="cliente" placeholder="Ex.: João da Silva" required />
+        </label>
+
+        <label>Itens do orçamento
+          <textarea name="itens" rows="3" placeholder="Ex.: Corte de cabelo - R$40; Barba - R$30"></textarea>
+        </label>
+
+        <label>Desconto (%)
+          <input type="number" name="desconto" placeholder="Ex.: 10" />
+        </label>
+
+        <label>Observações
+          <textarea name="observacoes" rows="2" placeholder="Ex.: Válido apenas em dias de semana"></textarea>
+        </label>
+
+        <label>Validade (dias)
+          <input type="number" name="validade" placeholder="Ex.: 7" />
+        </label>
+
+        <div class="actions">
+          <button type="button" onclick="salvarOrcamento()">Salvar</button>
+          <button type="button" onclick="gerarPDF()">Gerar PDF</button>
+          <button type="button" onclick="enviarOrcamento()">Enviar</button>
+        </div>
+      </form>
+      <p class="clausula">Este orçamento não é proposta. A validade depende de disponibilidade de produto/agenda. 
+      Para formalizar a proposta e confirmar o serviço, solicite confirmação.</p>
+    </section>
+  </main>
+  <div id="app-footer"></div>
+
+  <script>
+    const params = new URLSearchParams(window.location.search);
+    const isValidate = params.get("validate") === "1";
+    const container = document.getElementById("orcamentos-container");
+
+    if (isValidate) {
+      const exemplos = [
+        {cliente:"João Barbeiro", itens:"Corte - R$40; Barba - R$30", desconto:"10%", validade:"7 dias"},
+        {cliente:"Maria Cabelereira", itens:"Penteado festa - R$150", desconto:"0%", validade:"15 dias"}
+      ];
+      container.innerHTML = exemplos.map(e => 
+        `<div class='orcamento-item'><strong>${e.cliente}</strong><br/>
+        Itens: ${e.itens}<br/>
+        Desconto: ${e.desconto}<br/>
+        Validade: ${e.validade}</div>`
+      ).join("");
+    }
+
+    function salvarOrcamento(){
+      alert("✅ Orçamento salvo (simulação em validação)");
+    }
+    function gerarPDF(){
+      alert("📄 PDF gerado (simulação em validação)");
+    }
+    function enviarOrcamento(){
+      alert("📤 Orçamento enviado (simulação em validação)");
+    }
+  </script>
+</body>
+</html>
