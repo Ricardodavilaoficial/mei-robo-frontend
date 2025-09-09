@@ -6,7 +6,7 @@
   <title>Agenda — MEI Robô (V1.5-MEI)</title>
 
   <!-- Assets com cache-bust -->
-  <link rel="stylesheet" href="/assets/styles.css?v=20250909b" />
+  <link rel="stylesheet" href="/assets/styles.css?v=20250909c" />
 
   <style>
     /* ===== Agenda (V1.5-MEI) — linguagem simples + week title dinâmico + filtros locais ===== */
@@ -35,16 +35,19 @@
     .kpis{display:flex;gap:.8rem;flex-wrap:wrap}
     .k .n{font-weight:900;font-size:1.05rem}
 
-    /* CADERNOS Hoje/Amanhã — AGORA SEM LADO A LADO (sempre empilhados) */
+    /* CADERNOS Hoje/Amanhã — sempre empilhados */
     .daybook{display:flex;flex-direction:column;gap:1rem;margin-top:.8rem}
 
     .page{border:1px solid #1c2a25;background:var(--panel);border-radius:14px;padding:.9rem}
     .page .hd{display:flex;align-items:center;justify-content:space-between;margin-bottom:.6rem;gap:.6rem;flex-wrap:wrap}
     .grid{display:grid;grid-template-columns:88px 1fr;gap:.6rem}
-    .slot{display:flex;gap:.6rem;align-items:flex-start;border:1px dashed var(--line);border-radius:10px;padding:.6rem .7rem;background:#0f1a16}
+
+    .slot{display:flex;gap:.6rem;align-items:center;border:1px dashed var(--line);border-radius:10px;padding:.6rem .7rem;background:#0f1a16}
     .slot.busy{border-style:solid;background:#11241d}
+    .slot.free{background:transparent;padding:.35rem .5rem;min-height:28px;border-style:dashed}
     .slot .h{font-weight:900;width:80px;flex:0 0 80px}
     .slot .txt{flex:1;line-height:1.35;word-break:anywhere;overflow-wrap:anywhere}
+
     .chips{display:flex;gap:.4rem;flex-wrap:wrap}
     .chip{border:1px solid var(--pill);background:#0f1a16;border-radius:999px;padding:.25rem .6rem;font-size:.78rem;cursor:pointer}
     .chip.active{background:var(--green);border-color:var(--green);color:#042b1b}
@@ -75,7 +78,7 @@
     .s-ns{background:#2b2b2b}
 
     /* MODAIS */
-    dialog{border:1px solid var(--card-br);background:var(--card-bg);border-radius:16px;color:var(--ink);padding:0;max-width:640px;width:92vw}
+    dialog{border:1px solid var(--card-br);background:var(--card-bg);border-radius:16px;color:var(--ink);padding:0;max-width:760px;width:95vw}
     dialog .hd{display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--card-br);padding:.9rem 1rem}
     dialog .bd{padding:1rem}
     dialog .ft{display:flex;gap:.5rem;justify-content:flex-end;border-top:1px solid var(--card-br);padding:.9rem 1rem}
@@ -93,8 +96,8 @@
 <body class="app-shell">
   <div id="app-header"></div>
 
-  <main class="app-main container" style="padding:16px 14px 120px">
-    <!-- HERO -->
+  <main class="app-main container" style="padding:16px 14px 120px;max-width:1200px">
+    <!-- HERO (mini-dashboard) -->
     <section class="section" style="margin-bottom:.8rem">
       <div class="hero" id="heroBar">
         <div class="kpis">
@@ -103,19 +106,22 @@
           <div class="k tiny"><div class="n" id="k7d">0</div><div>Próx. 7 dias</div></div>
         </div>
         <div class="grow"></div>
-        <button id="btnHoje" class="btn tab">Hoje</button>
-        <button id="btnAmanha" class="btn tab tiny">Amanhã</button>
-        <input id="dtCustom" type="date" class="input" title="Escolher data" />
-        <button id="btnSemana" class="btn tab tiny">Próx. 7 dias</button>
-        <button id="btnNovo" class="btn primary">＋ Novo</button>
+        <div class="controls" style="display:flex;gap:.5rem;flex-wrap:wrap;align-items:center">
+          <button id="btnHoje" class="btn tab">Hoje</button>
+          <button id="btnAmanha" class="btn tab tiny">Amanhã</button>
+          <button id="btnSemana" class="btn tab tiny">Próx. 7 dias</button>
+          <input id="dtCustom" type="date" class="input" title="Escolher data" />
+          <button id="btnNovo" class="btn primary">＋ Novo agendamento</button>
+        </div>
       </div>
+      <div class="tiny muted" id="periodMeta" style="margin-top:.4rem">Exibindo: 08:00–19:00 · Intervalo 30 min · Fuso America/Sao_Paulo</div>
     </section>
 
     <!-- CADERNO: Hoje + Amanhã (sempre empilhados) -->
     <section class="daybook">
       <div class="page" id="pageHoje">
         <div class="hd">
-          <span class="nm"><strong>Hoje</strong> <span class="tiny muted">08:00–19:00 · a cada 30 min</span></span>
+          <span class="nm"><strong>Hoje</strong> <span class="tiny muted" id="lblHojeDate"></span> · <span class="tiny muted">08:00–19:00 · a cada 30 min</span></span>
           <div class="chips" data-scope="today">
             <span class="chip active" data-filter="all">Todos</span>
             <span class="chip" data-filter="busy">Marcados</span>
@@ -128,7 +134,7 @@
 
       <div class="page" id="pageAmanha">
         <div class="hd">
-          <span class="nm"><strong>Amanhã</strong> <span class="tiny muted">08:00–19:00 · a cada 30 min</span></span>
+          <span class="nm"><strong>Amanhã</strong> <span class="tiny muted" id="lblAmanhaDate"></span> · <span class="tiny muted">08:00–19:00 · a cada 30 min</span></span>
           <div class="chips" data-scope="tomorrow">
             <span class="chip active" data-filter="all">Todos</span>
             <span class="chip" data-filter="busy">Marcados</span>
@@ -164,6 +170,7 @@
       <h3 style="font-weight:900;margin-bottom:.4rem">Busca rápida</h3>
       <div class="footer-search">
         <input id="qFooter" class="input grow" placeholder="Busque por cliente ou serviço" />
+        <input id="qDate" type="date" class="input" title="Buscar por data" />
         <select id="sStatusFooter" class="input">
           <option value="">Todas as situações</option>
           <option value="agendado">Marcado</option>
@@ -251,9 +258,9 @@
   <div id="app-footer"></div>
 
   <!-- Scripts com cache-bust -->
-  <script src="/assets/layout.js?v=20250909b" defer></script>
-  <script src="/assets/firebase-init.js?v=20250909b" defer></script>
-  <script src="/assets/backend-patch.js?v=20250909b" defer></script>
+  <script src="/assets/layout.js?v=20250909c" defer></script>
+  <script src="/assets/firebase-init.js?v=20250909c" defer></script>
+  <script src="/assets/backend-patch.js?v=20250909c" defer></script>
 
   <script>
   ;(()=>{
@@ -261,7 +268,6 @@
     const validate = qs.get('validate')==='1';
 
     // Refs
-    const heroBar = document.getElementById('heroBar');
     const gridHoje = document.getElementById('gridHoje');
     const gridAmanha = document.getElementById('gridAmanha');
     const listEl = document.getElementById('list');
@@ -279,6 +285,7 @@
 
     // Busca / filtros globais
     const qFooter = document.getElementById('qFooter');
+    const qDate = document.getElementById('qDate');
     const sStatusFooter = document.getElementById('sStatusFooter');
     const btnApplyFooter = document.getElementById('btnApplyFooter');
 
@@ -307,6 +314,10 @@
     const btnSalvar = document.getElementById('btnSalvar');
     const btnExcluir = document.getElementById('btnExcluir');
 
+    // Labels de data junto a Hoje/Amanhã
+    const lblHojeDate = document.getElementById('lblHojeDate');
+    const lblAmanhaDate = document.getElementById('lblAmanhaDate');
+
     // Estado
     let items = [];
     let current = null;
@@ -323,26 +334,15 @@
     const toTimeInput = d=> new Date(d).toTimeString().slice(0,5);
     const fmtHour = d=> new Intl.DateTimeFormat('pt-BR',{hour:'2-digit',minute:'2-digit',timeZone:tz}).format(d);
     const fmtMoney = v=> { try{ const n=Number(String(v).replace('.','').replace(',','.')); return n.toFixed(2).replace('.',',') }catch{ return v } };
+    const fmtDate = d=> new Intl.DateTimeFormat('pt-BR',{timeZone:tz}).format(d);
 
     function statusChip(s){
-      const map={
-        agendado:['s-ag','Marcado'],
-        reagendar:['s-rg','Reagendar'],
-        cancelado:['s-cl','Cancelado'],
-        no_show:['s-ns','Não compareceu']
-      };
-      const [cls,txt]=map[s]||map.agendado;
-      return `<span class="status ${cls} tiny">${txt}</span>`;
+      const map={ agendado:['s-ag','Marcado'], reagendar:['s-rg','Reagendar'], cancelado:['s-cl','Cancelado'], no_show:['s-ns','Não compareceu'] };
+      const [cls,txt]=map[s]||map.agendado; return `<span class="status ${cls} tiny">${txt}</span>`;
     }
 
     // Mini-dashboard: estado ativo + reordenação
-    function setActiveTab(btn){
-      [btnHoje,btnAmanha,btnSemana].forEach(b=> b.classList.remove('active'));
-      btn.classList.add('active');
-      // traz o ativo pro início visual usando order
-      ;[btnHoje,btnAmanha,btnSemana].forEach(b=> b.style.order = 0);
-      btn.style.order = -1;
-    }
+    function setActiveTab(btn){ [btnHoje,btnAmanha,btnSemana].forEach(b=> b.classList.remove('active')); btn.classList.add('active'); ;[btnHoje,btnAmanha,btnSemana].forEach(b=> b.style.order = 0); btn.style.order = -1; }
 
     // Ações rápidas
     btnHoje.addEventListener('click',()=>{ selectedDate=startOfDay(new Date()); setActiveTab(btnHoje); updateAll(); });
@@ -352,7 +352,7 @@
     btnNovoTop.addEventListener('click',()=> openModal(null));
     fabNew.addEventListener('click',()=> openModal(null));
 
-    // Busca / filtros globais
+    // Busca / filtros globais (rodapé)
     document.getElementById('btnBuscar').addEventListener('click',()=> dlgBusca.showModal());
     bClose.addEventListener('click',()=> dlgBusca.close());
     bApply.addEventListener('click',()=>{ dlgBusca.close(); updateAll(); });
@@ -361,13 +361,18 @@
     fClose.addEventListener('click',()=> dlgFiltros.close());
     fApply.addEventListener('click',()=>{ dlgFiltros.close(); updateAll(); });
 
-    btnApplyFooter.addEventListener('click',()=>{ q.value = qFooter.value; fStatus.value = sStatusFooter.value; updateAll(); });
+    btnApplyFooter.addEventListener('click',()=>{
+      q.value = qFooter.value;
+      fStatus.value = sStatusFooter.value;
+      const dv = (qDate.value||'').trim();
+      if(dv){ dtCustom.value = dv; const d=new Date(dv+'T00:00:00'); if(!isNaN(d)) selectedDate=startOfDay(d); }
+      updateAll();
+    });
 
     // Chips locais por caderno
     document.querySelectorAll('.chips').forEach(bar=>{
       bar.addEventListener('click', (ev)=>{
-        const t = ev.target.closest('.chip');
-        if(!t) return;
+        const t = ev.target.closest('.chip'); if(!t) return;
         const scope = bar.getAttribute('data-scope'); // 'today' | 'tomorrow'
         bar.querySelectorAll('.chip').forEach(c=>c.classList.remove('active'));
         t.classList.add('active');
@@ -377,14 +382,13 @@
           filters[scope].mode = 'service';
           filters[scope].service = (svc||'').trim();
         }else{
-          filters[scope].mode = filter;
-          if(filter!=='service') filters[scope].service = '';
+          filters[scope].mode = filter; if(filter!=='service') filters[scope].service = '';
         }
         updateAll();
       });
     });
 
-    // Caderno do dia com filtros locais e busca global
+    // Caderno do dia com filtros locais e busca global + colapso de livres
     function buildDayPage(container, day, all, scope){
       container.innerHTML='';
       const start=8, end=19;
@@ -392,47 +396,90 @@
       const stGlobal = (fStatus.value||'');
       const local = filters[scope];
 
-      for(let h=start; h<end; h++){
-        for (const m of [0,30]){
-          const slotDate = new Date(day.getFullYear(),day.getMonth(),day.getDate(),h,m);
-          const hh=String(h).padStart(2,'0'), mm=String(m).padStart(2,'0');
-          const found = all.find(i=>{ const d=new Date(i.when); return sameDay(d,day) && d.getHours()===h && d.getMinutes()===m });
+      // Prepara todos os slots do dia
+      const slots=[];
+      for(let h=start; h<end; h++) for (const m of [0,30]) slots.push({h, m});
 
-          // filtros locais / globais
-          let show = true;
-          if(local.mode==='busy' && !found) show=false;
-          if(local.mode==='free' && found) show=false;
-          if(local.mode==='service' && found){
-            const svc=(local.service||'').toLowerCase();
-            if(svc && !(String(found.servico||'').toLowerCase().includes(svc))) show=false;
-          }
-          if(stGlobal && (!found || found.status!==stGlobal)) show=false;
-          if(term){
-            if(found){
-              const txt=(found.cliente+' '+(found.servico||'')+' '+(found.obs||'')).toLowerCase();
-              if(!txt.includes(term)) show=false;
-            } else if(!'livre'.includes(term) && !(`${hh}:${mm}`).includes(term)) show=false;
-          }
-          if(!show) continue;
-
-          const row = document.createElement('div');
-          row.className='slot'+(found?' busy':'');
-
-          const right = found
-            ? `<b>${found.cliente}</b> · ${(found.servico||'—')}${found.preco? ` · <b>R$ ${fmtMoney(found.preco)}</b>`:''}${found.obs? ' · '+found.obs:''} ${statusChip(found.status)}`
-            : "<span class='muted'>livre</span>";
-
-          row.innerHTML = `<span class="h">${hh}:${mm}</span><div class="txt">${right}</div>`;
-          row.addEventListener('click',()=>{ if(found){ openModal(found) } else { openModal({ when: slotDate }) } });
-          container.appendChild(row);
+      // Fun filtro base
+      const shouldShow = (found, hh, mm)=>{
+        let show=true;
+        if(local.mode==='busy' && !found) show=false;
+        if(local.mode==='free' && found) show=false;
+        if(local.mode==='service' && found){
+          const svc=(local.service||'').toLowerCase();
+          if(svc && !(String(found.servico||'').toLowerCase().includes(svc))) show=false;
         }
+        if(stGlobal && (!found || found.status!==stGlobal)) show=false;
+        if(term){
+          if(found){
+            const txt=(found.cliente+' '+(found.servico||'')+' '+(found.obs||'')).toLowerCase();
+            if(!txt.includes(term)) show=false;
+          } else if(!'livre'.includes(term) && !((`${String(hh).padStart(2,'0')}:${String(mm).padStart(2,'0')}`).includes(term))) show=false;
+        }
+        return show;
+      };
+
+      // Mapeia ocupação
+      const mapped = slots.map(({h,m})=>{
+        const found = all.find(i=>{ const d=new Date(i.when); return sameDay(d,day) && d.getHours()===h && d.getMinutes()===m });
+        return {h,m,found};
+      });
+
+      // Colapso de sequências livres (3+ seguidas)
+      let i=0;
+      while(i<mapped.length){
+        const {h,m,found} = mapped[i];
+        if(found){
+          if(!shouldShow(found,h,m)){ i++; continue }
+          appendBusyRow(h,m,found);
+          i++; continue;
+        }
+        // sequência de livres
+        let j=i; while(j<mapped.length && !mapped[j].found){ j++; }
+        const len = j-i; // tamanho da sequência
+        if(len>=3 && (local.mode==='all' || local.mode==='free')){
+          // Faixa colapsada
+          const a = mapped[i], b = mapped[j-1];
+          const h1 = `${String(a.h).padStart(2,'0')}:${String(a.m).padStart(2,'0')}`;
+          const h2 = `${String(b.h).padStart(2,'0')}:${String(b.m).padStart(2,'0')}`;
+          const row = document.createElement('div');
+          row.className='slot free';
+          row.innerHTML = `<span class="h">${h1}–${h2}</span><div class="txt"><span class='muted'>${len} horários livres</span> <button class="btn ghost tiny" data-act="expandir">Mostrar</button></div>`;
+          row.querySelector('button')?.addEventListener('click',(ev)=>{
+            ev.stopPropagation();
+            // expandir: inserir slots individuais no lugar desta faixa
+            row.replaceWith(...mapped.slice(i,j).map(s=> makeFreeRow(s.h,s.m)));
+          });
+          container.appendChild(row);
+        } else {
+          // slots livres individuais (compactos)
+          for(let k=i;k<j;k++){
+            const s = mapped[k];
+            if(shouldShow(null,s.h,s.m)) container.appendChild(makeFreeRow(s.h,s.m));
+          }
+        }
+        i=j;
       }
 
       if(!container.children.length){
-        const empty=document.createElement('div');
-        empty.className='state tiny';
-        empty.textContent='Sem horários por aqui.';
-        container.appendChild(empty);
+        const empty=document.createElement('div'); empty.className='state tiny'; empty.textContent='Sem horários por aqui.'; container.appendChild(empty);
+      }
+
+      function appendBusyRow(hh,mm,found){
+        const row = document.createElement('div'); row.className='slot busy';
+        const hhmm = `${String(hh).padStart(2,'0')}:${String(mm).padStart(2,'0')}`;
+        const right = `<b>${found.cliente}</b> · ${(found.servico||'—')}${found.preco? ` · <b>R$ ${fmtMoney(found.preco)}</b>`:''}${found.obs? ' · '+found.obs:''} ${statusChip(found.status)}`;
+        row.innerHTML = `<span class="h">${hhmm}</span><div class="txt">${right}</div>`;
+        row.addEventListener('click',()=> openModal(found));
+        container.appendChild(row);
+      }
+
+      function makeFreeRow(hh,mm){
+        const row=document.createElement('div'); row.className='slot free';
+        const hhmm=`${String(hh).padStart(2,'0')}:${String(mm).padStart(2,'0')}`;
+        row.innerHTML = `<span class="h">${hhmm}</span><div class="txt"><span class='muted'>livre</span></div>`;
+        row.addEventListener('click',()=> openModal({ when: new Date(day.getFullYear(),day.getMonth(),day.getDate(),hh,mm) }));
+        return row;
       }
     }
 
@@ -450,23 +497,15 @@
 
       const days = [...Array(7)].map((_,i)=>{ const d=new Date(base); d.setDate(d.getDate()+i); return d });
       days.forEach(d=>{
-        const el=document.createElement('div');
-        el.className='day'+(sameDay(d, selectedDate)? ' hoy':'');
+        const el=document.createElement('div'); el.className='day'+(sameDay(d, selectedDate)? ' hoy':'');
         const lbl = dayLabel(d);
         let dayItems = items.filter(i=> sameDay(new Date(i.when), d));
-        // aplica filtros globais na semana
         if(stGlobal) dayItems = dayItems.filter(x=> x.status===stGlobal);
-        if(term){
-          dayItems = dayItems.filter(x=>{
-            const txt=(x.cliente+' '+(x.servico||'')+' '+(x.obs||'')).toLowerCase();
-            return txt.includes(term);
-          });
-        }
+        if(term){ dayItems = dayItems.filter(x=>{ const txt=(x.cliente+' '+(x.servico||'')+' '+(x.obs||'')).toLowerCase(); return txt.includes(term); }); }
         dayItems.sort((a,b)=> new Date(a.when)-new Date(b.when));
-        el.innerHTML = `<div class="hd"><span>${lbl}</span><span class="pill">${dayItems.length} ag.</span></div>`;
+        el.innerHTML = `<div class="hd"><span>${lbl}</span><span class="pill">${dayItems.length} agendamentos</span></div>`;
         buildMiniSlots(d, dayItems).forEach(s=>{
-          const li=document.createElement('div');
-          li.className='mini-slot'+(s.busy?' busy':'');
+          const li=document.createElement('div'); li.className='mini-slot'+(s.busy?' busy':'');
           li.innerHTML = `<span>${s.h}</span><span>${s.busy? s.txt : '<span class="muted">livre</span>'}</span>`;
           li.addEventListener('click',()=>{ selectedDate = startOfDay(d); updateAll(); });
           el.appendChild(li);
@@ -487,31 +526,13 @@
 
     // Lista detalhada
     function renderList(){
-      const base = selectedDate;
-      dayTitle.textContent = dayLabel(base);
+      const base = selectedDate; dayTitle.textContent = dayLabel(base);
       const term = (q?.value||'').trim().toLowerCase();
-      const st = fStatus.value;
-      const range = fRange.value;
-      const end = new Date(base);
-      if (range==='3d') end.setDate(end.getDate()+2); else if (range==='7d') end.setDate(end.getDate()+6);
-
-      const filtered = items.filter(x=>{
-        const d=new Date(x.when);
-        const inRange = d>=base && d<=end;
-        const txt=(x.cliente+' '+(x.servico||'')+' '+(x.obs||'')).toLowerCase();
-        const byTerm = term? txt.includes(term) : true;
-        const byStatus = st? x.status===st : true;
-        return inRange && byTerm && byStatus;
-      }).sort((a,b)=> new Date(a.when)- new Date(b.when));
-
-      listEl.innerHTML='';
-      if (!filtered.length){ emptyEl.hidden=false; return } else { emptyEl.hidden=true }
-
-      for (const it of filtered){
-        const d=new Date(it.when);
-        const el=document.createElement('div');
-        el.className='item';
-        el.innerHTML = `
+      const st = fStatus.value; const range = fRange.value;
+      const end = new Date(base); if (range==='3d') end.setDate(end.getDate()+2); else if (range==='7d') end.setDate(end.getDate()+6)
+      const filtered = items.filter(x=>{ const d=new Date(x.when); const inRange = d>=base && d<=end; const txt=(x.cliente+' '+(x.servico||'')+' '+(x.obs||'')).toLowerCase(); const byTerm = term? txt.includes(term) : true; const byStatus = st? x.status===st : true; return inRange && byTerm && byStatus }).sort((a,b)=> new Date(a.when)- new Date(b.when))
+      listEl.innerHTML=''; if (!filtered.length){ emptyEl.hidden=false; return } else { emptyEl.hidden=true }
+      for (const it of filtered){ const d=new Date(it.when); const el=document.createElement('div'); el.className='item'; el.innerHTML = `
           <div class="avatar">${(it.cliente||'?').slice(0,2).toUpperCase()}</div>
           <div>
             <div style="display:flex;gap:.5rem;align-items:center;flex-wrap:wrap">
@@ -526,173 +547,49 @@
             <button class="btn ghost tiny" data-act="cancelar">Cancelar</button>
             <button class="btn ghost tiny" data-act="no_show">Não compareceu</button>
             <button class="btn tiny" data-act="editar">Editar</button>
-          </div>`;
-        el.querySelectorAll('button').forEach(b=> b.addEventListener('click',()=>handleAction(it,b.dataset.act)));
-        listEl.appendChild(el);
-      }
+          </div>`; el.querySelectorAll('button').forEach(b=> b.addEventListener('click',()=>handleAction(it,b.dataset.act))); listEl.appendChild(el) }
     }
 
     // Rótulo de dia
-    function dayLabel(d){
-      const today = startOfDay(new Date());
-      const tomorrow = startOfDay(new Date(Date.now()+86400000));
-      if (sameDay(d,today)) return 'Hoje';
-      if (sameDay(d,tomorrow)) return 'Amanhã';
-      return d.toLocaleDateString('pt-BR',{weekday:'short', day:'2-digit', month:'2-digit'});
-    }
+    function dayLabel(d){ const today = startOfDay(new Date()); const tomorrow = startOfDay(new Date(Date.now()+86400000)); if (sameDay(d,today)) return 'Hoje'; if (sameDay(d,tomorrow)) return 'Amanhã'; return d.toLocaleDateString('pt-BR',{weekday:'short', day:'2-digit', month:'2-digit'}) }
 
     // KPIs topo
-    function renderHero(){
-      const today = startOfDay(new Date());
-      const tomorrow = startOfDay(new Date(Date.now()+86400000));
-      const in7 = new Date(today); in7.setDate(in7.getDate()+6);
-      document.getElementById('kHoje').textContent = items.filter(i=> sameDay(new Date(i.when),today)).length;
-      document.getElementById('kAmanha').textContent = items.filter(i=> sameDay(new Date(i.when),tomorrow)).length;
-      document.getElementById('k7d').textContent = items.filter(i=> new Date(i.when) >= today && new Date(i.when) <= in7).length;
-    }
+    function renderHero(){ const today = startOfDay(new Date()); const tomorrow = startOfDay(new Date(Date.now()+86400000)); const in7 = new Date(today); in7.setDate(in7.getDate()+6); document.getElementById('kHoje').textContent = items.filter(i=> sameDay(new Date(i.when),today)).length; document.getElementById('kAmanha').textContent = items.filter(i=> sameDay(new Date(i.when),tomorrow)).length; document.getElementById('k7d').textContent = items.filter(i=> new Date(i.when) >= today && new Date(i.when) <= in7).length }
 
-    function updateAll(){
-      const today = startOfDay(new Date());
-      const tomorrow = startOfDay(new Date(Date.now()+86400000));
+    function updateAll(){ const today = startOfDay(new Date()); const tomorrow = startOfDay(new Date(Date.now()+86400000));
+      // Datas nos títulos Hoje/Amanhã
+      lblHojeDate.textContent = `(${fmtDate(today)})`;
+      lblAmanhaDate.textContent = `(${fmtDate(tomorrow)})`;
+
       buildDayPage(gridHoje, today, items, 'today');
       buildDayPage(gridAmanha, tomorrow, items, 'tomorrow');
-      renderWeek();
-      renderList();
-      renderHero();
-      if (!dtCustom.value){ dtCustom.value = toDateInput(selectedDate) }
+      renderWeek(); renderList(); renderHero(); if (!dtCustom.value){ dtCustom.value = toDateInput(selectedDate) }
     }
 
     // Editor
-    function openModal(item){
-      current = item||null;
-      dlgTitle.textContent = item?.id? 'Editar agendamento':'Novo agendamento';
-      btnExcluir.hidden = !item?.id;
-      fCliente.value = item?.cliente||'';
-      fServico.value = item?.servico||'';
-      fPreco.value = item?.preco? fmtMoney(item.preco):'';
-      const d = item?.when? new Date(item.when) : (item?.when instanceof Date? item.when : selectedDate);
-      fData.value = toDateInput(d);
-      fHora.value = toTimeInput(d);
-      fStatusEdit.value = item?.status||'agendado';
-      fObs.value = item?.obs||'';
-      dlg.showModal();
-    }
-    dlgClose.addEventListener('click',()=> dlg.close());
+    function openModal(item){ current = item||null; dlgTitle.textContent = item?.id? 'Editar agendamento':'Novo agendamento'; btnExcluir.hidden = !item?.id; fCliente.value = item?.cliente||''; fServico.value = item?.servico||''; fPreco.value = item?.preco? fmtMoney(item.preco):''; const d = item?.when? new Date(item.when) : (item?.when instanceof Date? item.when : selectedDate); fData.value = toDateInput(d); fHora.value = toTimeInput(d); fStatusEdit.value = item?.status||'agendado'; fObs.value = item?.obs||''; dlg.showModal() }
+    dlgClose.addEventListener('click',()=> dlg.close())
 
-    btnSalvar.addEventListener('click',()=>{
-      if (validate){ toast('🔒 Validação: nada será gravado.'); return }
-      const when = new Date(fData.value+'T'+fHora.value+':00');
-      const preco = parseFloat(String(fPreco.value||'').replace('.','').replace(',','.'));
-      const payload = {
-        cliente:fCliente.value.trim(),
-        servico:fServico.value.trim(),
-        preco:isNaN(preco)? null:Number(preco.toFixed(2)),
-        status:fStatusEdit.value,
-        obs:fObs.value.trim()||null,
-        when:when.toISOString(),
-        atualizadoEm:new Date().toISOString()
-      };
-      if (!payload.cliente || !fData.value || !fHora.value){ toast('Preencha cliente, data e hora.'); return }
-      if (current?.id){ Object.assign(current,payload); saveItem(current,false) } else { payload.criadoEm=new Date().toISOString(); saveItem(payload,false) }
-      dlg.close();
-    });
+    btnSalvar.addEventListener('click',()=>{ if (validate){ toast('🔒 Validação: nada será gravado.'); return } const when = new Date(fData.value+'T'+fHora.value+':00') const preco = parseFloat(String(fPreco.value||'').replace('.','').replace(',','.')) const payload = { cliente:fCliente.value.trim(), servico:fServico.value.trim(), preco:isNaN(preco)? null:Number(preco.toFixed(2)), status:fStatusEdit.value, obs:fObs.value.trim()||null, when:when.toISOString(), atualizadoEm:new Date().toISOString() } if (!payload.cliente || !fData.value || !fHora.value){ toast('Preencha cliente, data e hora.'); return } if (current?.id){ Object.assign(current,payload); saveItem(current,false) } else { payload.criadoEm=new Date().toISOString(); saveItem(payload,false) } dlg.close() })
 
-    btnExcluir.addEventListener('click',()=>{
-      if (validate){ toast('🔒 Validação: exclusão simulada.'); return }
-      if (!current?.id) return; deleteItem(current); dlg.close();
-    });
+    btnExcluir.addEventListener('click',()=>{ if (validate){ toast('🔒 Validação: exclusão simulada.'); return } if (!current?.id) return; deleteItem(current); dlg.close() })
 
-    function handleAction(item, act){
-      if (validate){
-        toast('🔒 Validação: '+(act==='no_show'?'Não compareceu':act)+' (simulado)');
-        if (act==='editar') openModal(item);
-        return;
-      }
-      if (act==='editar') return openModal(item);
-      if (act==='reagendar'){ item.status='reagendar'; saveItem(item,true) }
-      if (act==='cancelar'){ item.status='cancelado'; saveItem(item,true) }
-      if (act==='no_show'){ item.status='no_show'; saveItem(item,true) }
-    }
+    function handleAction(item, act){ if (validate){ toast('🔒 Validação: '+(act==='no_show'?'Não compareceu':act)+' (simulado)'); if (act==='editar') openModal(item); return } if (act==='editar') return openModal(item) if (act==='reagendar'){ item.status='reagendar'; saveItem(item,true) } if (act==='cancelar'){ item.status='cancelado'; saveItem(item,true) } if (act==='no_show'){ item.status='no_show'; saveItem(item,true) } }
 
     // Data layer
-    async function load(){
-      setActiveTab(btnHoje);
-      if (validate){ items = demoItems(); updateAll(); return }
-      try{
-        const auth=window.firebase?.auth?.();
-        const db=window.firebase?.firestore?.();
-        const uid=auth?.currentUser?.uid;
-        if (!uid){ items=[]; updateAll(); return toast('Faça login para ver a agenda.') }
-        const start = startOfDay(new Date());
-        const end = new Date(start); end.setDate(end.getDate()+31);
-        const snap = await db.collection('profissionais').doc(uid).collection('agendamentos')
-          .where('when','>=',start.toISOString()).where('when','<=',end.toISOString()).get();
-        items = snap.docs.map(d=> ({ id:d.id, ...d.data() }));
-        updateAll();
-      }catch(e){ console.error(e); toast('Falha ao carregar agenda.') }
-    }
+    async function load(){ setActiveTab(btnHoje); if (validate){ items = demoItems(); updateAll(); return } try{ const auth=window.firebase?.auth?.(); const db=window.firebase?.firestore?.(); const uid=auth?.currentUser?.uid if (!uid){ items=[]; updateAll(); return toast('Faça login para ver a agenda.') } const start = startOfDay(new Date()); const end = new Date(start); end.setDate(end.getDate()+31) const snap = await db.collection('profissionais').doc(uid).collection('agendamentos') .where('when','>=',start.toISOString()).where('when','<=',end.toISOString()).get() items = snap.docs.map(d=> ({ id:d.id, ...d.data() })) updateAll() }catch(e){ console.error(e); toast('Falha ao carregar agenda.') } }
 
-    async function saveItem(item, silent){
-      try{
-        const auth=window.firebase?.auth?.();
-        const db=window.firebase?.firestore?.();
-        const uid=auth?.currentUser?.uid; if(!uid) return toast('Sessão expirada. Faça login.');
-        const col=db.collection('profissionais').doc(uid).collection('agendamentos');
-        if(item.id){ await col.doc(item.id).set(item,{merge:true}) } else { const ref=await col.add(item); item.id=ref.id }
-        if(!silent) toast('Agendamento salvo.');
-        await load();
-      }catch(e){ console.error(e); toast('Erro ao salvar.') }
-    }
+    async function saveItem(item, silent){ try{ const auth=window.firebase?.auth?.(); const db=window.firebase?.firestore?.(); const uid=auth?.currentUser?.uid; if(!uid) return toast('Sessão expirada. Faça login.'); const col=db.collection('profissionais').doc(uid).collection('agendamentos'); if(item.id){ await col.doc(item.id).set(item,{merge:true}) } else { const ref=await col.add(item); item.id=ref.id } if(!silent) toast('Agendamento salvo.'); await load() }catch(e){ console.error(e); toast('Erro ao salvar.') } }
 
-    async function deleteItem(item){
-      try{
-        const auth=window.firebase?.auth?.();
-        const db=window.firebase?.firestore?.();
-        const uid=auth?.currentUser?.uid; if(!uid) return toast('Sessão expirada. Faça login.');
-        if(!item.id) return; await db.collection('profissionais').doc(uid).collection('agendamentos').doc(item.id).delete();
-        toast('Agendamento excluído.');
-        await load();
-      }catch(e){ console.error(e); toast('Erro ao excluir.') }
-    }
+    async function deleteItem(item){ try{ const auth=window.firebase?.auth?.(); const db=window.firebase?.firestore?.(); const uid=auth?.currentUser?.uid; if(!uid) return toast('Sessão expirada. Faça login.'); if(!item.id) return; await db.collection('profissionais').doc(uid).collection('agendamentos').doc(item.id).delete(); toast('Agendamento excluído.'); await load() }catch(e){ console.error(e); toast('Erro ao excluir.') } }
 
     // DEMO (validação)
-    function demoItems(){
-      const base = startOfDay(new Date());
-      const mk=(dayOffset,h,m,cliente,servico,preco,obs,status='agendado')=>({ id: Math.random().toString(36).slice(2), cliente, servico, preco, obs, status, when: new Date(base.getFullYear(),base.getMonth(),base.getDate()+dayOffset,h,m).toISOString(), criadoEm:new Date().toISOString(), atualizadoEm:new Date().toISOString() });
-      return [
-        mk(0,8,0,'Carlos','Corte infantil',40,'12 anos'),
-        mk(0,8,30,'Marina','Escova',60,null),
-        mk(0,9,0,'Rafael','Barba',35,'—','no_show'),
-        mk(0,10,0,'Ana Paula','Coloração',120,'Traga referência','reagendar'),
-        mk(0,10,30,'João V.','Corte masculino',45,null),
-        mk(0,11,30,'Patrícia','Manicure',50,null),
-        mk(0,14,0,'Dona Lúcia','Hidratação',70,null),
-        mk(0,16,30,'Bianca','Penteado',150,'Evento'),
-        mk(1,9,30,'Felipe','Corte',40,null),
-        mk(1,11,0,'Camila','Coloração raiz',130,null),
-        mk(1,15,0,'Pedro','Corte + Barba',75,'Cliente recorrente'),
-        mk(2,10,30,'Luan','Corte',40,null),
-        mk(2,13,0,'Marta','Escova',60,null),
-        mk(3,9,0,'Eduardo','Barba',35,null),
-        mk(4,17,0,'Sofia','Penteado',160,'Formatura'),
-        mk(5,10,0,'Tamires','Corte',45,null),
-        mk(6,18,30,'Diego','Coloração total',180,null)
-      ];
-    }
+    function demoItems(){ const base = startOfDay(new Date()) const mk=(dayOffset,h,m,cliente,servico,preco,obs,status='agendado')=>({ id: Math.random().toString(36).slice(2), cliente, servico, preco, obs, status, when: new Date(base.getFullYear(),base.getMonth(),base.getDate()+dayOffset,h,m).toISOString(), criadoEm:new Date().toISOString(), atualizadoEm:new Date().toISOString() }) return [ mk(0,8,0,'Carlos','Corte infantil',40,'12 anos'), mk(0,8,30,'Marina','Escova',60,null), mk(0,9,0,'Rafael','Barba',35,'—','no_show'), mk(0,10,0,'Ana Paula','Coloração',120,'Traga referência','reagendar'), mk(0,10,30,'João V.','Corte masculino',45,null), mk(0,11,30,'Patrícia','Manicure',50,null), mk(0,14,0,'Dona Lúcia','Hidratação',70,null), mk(0,16,30,'Bianca','Penteado',150,'Evento'), mk(1,9,30,'Felipe','Corte',40,null), mk(1,11,0,'Camila','Coloração raiz',130,null), mk(1,15,0,'Pedro','Corte + Barba',75,'Cliente recorrente'), mk(2,10,30,'Luan','Corte',40,null), mk(2,13,0,'Marta','Escova',60,null), mk(3,9,0,'Eduardo','Barba',35,null), mk(4,17,0,'Sofia','Penteado',160,'Formatura'), mk(5,10,0,'Tamires','Corte',45,null), mk(6,18,30,'Diego','Coloração total',180,null) ] }
 
-    function toast(msg){
-      let t=document.getElementById('__toast');
-      if(!t){
-        t=document.createElement('div'); t.id='__toast'; document.body.appendChild(t);
-        t.style.position='fixed'; t.style.left='50%'; t.style.bottom='20px'; t.style.transform='translateX(-50%)';
-        t.style.background= 'var(--accent)'; t.style.color='#fff'; t.style.padding='10px 14px'; t.style.borderRadius='10px'; t.style.fontWeight='800'; t.style.zIndex='9999';
-      }
-      t.textContent=msg; t.style.opacity='1'; setTimeout(()=>{ t.style.transition='opacity .3s'; t.style.opacity='0' },1500)
-    }
+    function toast(msg){ let t=document.getElementById('__toast'); if(!t){ t=document.createElement('div'); t.id='__toast'; document.body.appendChild(t); t.style.position='fixed'; t.style.left='50%'; t.style.bottom='20px'; t.style.transform='translateX(-50%)'; t.style.background= 'var(--accent)'; t.style.color='#fff'; t.style.padding='10px 14px'; t.style.borderRadius='10px'; t.style.fontWeight='800'; t.style.zIndex='9999'; } t.textContent=msg; t.style.opacity='1'; setTimeout(()=>{ t.style.transition='opacity .3s'; t.style.opacity='0' },1500) }
 
-    document.addEventListener('DOMContentLoaded', load);
+    document.addEventListener('DOMContentLoaded', load)
   })()
   </script>
 </body>
 </html>
-
