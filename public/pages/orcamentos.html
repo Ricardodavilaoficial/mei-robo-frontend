@@ -3,100 +3,464 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Orçamentos — MEI Robô (v1.0)</title>
+  <title>Orçamentos — MEI Robô (v1.1)</title>
   <link rel="stylesheet" href="/assets/styles.css" />
   <script src="/assets/layout.js" defer></script>
   <style>
-    body {font-family: Arial, sans-serif; background:#0d1117; color:#e6edf3; margin:0; padding:0;}
-    main {padding:1.2rem; max-width:800px; margin:0 auto;}
-    h1 {font-size:1.6rem; margin-bottom:1rem; color:#cfe3dc;}
-    .card {background:#161b22; border:1px solid #30363d; border-radius:12px; padding:1rem; margin-bottom:1rem;}
-    .card h2 {margin-top:0; font-size:1.2rem; color:#cfe3dc;}
-    label {display:block; margin-top:.8rem; font-weight:bold;}
-    input, textarea {width:100%; padding:.6rem; border-radius:8px; border:1px solid #30363d; background:#0d1117; color:#e6edf3; margin-top:.3rem;}
-    input::placeholder, textarea::placeholder {color:#9fb0aa;}
-    button {background:#238636; color:#fff; padding:.6rem 1rem; border:none; border-radius:8px; margin-top:1rem; cursor:pointer;}
-    button:hover {background:#2ea043;}
-    .actions {display:flex; gap:.8rem; flex-wrap:wrap;}
-    .orcamento-item {border:1px dashed #30363d; border-radius:8px; padding:.6rem; margin-top:.6rem;}
-    small {color:#9fb0aa;}
-    .clausula {font-size:.85rem; margin-top:1rem; color:#9fb0aa; font-style:italic;}
+    :root{ --bg:#0d1117; --card:#161b22; --br:#30363d; --soft:#cfe3dc; --muted:#9fb0aa; --accent:#25D366; --txt:#e6edf3; --danger:#ff6961; }
+    html,body{background:var(--bg); color:var(--txt); margin:0; padding:0; font-family:system-ui, -apple-system, Segoe UI, Roboto, Arial}
+    main{max-width:980px; margin:0 auto; padding:16px}
+    h1{font-size:1.6rem; margin:8px 0 16px; color:var(--soft)}
+    .card{background:var(--card); border:1px solid var(--br); border-radius:14px; padding:14px; margin:12px 0}
+    .card h2{margin:0 0 10px; color:var(--soft); font-size:1.2rem}
+    .row{display:flex; gap:10px; flex-wrap:wrap}
+    label{font-weight:700; font-size:.95rem; display:block; margin-top:8px}
+    input[type="text"], input[type="number"], textarea, select{ width:100%; background:#0d1117; color:var(--txt); border:1px solid var(--br); border-radius:10px; padding:10px; }
+    input::placeholder, textarea::placeholder{color:var(--muted)}
+    .btn{background:#238636; color:#fff; border:none; border-radius:10px; padding:10px 14px; cursor:pointer; font-weight:700}
+    .btn:hover{background:#2ea043}
+    .btn-ghost{background:transparent; border:1px solid var(--br); color:var(--txt)}
+    .btn-danger{background:var(--danger)}
+    .hint{color:var(--muted); font-size:.9rem}
+    .grid-2{display:grid; grid-template-columns:1fr 1fr; gap:10px}
+    .grid-3{display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px}
+    .grid-4{display:grid; grid-template-columns:2fr 1fr 1fr 1fr; gap:10px}
+    table{width:100%; border-collapse:collapse; margin-top:8px}
+    th, td{border:1px solid var(--br); padding:10px; text-align:left}
+    th{background:#0f141a; color:var(--soft)}
+    tfoot td{font-weight:800}
+    .badge{display:inline-block; padding:2px 8px; border:1px solid var(--br); border-radius:999px; color:var(--soft); font-size:.8rem}
+    .tabs{display:flex; gap:8px; flex-wrap:wrap; margin-bottom:10px}
+    .tab{padding:8px 12px; border:1px solid var(--br); border-radius:999px; cursor:pointer; user-select:none}
+    .tab.active{background:#1b222c}
+    .flex-between{display:flex; justify-content:space-between; align-items:center; gap:8px; flex-wrap:wrap}
+    .totais{font-size:1.05rem}
+    .clausula{font-size:.9rem; color:var(--muted); font-style:italic; margin-top:10px}
+    .divider{height:1px; background:var(--br); margin:10px 0}
+    .kicker{font-size:.95rem; color:var(--muted)}
+    .right{ text-align:right }
+    .nowrap{white-space:nowrap}
+    .search-results{border:1px solid var(--br); border-radius:10px; padding:8px; margin-top:6px; background:#0f141a}
+    .search-item{padding:8px; border:1px dashed var(--br); border-radius:10px; margin:6px 0; display:flex; justify-content:space-between; align-items:center}
+    .empty{color:var(--muted); padding:6px}
+    .mini{font-size:.85rem}
   </style>
 </head>
 <body>
   <div id="app-header"></div>
   <main>
-    <h1>Orçamentos</h1>
+    <h1>Orçamentos <span class="badge">v1.1</span></h1>
 
-    <section class="card" id="lista-orcamentos">
-      <h2>Lista de orçamentos</h2>
-      <div id="orcamentos-container">
-        <p><small>Use ?validate=1 na URL para visualizar exemplos.</small></p>
+    <section class="card" id="sec-lista">
+      <div class="flex-between">
+        <h2>Lista de orçamentos</h2>
+        <div class="kicker">Use <code>?validate=1</code> para exemplos</div>
       </div>
+      <div id="lista-orcamentos"><p class="kicker">Nenhum orçamento carregado.</p></div>
     </section>
 
-    <section class="card">
-      <h2>Novo Orçamento</h2>
-      <form id="orcamento-form">
-        <label>Nome do cliente
-          <input type="text" name="cliente" placeholder="Ex.: João da Silva" required />
-        </label>
-
-        <label>Itens do orçamento
-          <textarea name="itens" rows="3" placeholder="Ex.: Corte de cabelo - R$40; Barba - R$30"></textarea>
-        </label>
-
-        <label>Desconto (%)
-          <input type="number" name="desconto" placeholder="Ex.: 10" />
-        </label>
-
-        <label>Observações
-          <textarea name="observacoes" rows="2" placeholder="Ex.: Válido apenas em dias de semana"></textarea>
-        </label>
-
-        <label>Validade (dias)
-          <input type="number" name="validade" placeholder="Ex.: 7" />
-        </label>
-
-        <div class="actions">
-          <button type="button" onclick="salvarOrcamento()">Salvar</button>
-          <button type="button" onclick="gerarPDF()">Gerar PDF</button>
-          <button type="button" onclick="enviarOrcamento()">Enviar</button>
+    <section class="card" id="sec-editor">
+      <div class="flex-between">
+        <h2>Editar / Novo orçamento</h2>
+        <div class="tabs" id="tabs">
+          <div class="tab active" data-pack="A">Pacote A</div>
+          <div class="tab" data-pack="B">Pacote B</div>
+          <div class="tab" data-pack="C">Pacote C</div>
+          <button class="btn btn-ghost mini" id="btn-duplica">Duplicar p/ próximo pacote</button>
         </div>
-      </form>
-      <p class="clausula">Este orçamento não é proposta. A validade depende de disponibilidade de produto/agenda. 
+      </div>
+
+      <div class="grid-2">
+        <div>
+          <label>Cliente</label>
+          <input type="text" id="cliente" placeholder="Ex.: João da Silva (WhatsApp ou e-mail no envio)" />
+        </div>
+        <div>
+          <label>Validade (dias)</label>
+          <input type="number" id="validade" placeholder="Ex.: 7" />
+        </div>
+      </div>
+
+      <div class="card" style="margin:10px 0">
+        <h3 style="margin:0 0 6px">Adicionar itens do catálogo</h3>
+        <div class="grid-3">
+          <div>
+            <label>Buscar serviço/produto</label>
+            <input type="text" id="busca" placeholder="Ex.: corte, hidratação, barba" />
+            <div class="hint">Dica: o catálogo vem de <strong>Preços/Serviços</strong>. Atualize lá para aparecer aqui.</div>
+          </div>
+          <div>
+            <label>Filtrar por duração (opcional)</label>
+            <select id="filtroDur">
+              <option value="">Qualquer duração</option>
+              <option value="15">Até 15 min</option>
+              <option value="30">Até 30 min</option>
+              <option value="60">Até 60 min</option>
+            </select>
+          </div>
+          <div class="nowrap" style="align-self:end">
+            <button class="btn" id="btn-buscar">Buscar</button>
+            <button class="btn btn-ghost" id="btn-item-livre">Item livre</button>
+          </div>
+        </div>
+        <div id="resultado-busca" class="search-results"></div>
+      </div>
+
+      <div class="card" style="margin:10px 0">
+        <h3 style="margin:0 0 6px">Itens do orçamento</h3>
+        <table id="tabela-itens">
+          <thead>
+            <tr>
+              <th>Item</th>
+              <th class="nowrap">Preço (R$)</th>
+              <th class="nowrap">Qtd</th>
+              <th class="nowrap">Duração</th>
+              <th class="nowrap right">Subtotal (R$)</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="tbody-itens">
+            <tr class="empty"><td colspan="6" class="empty">Nenhum item adicionado ainda. Use a busca ou “Item livre”.</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="grid-2">
+        <div class="card">
+          <h3 style="margin:0 0 6px">Custos adicionais (opcionais)</h3>
+          <div class="grid-2">
+            <div>
+              <label>Taxa de visita (R$)</label>
+              <input type="number" id="taxaVisita" placeholder="Ex.: 20" step="0.01">
+            </div>
+            <div>
+              <label>Frete (R$)</label>
+              <input type="number" id="frete" placeholder="Ex.: 15" step="0.01">
+            </div>
+          </div>
+          <div class="grid-4" style="margin-top:8px">
+            <div>
+              <label>Km grátis</label>
+              <input type="number" id="kmGratis" placeholder="Ex.: 5" step="0.1">
+            </div>
+            <div>
+              <label>R$/km extra</label>
+              <input type="number" id="precoKm" placeholder="Ex.: 1.5" step="0.01">
+            </div>
+            <div>
+              <label>Distância total (km)</label>
+              <input type="number" id="kmTotal" placeholder="Ex.: 12" step="0.1">
+            </div>
+            <div class="right" style="align-self:end"><span class="hint">Cobra apenas após franquia</span></div>
+          </div>
+
+          <label style="margin-top:8px">Observações</label>
+          <textarea id="observacoes" rows="2" placeholder="Ex.: Válido em dias úteis; não inclui peças fora do catálogo."></textarea>
+        </div>
+
+        <div class="card">
+          <h3 style="margin:0 0 6px">Descontos e entrada</h3>
+          <div class="grid-2">
+            <div>
+              <label>Desconto geral (%)</label>
+              <input type="number" id="descGeral" placeholder="Ex.: 10" step="0.01">
+            </div>
+            <div>
+              <label>Entrada/Sinal (R$ ou %)</label>
+              <input type="text" id="entrada" placeholder="Ex.: R$ 50 ou 20%">
+            </div>
+          </div>
+          <div class="divider"></div>
+          <div class="totais">
+            <div class="flex-between"><span>Subtotal itens</span><strong id="subtotalItens">R$ 0,00</strong></div>
+            <div class="flex-between"><span>Extras (visita/km/frete)</span><strong id="extrasTotal">R$ 0,00</strong></div>
+            <div class="flex-between"><span>Desconto geral</span><strong id="descontoGeral">– R$ 0,00</strong></div>
+            <div class="flex-between"><span>Total</span><strong id="totalGeral">R$ 0,00</strong></div>
+            <div class="flex-between kicker"><span>Entrada (se usada)</span><span id="entradaInfo">—</span></div>
+          </div>
+        </div>
+      </div>
+
+      <p class="clausula">Este orçamento não é proposta. A validade depende de disponibilidade de produto/agenda.
       Para formalizar a proposta e confirmar o serviço, solicite confirmação.</p>
+
+      <div class="flex-between" style="margin-top:10px">
+        <div class="kicker">Mensagens de envio (edite se quiser):</div>
+        <div class="mini">*O envio real será integrado depois (e-mail/WhatsApp).</div>
+      </div>
+      <div class="grid-2">
+        <textarea id="msgWhats" rows="2" placeholder="Oi, NOME! Segue seu orçamento. Qualquer dúvida é só me chamar por aqui."></textarea>
+        <textarea id="msgEmail" rows="2" placeholder="Olá, NOME. Anexo envio seu orçamento em PDF. Fico à disposição para ajustar o que for preciso."></textarea>
+      </div>
+
+      <div class="flex-between" style="margin-top:10px">
+        <div class="row">
+          <button class="btn" id="btn-salvar">Salvar</button>
+          <button class="btn btn-ghost" id="btn-pdf">Gerar PDF (simulação)</button>
+          <button class="btn btn-ghost" id="btn-enviar">Enviar (simulação)</button>
+        </div>
+        <div class="row">
+          <button class="btn btn-danger" id="btn-limpar">Limpar</button>
+        </div>
+      </div>
     </section>
   </main>
   <div id="app-footer"></div>
 
   <script>
-    const params = new URLSearchParams(window.location.search);
-    const isValidate = params.get("validate") === "1";
-    const container = document.getElementById("orcamentos-container");
+    const params = new URLSearchParams(location.search);
+    const isValidate = params.get('validate') === '1';
 
-    if (isValidate) {
-      const exemplos = [
-        {cliente:"João Barbeiro", itens:"Corte - R$40; Barba - R$30", desconto:"10%", validade:"7 dias"},
-        {cliente:"Maria Cabelereira", itens:"Penteado festa - R$150", desconto:"0%", validade:"15 dias"}
-      ];
-      container.innerHTML = exemplos.map(e => 
-        `<div class='orcamento-item'><strong>${e.cliente}</strong><br/>
-        Itens: ${e.itens}<br/>
-        Desconto: ${e.desconto}<br/>
-        Validade: ${e.validade}</div>`
-      ).join("");
+    let catalogo = [];
+    const mockCatalogo = [
+      { id:'svc_corte', nome:'Corte de cabelo', precoBase:40, duracaoMin:30, sinonimos:['corte','cabelo'] },
+      { id:'svc_barba', nome:'Barba', precoBase:30, duracaoMin:20, sinonimos:['barba','barboterapia'] },
+      { id:'svc_hidra', nome:'Hidratação', precoBase:60, duracaoMin:45, sinonimos:['hidratacao','hidratação capilar'] },
+      { id:'prod_pomada', nome:'Pomada modeladora', precoBase:35, duracaoMin:null, sinonimos:['pomada'] }
+    ];
+
+    const mockOrcamentos = [
+      { id:'orc_001', cliente:'João da Silva', total: 99.00, pacote:'A', validade:7, criado:'2025-09-09 14:00' },
+      { id:'orc_002', cliente:'Maria Souza', total: 150.00, pacote:'B', validade:10, criado:'2025-09-08 18:20' }
+    ];
+
+    const estado = {
+      pacoteAtivo: 'A',
+      pacotes: {
+        A: { itens:[], extras:{ taxaVisita:0, frete:0, kmGratis:0, precoKm:0, kmTotal:0 }, descGeral:0, total:0 },
+        B: { itens:[], extras:{ taxaVisita:0, frete:0, kmGratis:0, precoKm:0, kmTotal:0 }, descGeral:0, total:0 },
+        C: { itens:[], extras:{ taxaVisita:0, frete:0, kmGratis:0, precoKm:0, kmTotal:0 }, descGeral:0, total:0 },
+      },
+      cliente:'', validade:'', observacoes:'', entrada:''
+    };
+
+    const el = (id)=>document.getElementById(id);
+    const fmt = (v)=>'R$ ' + (Number(v||0)).toFixed(2).replace('.',',');
+
+    function ativaPacote(p){ estado.pacoteAtivo = p; renderTabela(); renderTotais(); }
+
+    async function bootstrap(){
+      if(isValidate){
+        catalogo = mockCatalogo;
+        renderLista(mockOrcamentos);
+      } else {
+        catalogo = []; renderLista([]);
+      }
+      bindEvents();
+      renderTabela();
+      renderTotais();
     }
 
-    function salvarOrcamento(){
-      alert("✅ Orçamento salvo (simulação em validação)");
+    function renderLista(arr){
+      const host = el('lista-orcamentos');
+      if(!arr || !arr.length){
+        host.innerHTML = '<p class="kicker">Nenhum orçamento ainda.</p>';
+        return;
+      }
+      host.innerHTML = arr.map(o=>`
+        <div class="card">
+          <div class="flex-between">
+            <div><strong>${o.cliente}</strong> <span class="badge">Pacote ${o.pacote}</span></div>
+            <div>${fmt(o.total)}</div>
+          </div>
+          <div class="kicker">Criado em ${o.criado} · Validade: ${o.validade} dias</div>
+        </div>`).join('');
     }
-    function gerarPDF(){
-      alert("📄 PDF gerado (simulação em validação)");
+
+    function doBusca(){
+      const termo = el('busca').value.trim().toLowerCase();
+      const limDur = Number(el('filtroDur').value || 0);
+      const resHost = el('resultado-busca');
+      let results = (catalogo||[]).filter(x=>{
+        const matchNome = x.nome.toLowerCase().includes(termo);
+        const matchSyn = (x.sinonimos||[]).some(s=>s.toLowerCase().includes(termo));
+        const matchDur = !limDur || (x.duracaoMin && x.duracaoMin <= limDur);
+        return (!termo || matchNome || matchSyn) && matchDur;
+      });
+      if(!results.length){
+        resHost.innerHTML = `<div class="empty">Nada encontrado. Tente outro termo ou adicione como <strong>Item livre</strong>.</div>`;
+        return;
+      }
+      resHost.innerHTML = results.map(r=>`
+        <div class="search-item">
+          <div>
+            <div><strong>${r.nome}</strong> ${r.duracaoMin?`· ${r.duracaoMin} min`:''}</div>
+            <div class="kicker">${fmt(r.precoBase)} · origem: catálogo</div>
+          </div>
+          <button class="btn mini" data-add="${r.id}">Adicionar</button>
+        </div>`).join('');
+      resHost.querySelectorAll('button[data-add]').forEach(b=>{
+        b.addEventListener('click', ()=>{
+          const item = catalogo.find(c=>c.id===b.dataset.add);
+          if(item) addItem({ origem:'catalogo', refId:item.id, nome:item.nome, preco:item.precoBase, qtd:1, duracao:item.duracaoMin||'' });
+        });
+      });
     }
-    function enviarOrcamento(){
-      alert("📤 Orçamento enviado (simulação em validação)");
+
+    function addItem(obj){
+      const p = estado.pacoteAtivo;
+      const pack = estado.pacotes[p];
+      if(pack.itens.length===0){
+        const emptyRow = document.querySelector('#tbody-itens .empty');
+        if(emptyRow) emptyRow.remove();
+      }
+      pack.itens.push({ origem:obj.origem||'livre', refId:obj.refId||null, nome:obj.nome||'', preco:Number(obj.preco||0), qtd:Number(obj.qtd||1), duracao: obj.duracao||'' });
+      renderTabela();
+      renderTotais();
     }
+
+    function removeItem(idx){
+      const p = estado.pacoteAtivo; const pack = estado.pacotes[p];
+      pack.itens.splice(idx,1);
+      renderTabela();
+      renderTotais();
+    }
+
+    function renderTabela(){
+      const p = estado.pacoteAtivo; const pack = estado.pacotes[p];
+      const tbody = el('tbody-itens');
+      if(!pack.itens.length){
+        tbody.innerHTML = `<tr class="empty"><td colspan="6" class="empty">Nenhum item adicionado ainda. Use a busca ou “Item livre”.</td></tr>`;
+        return;
+      }
+      tbody.innerHTML = pack.itens.map((it, i)=>`
+        <tr>
+          <td>
+            <input type="text" value="${it.nome}" data-i="${i}" data-k="nome" />
+            <div class="kicker mini">${it.origem==='catalogo'?'Veio do catálogo':'Item personalizado'}</div>
+          </td>
+          <td class="nowrap">
+            <input type="number" step="0.01" value="${it.preco}" data-i="${i}" data-k="preco" />
+          </td>
+          <td class="nowrap"><input type="number" step="1" value="${it.qtd}" data-i="${i}" data-k="qtd" /></td>
+          <td class="nowrap"><input type="number" step="5" value="${it.duracao||''}" data-i="${i}" data-k="duracao" placeholder="min" /></td>
+          <td class="right nowrap">${fmt(it.preco*it.qtd)}</td>
+          <td class="right"><button class="btn btn-danger mini" data-rem="${i}">Remover</button></td>
+        </tr>`).join('');
+
+      tbody.querySelectorAll('input').forEach(inp=>{
+        inp.addEventListener('input', e=>{
+          const i = Number(e.target.dataset.i), k = e.target.dataset.k;
+          const p = estado.pacoteAtivo; const pack = estado.pacotes[p];
+          let v = e.target.value;
+          if(['preco','qtd','duracao'].includes(k)) v = Number(v||0);
+          pack.itens[i][k] = v;
+          renderTotais();
+        });
+      });
+      tbody.querySelectorAll('button[data-rem]').forEach(btn=>{
+        btn.addEventListener('click', ()=>removeItem(Number(btn.dataset.rem)));
+      });
+    }
+
+    function parseEntrada(txt){
+      if(!txt) return null;
+      const t = txt.trim().toLowerCase();
+      if(t.includes('%')){
+        const n = Number(t.replace('%','').replace(',','.').match(/[\d\.]+/));
+        return { tipo:'percent', valor: isNaN(n)?0:n };
+      }
+      const n = Number(t.replace('r$','').replace(',','.').match(/[\d\.]+/));
+      return { tipo:'abs', valor: isNaN(n)?0:n };
+    }
+
+    function calcExtras(ex){
+      const visita = Number(ex.taxaVisita||0);
+      const frete = Number(ex.frete||0);
+      const kmGratis = Number(ex.kmGratis||0);
+      const precoKm = Number(ex.precoKm||0);
+      const kmTotal = Number(ex.kmTotal||0);
+      const kmCobravel = Math.max(0, kmTotal - kmGratis);
+      const kmValor = kmCobravel * precoKm;
+      return { visita, frete, kmValor, total: visita + frete + kmValor };
+    }
+
+    function renderTotais(){
+      const p = estado.pacoteAtivo; const pack = estado.pacotes[p];
+      const subtotalItens = pack.itens.reduce((acc, it)=> acc + (Number(it.preco||0) * Number(it.qtd||0)), 0);
+      const ex = {
+        taxaVisita: Number(el('taxaVisita').value || 0),
+        frete: Number(el('frete').value || 0),
+        kmGratis: Number(el('kmGratis').value || 0),
+        precoKm: Number(el('precoKm').value || 0),
+        kmTotal: Number(el('kmTotal').value || 0),
+      };
+      const extras = calcExtras(ex);
+      const descGeral = Number(el('descGeral').value || 0);
+      const vDesc = subtotalItens * (descGeral/100);
+      const total = Math.max(0, subtotalItens - vDesc + extras.total);
+
+      el('subtotalItens').textContent = fmt(subtotalItens);
+      el('extrasTotal').textContent = fmt(extras.total);
+      el('descontoGeral').textContent = '– ' + fmt(vDesc);
+      el('totalGeral').textContent = fmt(total);
+
+      const entrada = parseEntrada(el('entrada').value);
+      if(entrada){
+        const val = entrada.tipo==='percent' ? (total * entrada.valor/100) : entrada.valor;
+        el('entradaInfo').textContent = fmt(val);
+      } else {
+        el('entradaInfo').textContent = '—';
+      }
+
+      const pkey = estado.pacoteAtivo;
+      estado.pacotes[pkey].descGeral = descGeral;
+      estado.pacotes[pkey].total = total;
+    }
+
+    function bindEvents(){
+      document.querySelectorAll('.tab').forEach(t=>{
+        t.addEventListener('click', ()=>{
+          document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));
+          t.classList.add('active');
+          ativaPacote(t.dataset.pack);
+        });
+      });
+      document.getElementById('btn-duplica').addEventListener('click', ()=>{
+        const order = ['A','B','C'];
+        const idx = order.indexOf(estado.pacoteAtivo);
+        const next = order[Math.min(order.length-1, idx+1)];
+        if(next===estado.pacoteAtivo){ alert('Já está no último pacote.'); return; }
+        const from = estado.pacotes[estado.pacoteAtivo];
+        const copy = JSON.parse(JSON.stringify(from));
+        estado.pacotes[next] = copy;
+        document.querySelector(`.tab[data-pack="${next}"]`).classList.add('active');
+        document.querySelectorAll('.tab').forEach(x=>{ if(x.dataset.pack!==next) x.classList.remove('active'); });
+        ativaPacote(next);
+      });
+
+      document.getElementById('btn-buscar').addEventListener('click', doBusca);
+      document.getElementById('busca').addEventListener('keydown', (e)=>{ if(e.key==='Enter') { e.preventDefault(); doBusca(); }});
+      document.getElementById('btn-item-livre').addEventListener('click', ()=> addItem({ origem:'livre', nome:'', preco:0, qtd:1, duracao:'' }));
+
+      ['taxaVisita','frete','kmGratis','precoKm','kmTotal','descGeral','entrada'].forEach(id=>{
+        document.getElementById(id).addEventListener('input', renderTotais);
+      });
+
+      document.getElementById('cliente').addEventListener('input', e=> estado.cliente = e.target.value);
+      document.getElementById('validade').addEventListener('input', e=> estado.validade = e.target.value);
+      document.getElementById('observacoes').addEventListener('input', e=> estado.observacoes = e.target.value);
+
+      document.getElementById('btn-salvar').addEventListener('click', ()=>{
+        alert('✅ Orçamento salvo (simulação). Integração será feita no backend.');
+      });
+      document.getElementById('btn-pdf').addEventListener('click', ()=>{
+        alert('📄 PDF gerado (simulação). O PDF real sairá do servidor com a cláusula e layout.');
+      });
+      document.getElementById('btn-enviar').addEventListener('click', ()=>{
+        alert('📤 Envio simulado. Em produção: e-mail/WhatsApp com PDF e mensagem.');
+      });
+      document.getElementById('btn-limpar').addEventListener('click', ()=>{
+        if(!confirm('Limpar todos os campos do pacote atual?')) return;
+        const p = estado.pacoteAtivo;
+        estado.pacotes[p] = { itens:[], extras:{ taxaVisita:0, frete:0, kmGratis:0, precoKm:0, kmTotal:0 }, descGeral:0, total:0 };
+        ['taxaVisita','frete','kmGratis','precoKm','kmTotal','descGeral','entrada'].forEach(id=> document.getElementById(id).value='');
+        renderTabela(); renderTotais();
+      });
+    }
+
+    bootstrap();
   </script>
 </body>
 </html>
+
