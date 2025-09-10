@@ -3,8 +3,8 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Administrador — MEI Robô (v1.0.1)</title>
-  <link rel="stylesheet" href="/assets/styles.css" />
+  <title>Administrador — MEI Robô (v1.0.2)</title>
+  <link rel="stylesheet" href="/assets/styles.css?v=2025-09-10T130836" />
   <meta http-equiv="Cache-Control" content="no-store, max-age=0, must-revalidate" />
   <style>
     :root{
@@ -39,19 +39,39 @@
     .footer-note{margin-top:18px;color:var(--muted);font-size:.85rem}
     .help{color:var(--muted);font-size:.8rem;margin-top:6px}
     .mono{font-family:ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;}
-    .divider{height:1px;background:#1d2b26;margin:6px 0 10px}
+    /* Admin chip abaixo do header */
+    .admin-chip{display:flex;align-items:center;gap:8px;padding:8px 12px;border-bottom:1px solid var(--card-br);background:#0a1310;position:sticky;top:0;z-index:40}
+    .admin-chip .dot{width:8px;height:8px;border-radius:999px;background:var(--accent)}
+    /* Toggle Somente Admins: esconda CTAs públicos comuns (sem tocar backend/partials) */
+    .is-admin-shell a[href="/cadastro.html"],
+    .is-admin-shell a[href="/pages/ativar.html"],
+    .is-admin-shell a[href="/pages/verify-email.html"],
+    .is-admin-shell a[href="/pages/precos.html"][data-public-only="true"],
+    .is-admin-shell .only-public{display:none !important}
+    .is-admin-shell .only-admin{display:inherit !important}
   </style>
+  <!-- Carrega header/footer com caminho absoluto e cache-bust -->
+  <script src="/assets/layout.js?v=2025-09-10T130836" defer></script>
 </head>
 <body class="app-shell">
-  <!-- Header/Footer via layout.js; manter padrão empresarial -->
-  <script src="/assets/layout.js" defer></script>
+  <!-- Fallback mínimo caso o header não venha em 1.5s -->
+  <div id="admin-fallback-header" style="display:none;padding:10px 12px;border-bottom:1px solid #1d2b26;background:#0a1310">
+    <strong>MEI Robô</strong> — Cabeçalho (fallback)
+  </div>
 
   <main class="app-main">
+    <!-- Chip Admin (toggle visual simples) -->
+    <div class="admin-chip" id="admin-chip" style="display:none">
+      <span class="dot" aria-hidden="true"></span>
+      <span class="badge">Admin</span>
+      <span class="help">Navegação filtrada para administrador.</span>
+    </div>
+
     <div class="container">
       <h1>Administrador</h1>
       <p class="subtitle">Acompanhe números básicos do sistema e ative ações simples. Estados vazios são normais no início.</p>
 
-      <!-- Esperas de saúde das APIs (visual pronto; quase sem lógica) -->
+      <!-- Saúde do Sistema -->
       <section class="card" id="card-health">
         <div>
           <h3>Saúde do Sistema</h3>
@@ -160,9 +180,9 @@
           <a class="btn" href="/pages/admin-cupons.html">Cupons</a>
           <a class="btn" href="/pages/dashboard.html">Dashboard (usuário)</a>
           <a class="btn" href="/pages/agenda.html">Agenda</a>
-          <a class="btn" href="https://dashboard.render.com/" target="_blank" rel="noopener">Render Logs</a>
-          <a class="btn" href="https://console.firebase.google.com/" target="_blank" rel="noopener">Firestore Console</a>
-          <a class="btn" href="/" target="_blank" rel="noopener">Backend (Onrender)</a>
+          <a class="btn only-admin" href="https://dashboard.render.com/" target="_blank" rel="noopener">Render Logs</a>
+          <a class="btn only-admin" href="https://console.firebase.google.com/" target="_blank" rel="noopener">Firestore Console</a>
+          <a class="btn only-admin" href="/" target="_blank" rel="noopener">Backend (Onrender)</a>
         </div>
       </div>
 
@@ -171,8 +191,8 @@
   </main>
 
   <!-- Firebase/App init (existentes no projeto) -->
-  <script src="/assets/firebase-init.js"></script>
-  <script src="/assets/backend-patch.js"></script>
+  <script src="/assets/firebase-init.js?v=2025-09-10T130836"></script>
+  <script src="/assets/backend-patch.js?v=2025-09-10T130836"></script>
 
   <script type="module">
     /*
@@ -184,6 +204,43 @@
 
     const $ = (id)=> document.getElementById(id);
     const setText = (id, v) => { const n = $(id); if(n) n.textContent = v; };
+
+    // Header/Footer "espera": se não injetar em 1500ms, mostra fallback mínimo
+    setTimeout(()=>{
+      const hasHeader = document.querySelector('header');
+      const fallback = document.getElementById('admin-fallback-header');
+      if(!hasHeader && fallback){ fallback.style.display='block'; }
+    }, 1500);
+
+    // Toggle Somente Admins (front-only)
+    function applyAdminShellToggle() {
+      const isAdmin = (localStorage.getItem('isAdmin') === '1');
+      const inAdminPage = location.pathname.includes('/pages/admin');
+      if(isValidateMode || (isAdmin && inAdminPage)) {
+        document.documentElement.classList.add('is-admin-shell');
+        const chip = $('admin-chip'); if(chip) chip.style.display = 'flex';
+        // Marcação visual simples no header quando existir
+        const tryMarkHeader = () => {
+          const header = document.querySelector('header');
+          if(header && !header.dataset.adminMarked) {
+            header.dataset.adminMarked = '1';
+            const mark = document.createElement('span');
+            mark.className = 'badge';
+            mark.style.marginLeft = '8px';
+            mark.textContent = 'Admin';
+            // tenta colocar perto do logo
+            header.appendChild(mark);
+            return true;
+          }
+          return false;
+        };
+        let tries = 0;
+        const intv = setInterval(()=>{
+          tries++; if(tryMarkHeader() || tries>10) clearInterval(intv);
+        }, 200);
+      }
+    }
+    applyAdminShellToggle();
 
     function requireAdminOrRedirect(){
       if(isValidateMode){ return true; }
@@ -217,6 +274,7 @@
       const b1 = $('health-backend'); b1?.classList.add('ok'); b1.textContent = 'Online (demo)';
       const b2 = $('health-fs'); b2?.classList.add('ok'); b2.textContent = 'OK (demo)';
       const b3 = $('health-webhook'); b3?.classList.add('warn'); b3.textContent = 'Sem eventos (demo)';
+      console.info('Header/Footer OK (validate)');
     }
 
     async function loadHealthLight(){
@@ -230,59 +288,44 @@
         let css = null;
         try{
           const res = await fetch(backendURL, { method:'GET', mode:'no-cors', signal: ctl.signal });
-          // no-cors não permite ler status. Se não der exception, consideramos "respondendo".
-          statusText = 'Respondendo';
-          css = 'ok';
+          statusText = 'Respondendo'; css = 'ok';
         }catch(e){
-          statusText = 'Offline/Timeout';
-          css = 'off';
-        }finally{
-          clearTimeout(t);
-        }
-        const b = $('health-backend');
-        if(b){ b.textContent = statusText; b.classList.add(css); }
+          statusText = 'Offline/Timeout'; css = 'off';
+        }finally{ clearTimeout(t); }
+        const b = $('health-backend'); if(b){ b.textContent = statusText; if(css) b.classList.add(css); }
       }catch{}
 
       try{
-        // Firestore ping: mede latência de uma operação leve
+        // Firestore ping
         if(window.db && window.firebase?.firestore){
           const t0 = performance.now();
           let label = 'Em validação', css = null;
           try{
-            // Leitura leve: tentar count da coleção 'profissionais' sem filtro
-            const cRef = window.firebase.firestore.collection(window.db,'profissionais');
-            const c = await window.firebase.firestore.getCountFromServer(cRef);
+            const F = window.firebase.firestore;
+            const cRef = F.collection(window.db,'profissionais');
+            const c = await F.getCountFromServer(cRef);
             const dt = performance.now()-t0;
             if(dt < 1500){ label = 'OK'; css='ok'; }
             else if(dt < 4000){ label = 'Lento'; css='warn'; }
             else { label = 'Muito lento'; css='off'; }
-          }catch{
-            label = 'Sem acesso'; css='off';
-          }
-          const b2 = $('health-fs');
-          if(b2){ b2.textContent = label; b2.classList.add(css); }
+          }catch{ label = 'Sem acesso'; css='off'; }
+          const b2 = $('health-fs'); if(b2){ b2.textContent = label; if(css) b2.classList.add(css); }
         }
       }catch{}
 
       try{
-        // Webhook (WABA): sem backend novo; se existir 'audits' com eventos recentes, sinaliza "OK", senão mantém "Em validação"
+        // Webhook (WABA): usa audits se existir
         if(window.db && window.firebase?.firestore){
-          const audits = window.firebase.firestore.collection(window.db,'audits');
-          const now = new Date();
-          const since = new Date(now.getTime() - 24*60*60*1000); // 24h
-          const q = window.firebase.firestore.query(
-            audits,
-            window.firebase.firestore.where('ts','>=', window.firebase.firestore.Timestamp.fromDate(since))
-          );
-          let css = 'warn';
-          let label = 'Sem eventos recentes';
+          const F = window.firebase.firestore;
+          const audits = F.collection(window.db,'audits');
+          const since = new Date(Date.now() - 24*60*60*1000);
+          const q = F.query(audits, F.where('ts','>=', F.Timestamp.fromDate(since)));
+          let css = 'warn'; let label = 'Sem eventos recentes';
           try{
-            const snapCount = await window.firebase.firestore.getCountFromServer(q);
-            const n = snapCount.data().count || 0;
+            const n = (await F.getCountFromServer(q)).data().count || 0;
             if(n > 0){ css = 'ok'; label = 'OK (últimas 24h)'; }
-          }catch{ /* mantém vazio amigável */ }
-          const b3 = $('health-webhook');
-          if(b3){ b3.textContent = label; b3.classList.add(css); }
+          }catch{}
+          const b3 = $('health-webhook'); if(b3){ b3.textContent = label; b3.classList.add(css); }
         }
       }catch{}
     }
@@ -298,79 +341,31 @@
       // Usuários
       try{
         const profRef = F.collection(DB,'profissionais');
-        // Ativos
-        try{
-          const q = F.query(profRef, F.where('status','==','ativo'));
-          const c = await F.getCountFromServer(q);
-          setText('users-ativos', String(c.data().count ?? '—'));
-        }catch{}
-        // Novos (7d)
-        try{
-          const q = F.query(profRef, F.where('createdAt','>=', daysAgo(7)));
-          const c = await F.getCountFromServer(q);
-          setText('users-novos', String(c.data().count ?? '—'));
-        }catch{}
-        // Inativos (14d)
-        try{
-          const q = F.query(profRef, F.where('lastActiveAt','<=', daysAgo(14)));
-          const c = await F.getCountFromServer(q);
-          setText('users-inativos', String(c.data().count ?? '—'));
-        }catch{}
-        // Cancelados
-        try{
-          const q = F.query(profRef, F.where('status','in',['cancelado','cancelled']));
-          const c = await F.getCountFromServer(q);
-          setText('users-cancelados', String(c.data().count ?? '—'));
-        }catch{}
+        try{ const q = F.query(profRef, F.where('status','==','ativo')); const c = await F.getCountFromServer(q); setText('users-ativos', String(c.data().count ?? '—')); }catch{}
+        try{ const q = F.query(profRef, F.where('createdAt','>=', daysAgo(7))); const c = await F.getCountFromServer(q); setText('users-novos', String(c.data().count ?? '—')); }catch{}
+        try{ const q = F.query(profRef, F.where('lastActiveAt','<=', daysAgo(14))); const c = await F.getCountFromServer(q); setText('users-inativos', String(c.data().count ?? '—')); }catch{}
+        try{ const q = F.query(profRef, F.where('status','in',['cancelado','cancelled'])); const c = await F.getCountFromServer(q); setText('users-cancelados', String(c.data().count ?? '—')); }catch{}
       }catch{}
 
-      // Uso (audits)
+      // Uso
       try{
         const auditsRef = F.collection(DB,'audits');
-        // Hoje
-        try{
+        try{ // Hoje
           const start = new Date(now.getFullYear(), now.getMonth(), now.getDate());
           const end = new Date(now.getFullYear(), now.getMonth(), now.getDate()+1);
-          const qHoje = F.query(
-            auditsRef,
-            F.where('event','in',['sent','queued']),
-            F.where('ts','>=', ts(start)),
-            F.where('ts','<', ts(end)),
-          );
-          const c = await F.getCountFromServer(qHoje);
-          setText('usage-msgs-hoje', String(c.data().count ?? '—'));
+          const qHoje = F.query(auditsRef, F.where('event','in',['sent','queued']), F.where('ts','>=', ts(start)), F.where('ts','<', ts(end)));
+          const c = await F.getCountFromServer(qHoje); setText('usage-msgs-hoje', String(c.data().count ?? '—'));
         }catch{}
-        // DAU
-        try{
-          const qD = F.query(auditsRef, F.where('ts','>=', daysAgo(1)));
-          const c = await F.getCountFromServer(qD);
-          setText('usage-dau', String(c.data().count ?? '—'));
-        }catch{}
-        // WAU
-        try{
-          const qW = F.query(auditsRef, F.where('ts','>=', daysAgo(7)));
-          const c = await F.getCountFromServer(qW);
-          setText('usage-wau', String(c.data().count ?? '—'));
-        }catch{}
+        try{ const qD = F.query(auditsRef, F.where('ts','>=', daysAgo(1))); const c = await F.getCountFromServer(qD); setText('usage-dau', String(c.data().count ?? '—')); }catch{}
+        try{ const qW = F.query(auditsRef, F.where('ts','>=', daysAgo(7))); const c = await F.getCountFromServer(qW); setText('usage-wau', String(c.data().count ?? '—')); }catch{}
       }catch{}
 
       // Cupons
       try{
         const cupRef = F.collection(DB,'cuponsAtivacao');
-        try{
-          const cAll = await F.getCountFromServer(cupRef);
-          setText('cup-emitidos', String(cAll.data().count ?? '—'));
-        }catch{}
-        try{
-          const qActive = F.query(cupRef, F.where('validUntil','>=', ts(now)));
-          const cActive = await F.getCountFromServer(qActive);
-          setText('cup-ativos', String(cActive.data().count ?? '—'));
-        }catch{}
-        try{
-          const qRes = F.query(cupRef, F.where('status','==','resgatado'));
-          const cRes = await F.getCountFromServer(qRes);
-          setText('cup-resgatados', String(cRes.data().count ?? '—'));
-        }catch{}
+        try{ const cAll = await F.getCountFromServer(cupRef); setText('cup-emitidos', String(cAll.data().count ?? '—')); }catch{}
+        try{ const qActive = F.query(cupRef, F.where('validUntil','>=', ts(now))); const cActive = await F.getCountFromServer(qActive); setText('cup-ativos', String(cActive.data().count ?? '—')); }catch{}
+        try{ const qRes = F.query(cupRef, F.where('status','==','resgatado')); const cRes = await F.getCountFromServer(qRes); setText('cup-resgatados', String(cRes.data().count ?? '—')); }catch{}
       }catch{}
     }
 
