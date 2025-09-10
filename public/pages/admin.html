@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Admin — MEI Robô (v1.0)</title>
+  <title>Administrador — MEI Robô (v1.0.1)</title>
   <link rel="stylesheet" href="/assets/styles.css" />
   <meta http-equiv="Cache-Control" content="no-store, max-age=0, must-revalidate" />
   <style>
@@ -17,7 +17,7 @@
     .subtitle{color:var(--muted);font-size:.95rem;margin-bottom:16px;line-height:1.45}
     .grid{display:grid;gap:12px;}
     @media(min-width:640px){.grid{grid-template-columns:repeat(2,1fr);}}
-    @media(min-width:980px){.grid{grid-template-columns:repeat(3,1fr);}}
+    @media(min-width:1100px){.grid{grid-template-columns:repeat(3,1fr);}}
     .card{background:var(--card-bg);border:1px solid var(--card-br);border-radius:16px;padding:14px;box-shadow:0 2px 12px rgba(0,0,0,.25);min-height:120px;display:flex;flex-direction:column;justify-content:space-between}
     .card h3{font-size:1.05rem;margin:2px 0 8px;}
     .kpis{display:flex;gap:10px;flex-wrap:wrap}
@@ -28,27 +28,50 @@
     .btn{appearance:none;border:1px solid #1d2b26;background:#0a1a16;color:#e9fffa;border-radius:12px;padding:9px 12px;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;gap:8px;font-size:.95rem}
     .btn:hover{filter:brightness(1.1)}
     .btn-primary{background:var(--accent);border-color:#0c8d6e;color:#03241f}
+    .btn.disabled,[data-disabled="true"]{opacity:.6;cursor:not-allowed;pointer-events:none}
     .badge{display:inline-block;padding:3px 8px;border-radius:999px;font-size:.75rem;border:1px solid #2a3a35;background:#0a1a16;color:#cfe3dc}
     .badge.ok{border-color:#20563f;color:#bff1d8;background:#0e2a22}
+    .badge.warn{border-color:#6a5f20;color:#fff3b0;background:#2a260e}
     .badge.off{border-color:#5c3a3a;color:#ffd4d4;background:#2a0e0e}
     .empty{color:var(--muted);font-size:.92rem}
     .hl{color:#d7fbf0}
     .section{margin-top:16px}
     .footer-note{margin-top:18px;color:var(--muted);font-size:.85rem}
-    .secret{display:none}
     .help{color:var(--muted);font-size:.8rem;margin-top:6px}
+    .mono{font-family:ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;}
+    .divider{height:1px;background:#1d2b26;margin:6px 0 10px}
   </style>
 </head>
 <body class="app-shell">
-  <!-- Header/Footer via layout.js; fallback simples se necessário -->
+  <!-- Header/Footer via layout.js; manter padrão empresarial -->
   <script src="/assets/layout.js" defer></script>
 
   <main class="app-main">
     <div class="container">
-      <h1>Administrador (MINHA)</h1>
-      <p class="subtitle">
-        Diretriz: não mexer no que já funciona; avançar em passinhos de formiga; produção real; segurança por padrão; observabilidade; HTML sem cache. Linguajar simples, mobile‑first.
-      </p>
+      <h1>Administrador</h1>
+      <p class="subtitle">Acompanhe números básicos do sistema e ative ações simples. Estados vazios são normais no início.</p>
+
+      <!-- Esperas de saúde das APIs (visual pronto; quase sem lógica) -->
+      <section class="card" id="card-health">
+        <div>
+          <h3>Saúde do Sistema</h3>
+          <div class="kpis">
+            <div class="kpi">
+              <div class="label">Backend (Render)</div>
+              <div class="value"><span id="health-backend" class="badge">Em validação</span></div>
+            </div>
+            <div class="kpi">
+              <div class="label">Firestore (ping)</div>
+              <div class="value"><span id="health-fs" class="badge">Em validação</span></div>
+            </div>
+            <div class="kpi">
+              <div class="label">Webhook (WABA)</div>
+              <div class="value"><span id="health-webhook" class="badge">Em validação</span></div>
+            </div>
+          </div>
+        </div>
+        <div class="help">Sinal leve, sem backend novo. Futuro: <span class="mono">/healthz</span> real com dependências.</div>
+      </section>
 
       <div class="section">
         <div class="grid">
@@ -75,7 +98,10 @@
                 </div>
               </div>
             </div>
-            <div class="help">Fonte: <span class="hl">profissionais/*</span>. Contagens simples por status/data. Estados vazios são normais no início.</div>
+            <div class="actions">
+              <button class="btn" id="btn-export-users" data-disabled="true" title="Em breve: exportar para CSV direto no navegador.">Exportar CSV</button>
+            </div>
+            <div class="help">Fonte: <span class="hl">profissionais/*</span>. Contagens simples por status/data.</div>
           </section>
 
           <!-- Uso -->
@@ -125,28 +151,6 @@
             </div>
             <div class="help">Boas práticas: objetivo claro, validade e acompanhamento.</div>
           </section>
-
-          <!-- Saúde do sistema -->
-          <section class="card" id="card-health">
-            <div>
-              <h3>Saúde do Sistema</h3>
-              <div class="kpis">
-                <div class="kpi">
-                  <div class="label">Webhook</div>
-                  <div class="value"><span id="health-webhook" class="badge">Em validação</span></div>
-                </div>
-                <div class="kpi">
-                  <div class="label">Tokens GPT (estim.)</div>
-                  <div class="value" id="health-tokens">—</div>
-                </div>
-              </div>
-            </div>
-            <div class="actions">
-              <a class="btn" href="https://dashboard.render.com/" target="_blank" rel="noopener">Render Logs</a>
-              <a class="btn" href="https://console.firebase.google.com/" target="_blank" rel="noopener">Firestore Console</a>
-              <a class="btn" href="/" target="_blank" rel="noopener">Backend (Onrender)</a>
-            </div>
-          </section>
         </div>
       </div>
 
@@ -156,6 +160,9 @@
           <a class="btn" href="/pages/admin-cupons.html">Cupons</a>
           <a class="btn" href="/pages/dashboard.html">Dashboard (usuário)</a>
           <a class="btn" href="/pages/agenda.html">Agenda</a>
+          <a class="btn" href="https://dashboard.render.com/" target="_blank" rel="noopener">Render Logs</a>
+          <a class="btn" href="https://console.firebase.google.com/" target="_blank" rel="noopener">Firestore Console</a>
+          <a class="btn" href="/" target="_blank" rel="noopener">Backend (Onrender)</a>
         </div>
       </div>
 
@@ -168,19 +175,19 @@
   <script src="/assets/backend-patch.js"></script>
 
   <script type="module">
-    // Admin — v1.0: somente leitura + links
-    // Depende de: /assets/firebase-init.js expondo { auth, db, firebase }
+    /*
+      Diretriz (comentário): Não mexer no que já funciona; passinhos de formiga; produção real (Firebase Hosting, Render, Firestore prod);
+      segurança por padrão (Auth no FE, validação no BE, regras do Firestore); observabilidade; Cache-Control no-store nos HTMLs; mobile-first; usar "Arquivo".
+    */
     const qs = new URLSearchParams(location.search);
     const isValidateMode = qs.get('validate') === '1';
 
-    const el = (id) => document.getElementById(id);
-    const setText = (id, v) => { const n = el(id); if(n) n.textContent = v; };
-    const safe = (fn) => fn().catch?.(()=>{});
+    const $ = (id)=> document.getElementById(id);
+    const setText = (id, v) => { const n = $(id); if(n) n.textContent = v; };
 
     function requireAdminOrRedirect(){
       if(isValidateMode){ return true; }
       try{
-        // Critério leve: estar autenticado E flag admin no storage (v1.0)
         const isAdmin = (localStorage.getItem('isAdmin') === '1');
         const uid = localStorage.getItem('uid');
         if(!isAdmin || !uid){
@@ -195,124 +202,173 @@
     }
 
     async function loadValidateData(){
-      // Dados fictícios para ?validate=1
-      setText('users-ativos', '7');
-      setText('users-novos', '2');
+      // KPIs de exemplo
+      setText('users-ativos', '8');
+      setText('users-novos', '3');
       setText('users-inativos', '1');
       setText('users-cancelados', '0');
-      setText('usage-msgs-hoje', '34');
-      setText('usage-dau', '5');
-      setText('usage-wau', '12');
-      setText('cup-emitidos', '9');
-      setText('cup-ativos', '4');
+      setText('usage-msgs-hoje', '41');
+      setText('usage-dau', '6');
+      setText('usage-wau', '14');
+      setText('cup-emitidos', '11');
+      setText('cup-ativos', '5');
       setText('cup-resgatados', '3');
-      document.getElementById('health-webhook')?.classList.add('ok');
-      document.getElementById('health-webhook').textContent = 'Online (demo)';
-      setText('health-tokens', '—');
+      // Saúde demo
+      const b1 = $('health-backend'); b1?.classList.add('ok'); b1.textContent = 'Online (demo)';
+      const b2 = $('health-fs'); b2?.classList.add('ok'); b2.textContent = 'OK (demo)';
+      const b3 = $('health-webhook'); b3?.classList.add('warn'); b3.textContent = 'Sem eventos (demo)';
     }
 
-    async function loadFromFirestore(){
-      // Tenta usar agregações leves; se falhar por índice/regra, mantém "—"
-      // Requer Firestore modular (v9+)
-      if(!window.firebase || !window.db){ return; }
-      const { getFirestore, collection, query, where, limit, Timestamp, getDocs } = window.firebase.firestore;
-      const { getCountFromServer } = window.firebase.firestore;
-
-      const db = window.db;
-      const now = new Date();
-      const tsNow = window.firebase.firestore.Timestamp.fromDate(now);
-      const daysAgo = (d)=> {
-        const t = new Date(now.getTime() - d*24*60*60*1000);
-        return window.firebase.firestore.Timestamp.fromDate(t);
-      };
-
-      // Usuários — contagens simples
+    async function loadHealthLight(){
+      // "Esperas prontas": visuais prontos com hooks mínimos e SEM endpoints novos obrigatórios.
       try{
-        const profRef = window.firebase.firestore.collection(db,'profissionais');
+        // Backend (Render): ping leve na raiz do backend (ajuste a URL em backend-patch.js se preferir)
+        const backendURL = (window.BACKEND_BASE_URL || '/');
+        const ctl = new AbortController();
+        const t = setTimeout(()=>ctl.abort(), 2500);
+        let statusText = 'Em validação';
+        let css = null;
+        try{
+          const res = await fetch(backendURL, { method:'GET', mode:'no-cors', signal: ctl.signal });
+          // no-cors não permite ler status. Se não der exception, consideramos "respondendo".
+          statusText = 'Respondendo';
+          css = 'ok';
+        }catch(e){
+          statusText = 'Offline/Timeout';
+          css = 'off';
+        }finally{
+          clearTimeout(t);
+        }
+        const b = $('health-backend');
+        if(b){ b.textContent = statusText; b.classList.add(css); }
+      }catch{}
+
+      try{
+        // Firestore ping: mede latência de uma operação leve
+        if(window.db && window.firebase?.firestore){
+          const t0 = performance.now();
+          let label = 'Em validação', css = null;
+          try{
+            // Leitura leve: tentar count da coleção 'profissionais' sem filtro
+            const cRef = window.firebase.firestore.collection(window.db,'profissionais');
+            const c = await window.firebase.firestore.getCountFromServer(cRef);
+            const dt = performance.now()-t0;
+            if(dt < 1500){ label = 'OK'; css='ok'; }
+            else if(dt < 4000){ label = 'Lento'; css='warn'; }
+            else { label = 'Muito lento'; css='off'; }
+          }catch{
+            label = 'Sem acesso'; css='off';
+          }
+          const b2 = $('health-fs');
+          if(b2){ b2.textContent = label; b2.classList.add(css); }
+        }
+      }catch{}
+
+      try{
+        // Webhook (WABA): sem backend novo; se existir 'audits' com eventos recentes, sinaliza "OK", senão mantém "Em validação"
+        if(window.db && window.firebase?.firestore){
+          const audits = window.firebase.firestore.collection(window.db,'audits');
+          const now = new Date();
+          const since = new Date(now.getTime() - 24*60*60*1000); // 24h
+          const q = window.firebase.firestore.query(
+            audits,
+            window.firebase.firestore.where('ts','>=', window.firebase.firestore.Timestamp.fromDate(since))
+          );
+          let css = 'warn';
+          let label = 'Sem eventos recentes';
+          try{
+            const snapCount = await window.firebase.firestore.getCountFromServer(q);
+            const n = snapCount.data().count || 0;
+            if(n > 0){ css = 'ok'; label = 'OK (últimas 24h)'; }
+          }catch{ /* mantém vazio amigável */ }
+          const b3 = $('health-webhook');
+          if(b3){ b3.textContent = label; b3.classList.add(css); }
+        }
+      }catch{}
+    }
+
+    async function loadKPIs(){
+      if(!window.firebase || !window.db){ return; }
+      const DB = window.db;
+      const F = window.firebase.firestore;
+      const ts = (d)=> F.Timestamp.fromDate(d);
+      const now = new Date();
+      const daysAgo = (n)=> ts(new Date(now.getTime()-n*86400000));
+
+      // Usuários
+      try{
+        const profRef = F.collection(DB,'profissionais');
         // Ativos
         try{
-          const qAtivos = window.firebase.firestore.query(profRef, window.firebase.firestore.where('status','==','ativo'));
-          const cAtivos = await window.firebase.firestore.getCountFromServer(qAtivos);
-          setText('users-ativos', String(cAtivos.data().count ?? '—'));
+          const q = F.query(profRef, F.where('status','==','ativo'));
+          const c = await F.getCountFromServer(q);
+          setText('users-ativos', String(c.data().count ?? '—'));
         }catch{}
-        // Novos 7d (createdAt >= now-7d)
+        // Novos (7d)
         try{
-          const qNovos = window.firebase.firestore.query(profRef, window.firebase.firestore.where('createdAt','>=', daysAgo(7)));
-          const cNovos = await window.firebase.firestore.getCountFromServer(qNovos);
-          setText('users-novos', String(cNovos.data().count ?? '—'));
+          const q = F.query(profRef, F.where('createdAt','>=', daysAgo(7)));
+          const c = await F.getCountFromServer(q);
+          setText('users-novos', String(c.data().count ?? '—'));
         }catch{}
-        // Inativos 14d (lastActiveAt <= now-14d) — pode precisar de índice; se falhar, fica "—"
+        // Inativos (14d)
         try{
-          const qInativos = window.firebase.firestore.query(profRef, window.firebase.firestore.where('lastActiveAt','<=', daysAgo(14)));
-          const cInativos = await window.firebase.firestore.getCountFromServer(qInativos);
-          setText('users-inativos', String(cInativos.data().count ?? '—'));
+          const q = F.query(profRef, F.where('lastActiveAt','<=', daysAgo(14)));
+          const c = await F.getCountFromServer(q);
+          setText('users-inativos', String(c.data().count ?? '—'));
         }catch{}
         // Cancelados
         try{
-          const qCancel = window.firebase.firestore.query(profRef, window.firebase.firestore.where('status','in',['cancelado','cancelled']));
-          const cCancel = await window.firebase.firestore.getCountFromServer(qCancel);
-          setText('users-cancelados', String(cCancel.data().count ?? '—'));
+          const q = F.query(profRef, F.where('status','in',['cancelado','cancelled']));
+          const c = await F.getCountFromServer(q);
+          setText('users-cancelados', String(c.data().count ?? '—'));
         }catch{}
       }catch{}
 
-      // Uso (audits/outbox) — apenas se existir
+      // Uso (audits)
       try{
-        const auditsRef = window.firebase.firestore.collection(db,'audits');
-        // Mensagens hoje (event in ['sent','queued'] and date==hoje)
+        const auditsRef = F.collection(DB,'audits');
+        // Hoje
         try{
           const start = new Date(now.getFullYear(), now.getMonth(), now.getDate());
           const end = new Date(now.getFullYear(), now.getMonth(), now.getDate()+1);
-          const qHoje = window.firebase.firestore.query(
+          const qHoje = F.query(
             auditsRef,
-            window.firebase.firestore.where('event','in',['sent','queued']),
-            window.firebase.firestore.where('ts','>=', window.firebase.firestore.Timestamp.fromDate(start)),
-            window.firebase.firestore.where('ts','<', window.firebase.firestore.Timestamp.fromDate(end)),
+            F.where('event','in',['sent','queued']),
+            F.where('ts','>=', ts(start)),
+            F.where('ts','<', ts(end)),
           );
-          const cHoje = await window.firebase.firestore.getCountFromServer(qHoje);
-          setText('usage-msgs-hoje', String(cHoje.data().count ?? '—'));
+          const c = await F.getCountFromServer(qHoje);
+          setText('usage-msgs-hoje', String(c.data().count ?? '—'));
         }catch{}
-        // DAU / WAU — aproximações simples (distintos podem exigir agregação no backend; aqui só contagem bruta)
+        // DAU
         try{
-          const qDau = window.firebase.firestore.query(
-            auditsRef,
-            window.firebase.firestore.where('ts','>=', daysAgo(1))
-          );
-          const cDau = await window.firebase.firestore.getCountFromServer(qDau);
-          setText('usage-dau', String(cDau.data().count ?? '—'));
+          const qD = F.query(auditsRef, F.where('ts','>=', daysAgo(1)));
+          const c = await F.getCountFromServer(qD);
+          setText('usage-dau', String(c.data().count ?? '—'));
         }catch{}
+        // WAU
         try{
-          const qWau = window.firebase.firestore.query(
-            auditsRef,
-            window.firebase.firestore.where('ts','>=', daysAgo(7))
-          );
-          const cWau = await window.firebase.firestore.getCountFromServer(qWau);
-          setText('usage-wau', String(cWau.data().count ?? '—'));
+          const qW = F.query(auditsRef, F.where('ts','>=', daysAgo(7)));
+          const c = await F.getCountFromServer(qW);
+          setText('usage-wau', String(c.data().count ?? '—'));
         }catch{}
       }catch{}
 
       // Cupons
       try{
-        const cupRef = window.firebase.firestore.collection(db,'cuponsAtivacao');
+        const cupRef = F.collection(DB,'cuponsAtivacao');
         try{
-          const cAll = await window.firebase.firestore.getCountFromServer(cupRef);
+          const cAll = await F.getCountFromServer(cupRef);
           setText('cup-emitidos', String(cAll.data().count ?? '—'));
         }catch{}
         try{
-          // Ativos = não expirados (validUntil >= now) e (status != 'resgatado')
-          const qActive = window.firebase.firestore.query(
-            cupRef,
-            window.firebase.firestore.where('validUntil','>=', tsNow)
-          );
-          const cActive = await window.firebase.firestore.getCountFromServer(qActive);
+          const qActive = F.query(cupRef, F.where('validUntil','>=', ts(now)));
+          const cActive = await F.getCountFromServer(qActive);
           setText('cup-ativos', String(cActive.data().count ?? '—'));
         }catch{}
         try{
-          // Resgatados (status == 'resgatado' OU redeemedAt != null) — aqui tentamos por status
-          const qRes = window.firebase.firestore.query(
-            cupRef,
-            window.firebase.firestore.where('status','==','resgatado')
-          );
-          const cRes = await window.firebase.firestore.getCountFromServer(qRes);
+          const qRes = F.query(cupRef, F.where('status','==','resgatado'));
+          const cRes = await F.getCountFromServer(qRes);
           setText('cup-resgatados', String(cRes.data().count ?? '—'));
         }catch{}
       }catch{}
@@ -324,19 +380,14 @@
         if(isValidateMode){
           await loadValidateData();
         }else{
-          await loadFromFirestore();
-        }
-        // Webhook status — manter estático v1.0 (opcionalmente podemos fazer um ping no futuro)
-        const badge = document.getElementById('health-webhook');
-        if(badge && !isValidateMode){
-          badge.classList.remove('ok','off');
-          badge.textContent = 'Em validação';
+          await loadKPIs();
+          await loadHealthLight();
         }
       }catch(e){
-        // Em caso de erro, deixamos os estados vazios amigáveis
         console.error('Admin: erro ao carregar', e);
       }
     })();
   </script>
 </body>
 </html>
+
