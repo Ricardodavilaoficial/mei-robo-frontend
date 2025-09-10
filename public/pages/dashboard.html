@@ -3,9 +3,11 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Dashboard — MEI Robô</title>
+  <title>Dashboard — MEI Robô (v1.0)</title>
 
+  <!-- Assets canônicos -->
   <link rel="stylesheet" href="/assets/styles.css" />
+
   <style>
     :root{
       --text-strong: rgba(255,255,255,.92);
@@ -53,6 +55,9 @@
     .note{font-size:.85rem;color:var(--text-soft)}
     .list{display:flex;flex-direction:column;gap:8px}
     .ok{color:#65e0a8} .warn{color:#ffd36a} .bad{color:#ff9b9b}
+    .muted{color:var(--text-soft)}
+    .statline{display:flex;gap:8px;flex-wrap:wrap;margin-top:6px}
+    .statline .badge{background:rgba(255,255,255,.03)}
   </style>
 </head>
 <body class="app-shell">
@@ -98,10 +103,35 @@
           <button id="btnGenLink" class="btn">Gerar link do WhatsApp</button>
           <a id="waLink" href="#" target="_blank" rel="noopener" class="badge" style="display:none;">abrir</a>
           <button id="btnCopyLink" class="btn small" style="display:none;">Copiar link</button>
+          <a class="btn" href="/pages/agenda.html">Abrir Agenda</a>
+          <a class="btn" href="/pages/precos.html">Abrir Catálogo</a>
+          <a class="btn" href="/pages/orcamentos.html">Orçamentos</a>
         </div>
         <div class="note" style="margin-top:8px;">
           <b>IMPORTANTE:</b> para <b>INICIAR A CONVERSA</b> com alguém, peça que a pessoa mande um <b>“Oi”</b> para o seu número comercial.
           Depois use o botão: <b>Autorização (WhatsApp)</b> na lista de contatos.
+        </div>
+      </section>
+
+      <!-- Hoje na agenda -->
+      <section class="card" style="margin-top:14px;">
+        <strong>Hoje na Agenda</strong>
+        <div class="note" style="margin:6px 0 10px;">
+          Seus próximos 3 compromissos de hoje.
+        </div>
+        <ul id="agendaList" class="list muted"></ul>
+      </section>
+
+      <!-- Catálogo (Preços e Serviços) -->
+      <section class="card" style="margin-top:14px;">
+        <strong>Catálogo (Preços e Serviços)</strong>
+        <div id="catalogoStats" class="statline">
+          <span class="badge">Carregando…</span>
+        </div>
+        <div class="actions" style="margin-top:10px;">
+          <a class="btn" href="/pages/precos.html">Adicionar serviço</a>
+          <a class="btn" href="/pages/precos.html#import">Importar planilha</a>
+          <a class="btn ghost" href="/pages/precos.html">Abrir Catálogo</a>
         </div>
       </section>
 
@@ -143,6 +173,7 @@
 
   <div id="app-footer"></div>
 
+  <!-- Loader/header/footer + Firebase + patch canônico -->
   <script src="/assets/layout.js" defer></script>
   <script src="/assets/firebase-init.js" defer></script>
   <script src="/assets/backend-patch.js" defer></script>
@@ -155,6 +186,8 @@
     const queueBody = $("#queueBody");
     const chkEmail=$("#chkEmail"), chkPhone=$("#chkPhone"), chkContato=$("#chkContato"), chkConsent=$("#chkConsent");
     const btnGenLink=$("#btnGenLink"), waLink=$("#waLink"), btnCopyLink=$("#btnCopyLink");
+    const agendaList=$("#agendaList");
+    const catalogoStats=$("#catalogoStats");
 
     function isValidateMode(){ try{ return new URLSearchParams(location.search).has('validate'); }catch{ return false; } }
     function fs(){ return (window.firebase?.firestore) ? firebase.firestore(): null; }
@@ -165,13 +198,13 @@
       span.textContent = state==='ok'?'OK':(state==='warn'?'Ajustar':'Falta');
     }
     function businessPhone(){
-      return (window.APP?.businessPhone || window.APP?.wabaPhone || "").replace(/\D/g,'');
+      return (window.APP?.businessPhone || window.APP?.wabaPhone || "").replace(/\\D/g,'');
     }
     function buildWaLink(){
       const phone = businessPhone();
-      const base = phone ? `https://wa.me/${phone}` : `https://wa.me/`;
+      const base = phone ? \`https://wa.me/\${phone}\` : \`https://wa.me/\`;
       const text = encodeURIComponent("Oi");
-      return `${base}?text=${text}`;
+      return \`\${base}?text=\${text}\';
     }
 
     function demo(){
@@ -192,12 +225,12 @@
       for(const r of rows){
         const tr=document.createElement('tr');
         const chip = r.state==='agendado'?'chip ok':(r.state==='pausado'?'chip warn':'chip');
-        tr.innerHTML = `
-          <td>${format(r.when)}</td>
-          <td>${r.to}</td>
-          <td>${r.kind}</td>
-          <td><span class="${chip}">${r.state}</span></td>
-          <td><button class="btn small" disabled title="Em breve">Ver</button></td>`;
+        tr.innerHTML = \`
+          <td>\${format(r.when)}</td>
+          <td>\${r.to}</td>
+          <td>\${r.kind}</td>
+          <td><span class="\${chip}">\${r.state}</span></td>
+          <td><button class="btn small" disabled title="Em breve">Ver</button></td>\`;
         queueBody.appendChild(tr);
       }
       // Passos
@@ -205,6 +238,18 @@
       setChip(chkPhone, businessPhone()? 'ok':'warn');
       setChip(chkContato,'ok');
       setChip(chkConsent,'warn');
+
+      // Agenda demo
+      agendaList.innerHTML = '';
+      ['09:30 · Corte masculino — Pedro','14:00 · Manutenção — Carla','17:15 · Barba rápida — João'].forEach(t=>{
+        const li=document.createElement('li'); li.textContent=t; agendaList.appendChild(li);
+      });
+
+      // Catálogo demo
+      catalogoStats.innerHTML = '';
+      ['Total: 12','Sem preço: 3','Sem duração: 2','Sem código: 1'].forEach(t=>{
+        const b=document.createElement('span'); b.className='badge'; b.textContent=t; catalogoStats.appendChild(b);
+      });
     }
 
     async function loadReal(){
@@ -238,7 +283,7 @@
             });
           }
 
-          // Enviadas hoje (se existir coleção outbox/logs)
+          // Enviadas hoje (se existir coleção audits)
           const start = new Date(); start.setHours(0,0,0,0);
           const end = new Date(); end.setHours(23,59,59,999);
           await db.collection('audits')
@@ -277,19 +322,19 @@
                 const st = String(o.state||'—');
                 const chip = st==='queued'?'chip warn':(st==='sent'?'chip ok':'chip');
                 const tr=document.createElement('tr');
-                tr.innerHTML = `
-                  <td>${o.createdAt?.seconds?new Date(o.createdAt.seconds*1000).toLocaleString():'—'}</td>
-                  <td>${o.contactId||'—'}</td>
-                  <td>${o.type||'—'}</td>
-                  <td><span class="${chip}">${st}</span></td>
-                  <td><button class="btn small" disabled title="Em breve">Ver</button></td>`;
+                tr.innerHTML = \`
+                  <td>\${o.createdAt?.seconds?new Date(o.createdAt.seconds*1000).toLocaleString():'—'}</td>
+                  <td>\${o.contactId||'—'}</td>
+                  <td>\${o.type||'—'}</td>
+                  <td><span class="\${chip}">\${st}</span></td>
+                  <td><button class="btn small" disabled title="Em breve">Ver</button></td>\`;
                 queueBody.appendChild(tr);
               });
             })
             .catch(()=>{
               // Sem outbox -> exemplo discreto
               const tr=document.createElement('tr');
-              tr.innerHTML = `<td colspan="5" class="note">Sem itens por enquanto.</td>`;
+              tr.innerHTML = \`<td colspan="5" class="note">Sem itens por enquanto.</td>\`;
               queueBody.appendChild(tr);
             });
         }
@@ -300,6 +345,60 @@
         setChip(chkContato, (parseInt(kpiContatos.textContent)||0)>0 ? 'ok':'warn');
         setChip(chkConsent, consentOk>0 ? 'ok':'warn');
 
+        // Agenda (top 3 de hoje) — coleção "agenda" se existir
+        if(fs()){
+          const yyyymmdd = new Date().toISOString().slice(0,10);
+          await db.collection('agenda')
+            .where('uid','==', user.uid)
+            .where('date','==', yyyymmdd)
+            .limit(50)
+            .get()
+            .then(s=>{
+              agendaList.innerHTML='';
+              if(s.empty){
+                const li=document.createElement('li'); li.className='note'; li.textContent='Nenhum compromisso para hoje.'; agendaList.appendChild(li);
+              } else {
+                const items=[]; s.forEach(d=>items.push(d.data()||{}));
+                items.sort((a,b)=>String(a.hora||'').localeCompare(String(b.hora||'')));
+                items.slice(0,3).forEach(d=>{
+                  const li=document.createElement('li');
+                  li.textContent=\`\${d.hora||'--:--'} · \${d.servico||'Serviço'}\`;
+                  agendaList.appendChild(li);
+                });
+              }
+            })
+            .catch(()=>{
+              agendaList.innerHTML='<li class="note">Agenda indisponível.</li>';
+            });
+        }
+
+        // Catálogo — profissionais/{uid}/produtosEServicos
+        if(fs()){
+          await db.collection('profissionais').doc(user.uid).collection('produtosEServicos')
+            .limit(1000).get()
+            .then(s=>{
+              let total=0, semPreco=0, semDur=0, semCodigo=0;
+              s.forEach(d=>{
+                total++;
+                const x=d.data()||{};
+                if(!x.precoBase && x.precoBase!==0) semPreco++;
+                if(!x.duracaoMin && x.duracaoMin!==0) semDur++;
+                if(!x.slug) semCodigo++;
+              });
+              catalogoStats.innerHTML='';
+              [
+                \`Total: \${total}\`,
+                \`Sem preço: \${semPreco}\`,
+                \`Sem duração: \${semDur}\`,
+                \`Sem código: \${semCodigo}\`
+              ].forEach(txt=>{
+                const b=document.createElement('span'); b.className='badge'; b.textContent=txt; catalogoStats.appendChild(b);
+              });
+            })
+            .catch(()=>{
+              catalogoStats.innerHTML='<span class="badge">Catálogo indisponível</span>';
+            });
+        }
       }catch(e){
         console.error('[dashboard] loadReal', e);
         demo(); // fallback visual
@@ -328,3 +427,4 @@
   </script>
 </body>
 </html>
+
