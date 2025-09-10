@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Admin — MEI Robô (v1.0)</title>
+  <link rel="stylesheet" href="/assets/styles.css" />
+  <meta http-equiv="Cache-Control" content="no-store, max-age=0, must-revalidate" />
+  <style>
+    :root{
+      --card-bg:#0f1513; --card-br:#1d2b26; --muted:#9fb0aa; --soft:#cfe3dc; --accent:#00a884;
+      --danger:#d9534f; --ok:#2ecc71; --warn:#f1c40f;
+    }
+    body{background:#0b1210;color:#f0f6f4;font-family:system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Noto Sans, Helvetica, Arial, "Apple Color Emoji","Segoe UI Emoji";}
+    .container{max-width:1100px;margin:0 auto;padding:16px 16px 64px;}
+    h1{font-size:1.6rem;margin:10px 0 6px;}
+    .subtitle{color:var(--muted);font-size:.95rem;margin-bottom:16px;line-height:1.45}
+    .grid{display:grid;gap:12px;}
+    @media(min-width:640px){.grid{grid-template-columns:repeat(2,1fr);}}
+    @media(min-width:980px){.grid{grid-template-columns:repeat(3,1fr);}}
+    .card{background:var(--card-bg);border:1px solid var(--card-br);border-radius:16px;padding:14px;box-shadow:0 2px 12px rgba(0,0,0,.25);min-height:120px;display:flex;flex-direction:column;justify-content:space-between}
+    .card h3{font-size:1.05rem;margin:2px 0 8px;}
+    .kpis{display:flex;gap:10px;flex-wrap:wrap}
+    .kpi{background:#0a1a16;border:1px solid #17332c;border-radius:12px;padding:10px 12px;min-width:110px;flex:1}
+    .kpi .label{font-size:.8rem;color:var(--muted);}
+    .kpi .value{font-size:1.1rem;margin-top:4px}
+    .actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+    .btn{appearance:none;border:1px solid #1d2b26;background:#0a1a16;color:#e9fffa;border-radius:12px;padding:9px 12px;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;gap:8px;font-size:.95rem}
+    .btn:hover{filter:brightness(1.1)}
+    .btn-primary{background:var(--accent);border-color:#0c8d6e;color:#03241f}
+    .badge{display:inline-block;padding:3px 8px;border-radius:999px;font-size:.75rem;border:1px solid #2a3a35;background:#0a1a16;color:#cfe3dc}
+    .badge.ok{border-color:#20563f;color:#bff1d8;background:#0e2a22}
+    .badge.off{border-color:#5c3a3a;color:#ffd4d4;background:#2a0e0e}
+    .empty{color:var(--muted);font-size:.92rem}
+    .hl{color:#d7fbf0}
+    .section{margin-top:16px}
+    .footer-note{margin-top:18px;color:var(--muted);font-size:.85rem}
+    .secret{display:none}
+    .help{color:var(--muted);font-size:.8rem;margin-top:6px}
+  </style>
+</head>
+<body class="app-shell">
+  <!-- Header/Footer via layout.js; fallback simples se necessário -->
+  <script src="/assets/layout.js" defer></script>
+
+  <main class="app-main">
+    <div class="container">
+      <h1>Administrador (MINHA)</h1>
+      <p class="subtitle">
+        Diretriz: não mexer no que já funciona; avançar em passinhos de formiga; produção real; segurança por padrão; observabilidade; HTML sem cache. Linguajar simples, mobile‑first.
+      </p>
+
+      <div class="section">
+        <div class="grid">
+          <!-- Usuários -->
+          <section class="card" id="card-users">
+            <div>
+              <h3>Usuários</h3>
+              <div class="kpis">
+                <div class="kpi">
+                  <div class="label">Ativos</div>
+                  <div class="value" id="users-ativos">—</div>
+                </div>
+                <div class="kpi">
+                  <div class="label">Novos (7 dias)</div>
+                  <div class="value" id="users-novos">—</div>
+                </div>
+                <div class="kpi">
+                  <div class="label">Inativos (14 dias)</div>
+                  <div class="value" id="users-inativos">—</div>
+                </div>
+                <div class="kpi">
+                  <div class="label">Cancelados</div>
+                  <div class="value" id="users-cancelados">—</div>
+                </div>
+              </div>
+            </div>
+            <div class="help">Fonte: <span class="hl">profissionais/*</span>. Contagens simples por status/data. Estados vazios são normais no início.</div>
+          </section>
+
+          <!-- Uso -->
+          <section class="card" id="card-usage">
+            <div>
+              <h3>Uso (aprox.)</h3>
+              <div class="kpis">
+                <div class="kpi">
+                  <div class="label">Mensagens (hoje)</div>
+                  <div class="value" id="usage-msgs-hoje">—</div>
+                </div>
+                <div class="kpi">
+                  <div class="label">DAU</div>
+                  <div class="value" id="usage-dau">—</div>
+                </div>
+                <div class="kpi">
+                  <div class="label">WAU</div>
+                  <div class="value" id="usage-wau">—</div>
+                </div>
+              </div>
+            </div>
+            <div class="help">Se <span class="hl">audits/outbox</span> não existir, mantemos vazio amigável.</div>
+          </section>
+
+          <!-- Cupons -->
+          <section class="card" id="card-coupons">
+            <div>
+              <h3>Cupons</h3>
+              <div class="kpis">
+                <div class="kpi">
+                  <div class="label">Emitidos</div>
+                  <div class="value" id="cup-emitidos">—</div>
+                </div>
+                <div class="kpi">
+                  <div class="label">Ativos</div>
+                  <div class="value" id="cup-ativos">—</div>
+                </div>
+                <div class="kpi">
+                  <div class="label">Resgatados</div>
+                  <div class="value" id="cup-resgatados">—</div>
+                </div>
+              </div>
+            </div>
+            <div class="actions">
+              <a class="btn btn-primary" href="/pages/admin-cupons.html">Abrir Admin de Cupons</a>
+              <a class="btn" href="/pages/admin-cupons.html#gerar">Gerar Cupom</a>
+            </div>
+            <div class="help">Boas práticas: objetivo claro, validade e acompanhamento.</div>
+          </section>
+
+          <!-- Saúde do sistema -->
+          <section class="card" id="card-health">
+            <div>
+              <h3>Saúde do Sistema</h3>
+              <div class="kpis">
+                <div class="kpi">
+                  <div class="label">Webhook</div>
+                  <div class="value"><span id="health-webhook" class="badge">Em validação</span></div>
+                </div>
+                <div class="kpi">
+                  <div class="label">Tokens GPT (estim.)</div>
+                  <div class="value" id="health-tokens">—</div>
+                </div>
+              </div>
+            </div>
+            <div class="actions">
+              <a class="btn" href="https://dashboard.render.com/" target="_blank" rel="noopener">Render Logs</a>
+              <a class="btn" href="https://console.firebase.google.com/" target="_blank" rel="noopener">Firestore Console</a>
+              <a class="btn" href="/" target="_blank" rel="noopener">Backend (Onrender)</a>
+            </div>
+          </section>
+        </div>
+      </div>
+
+      <div class="section">
+        <h3>Atalhos rápidos</h3>
+        <div class="actions">
+          <a class="btn" href="/pages/admin-cupons.html">Cupons</a>
+          <a class="btn" href="/pages/dashboard.html">Dashboard (usuário)</a>
+          <a class="btn" href="/pages/agenda.html">Agenda</a>
+        </div>
+      </div>
+
+      <p class="footer-note">Estados vazios são esperados no início. Assim que os primeiros usuários entrarem, os números aparecem aqui.</p>
+    </div>
+  </main>
+
+  <!-- Firebase/App init (existentes no projeto) -->
+  <script src="/assets/firebase-init.js"></script>
+  <script src="/assets/backend-patch.js"></script>
+
+  <script type="module">
+    // Admin — v1.0: somente leitura + links
+    // Depende de: /assets/firebase-init.js expondo { auth, db, firebase }
+    const qs = new URLSearchParams(location.search);
+    const isValidateMode = qs.get('validate') === '1';
+
+    const el = (id) => document.getElementById(id);
+    const setText = (id, v) => { const n = el(id); if(n) n.textContent = v; };
+    const safe = (fn) => fn().catch?.(()=>{});
+
+    function requireAdminOrRedirect(){
+      if(isValidateMode){ return true; }
+      try{
+        // Critério leve: estar autenticado E flag admin no storage (v1.0)
+        const isAdmin = (localStorage.getItem('isAdmin') === '1');
+        const uid = localStorage.getItem('uid');
+        if(!isAdmin || !uid){
+          location.href = '/pages/login.html';
+          return false;
+        }
+        return true;
+      }catch(e){
+        location.href = '/pages/login.html';
+        return false;
+      }
+    }
+
+    async function loadValidateData(){
+      // Dados fictícios para ?validate=1
+      setText('users-ativos', '7');
+      setText('users-novos', '2');
+      setText('users-inativos', '1');
+      setText('users-cancelados', '0');
+      setText('usage-msgs-hoje', '34');
+      setText('usage-dau', '5');
+      setText('usage-wau', '12');
+      setText('cup-emitidos', '9');
+      setText('cup-ativos', '4');
+      setText('cup-resgatados', '3');
+      document.getElementById('health-webhook')?.classList.add('ok');
+      document.getElementById('health-webhook').textContent = 'Online (demo)';
+      setText('health-tokens', '—');
+    }
+
+    async function loadFromFirestore(){
+      // Tenta usar agregações leves; se falhar por índice/regra, mantém "—"
+      // Requer Firestore modular (v9+)
+      if(!window.firebase || !window.db){ return; }
+      const { getFirestore, collection, query, where, limit, Timestamp, getDocs } = window.firebase.firestore;
+      const { getCountFromServer } = window.firebase.firestore;
+
+      const db = window.db;
+      const now = new Date();
+      const tsNow = window.firebase.firestore.Timestamp.fromDate(now);
+      const daysAgo = (d)=> {
+        const t = new Date(now.getTime() - d*24*60*60*1000);
+        return window.firebase.firestore.Timestamp.fromDate(t);
+      };
+
+      // Usuários — contagens simples
+      try{
+        const profRef = window.firebase.firestore.collection(db,'profissionais');
+        // Ativos
+        try{
+          const qAtivos = window.firebase.firestore.query(profRef, window.firebase.firestore.where('status','==','ativo'));
+          const cAtivos = await window.firebase.firestore.getCountFromServer(qAtivos);
+          setText('users-ativos', String(cAtivos.data().count ?? '—'));
+        }catch{}
+        // Novos 7d (createdAt >= now-7d)
+        try{
+          const qNovos = window.firebase.firestore.query(profRef, window.firebase.firestore.where('createdAt','>=', daysAgo(7)));
+          const cNovos = await window.firebase.firestore.getCountFromServer(qNovos);
+          setText('users-novos', String(cNovos.data().count ?? '—'));
+        }catch{}
+        // Inativos 14d (lastActiveAt <= now-14d) — pode precisar de índice; se falhar, fica "—"
+        try{
+          const qInativos = window.firebase.firestore.query(profRef, window.firebase.firestore.where('lastActiveAt','<=', daysAgo(14)));
+          const cInativos = await window.firebase.firestore.getCountFromServer(qInativos);
+          setText('users-inativos', String(cInativos.data().count ?? '—'));
+        }catch{}
+        // Cancelados
+        try{
+          const qCancel = window.firebase.firestore.query(profRef, window.firebase.firestore.where('status','in',['cancelado','cancelled']));
+          const cCancel = await window.firebase.firestore.getCountFromServer(qCancel);
+          setText('users-cancelados', String(cCancel.data().count ?? '—'));
+        }catch{}
+      }catch{}
+
+      // Uso (audits/outbox) — apenas se existir
+      try{
+        const auditsRef = window.firebase.firestore.collection(db,'audits');
+        // Mensagens hoje (event in ['sent','queued'] and date==hoje)
+        try{
+          const start = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+          const end = new Date(now.getFullYear(), now.getMonth(), now.getDate()+1);
+          const qHoje = window.firebase.firestore.query(
+            auditsRef,
+            window.firebase.firestore.where('event','in',['sent','queued']),
+            window.firebase.firestore.where('ts','>=', window.firebase.firestore.Timestamp.fromDate(start)),
+            window.firebase.firestore.where('ts','<', window.firebase.firestore.Timestamp.fromDate(end)),
+          );
+          const cHoje = await window.firebase.firestore.getCountFromServer(qHoje);
+          setText('usage-msgs-hoje', String(cHoje.data().count ?? '—'));
+        }catch{}
+        // DAU / WAU — aproximações simples (distintos podem exigir agregação no backend; aqui só contagem bruta)
+        try{
+          const qDau = window.firebase.firestore.query(
+            auditsRef,
+            window.firebase.firestore.where('ts','>=', daysAgo(1))
+          );
+          const cDau = await window.firebase.firestore.getCountFromServer(qDau);
+          setText('usage-dau', String(cDau.data().count ?? '—'));
+        }catch{}
+        try{
+          const qWau = window.firebase.firestore.query(
+            auditsRef,
+            window.firebase.firestore.where('ts','>=', daysAgo(7))
+          );
+          const cWau = await window.firebase.firestore.getCountFromServer(qWau);
+          setText('usage-wau', String(cWau.data().count ?? '—'));
+        }catch{}
+      }catch{}
+
+      // Cupons
+      try{
+        const cupRef = window.firebase.firestore.collection(db,'cuponsAtivacao');
+        try{
+          const cAll = await window.firebase.firestore.getCountFromServer(cupRef);
+          setText('cup-emitidos', String(cAll.data().count ?? '—'));
+        }catch{}
+        try{
+          // Ativos = não expirados (validUntil >= now) e (status != 'resgatado')
+          const qActive = window.firebase.firestore.query(
+            cupRef,
+            window.firebase.firestore.where('validUntil','>=', tsNow)
+          );
+          const cActive = await window.firebase.firestore.getCountFromServer(qActive);
+          setText('cup-ativos', String(cActive.data().count ?? '—'));
+        }catch{}
+        try{
+          // Resgatados (status == 'resgatado' OU redeemedAt != null) — aqui tentamos por status
+          const qRes = window.firebase.firestore.query(
+            cupRef,
+            window.firebase.firestore.where('status','==','resgatado')
+          );
+          const cRes = await window.firebase.firestore.getCountFromServer(qRes);
+          setText('cup-resgatados', String(cRes.data().count ?? '—'));
+        }catch{}
+      }catch{}
+    }
+
+    (async function start(){
+      if(!requireAdminOrRedirect()) return;
+      try{
+        if(isValidateMode){
+          await loadValidateData();
+        }else{
+          await loadFromFirestore();
+        }
+        // Webhook status — manter estático v1.0 (opcionalmente podemos fazer um ping no futuro)
+        const badge = document.getElementById('health-webhook');
+        if(badge && !isValidateMode){
+          badge.classList.remove('ok','off');
+          badge.textContent = 'Em validação';
+        }
+      }catch(e){
+        // Em caso de erro, deixamos os estados vazios amigáveis
+        console.error('Admin: erro ao carregar', e);
+      }
+    })();
+  </script>
+</body>
+</html>
