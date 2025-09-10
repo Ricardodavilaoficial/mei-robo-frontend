@@ -3,15 +3,12 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Administrador — MEI Robô (v1.0.2)</title>
-  <link rel="stylesheet" href="/assets/styles.css?v=2025-09-10T130836" />
+  <title>Administrador — MEI Robô (v1.0.3)</title>
+  <link rel="stylesheet" href="/assets/styles.css?v=2025-09-10T131834" />
   <meta http-equiv="Cache-Control" content="no-store, max-age=0, must-revalidate" />
   <style>
-    :root{
-      --card-bg:#0f1513; --card-br:#1d2b26; --muted:#9fb0aa; --soft:#cfe3dc; --accent:#00a884;
-      --danger:#d9534f; --ok:#2ecc71; --warn:#f1c40f;
-    }
-    body{background:#0b1210;color:#f0f6f4;font-family:system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Noto Sans, Helvetica, Arial, "Apple Color Emoji","Segoe UI Emoji";}
+    :root{ --card-bg:#0f1513; --card-br:#1d2b26; --muted:#9fb0aa; --accent:#00a884; --danger:#d9534f; --ok:#2ecc71; --warn:#f1c40f; }
+    body{background:#0b1210;color:#f0f6f4;font-family:system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Noto Sans, Helvetica, Arial;}
     .container{max-width:1100px;margin:0 auto;padding:16px 16px 64px;}
     h1{font-size:1.6rem;margin:10px 0 6px;}
     .subtitle{color:var(--muted);font-size:.95rem;margin-bottom:16px;line-height:1.45}
@@ -28,148 +25,86 @@
     .btn{appearance:none;border:1px solid #1d2b26;background:#0a1a16;color:#e9fffa;border-radius:12px;padding:9px 12px;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;gap:8px;font-size:.95rem}
     .btn:hover{filter:brightness(1.1)}
     .btn-primary{background:var(--accent);border-color:#0c8d6e;color:#03241f}
-    .btn.disabled,[data-disabled="true"]{opacity:.6;cursor:not-allowed;pointer-events:none}
     .badge{display:inline-block;padding:3px 8px;border-radius:999px;font-size:.75rem;border:1px solid #2a3a35;background:#0a1a16;color:#cfe3dc}
     .badge.ok{border-color:#20563f;color:#bff1d8;background:#0e2a22}
     .badge.warn{border-color:#6a5f20;color:#fff3b0;background:#2a260e}
     .badge.off{border-color:#5c3a3a;color:#ffd4d4;background:#2a0e0e}
-    .empty{color:var(--muted);font-size:.92rem}
-    .hl{color:#d7fbf0}
-    .section{margin-top:16px}
     .footer-note{margin-top:18px;color:var(--muted);font-size:.85rem}
-    .help{color:var(--muted);font-size:.8rem;margin-top:6px}
-    .mono{font-family:ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;}
-    /* Admin chip abaixo do header */
-    .admin-chip{display:flex;align-items:center;gap:8px;padding:8px 12px;border-bottom:1px solid var(--card-br);background:#0a1310;position:sticky;top:0;z-index:40}
-    .admin-chip .dot{width:8px;height:8px;border-radius:999px;background:var(--accent)}
-    /* Toggle Somente Admins: esconda CTAs públicos comuns (sem tocar backend/partials) */
-    .is-admin-shell a[href="/cadastro.html"],
-    .is-admin-shell a[href="/pages/ativar.html"],
-    .is-admin-shell a[href="/pages/verify-email.html"],
-    .is-admin-shell a[href="/pages/precos.html"][data-public-only="true"],
+    .admin-chip{display:flex;align-items:center;gap:8px;padding:8px 12px;border-bottom:1px solid #1d2b26;background:#0a1310;position:sticky;top:0;z-index:40}
     .is-admin-shell .only-public{display:none !important}
     .is-admin-shell .only-admin{display:inherit !important}
   </style>
-  <!-- Carrega header/footer com caminho absoluto e cache-bust -->
-  <script src="/assets/layout.js?v=2025-09-10T130836" defer></script>
+  <script src="/assets/layout.js?v=2025-09-10T131834" defer></script>
 </head>
 <body class="app-shell">
-  <!-- Fallback mínimo caso o header não venha em 1.5s -->
-  <div id="admin-fallback-header" style="display:none;padding:10px 12px;border-bottom:1px solid #1d2b26;background:#0a1310">
+  <!-- Fallbacks mínimos -->
+  <div id="fallback-header" style="display:none;padding:10px 12px;border-bottom:1px solid #1d2b26;background:#0a1310">
     <strong>MEI Robô</strong> — Cabeçalho (fallback)
   </div>
 
   <main class="app-main">
-    <!-- Chip Admin (toggle visual simples) -->
     <div class="admin-chip" id="admin-chip" style="display:none">
-      <span class="dot" aria-hidden="true"></span>
       <span class="badge">Admin</span>
-      <span class="help">Navegação filtrada para administrador.</span>
+      <span style="color:#9fb0aa;font-size:.85rem">Navegação filtrada para administrador.</span>
     </div>
 
     <div class="container">
       <h1>Administrador</h1>
       <p class="subtitle">Acompanhe números básicos do sistema e ative ações simples. Estados vazios são normais no início.</p>
 
-      <!-- Saúde do Sistema -->
       <section class="card" id="card-health">
         <div>
           <h3>Saúde do Sistema</h3>
           <div class="kpis">
-            <div class="kpi">
-              <div class="label">Backend (Render)</div>
-              <div class="value"><span id="health-backend" class="badge">Em validação</span></div>
-            </div>
-            <div class="kpi">
-              <div class="label">Firestore (ping)</div>
-              <div class="value"><span id="health-fs" class="badge">Em validação</span></div>
-            </div>
-            <div class="kpi">
-              <div class="label">Webhook (WABA)</div>
-              <div class="value"><span id="health-webhook" class="badge">Em validação</span></div>
-            </div>
+            <div class="kpi"><div class="label">Backend (Render)</div><div class="value"><span id="health-backend" class="badge">Em validação</span></div></div>
+            <div class="kpi"><div class="label">Firestore (ping)</div><div class="value"><span id="health-fs" class="badge">Em validação</span></div></div>
+            <div class="kpi"><div class="label">Webhook (WABA)</div><div class="value"><span id="health-webhook" class="badge">Em validação</span></div></div>
           </div>
         </div>
-        <div class="help">Sinal leve, sem backend novo. Futuro: <span class="mono">/healthz</span> real com dependências.</div>
+        <div style="color:#9fb0aa;font-size:.8rem">Sinal leve, sem backend novo. Futuro: /healthz real com dependências.</div>
       </section>
 
       <div class="section">
         <div class="grid">
-          <!-- Usuários -->
           <section class="card" id="card-users">
             <div>
               <h3>Usuários</h3>
               <div class="kpis">
-                <div class="kpi">
-                  <div class="label">Ativos</div>
-                  <div class="value" id="users-ativos">—</div>
-                </div>
-                <div class="kpi">
-                  <div class="label">Novos (7 dias)</div>
-                  <div class="value" id="users-novos">—</div>
-                </div>
-                <div class="kpi">
-                  <div class="label">Inativos (14 dias)</div>
-                  <div class="value" id="users-inativos">—</div>
-                </div>
-                <div class="kpi">
-                  <div class="label">Cancelados</div>
-                  <div class="value" id="users-cancelados">—</div>
-                </div>
+                <div class="kpi"><div class="label">Ativos</div><div class="value" id="users-ativos">—</div></div>
+                <div class="kpi"><div class="label">Novos (7 dias)</div><div class="value" id="users-novos">—</div></div>
+                <div class="kpi"><div class="label">Inativos (14 dias)</div><div class="value" id="users-inativos">—</div></div>
+                <div class="kpi"><div class="label">Cancelados</div><div class="value" id="users-cancelados">—</div></div>
               </div>
             </div>
             <div class="actions">
               <button class="btn" id="btn-export-users" data-disabled="true" title="Em breve: exportar para CSV direto no navegador.">Exportar CSV</button>
             </div>
-            <div class="help">Fonte: <span class="hl">profissionais/*</span>. Contagens simples por status/data.</div>
           </section>
 
-          <!-- Uso -->
           <section class="card" id="card-usage">
             <div>
               <h3>Uso (aprox.)</h3>
               <div class="kpis">
-                <div class="kpi">
-                  <div class="label">Mensagens (hoje)</div>
-                  <div class="value" id="usage-msgs-hoje">—</div>
-                </div>
-                <div class="kpi">
-                  <div class="label">DAU</div>
-                  <div class="value" id="usage-dau">—</div>
-                </div>
-                <div class="kpi">
-                  <div class="label">WAU</div>
-                  <div class="value" id="usage-wau">—</div>
-                </div>
+                <div class="kpi"><div class="label">Mensagens (hoje)</div><div class="value" id="usage-msgs-hoje">—</div></div>
+                <div class="kpi"><div class="label">DAU</div><div class="value" id="usage-dau">—</div></div>
+                <div class="kpi"><div class="label">WAU</div><div class="value" id="usage-wau">—</div></div>
               </div>
             </div>
-            <div class="help">Se <span class="hl">audits/outbox</span> não existir, mantemos vazio amigável.</div>
           </section>
 
-          <!-- Cupons -->
           <section class="card" id="card-coupons">
             <div>
               <h3>Cupons</h3>
               <div class="kpis">
-                <div class="kpi">
-                  <div class="label">Emitidos</div>
-                  <div class="value" id="cup-emitidos">—</div>
-                </div>
-                <div class="kpi">
-                  <div class="label">Ativos</div>
-                  <div class="value" id="cup-ativos">—</div>
-                </div>
-                <div class="kpi">
-                  <div class="label">Resgatados</div>
-                  <div class="value" id="cup-resgatados">—</div>
-                </div>
+                <div class="kpi"><div class="label">Emitidos</div><div class="value" id="cup-emitidos">—</div></div>
+                <div class="kpi"><div class="label">Ativos</div><div class="value" id="cup-ativos">—</div></div>
+                <div class="kpi"><div class="label">Resgatados</div><div class="value" id="cup-resgatados">—</div></div>
               </div>
             </div>
             <div class="actions">
               <a class="btn btn-primary" href="/pages/admin-cupons.html">Abrir Admin de Cupons</a>
               <a class="btn" href="/pages/admin-cupons.html#gerar">Gerar Cupom</a>
             </div>
-            <div class="help">Boas práticas: objetivo claro, validade e acompanhamento.</div>
           </section>
         </div>
       </div>
@@ -190,197 +125,154 @@
     </div>
   </main>
 
-  <!-- Firebase/App init (existentes no projeto) -->
-  <script src="/assets/firebase-init.js?v=2025-09-10T130836"></script>
-  <script src="/assets/backend-patch.js?v=2025-09-10T130836"></script>
+  <div id="fallback-footer" style="display:none;padding:10px 12px;border-top:1px solid #1d2b26;background:#0a1310;color:#9fb0aa;text-align:center">
+    Rodapé (fallback) — © 2025 MEI Robô
+  </div>
+
+  <script src="/assets/firebase-init.js?v=2025-09-10T131834"></script>
+  <script src="/assets/backend-patch.js?v=2025-09-10T131834"></script>
 
   <script type="module">
-    /*
-      Diretriz (comentário): Não mexer no que já funciona; passinhos de formiga; produção real (Firebase Hosting, Render, Firestore prod);
-      segurança por padrão (Auth no FE, validação no BE, regras do Firestore); observabilidade; Cache-Control no-store nos HTMLs; mobile-first; usar "Arquivo".
-    */
     const qs = new URLSearchParams(location.search);
     const isValidateMode = qs.get('validate') === '1';
-
     const $ = (id)=> document.getElementById(id);
     const setText = (id, v) => { const n = $(id); if(n) n.textContent = v; };
 
-    // Header/Footer "espera": se não injetar em 1500ms, mostra fallback mínimo
-    setTimeout(()=>{
-      const hasHeader = document.querySelector('header');
-      const fallback = document.getElementById('admin-fallback-header');
-      if(!hasHeader && fallback){ fallback.style.display='block'; }
-    }, 1500);
+    // --- Header/Footer fallback controller ---
+    const headerSelectors = ['header','#app-header','[data-header]','[role="banner"]'];
+    const footerSelectors = ['footer','#app-footer','[data-footer]','[role="contentinfo"]'];
 
-    // Toggle Somente Admins (front-only)
+    function findAny(selectors) {
+      for (const sel of selectors) { const el = document.querySelector(sel); if (el) return el; }
+      return null;
+    }
+
+    function handleShellFallbacks() {
+      const h = findAny(headerSelectors);
+      const f = findAny(footerSelectors);
+      const hf = $('fallback-header');
+      const ff = $('fallback-footer');
+      if(h) { if(hf) hf.style.display='none'; }
+      else { if(hf) hf.style.display='block'; }
+      if(f) { if(ff) ff.style.display='none'; }
+      else { if(ff) ff.style.display='block'; }
+    }
+
+    // First check at 1.5s, then observe DOM changes for late injections
+    setTimeout(handleShellFallbacks, 1500);
+    const mo = new MutationObserver(() => handleShellFallbacks());
+    mo.observe(document.documentElement, { childList:true, subtree:true });
+
+    // --- Admin shell toggle ---
     function applyAdminShellToggle() {
       const isAdmin = (localStorage.getItem('isAdmin') === '1');
       const inAdminPage = location.pathname.includes('/pages/admin');
       if(isValidateMode || (isAdmin && inAdminPage)) {
         document.documentElement.classList.add('is-admin-shell');
         const chip = $('admin-chip'); if(chip) chip.style.display = 'flex';
-        // Marcação visual simples no header quando existir
-        const tryMarkHeader = () => {
-          const header = document.querySelector('header');
-          if(header && !header.dataset.adminMarked) {
-            header.dataset.adminMarked = '1';
-            const mark = document.createElement('span');
-            mark.className = 'badge';
-            mark.style.marginLeft = '8px';
-            mark.textContent = 'Admin';
-            // tenta colocar perto do logo
-            header.appendChild(mark);
-            return true;
-          }
-          return false;
-        };
-        let tries = 0;
-        const intv = setInterval(()=>{
-          tries++; if(tryMarkHeader() || tries>10) clearInterval(intv);
-        }, 200);
       }
     }
     applyAdminShellToggle();
 
     function requireAdminOrRedirect(){
-      if(isValidateMode){ return true; }
-      try{
+      if(isValidateMode) return true;
+      try {
         const isAdmin = (localStorage.getItem('isAdmin') === '1');
         const uid = localStorage.getItem('uid');
-        if(!isAdmin || !uid){
-          location.href = '/pages/login.html';
-          return false;
-        }
+        if(!isAdmin || !uid) { location.href = '/pages/login.html'; return false; }
         return true;
-      }catch(e){
-        location.href = '/pages/login.html';
-        return false;
-      }
+      } catch(e) { location.href = '/pages/login.html'; return false; }
     }
 
+    // --- Validate demo data ---
     async function loadValidateData(){
-      // KPIs de exemplo
-      setText('users-ativos', '8');
-      setText('users-novos', '3');
-      setText('users-inativos', '1');
-      setText('users-cancelados', '0');
-      setText('usage-msgs-hoje', '41');
-      setText('usage-dau', '6');
-      setText('usage-wau', '14');
-      setText('cup-emitidos', '11');
-      setText('cup-ativos', '5');
-      setText('cup-resgatados', '3');
-      // Saúde demo
-      const b1 = $('health-backend'); b1?.classList.add('ok'); b1.textContent = 'Online (demo)';
-      const b2 = $('health-fs'); b2?.classList.add('ok'); b2.textContent = 'OK (demo)';
-      const b3 = $('health-webhook'); b3?.classList.add('warn'); b3.textContent = 'Sem eventos (demo)';
+      setText('users-ativos', '8'); setText('users-novos', '3'); setText('users-inativos', '1'); setText('users-cancelados', '0');
+      setText('usage-msgs-hoje', '41'); setText('usage-dau', '6'); setText('usage-wau', '14');
+      setText('cup-emitidos', '11'); setText('cup-ativos', '5'); setText('cup-resgatados', '3');
+      const b1 = $('#health-backend'); b1?.classList.add('ok'); b1.textContent = 'Online (demo)';
+      const b2 = $('#health-fs'); b2?.classList.add('ok'); b2.textContent = 'OK (demo)';
+      const b3 = $('#health-webhook'); b3?.classList.add('warn'); b3.textContent = 'Sem eventos (demo)';
       console.info('Header/Footer OK (validate)');
     }
 
+    // --- KPIs and Health (unchanged logic) ---
     async function loadHealthLight(){
-      // "Esperas prontas": visuais prontos com hooks mínimos e SEM endpoints novos obrigatórios.
-      try{
-        // Backend (Render): ping leve na raiz do backend (ajuste a URL em backend-patch.js se preferir)
+      try {
         const backendURL = (window.BACKEND_BASE_URL || '/');
-        const ctl = new AbortController();
-        const t = setTimeout(()=>ctl.abort(), 2500);
-        let statusText = 'Em validação';
-        let css = null;
-        try{
-          const res = await fetch(backendURL, { method:'GET', mode:'no-cors', signal: ctl.signal });
-          statusText = 'Respondendo'; css = 'ok';
-        }catch(e){
-          statusText = 'Offline/Timeout'; css = 'off';
-        }finally{ clearTimeout(t); }
-        const b = $('health-backend'); if(b){ b.textContent = statusText; if(css) b.classList.add(css); }
+        const ctl = new AbortController(); const t = setTimeout(()=>ctl.abort(), 2500);
+        let label='Em validação', css=null;
+        try { await fetch(backendURL, {method:'GET', mode:'no-cors', signal:ctl.signal}); label='Respondendo'; css='ok'; }
+        catch(e) { label='Offline/Timeout'; css='off'; }
+        finally { clearTimeout(t); }
+        const b = $('#health-backend'); if(b) { b.textContent = label; if(css) b.classList.add(css); }
       }catch{}
 
-      try{
-        // Firestore ping
-        if(window.db && window.firebase?.firestore){
+      try {
+        if(window.db && window.firebase?.firestore) {
+          const F = window.firebase.firestore;
           const t0 = performance.now();
-          let label = 'Em validação', css = null;
-          try{
-            const F = window.firebase.firestore;
+          let label='Em validação', css=null;
+          try {
             const cRef = F.collection(window.db,'profissionais');
-            const c = await F.getCountFromServer(cRef);
+            await F.getCountFromServer(cRef);
             const dt = performance.now()-t0;
-            if(dt < 1500){ label = 'OK'; css='ok'; }
-            else if(dt < 4000){ label = 'Lento'; css='warn'; }
-            else { label = 'Muito lento'; css='off'; }
-          }catch{ label = 'Sem acesso'; css='off'; }
-          const b2 = $('health-fs'); if(b2){ b2.textContent = label; if(css) b2.classList.add(css); }
+            if(dt<1500) { label='OK'; css='ok'; }
+            else if(dt<4000) { label='Lento'; css='warn'; }
+            else { label='Muito lento'; css='off'; }
+          } catch { label='Sem acesso'; css='off'; }
+          const b2 = $('#health-fs'); if(b2) { b2.textContent = label; if(css) b2.classList.add(css); }
         }
       }catch{}
 
-      try{
-        // Webhook (WABA): usa audits se existir
-        if(window.db && window.firebase?.firestore){
+      try {
+        if(window.db && window.firebase?.firestore) {
           const F = window.firebase.firestore;
           const audits = F.collection(window.db,'audits');
-          const since = new Date(Date.now() - 24*60*60*1000);
+          const since = new Date(Date.now()-24*60*60*1000);
           const q = F.query(audits, F.where('ts','>=', F.Timestamp.fromDate(since)));
-          let css = 'warn'; let label = 'Sem eventos recentes';
-          try{
-            const n = (await F.getCountFromServer(q)).data().count || 0;
-            if(n > 0){ css = 'ok'; label = 'OK (últimas 24h)'; }
-          }catch{}
-          const b3 = $('health-webhook'); if(b3){ b3.textContent = label; b3.classList.add(css); }
+          let css='warn', label='Sem eventos recentes';
+          try { const n=(await F.getCountFromServer(q)).data().count||0; if(n>0) { css='ok'; label='OK (últimas 24h)'; } } catch {}
+          const b3 = $('#health-webhook'); if(b3) { b3.textContent = label; b3.classList.add(css); }
         }
       }catch{}
     }
 
     async function loadKPIs(){
-      if(!window.firebase || !window.db){ return; }
-      const DB = window.db;
-      const F = window.firebase.firestore;
-      const ts = (d)=> F.Timestamp.fromDate(d);
-      const now = new Date();
-      const daysAgo = (n)=> ts(new Date(now.getTime()-n*86400000));
-
-      // Usuários
-      try{
+      if(!window.firebase || !window.db) return;
+      const DB = window.db, F = window.firebase.firestore;
+      const ts = (d)=>F.Timestamp.fromDate(d);
+      const now = new Date(); const daysAgo=(n)=>ts(new Date(now.getTime()-n*86400000));
+      try {
         const profRef = F.collection(DB,'profissionais');
-        try{ const q = F.query(profRef, F.where('status','==','ativo')); const c = await F.getCountFromServer(q); setText('users-ativos', String(c.data().count ?? '—')); }catch{}
-        try{ const q = F.query(profRef, F.where('createdAt','>=', daysAgo(7))); const c = await F.getCountFromServer(q); setText('users-novos', String(c.data().count ?? '—')); }catch{}
-        try{ const q = F.query(profRef, F.where('lastActiveAt','<=', daysAgo(14))); const c = await F.getCountFromServer(q); setText('users-inativos', String(c.data().count ?? '—')); }catch{}
-        try{ const q = F.query(profRef, F.where('status','in',['cancelado','cancelled'])); const c = await F.getCountFromServer(q); setText('users-cancelados', String(c.data().count ?? '—')); }catch{}
-      }catch{}
-
-      // Uso
-      try{
+        try { setText('users-ativos', String((await F.getCountFromServer(F.query(profRef, F.where('status','==','ativo')))).data().count ?? '—')); } catch {}
+        try { setText('users-novos', String((await F.getCountFromServer(F.query(profRef, F.where('createdAt','>=', daysAgo(7))))).data().count ?? '—')); } catch {}
+        try { setText('users-inativos', String((await F.getCountFromServer(F.query(profRef, F.where('lastActiveAt','<=', daysAgo(14))))).data().count ?? '—')); } catch {}
+        try { setText('users-cancelados', String((await F.getCountFromServer(F.query(profRef, F.where('status','in',['cancelado','cancelled'])))).data().count ?? '—')); } catch {}
+      } catch {} 
+      try {
         const auditsRef = F.collection(DB,'audits');
-        try{ // Hoje
+        try { 
           const start = new Date(now.getFullYear(), now.getMonth(), now.getDate());
           const end = new Date(now.getFullYear(), now.getMonth(), now.getDate()+1);
-          const qHoje = F.query(auditsRef, F.where('event','in',['sent','queued']), F.where('ts','>=', ts(start)), F.where('ts','<', ts(end)));
-          const c = await F.getCountFromServer(qHoje); setText('usage-msgs-hoje', String(c.data().count ?? '—'));
-        }catch{}
-        try{ const qD = F.query(auditsRef, F.where('ts','>=', daysAgo(1))); const c = await F.getCountFromServer(qD); setText('usage-dau', String(c.data().count ?? '—')); }catch{}
-        try{ const qW = F.query(auditsRef, F.where('ts','>=', daysAgo(7))); const c = await F.getCountFromServer(qW); setText('usage-wau', String(c.data().count ?? '—')); }catch{}
-      }catch{}
-
-      // Cupons
-      try{
+          setText('usage-msgs-hoje', String((await F.getCountFromServer(F.query(auditsRef, F.where('event','in',['sent','queued']), F.where('ts','>=', ts(start)), F.where('ts','<', ts(end))))).data().count ?? '—'));
+        } catch {} 
+        try { setText('usage-dau', String((await F.getCountFromServer(F.query(auditsRef, F.where('ts','>=', daysAgo(1))))).data().count ?? '—')); } catch {} 
+        try { setText('usage-wau', String((await F.getCountFromServer(F.query(auditsRef, F.where('ts','>=', daysAgo(7))))).data().count ?? '—')); } catch {} 
+      } catch {} 
+      try {
         const cupRef = F.collection(DB,'cuponsAtivacao');
-        try{ const cAll = await F.getCountFromServer(cupRef); setText('cup-emitidos', String(cAll.data().count ?? '—')); }catch{}
-        try{ const qActive = F.query(cupRef, F.where('validUntil','>=', ts(now))); const cActive = await F.getCountFromServer(qActive); setText('cup-ativos', String(cActive.data().count ?? '—')); }catch{}
-        try{ const qRes = F.query(cupRef, F.where('status','==','resgatado')); const cRes = await F.getCountFromServer(qRes); setText('cup-resgatados', String(cRes.data().count ?? '—')); }catch{}
-      }catch{}
+        try { setText('cup-emitidos', String((await F.getCountFromServer(cupRef)).data().count ?? '—')); } catch {} 
+        try { setText('cup-ativos', String((await F.getCountFromServer(F.query(cupRef, F.where('validUntil','>=', ts(now))))).data().count ?? '—')); } catch {} 
+        try { setText('cup-resgatados', String((await F.getCountFromServer(F.query(cupRef, F.where('status','==','resgatado')))).data().count ?? '—')); } catch {} 
+      } catch {} 
     }
 
     (async function start(){
       if(!requireAdminOrRedirect()) return;
-      try{
-        if(isValidateMode){
-          await loadValidateData();
-        }else{
-          await loadKPIs();
-          await loadHealthLight();
-        }
-      }catch(e){
-        console.error('Admin: erro ao carregar', e);
-      }
+      try {
+        if(isValidateMode) { await loadValidateData(); }
+        else { await loadKPIs(); await loadHealthLight(); }
+      } catch(e) { console.error('Admin: erro ao carregar', e); }
     })();
   </script>
 </body>
