@@ -3,398 +3,231 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Orçamentos — MEI Robô (v1.2)</title>
+  <title>Orçamentos — MEI Robô (v1.3 simples)</title>
   <link rel="stylesheet" href="/assets/styles.css" />
   <script src="/assets/layout.js" defer></script>
   <style>
-    :root{ --bg:#0d1117; --card:#161b22; --br:#30363d; --soft:#cfe3dc; --muted:#9fb0aa; --txt:#e6edf3; --danger:#ff6961;}
+    :root{ --bg:#0d1117; --card:#161b22; --br:#30363d; --soft:#cfe3dc; --muted:#9fb0aa; --txt:#e6edf3; --danger:#ff6961; --ok:#238636; }
     html,body{background:var(--bg); color:var(--txt); margin:0; padding:0; font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial}
     main{max-width:980px; margin:0 auto; padding:16px}
+    h1{font-size:1.6rem; margin:8px 0 16px; color:var(--soft)}
     .card{background:var(--card); border:1px solid var(--br); border-radius:14px; padding:14px; margin:12px 0}
-    .badge{display:inline-block; padding:2px 8px; border:1px solid var(--br); border-radius:999px; color:#cfe3dc; font-size:.8rem}
-    .tabs{display:flex; gap:8px; flex-wrap:wrap; margin-bottom:10px}
-    .tab{padding:8px 12px; border:1px solid var(--br); border-radius:999px; cursor:pointer}
-    .tab.active{background:#1b222c}
-    .kicker{font-size:.95rem; color:#9fb0aa}
-    .btn{background:#238636; color:#fff; border:none; border-radius:10px; padding:10px 14px; cursor:pointer; font-weight:700}
-    .btn-ghost{background:transparent; border:1px solid var(--br); color:#e6edf3}
-    .btn-danger{background:#ff6961}
+    .badge{display:inline-block; padding:2px 8px; border:1px solid var(--br); border-radius:999px; color:var(--soft); font-size:.8rem}
+    label{font-weight:700; font-size:.95rem; display:block; margin-top:8px}
+    input[type="text"], input[type="number"], textarea, select{ width:100%; background:#0d1117; color:var(--txt); border:1px solid var(--br); border-radius:10px; padding:10px; }
+    input::placeholder, textarea::placeholder{color:var(--muted)}
+    .btn{background:var(--ok); color:#fff; border:none; border-radius:10px; padding:10px 14px; cursor:pointer; font-weight:700}
+    .btn:hover{filter:brightness(1.05)}
+    .btn-ghost{background:transparent; border:1px solid var(--br); color:var(--txt)}
+    .btn-danger{background:var(--danger)}
+    .row{display:flex; gap:10px; flex-wrap:wrap; align-items:center}
+    .grid-2{display:grid; grid-template-columns:1fr 1fr; gap:10px}
+    .grid-3{display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px}
+    .right{text-align:right}
+    /* Tabela */
     #tabela-wrap{max-height:300px; overflow:auto; border:1px solid var(--br); border-radius:12px}
     table{width:100%; border-collapse:collapse; table-layout:fixed}
     col.col-cod{width:90px} col.col-item{width:auto} col.col-preco{width:120px} col.col-qtd{width:80px} col.col-dur{width:90px} col.col-sub{width:140px} col.col-act{width:80px}
-    thead th{background:#0f141a; position:sticky; top:0}
+    thead th{background:#0f141a; position:sticky; top:0; z-index:1; color:var(--soft)}
     th,td{border-bottom:1px solid var(--br); padding:8px; vertical-align:middle}
-    .right{text-align:right} .w-100{width:100%} .h-40{height:40px}
-    .preview-assinatura,.preview-carimbo{width:260px; height:120px; border:1px dashed var(--br); border-radius:12px; display:flex; align-items:center; justify-content:center; color:#9fb0aa; background:#0f141a; overflow:hidden}
-    .preview-carimbo{width:160px; height:160px; border-radius:16px}
+    .w-100{width:100%} .h-40{height:40px}
+    .kicker{font-size:.95rem; color:var(--muted)}
+    .logo-box{width:200px; height:80px; border:1px dashed var(--br); border-radius:12px; display:flex; align-items:center; justify-content:center; color:var(--muted); background:#0f141a; overflow:hidden}
+    .company{font-size:1.2rem; font-weight:800}
+    .header-grid{display:grid; grid-template-columns:auto 1fr auto; gap:12px; align-items:center}
+    .totais{font-size:1.05rem}
+    .only-print{display:none}
+    @media print{
+      body{background:#fff; color:#000}
+      .no-print{display:none!important}
+      .only-print{display:block}
+      .card{border:none}
+      main{max-width:100%; padding:0 8mm}
+      #tabela-wrap{max-height:none; overflow:visible; border:none}
+      table th, table td{border-color:#ddd}
+    }
   </style>
 </head>
 <body>
-  <div id="app-header"></div>
-  <main>
-    <h1>Orçamentos <span class="badge">v1.2</span> <span id="numero-badge" class="badge" style="display:none"></span></h1>
-
+  <div id="app-header" class="no-print"></div>
+  <main id="printable">
     <section class="card">
-      <h2>Lista de orçamentos</h2>
-      <div class="kicker">Use <code>?validate=1</code> para exemplos</div>
-      <div id="lista-orcamentos" class="kicker">Nenhum orçamento carregado.</div>
+      <div class="header-grid">
+        <div>
+          <label class="no-print">Logo (opcional)</label>
+          <div class="logo-box" id="logoBox"><span>Logo</span></div>
+          <input class="no-print" type="file" id="inLogo" accept="image/png,image/svg+xml" style="margin-top:6px">
+        </div>
+        <div>
+          <label>Nome do MEI / Empresa</label>
+          <input type="text" id="nomeEmpresa" placeholder="Ex.: João Barbeiro MEI" />
+        </div>
+        <div class="right">
+          <div><span class="badge">Orçamento</span> <span id="numero-badge" class="badge" style="display:none"></span></div>
+          <div class="kicker" id="dataHoje"></div>
+        </div>
+      </div>
     </section>
 
-    <section class="card">
-      <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap">
-        <h2>Editar / Novo orçamento</h2>
-        <div class="tabs" id="tabs">
-          <div class="tab active" data-pack="A">Pacote A</div>
-          <div class="tab" data-pack="B">Pacote B</div>
-          <div class="tab" data-pack="C">Pacote C</div>
-          <button class="btn btn-ghost" id="btn-duplica">Duplicar p/ próximo pacote</button>
+    <section class="card no-print">
+      <div class="grid-3">
+        <div>
+          <label>Adicionar por código ou nome</label>
+          <input type="text" id="busca" placeholder="Ex.: #BARB01 ou 'corte de cabelo'"/>
+          <div class="kicker">Dica: use #CÓDIGO para adicionar direto.</div>
         </div>
-      </div>
-
-      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px">
-        <div><label>Cliente</label><input type="text" id="cliente" placeholder="Ex.: João da Silva" class="w-100"/></div>
-        <div><label>Validade (dias)</label><input type="number" id="validade" placeholder="Ex.: 7" class="w-100"/></div>
-        <div><label>Número do orçamento</label><input type="text" id="numeroOrc" placeholder="Será gerado ao salvar (simulação)" class="w-100" disabled/></div>
-      </div>
-
-      <div class="card" style="margin:10px 0">
-        <h3 style="margin:0 0 6px">Adicionar itens do catálogo</h3>
-        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px">
-          <div>
-            <label>Buscar serviço/produto ou código</label>
-            <input type="text" id="busca" placeholder="Ex.: #BARB01 ou 'corte', 'hidratação'"/>
-            <div class="kicker">O catálogo vem de <strong>Preços/Serviços</strong>.</div>
-          </div>
-          <div>
-            <label>Filtrar por duração (opcional)</label>
-            <select id="filtroDur" class="w-100">
-              <option value="">Qualquer duração</option><option value="15">Até 15 min</option><option value="30">Até 30 min</option><option value="60">Até 60 min</option>
-            </select>
-          </div>
-          <div style="align-self:end;white-space:nowrap">
-            <button class="btn" id="btn-buscar">Buscar/Adicionar</button>
-            <button class="btn btn-ghost" id="btn-item-livre">Item livre</button>
-          </div>
+        <div style="align-self:end">
+          <button class="btn" id="btn-buscar">Adicionar</button>
+          <button class="btn btn-ghost" id="btn-add-linha">Adicionar linha</button>
         </div>
-        <div id="resultado-busca" style="border:1px solid var(--br);border-radius:10px;padding:8px;margin-top:6px;background:#0f141a"></div>
-      </div>
-
-      <div class="card" style="margin:10px 0">
-        <h3 style="margin:0 6px 6px 0">Itens do orçamento</h3>
-        <div id="tabela-wrap">
-          <table id="tabela-itens">
-            <colgroup><col class="col-cod"/><col class="col-item"/><col class="col-preco"/><col class="col-qtd"/><col class="col-dur"/><col class="col-sub"/><col class="col-act"/></colgroup>
-            <thead><tr><th>Código</th><th>Item</th><th>Preço (R$)</th><th>Qtd</th><th>Duração</th><th class="right">Subtotal (R$)</th><th></th></tr></thead>
-            <tbody id="tbody-itens"><tr class="empty"><td colspan="7" class="kicker">Nenhum item ainda. Use #CÓDIGO, nome, ou “Item livre”.</td></tr></tbody>
-          </table>
-        </div>
-      </div>
-
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
-        <div class="card">
-          <h3 style="margin:0 0 6px">Custos adicionais (opcionais)</h3>
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
-            <div><label>Taxa de visita (R$)</label><input type="number" id="taxaVisita" placeholder="Ex.: 20" step="0.01" class="w-100"></div>
-            <div><label>Frete (R$)</label><input type="number" id="frete" placeholder="Ex.: 15" step="0.01" class="w-100"></div>
-          </div>
-          <div style="display:grid;grid-template-columns:2fr 1fr 1fr 1fr;gap:10px;margin-top:8px">
-            <div><label>Km grátis</label><input type="number" id="kmGratis" placeholder="Ex.: 5" step="0.1" class="w-100"></div>
-            <div><label>R$/km extra</label><input type="number" id="precoKm" placeholder="Ex.: 1.5" step="0.01" class="w-100"></div>
-            <div><label>Distância total (km)</label><input type="number" id="kmTotal" placeholder="Ex.: 12" step="0.1" class="w-100"></div>
-            <div class="right" style="align-self:end"><span class="kicker">Preencha os campos acima se desejar incluir deslocamento.</span></div>
-          </div>
-          <label style="margin-top:8px">Observações</label>
-          <textarea id="observacoes" rows="2" placeholder="Ex.: Válido em dias úteis; não inclui peças fora do catálogo." class="w-100"></textarea>
-        </div>
-
-        <div class="card">
-          <h3 style="margin:0 0 6px">Descontos e entrada</h3>
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
-            <div><label>Desconto geral (%)</label><input type="number" id="descGeral" placeholder="Ex.: 10" step="0.01" class="w-100"></div>
-            <div><label>Entrada/Sinal (R$ ou %)</label><input type="text" id="entrada" placeholder="Ex.: R$ 50 ou 20%" class="w-100"></div>
-          </div>
-          <div style="height:1px;background:var(--br);margin:10px 0"></div>
-          <div>
-            <div style="display:flex;justify-content:space-between"><span>Subtotal itens</span><strong id="subtotalItens">R$ 0,00</strong></div>
-            <div style="display:flex;justify-content:space-between"><span>Extras (visita/km/frete)</span><strong id="extrasTotal">R$ 0,00</strong></div>
-            <div style="display:flex;justify-content:space-between" id="kmInfo" class="kicker"></div>
-            <div style="display:flex;justify-content:space-between"><span>Desconto geral</span><strong id="descontoGeral">– R$ 0,00</strong></div>
-            <div style="display:flex;justify-content:space-between"><span>Total</span><strong id="totalGeral">R$ 0,00</strong></div>
-            <div style="display:flex;justify-content:space-between" class="kicker"><span>Entrada (se usada)</span><span id="entradaInfo">—</span></div>
-          </div>
-        </div>
-      </div>
-
-      <p class="kicker" style="font-style:italic">Este orçamento não é proposta. A validade depende de disponibilidade de produto/agenda. Para formalizar a proposta e confirmar o serviço, solicite confirmação.</p>
-
-      <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-top:10px;flex-wrap:wrap">
-        <div class="kicker">Mensagens de envio (edite se quiser):</div>
-        <div style="font-size:.85rem">*Envio real será integrado depois (e-mail/WhatsApp).</div>
-      </div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
-        <textarea id="msgWhats" rows="2" placeholder="Oi, NOME! Segue seu orçamento. Qualquer dúvida é só me chamar por aqui." class="w-100"></textarea>
-        <textarea id="msgEmail" rows="2" placeholder="Olá, NOME. Anexo envio seu orçamento em PDF. Fico à disposição para ajustar o que for preciso." class="w-100"></textarea>
-      </div>
-
-      <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-top:10px;flex-wrap:wrap">
-        <div style="display:flex;gap:10px;flex-wrap:wrap">
+        <div style="align-self:end" class="right">
           <button class="btn" id="btn-salvar">Salvar</button>
-          <button class="btn btn-ghost" id="btn-pdf">Gerar PDF (simulação)</button>
-          <button class="btn btn-ghost" id="btn-enviar">Enviar (simulação)</button>
         </div>
-        <div><button class="btn btn-danger" id="btn-limpar">Limpar</button></div>
       </div>
     </section>
 
     <section class="card">
-      <h2>Assinatura e carimbo (opcional)</h2>
-      <div style="display:flex;gap:16px;flex-wrap:wrap;align-items:flex-start">
-        <div>
-          <label>Assinatura (PNG/SVG)</label>
-          <input type="file" id="inAssinatura" accept="image/png,image/svg+xml" />
-          <div class="kicker">Sugerido: PNG com fundo transparente (600×200 px)</div>
-          <div class="preview-assinatura" id="prevAssinatura">Pré-visualização</div>
-        </div>
-        <div>
-          <label>Carimbo (PNG/SVG)</label>
-          <input type="file" id="inCarimbo" accept="image/png,image/svg+xml" />
-          <div class="kicker">Sugerido: PNG com fundo transparente (400×400 px)</div>
-          <div class="preview-carimbo" id="prevCarimbo">Pré-visualização</div>
+      <h2>Itens do orçamento</h2>
+      <div id="tabela-wrap">
+        <table id="tabela-itens">
+          <colgroup><col class="col-cod"/><col class="col-item"/><col class="col-preco"/><col class="col-qtd"/><col class="col-dur"/><col class="col-sub"/><col class="col-act"/></colgroup>
+          <thead><tr><th>Código</th><th>Item</th><th>Preço (R$)</th><th>Qtd</th><th>Duração</th><th class="right">Subtotal (R$)</th><th></th></tr></thead>
+          <tbody id="tbody-itens"></tbody>
+        </table>
+      </div>
+      <div class="totais" style="margin-top:8px">
+        <div class="row" style="justify-content:flex-end; gap:24px">
+          <div><strong>Total:</strong> <span id="totalGeral">R$ 0,00</span></div>
         </div>
       </div>
-      <div style="height:1px;background:var(--br);margin:10px 0"></div>
-      <div class="kicker">No PDF, se configurados, serão aplicados no rodapé junto do <span class="badge" id="numeroBadgeHint">NÚMERO DO ORÇAMENTO</span>.</div>
     </section>
+
+    <section class="card">
+      <h2>Informações Adicionais</h2>
+      <textarea id="infoAdicionais" rows="3" placeholder="Despesas de deslocamento e/ou frete e condições de pagamento serão combinados no momento da formalização da proposta."></textarea>
+      <div class="row no-print" style="justify-content:space-between">
+        <div class="kicker">Este texto pode virar padrão do seu MEI.</div>
+        <button class="btn btn-ghost" id="btn-salvar-info">Salvar como padrão (local)</button>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>Mensagem de envio</h2>
+      <textarea id="msgEnvio" rows="3">Olá, Segue conforme solicitado, orçamento que  ainda não é proposta, precisando ser validado após confirmação de disponibilidade. para confirmar, solicite proposta. obrigado.</textarea>
+      <div class="row no-print" style="justify-content:flex-end">
+        <button class="btn btn-ghost" id="btn-copiar">Copiar mensagem</button>
+      </div>
+    </section>
+
+    <section class="card no-print">
+      <div class="row" style="justify-content:space-between">
+        <div class="kicker">Dica: use “Imprimir” para gerar PDF via impressora PDF do seu navegador.</div>
+        <div class="row">
+          <button class="btn" id="btn-imprimir">Imprimir</button>
+          <button class="btn btn-ghost" id="btn-email">Exportar p/ E-mail</button>
+          <button class="btn btn-ghost" id="btn-whats">Exportar p/ WhatsApp</button>
+        </div>
+      </div>
+    </section>
+
+    <p class="kicker" style="font-style:italic">Este orçamento não é proposta. A validade depende de disponibilidade de produto/agenda. Para formalizar a proposta e confirmar o serviço, solicite confirmação.</p>
   </main>
-  <div id="app-footer"></div>
+  <div id="app-footer" class="no-print"></div>
 
   <script>
-    const params = new URLSearchParams(location.search);
-    const isValidate = params.get('validate') === '1';
-
-    let catalogo = [];
-    const mockCatalogo = [
-      { id:'svc_corte', codigo:'CORT40', nome:'Corte de cabelo', precoBase:40, duracaoMin:30, sinonimos:['corte','cabelo'] },
-      { id:'svc_barba', codigo:'BARB30', nome:'Barba desenhada', precoBase:30, duracaoMin:20, sinonimos:['barba','barboterapia'] },
-      { id:'svc_hidra', codigo:'HIDR60', nome:'Hidratação capilar', precoBase:60, duracaoMin:45, sinonimos:['hidratacao','hidratação capilar'] },
-      { id:'prod_pomada', codigo:'POM35', nome:'Pomada modeladora', precoBase:35, duracaoMin:null, sinonimos:['pomada'] }
-    ];
-
-    const mockOrcamentos = [
-      { id:'orc_001', cliente:'João da Silva', total: 99.00, pacote:'A', validade:7, criado:'2025-09-09 14:00', numero:'JB-2025-000123' },
-      { id:'orc_002', cliente:'Maria Souza', total: 150.00, pacote:'B', validade:10, criado:'2025-09-08 18:20', numero:'JB-2025-000124' }
-    ];
-
-    const estado = {
-      numero: '',
-      pacoteAtivo: 'A',
-      pacotes: {
-        A: { itens:[], extras:{ taxaVisita:0, frete:0, kmGratis:0, precoKm:0, kmTotal:0 }, descGeral:0, total:0 },
-        B: { itens:[], extras:{ taxaVisita:0, frete:0, kmGratis:0, precoKm:0, kmTotal:0 }, descGeral:0, total:0 },
-        C: { itens:[], extras:{ taxaVisita:0, frete:0, kmGratis:0, precoKm:0, kmTotal:0 }, descGeral:0, total:0 },
-      }
-    };
-
     const el = (id)=>document.getElementById(id);
     const fmt = (v)=>'R$ ' + (Number(v||0)).toFixed(2).replace('.',',');
+    const today = new Date(); el('dataHoje').textContent = today.toLocaleDateString('pt-BR');
 
-    function ativaPacote(p){ estado.pacoteAtivo = p; renderTabela(); renderTotais(); }
+    let numero = '';
+    let itens = [];
+    for(let i=0;i<6;i++){ itens.push({codigo:'', nome:'', preco:0, qtd:1, duracao:''}); }
+    renderTabela(); renderTotal();
 
-    function bootstrap(){
-      if(isValidate){ catalogo = mockCatalogo; renderLista(mockOrcamentos); }
-      else { catalogo = []; renderLista([]); }
-      bindEvents(); renderTabela(); renderTotais();
+    el('inLogo').addEventListener('change', (e)=> loadPreview(e, 'logoBox'));
+    function loadPreview(e, targetId){
+      const file = e.target.files && e.target.files[0]; const box = el(targetId);
+      if(!file){ box.textContent=''; box.style.backgroundImage='none'; return; }
+      const r = new FileReader();
+      r.onload = ev => { box.textContent=''; box.style.background='#0f141a'; box.style.backgroundImage=`url('${ev.target.result}')`; box.style.backgroundRepeat='no-repeat'; box.style.backgroundPosition='center'; box.style.backgroundSize='contain'; };
+      r.readAsDataURL(file);
     }
 
-    function renderLista(arr){
-      const host = el('lista-orcamentos');
-      if(!arr || !arr.length){ host.innerHTML = '<p class="kicker">Nenhum orçamento ainda.</p>'; return; }
-      host.innerHTML = arr.map(o=>`
-        <div class="card">
-          <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap">
-            <div><strong>${o.cliente}</strong> <span class="badge">Pacote ${o.pacote}</span> <span class="badge">${o.numero||''}</span></div>
-            <div>${fmt(o.total)}</div>
-          </div>
-          <div class="kicker">Criado em ${o.criado} · Validade: ${o.validade} dias</div>
-        </div>`).join('');
-    }
+    el('btn-buscar').addEventListener('click', ()=>{
+      const t = el('busca').value.trim();
+      if(!t) return;
+      let cod = ''; let nome = '';
+      if(t.startsWith('#')){ cod = t.replace('#','').toUpperCase(); }
+      else { nome = t; }
+      const idx = itens.findIndex(x => !x.nome && !x.codigo);
+      const target = idx>=0 ? itens[idx] : (itens.push({codigo:'', nome:'', preco:0, qtd:1, duracao:''}), itens[itens.length-1]);
+      if(cod) target.codigo = cod; if(nome) target.nome = nome;
+      el('busca').value=''; renderTabela(); renderTotal();
+    });
 
-    function doBusca(){
-      const termoRaw = el('busca').value.trim();
-      const termo = termoRaw.toLowerCase();
-      const limDur = Number(el('filtroDur').value || 0);
-      const resHost = el('resultado-busca');
-
-      const codeTry = termoRaw.replace('#','').toUpperCase();
-      const hitCode = (catalogo||[]).find(x=>x.codigo && x.codigo.toUpperCase() === codeTry && codeTry.length>0);
-      if(hitCode){
-        addItem({ origem:'catalogo', codigo:hitCode.codigo, refId:hitCode.id, nome:hitCode.nome, preco:hitCode.precoBase, qtd:1, duracao: hitCode.duracaoMin||'' });
-        resHost.innerHTML = `<div class="kicker">Adicionado por código: <strong>${hitCode.codigo}</strong></div>`;
-        el('busca').value=''; return;
+    el('btn-add-linha').addEventListener('click', ()=>{ itens.push({codigo:'', nome:'', preco:0, qtd:1, duracao:''}); renderTabela(); });
+    el('btn-salvar').addEventListener('click', ()=>{
+      if(!numero){
+        const ano = new Date().getFullYear();
+        const seq = Math.floor(Math.random()*90000)+10000;
+        numero = `ORC-${ano}-${String(seq).padStart(5,'0')}`;
+        const badge = el('numero-badge'); badge.textContent = numero; badge.style.display='inline-block';
       }
+      alert('✅ Orçamento salvo (simulação). Número atribuído no topo.');
+    });
 
-      let results = (catalogo||[]).filter(x=>{
-        const matchCod = x.codigo && x.codigo.toLowerCase().includes(termo);
-        const matchNome = x.nome.toLowerCase().includes(termo);
-        const matchSyn = (x.sinonimos||[]).some(s=>s.toLowerCase().includes(termo));
-        const matchDur = !limDur || (x.duracaoMin && x.duracaoMin <= limDur);
-        return (!termo || matchCod || matchNome || matchSyn) && matchDur;
-      });
-      if(!results.length){ resHost.innerHTML = `<div class="kicker">Nada encontrado. Use outro termo ou “Item livre”.</div>`; return; }
-      resHost.innerHTML = results.map(r=>`
-        <div style="padding:8px;border:1px dashed var(--br);border-radius:10px;margin:6px 0;display:flex;justify-content:space-between;align-items:center">
-          <div>
-            <div><strong>${r.nome}</strong> ${r.duracaoMin?`· ${r.duracaoMin} min`:''}</div>
-            <div class="kicker"><span class="badge">#${r.codigo||'-'}</span> · ${fmt(r.precoBase)} · origem: catálogo</div>
-          </div>
-          <button class="btn" data-add="${r.id}">Adicionar</button>
-        </div>`).join('');
-      resHost.querySelectorAll('button[data-add]').forEach(b=>{
-        b.addEventListener('click', ()=>{
-          const item = catalogo.find(c=>c.id===b.dataset.add);
-          if(item) addItem({ origem:'catalogo', codigo:item.codigo, refId:item.id, nome:item.nome, preco:item.precoBase, qtd:1, duracao:item.duracaoMin||'' });
-        });
-      });
+    (function loadInfoPadrao(){ const v = localStorage.getItem('mei_orc_info_padrao'); if(v) el('infoAdicionais').value = v; })();
+    el('btn-salvar-info').addEventListener('click', ()=>{ localStorage.setItem('mei_orc_info_padrao', el('infoAdicionais').value||''); alert('💾 Informações Adicionais salvas como padrão (somente neste navegador).'); });
+    el('btn-copiar').addEventListener('click', ()=>{ navigator.clipboard.writeText(el('msgEnvio').value||'').then(()=> alert('📋 Mensagem copiada!')); });
+
+    el('btn-imprimir').addEventListener('click', ()=> window.print());
+    el('btn-email').addEventListener('click', ()=>{
+      const empresa = el('nomeEmpresa').value||'Meu MEI';
+      const num = numero || 'Orçamento (sem número)';
+      const linhas = itens.filter(rowHasValue).map(it=> `- ${it.codigo?('#'+it.codigo+' - '):''}${it.nome||''} x ${it.qtd||1} — ${fmt((it.preco||0)*(it.qtd||1))}`).join('%0D%0A');
+      const total = getTotal();
+      const corpo = encodeURIComponent(`${el('msgEnvio').value||''}\n\n${empresa}\n${num}\n\nItens:\n${decodeURIComponent(linhas.replace(/%0D%0A/g,'\n'))}\n\nTotal: ${fmt(total)}\n\n${el('infoAdicionais').value||''}`);
+      const subject = encodeURIComponent(`${empresa} — ${num}`);
+      location.href = `mailto:?subject=${subject}&body=${corpo}`;
+    });
+    el('btn-whats').addEventListener('click', ()=>{
+      const empresa = el('nomeEmpresa').value||'Meu MEI';
+      const num = numero || 'Orçamento (sem número)';
+      const linhas = itens.filter(rowHasValue).map(it=> `• ${it.codigo?('#'+it.codigo+' - '):''}${it.nome||''} x ${it.qtd||1} — ${fmt((it.preco||0)*(it.qtd||1))}`).join('%0A');
+      const total = getTotal();
+      const texto = `${el('msgEnvio').value||''}%0A%0A${empresa}%0A${num}%0A%0AItens:%0A${linhas}%0A%0ATotal: ${fmt(total)}%0A%0A${encodeURIComponent(el('infoAdicionais').value||'')}`;
+      window.open(`https://wa.me/?text=${texto}`, '_blank');
+    });
+
+    function rowHasValue(it){
+      return (it.nome && it.nome.trim()!=='') || (it.codigo && it.codigo.trim()!=='') || (Number(it.preco)>0);
     }
-
-    let livreSeq = 1;
-    function addItem(obj){
-      const p = estado.pacoteAtivo;
-      const pack = estado.pacotes[p];
-      if(pack.itens.length===0){
-        const emptyRow = document.querySelector('#tbody-itens .empty');
-        if(emptyRow) emptyRow.remove();
-      }
-      pack.itens.push({
-        origem:obj.origem||'livre',
-        codigo: obj.codigo || (obj.origem==='livre' ? ('LIVRE-'+String(livreSeq++).padStart(3,'0')) : ''),
-        refId:obj.refId||null, nome:obj.nome||'', preco:Number(obj.preco||0), qtd:Number(obj.qtd||1), duracao: obj.duracao||''
-      });
-      renderTabela(); renderTotais();
-    }
-
-    function removeItem(idx){
-      const p = estado.pacoteAtivo; const pack = estado.pacotes[p];
-      pack.itens.splice(idx,1); renderTabela(); renderTotais();
-    }
-
+    function getTotal(){ return itens.reduce((acc, it)=>{ if(!rowHasValue(it)) return acc; const sub = (Number(it.preco)||0) * (Number(it.qtd)||0); return acc + sub; }, 0); }
+    function renderTotal(){ el('totalGeral').textContent = fmt(getTotal()); }
     function renderTabela(){
-      const p = estado.pacoteAtivo; const pack = estado.pacotes[p];
       const tbody = el('tbody-itens');
-      if(!pack.itens.length){
-        tbody.innerHTML = `<tr class="empty"><td colspan="7" class="kicker">Nenhum item ainda. Use #CÓDIGO, nome, ou “Item livre”.</td></tr>`; return;
-      }
-      tbody.innerHTML = pack.itens.map((it, i)=>`
+      tbody.innerHTML = itens.map((it, i)=>`
         <tr>
           <td><input class="h-40 w-100" type="text" value="${it.codigo||''}" data-i="${i}" data-k="codigo" placeholder="Ex.: BARB01"/></td>
-          <td title="${(it.nome||'').replace(/"/g,'&quot;')}"><input class="h-40 w-100" type="text" value="${it.nome}" data-i="${i}" data-k="nome" placeholder="Ex.: Barba desenhada"/></td>
-          <td><input class="h-40 w-100" type="number" step="0.01" value="${it.preco}" data-i="${i}" data-k="preco"/></td>
-          <td><input class="h-40 w-100" type="number" step="1" value="${it.qtd}" data-i="${i}" data-k="qtd"/></td>
+          <td><input class="h-40 w-100" type="text" value="${it.nome||''}" data-i="${i}" data-k="nome" placeholder="Ex.: Barba desenhada"/></td>
+          <td><input class="h-40 w-100" type="number" step="0.01" value="${it.preco||0}" data-i="${i}" data-k="preco"/></td>
+          <td><input class="h-40 w-100" type="number" step="1" value="${it.qtd||1}" data-i="${i}" data-k="qtd"/></td>
           <td><input class="h-40 w-100" type="number" step="5" value="${it.duracao||''}" data-i="${i}" data-k="duracao" placeholder="min"/></td>
-          <td class="right">${fmt(it.preco*it.qtd)}</td>
+          <td class="right">${fmt((Number(it.preco)||0) * (Number(it.qtd)||0))}</td>
           <td class="right"><button class="btn btn-danger" data-rem="${i}">Remover</button></td>
         </tr>`).join('');
       tbody.querySelectorAll('input').forEach(inp=>{
         inp.addEventListener('input', e=>{
           const i = Number(e.target.dataset.i), k = e.target.dataset.k;
-          const p = estado.pacoteAtivo; const pack = estado.pacotes[p];
           let v = e.target.value;
           if(['preco','qtd','duracao'].includes(k)) v = Number(v||0);
-          pack.itens[i][k] = v; renderTotais();
+          itens[i][k] = v; renderTotal();
         });
       });
-      tbody.querySelectorAll('button[data-rem]').forEach(btn=> btn.addEventListener('click', ()=>removeItem(Number(btn.dataset.rem))));
+      tbody.querySelectorAll('button[data-rem]').forEach(btn=> btn.addEventListener('click', ()=>{ 
+        const idx = Number(btn.dataset.rem); itens.splice(idx,1); renderTabela(); renderTotal();
+      }));
     }
-
-    function parseEntrada(txt){
-      if(!txt) return null; const t = txt.trim().toLowerCase();
-      if(t.includes('%')){ const n = Number(t.replace('%','').replace(',','.').match(/[\d\.]+/)); return { tipo:'percent', valor: isNaN(n)?0:n }; }
-      const n = Number(t.replace('r$','').replace(',','.').match(/[\d\.]+/)); return { tipo:'abs', valor: isNaN(n)?0:n };
-    }
-
-    function calcExtras(ex){
-      const visita = Number(ex.taxaVisita||0), frete = Number(ex.frete||0);
-      const kmGratis = Number(ex.kmGratis||0), precoKm = Number(ex.precoKm||0), kmTotal = Number(ex.kmTotal||0);
-      const kmCobravel = Math.max(0, kmTotal - kmGratis); const kmValor = kmCobravel * precoKm;
-      return { visita, frete, kmValor, kmCobravel, total: visita + frete + kmValor };
-    }
-
-    function renderTotais(){
-      const p = estado.pacoteAtivo; const pack = estado.pacotes[p];
-      const subtotalItens = pack.itens.reduce((acc, it)=> acc + (Number(it.preco||0) * Number(it.qtd||0)), 0);
-      const ex = { taxaVisita:Number(el('taxaVisita').value||0), frete:Number(el('frete').value||0), kmGratis:Number(el('kmGratis').value||0), precoKm:Number(el('precoKm').value||0), kmTotal:Number(el('kmTotal').value||0) };
-      const extras = calcExtras(ex);
-      const descGeral = Number(el('descGeral').value || 0);
-      const vDesc = subtotalItens * (descGeral/100);
-      const total = Math.max(0, subtotalItens - vDesc + extras.total);
-
-      el('subtotalItens').textContent = fmt(subtotalItens);
-      el('extrasTotal').textContent = fmt(extras.total);
-      el('descontoGeral').textContent = '– ' + fmt(vDesc);
-      el('totalGeral').textContent = fmt(total);
-
-      const kmInfo = el('kmInfo');
-      if(extras.kmCobravel>0 && ex.precoKm>0){ kmInfo.style.display='flex'; kmInfo.innerHTML = `<span>Km cobrados</span><strong>${extras.kmCobravel.toFixed(1)} km · ${fmt(extras.kmValor)}</strong>`; }
-      else { kmInfo.style.display='none'; kmInfo.innerHTML=''; }
-
-      const entrada = parseEntrada(el('entrada').value);
-      if(entrada){ const val = entrada.tipo==='percent' ? (total * entrada.valor/100) : entrada.valor; el('entradaInfo').textContent = fmt(val); }
-      else { el('entradaInfo').textContent = '—'; }
-    }
-
-    function bindEvents(){
-      document.querySelectorAll('.tab').forEach(t=>{
-        t.addEventListener('click', ()=>{
-          document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));
-          t.classList.add('active'); ativaPacote(t.dataset.pack);
-        });
-      });
-      document.getElementById('btn-duplica').addEventListener('click', ()=>{
-        const order = ['A','B','C']; const idx = order.indexOf(estado.pacoteAtivo); const next = order[Math.min(order.length-1, idx+1)];
-        if(next===estado.pacoteAtivo){ alert('Já está no último pacote.'); return; }
-        const from = JSON.parse(JSON.stringify(estado.pacotes[estado.pacoteAtivo])); estado.pacotes[next] = from;
-        document.querySelector(`.tab[data-pack="${next}"]`).classList.add('active');
-        document.querySelectorAll('.tab').forEach(x=>{ if(x.dataset.pack!==next) x.classList.remove('active'); });
-        ativaPacote(next);
-      });
-
-      document.getElementById('btn-buscar').addEventListener('click', doBusca);
-      document.getElementById('busca').addEventListener('keydown', (e)=>{ if(e.key==='Enter'){ e.preventDefault(); doBusca(); }});
-      document.getElementById('btn-item-livre').addEventListener('click', ()=> addItem({ origem:'livre', nome:'', preco:0, qtd:1, duracao:'' }));
-
-      ['taxaVisita','frete','kmGratis','precoKm','kmTotal','descGeral','entrada'].forEach(id=> document.getElementById(id).addEventListener('input', renderTotais));
-
-      document.getElementById('btn-salvar').addEventListener('click', ()=>{
-        if(!document.getElementById('numeroOrc').value){
-          const ano = new Date().getFullYear(); const seq = Math.floor(Math.random()*90000)+10000;
-          const numero = `ORC-${ano}-${String(seq).padStart(5,'0')}`;
-          document.getElementById('numeroOrc').value = numero;
-          const badge = document.getElementById('numero-badge'); badge.textContent = numero; badge.style.display='inline-block';
-          document.getElementById('numeroBadgeHint').textContent = numero;
-        }
-        alert('✅ Orçamento salvo (simulação). Integração será feita no backend.');
-      });
-      document.getElementById('btn-pdf').addEventListener('click', ()=> alert('📄 PDF gerado (simulação).'));
-      document.getElementById('btn-enviar').addEventListener('click', ()=> alert('📤 Envio simulado.'));
-      document.getElementById('btn-limpar').addEventListener('click', ()=>{
-        if(!confirm('Limpar todos os itens do pacote atual?')) return;
-        const tbody = document.getElementById('tbody-itens'); tbody.innerHTML = `<tr class="empty"><td colspan="7" class="kicker">Nenhum item ainda. Use #CÓDIGO, nome, ou “Item livre”.</td></tr>`;
-        renderTotais();
-      });
-
-      document.getElementById('inAssinatura').addEventListener('change', (e)=>{
-        const file = e.target.files && e.target.files[0]; const prev = document.getElementById('prevAssinatura');
-        if(!file){ prev.textContent='Pré-visualização'; prev.style.backgroundImage='none'; return; }
-        const r = new FileReader(); r.onload = ev => { prev.textContent=''; prev.style.background='#0f141a'; prev.style.backgroundImage = `url('${ev.target.result}')`; prev.style.backgroundRepeat='no-repeat'; prev.style.backgroundPosition='center'; prev.style.backgroundSize='contain'; }; r.readAsDataURL(file);
-      });
-      document.getElementById('inCarimbo').addEventListener('change', (e)=>{
-        const file = e.target.files && e.target.files[0]; const prev = document.getElementById('prevCarimbo');
-        if(!file){ prev.textContent='Pré-visualização'; prev.style.backgroundImage='none'; return; }
-        const r = new FileReader(); r.onload = ev => { prev.textContent=''; prev.style.background='#0f141a'; prev.style.backgroundImage = `url('${ev.target.result}')`; prev.style.backgroundRepeat='no-repeat'; prev.style.backgroundPosition='center'; prev.style.backgroundSize='contain'; }; r.readAsDataURL(file);
-      });
-    }
-
-    bootstrap();
   </script>
 </body>
 </html>
