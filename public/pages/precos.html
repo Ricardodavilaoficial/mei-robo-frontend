@@ -5,10 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Preços e Serviços — MEI Robô</title>
 
-  <!-- Estilos canônicos do projeto -->
   <link rel="stylesheet" href="/assets/styles.css" />
-
-  <!-- Microlayout e legibilidade (herdando a paleta do tema escuro) -->
   <style>
     .app-main { min-height: 82svh; }
     .container { max-width: 1100px; margin: 0 auto; padding: 16px; }
@@ -23,32 +20,22 @@
     .hidden { display:none !important; }
     .text-right { text-align: right; }
     .nowrap { white-space: nowrap; }
-
-    /* Inputs: manter contraste do tema; reforçar placeholder */
     .input { border-radius:10px; padding:10px 12px; font-size:1rem; color: inherit; width: 100%; }
-    .input::placeholder { opacity:.55; } /* solução memorizada: placeholder ~55% */
+    .input::placeholder { opacity:.55; }
     .button { border-radius:10px; padding:10px 12px; font-size:1rem; font-weight:700; cursor:pointer; }
     .button:disabled { opacity:.55; cursor:not-allowed; }
-
-    /* Tabela */
     .table { width:100%; border-collapse:collapse; }
     .table th, .table td { padding:10px; text-align:left; font-size:.95rem; vertical-align:top; }
-
-    /* Upload */
+    @media (max-width:720px){ .nowrap{ white-space:normal; } }
     .upload-area { border:2px dashed currentColor; border-radius:12px; padding:18px; cursor:pointer; }
     .upload-area:focus { outline: none; box-shadow: 0 0 0 3px rgba(15,157,88,.25); }
-
-    /* Mensagens */
     .msg { border-radius:8px; padding:10px; font-weight:700; }
     .msg.ok { border:1px solid; }
     .msg.err { border:1px solid; }
-
-    /* Badge simples */
     .badge { display:inline-flex; align-items:center; gap:6px; font-weight:700; font-size:.85rem; padding:4px 10px; border-radius:999px; border:1px solid currentColor; opacity:.9; }
   </style>
 </head>
 <body class="app-shell">
-  <!-- Header dinâmico -->
   <header id="app-header"></header>
 
   <main class="app-main">
@@ -57,13 +44,17 @@
       <div class="mt-2 help">
         Cadastre aqui o que você faz e quanto cobra. Esses dados ajudam o MEI Robô a entender o pedido do seu cliente,
         responder natural e <b>propor agendamentos com duração correta do serviço</b>.
-        <div class="mt-1">Exemplo: <i>Corte masculino — R$ 45,00 — 30 minutos</i>.</div>
+        <div class="mt-1">Exemplo: <i>Corte masculino — CÓDIGO: BARB01 — R$ 45,00 — 30 minutos</i>.</div>
       </div>
 
-      <!-- 1) Adicionar serviço (formulário simples) -->
       <div class="mt-4 card">
         <div class="badge">Adicionar serviço</div>
         <div class="row mt-2">
+          <div class="col">
+            <label for="f-cod">Código (opcional)</label>
+            <input id="f-cod" class="input" placeholder="Ex.: BARB01" maxlength="24" />
+            <div class="help mt-1">Use letras, números e traço (-). Sem espaços. Único por MEI.</div>
+          </div>
           <div class="col">
             <label for="f-nome">Nome do serviço</label>
             <input id="f-nome" class="input" placeholder="Ex.: Corte masculino" maxlength="80" />
@@ -84,7 +75,7 @@
           <div class="col" style="flex-basis:100%;">
             <label for="f-info">Complete aqui outras informações do serviço (opcional)</label>
             <input id="f-info" class="input" placeholder="Ex.: a domicílio, feminino, infantil, unhas de gel, acabamento, hidráulica" maxlength="200" />
-            <div class="help mt-1">Separe por vírgulas. Escreva palavras que ajudem a identificar o serviço (onde, para quem, variações, material, estilo). Evite colocar preço ou tempo aqui.</div>
+            <div class="help mt-1">Separe por vírgulas. Escreva palavras que ajudem a identificar o serviço.</div>
           </div>
         </div>
         <div class="mt-2 toolbar">
@@ -94,11 +85,10 @@
         <div id="add-msg" class="mt-2 msg hidden"></div>
       </div>
 
-      <!-- 2) Seus serviços (lista + busca + paginação) -->
       <div class="mt-4 card">
         <div class="toolbar">
           <div class="badge">Seus serviços</div>
-          <input id="search" class="input" placeholder="Buscar por nome ou outras informações…" style="flex:1 1 280px" />
+          <input id="search" class="input" placeholder="Buscar por CÓDIGO, nome ou outras informações…" style="flex:1 1 280px" />
           <div class="help">Resultados: <span id="count">0</span></div>
         </div>
 
@@ -106,6 +96,7 @@
           <table class="table" id="svc-table" aria-label="Tabela de serviços">
             <thead>
               <tr>
+                <th class="nowrap">Código</th>
                 <th>Serviço</th>
                 <th class="nowrap">Preço (R$)</th>
                 <th class="nowrap">Tempo (min)</th>
@@ -113,7 +104,7 @@
                 <th class="nowrap">Anexos</th>
               </tr>
             </thead>
-            <tbody id="svc-body"><tr><td colspan="5">Carregando…</td></tr></tbody>
+            <tbody id="svc-body"><tr><td colspan="6">Carregando…</td></tr></tbody>
           </table>
           <div class="mt-2 text-right">
             <button id="prev" class="button" disabled>Anterior</button>
@@ -126,11 +117,10 @@
         </div>
       </div>
 
-      <!-- 3) Importar planilha (opcional) -->
       <div class="mt-4 card">
         <div class="badge">Importar planilha (opcional)</div>
         <div class="help mt-1">
-          Se você já tem sua tabela, pode importar para acelerar. Aceita planilha <b>.csv</b>. Em breve: Excel / PDF.
+          Se você já tem sua tabela, pode importar para acelerar. Aceita planilha <b>.csv</b>.
         </div>
 
         <div id="import-ready" class="mt-2 help"></div>
@@ -138,7 +128,7 @@
         <div class="mt-2 upload-area" id="dropzone" tabindex="0" role="button" aria-label="Escolher arquivo de planilha">
           <div><b>Escolher arquivo</b> ou arraste aqui.</div>
           <div class="help mt-1">
-            Colunas esperadas: <b>nome do serviço</b>, <b>preço (R$)</b>, <b>tempo (min)</b>, <b>outras informações (opcional)</b>.
+            Colunas esperadas: <b>código (opcional)</b>, <b>nome do serviço</b>, <b>preço (R$)</b>, <b>tempo (min)</b>, <b>outras informações (opcional)</b>.
           </div>
           <input id="file-input" type="file" accept=".csv,text/csv" class="hidden" />
         </div>
@@ -158,7 +148,6 @@
         </div>
       </div>
 
-      <!-- Navegação -->
       <div class="mt-6 row">
         <div class="col">
           <button id="btn-back" class="button">← Voltar (Configuração)</button>
@@ -170,17 +159,12 @@
     </section>
   </main>
 
-  <!-- Footer dinâmico -->
   <footer id="app-footer"></footer>
 
-  <!-- Loader de header/footer -->
   <script src="/assets/layout.js"></script>
-
-  <!-- Firebase + helpers do projeto -->
   <script src="/assets/firebase-init.js"></script>
   <script src="/assets/backend-patch.js"></script>
 
-  <!-- Lógica da página -->
   <script>
     (function(){
       const log = (...a) => console.log('[precos]', ...a);
@@ -189,7 +173,6 @@
       const params = new URLSearchParams(location.search);
       let REDIRECTING_TO_LOGIN = false;
 
-      // ===== Fallback header/footer =====
       async function ensureHeaderFooter() {
         try {
           const hdr = document.querySelector('header.app-header');
@@ -204,7 +187,6 @@
         } catch(e) { console.warn('[precos] fallback header/footer falhou', e); }
       }
 
-      // ===== Estado global =====
       let currentUser = null;
       let isVerified = false;
       let uid = null;
@@ -214,11 +196,9 @@
       let dataView = [];
       let page = 0;
 
-      // ===== Navegação =====
       byId('btn-back').onclick = () => location.href = '/pages/configuracao.html';
       byId('btn-next').onclick = () => location.href = '/pages/contatos.html';
 
-      // ===== Sessão de validação opcional =====
       async function maybeCleanSession() {
         if (params.get('validate') === '1') {
           log('Sessão limpa por validate=1');
@@ -227,7 +207,6 @@
         }
       }
 
-      // ===== Helpers UI =====
       function setMsg(el, type, text) {
         el.classList.remove('hidden','ok','err'); el.classList.add('msg');
         el.classList.add(type === 'error' ? 'err' : 'ok');
@@ -235,7 +214,6 @@
       }
       function clearMsg(el){ el.classList.add('hidden'); el.textContent=''; }
 
-      // ===== Slugify (gerado automaticamente a partir do nome) =====
       function slugify(str){
         return String(str || '')
           .normalize('NFD').replace(/\p{Diacritic}/gu,'')
@@ -244,41 +222,39 @@
           .replace(/^-+|-+$/g,'')
           .slice(0, 80);
       }
-
-      // ===== Parse de preço BRL ("45,00" ou "45.00") =====
       function parsePriceBRL(s){
         if (!s) return NaN;
         let x = String(s).trim().replace(/\s+/g,'');
         x = x.replace(/\./g,'').replace(',', '.');
         return Number(x);
       }
-
-      // ===== Normalizador de lista (vírgulas e ";") =====
       function splitTags(s) {
         if (!s) return [];
-        return String(s)
-          .split(/[;,]/)               // aceita vírgula e ";"
-          .map(v => v.trim())
-          .filter(Boolean)
-          .slice(0, 15);               // limite saudável
+        return String(s).split(/[;,]/).map(v => v.trim()).filter(Boolean).slice(0, 15);
       }
 
-      // ===== Formulário Adicionar Serviço =====
       byId('btn-clear').onclick = () => {
-        byId('f-nome').value=''; byId('f-preco').value=''; byId('f-dur').value=''; byId('f-info').value='';
+        byId('f-cod').value=''; byId('f-nome').value=''; byId('f-preco').value=''; byId('f-dur').value=''; byId('f-info').value='';
         clearMsg(byId('add-msg'));
-        byId('f-nome').focus();
+        byId('f-cod').focus();
       };
 
       byId('btn-add').onclick = async () => {
         clearMsg(byId('add-msg'));
         if (!currentUser) { setMsg(byId('add-msg'),'error','Sessão expirada. Faça login novamente.'); return; }
 
+        let codigo = byId('f-cod').value.trim();
         const nome = byId('f-nome').value.trim();
         const precoStr = byId('f-preco').value.trim();
         const durStr = byId('f-dur').value.trim();
         const infoStr = byId('f-info').value.trim();
 
+        if (codigo) {
+          codigo = codigo.toUpperCase();
+          if (!/^[A-Z0-9-]{1,24}$/.test(codigo)) {
+            setMsg(byId('add-msg'),'error','Código inválido. Use apenas letras, números e "-" (até 24).'); return;
+          }
+        }
         if (!nome) { setMsg(byId('add-msg'),'error','Informe o nome do serviço.'); return; }
         if (nome.length > 80) { setMsg(byId('add-msg'),'error','Nome muito longo (máx. 80 caracteres).'); return; }
 
@@ -296,16 +272,22 @@
         try {
           const db = firebase.firestore();
           const col = db.collection('profissionais').doc(uid).collection('produtosEServicos');
-          const dup = await col.where('slug','==',slug).limit(1).get();
-          if (!dup.empty) { setMsg(byId('add-msg'),'error','Este serviço já existe na sua lista.'); return; }
+
+          const dupSlug = await col.where('slug','==',slug).limit(1).get();
+          if (!dupSlug.empty) { setMsg(byId('add-msg'),'error','Este serviço já existe na sua lista (nome parecido).'); return; }
+          if (codigo) {
+            const dupCod = await col.where('codigo','==',codigo).limit(1).get();
+            if (!dupCod.empty) { setMsg(byId('add-msg'),'error','Este CÓDIGO já está em uso nos seus serviços.'); return; }
+          }
 
           const now = firebase.firestore.FieldValue.serverTimestamp();
           await col.add({
+            codigo: codigo || null,
             slug,
             nome,
             precoBase: Number(preco.toFixed(2)),
             duracaoMin: dur,
-            sinonimos: outrasInfo, // usamos o mesmo campo para compatibilidade
+            sinonimos: outrasInfo,
             createdAt: now,
             updatedAt: now
           });
@@ -319,17 +301,16 @@
         }
       };
 
-      // ===== Amostra de planilha (CSV) — linguagem MEI =====
       function getSampleCsvBlob() {
         const rows = [
-          'nome do servico,preco (R$),tempo (min),outras informacoes',
-          'Corte masculino,45,30,"corte, pezinho, maquina"',
-          'Corte infantil,35,30,"cabelo infantil, tesoura"',
-          'Barba tradicional,30,20,"barbear, navalha"',
-          'Combo corte + barba,70,60,"combo, pacote"',
-          'Sombra e acabamento,25,15,"acabamento, contorno"',
-          'Hidratação capilar,60,40,"tratamento, mascara capilar"',
-          'Pigmentação/Correção,80,45,"tonalizante, correcao de falhas"'
+          'codigo,nome do servico,preco (R$),tempo (min),outras informacoes',
+          'BARB01,Corte masculino,45,30,"corte, pezinho, maquina"',
+          'CORT-INF,Corte infantil,35,30,"cabelo infantil, tesoura"',
+          'BARB-TRAD,Barba tradicional,30,20,"barbear, navalha"',
+          'COMBO-CB,Combo corte + barba,70,60,"combo, pacote"',
+          'ACAB25,Sombra e acabamento,25,15,"acabamento, contorno"',
+          'HIDR60,Hidratação capilar,60,40,"tratamento, mascara capilar"',
+          'PIGM80,Pigmentação/Correção,80,45,"tonalizante, correcao de falhas"'
         ].join('\n');
         return new Blob([rows], {type:'text/csv;charset=utf-8'});
       }
@@ -341,7 +322,6 @@
         setTimeout(()=>URL.revokeObjectURL(url), 1500);
       };
 
-      // ===== Upload de planilha (CSV) =====
       const drop = byId('dropzone');
       const finput = byId('file-input');
       drop.addEventListener('click', ()=>finput.click());
@@ -370,7 +350,6 @@
         reader.readAsText(f, 'UTF-8');
       }
 
-      // ===== Parser simples =====
       function parseCsvBasic(text){
         const lines = text.split(/\r?\n/).map(l=>l.trim()).filter(Boolean);
         if (!lines.length) return { header:[], rows:[] };
@@ -391,8 +370,8 @@
         return { headerRaw, header, rows };
       }
 
-      // mapeamento flexível de nomes de coluna
       const colMap = {
+        codigo: ['codigo','código','cod','cód'],
         nome: ['nome do servico','nome','servico','descrição','descricao'],
         preco: ['preco (r$)','preco','valor','preco r$','preço','preço (r$)'],
         tempo: ['tempo (min)','duracao','min','duracao (min)','tempo'],
@@ -403,50 +382,36 @@
         return '';
       }
       function findExtras(header){
-        const known = new Set([ ...colMap.nome, ...colMap.preco, ...colMap.tempo, ...colMap.outras ]);
+        const known = new Set([ ...colMap.codigo, ...colMap.nome, ...colMap.preco, ...colMap.tempo, ...colMap.outras ]);
         return header.filter(h => !known.has(h));
       }
 
-      // ===== Prévia da planilha =====
       byId('btn-preview').onclick = ()=>{
         clearMsg(byId('import-msg'));
         const { headerRaw, header, rows } = parseCsvBasic(csvText);
-
         const t = byId('preview-table');
         t.innerHTML = '';
         const thead = document.createElement('thead'), trh = document.createElement('tr');
         ['nome do servico','preco (R$)','tempo (min)','outras informacoes'].forEach(n=>{ const th=document.createElement('th'); th.textContent=n; trh.appendChild(th); });
         thead.appendChild(trh); t.appendChild(thead);
-
         const tbody = document.createElement('tbody');
         rows.slice(0,10).forEach(cols=>{
-          const tr = document.createElement('tr');
           const vNome = pickBy(header, cols, colMap.nome);
           const vPreco = pickBy(header, cols, colMap.preco);
           const vTempo = pickBy(header, cols, colMap.tempo);
           const vOutras = pickBy(header, cols, colMap.outras);
-          [vNome, vPreco, vTempo, vOutras].forEach(v=>{
-            const td = document.createElement('td'); td.textContent = v || ''; tr.appendChild(td);
-          });
+       	  const tr = document.createElement('tr');
+          [vNome, vPreco, vTempo, vOutras].forEach(v=>{ const td = document.createElement('td'); td.textContent = v || ''; tr.appendChild(td); });
           tbody.appendChild(tr);
         });
         t.appendChild(tbody);
-
-        // Nota sobre colunas extra
         const extras = findExtras(header);
         const note = byId('preview-note');
-        if (extras.length) {
-          note.textContent = 'Atenção: as seguintes colunas serão ignoradas nesta importação: ' + extras.join(', ') + '. Você poderá informar esses detalhes durante o agendamento.';
-          note.classList.remove('hidden');
-        } else {
-          note.classList.add('hidden');
-          note.textContent = '';
-        }
-
+        if (extras.length) { note.textContent = 'Atenção: as seguintes colunas serão ignoradas nesta prévia: ' + extras.join(', ') + '.'; note.classList.remove('hidden'); }
+        else { note.classList.add('hidden'); note.textContent = ''; }
         byId('preview-wrap').classList.remove('hidden');
       };
 
-      // ===== Importar planilha (transforma para CSV canônico e envia) =====
       const BACKEND_BASE = window.BACKEND_BASE || 'https://mei-robo-prod.onrender.com';
       byId('btn-import').onclick = async ()=>{
         clearMsg(byId('import-msg'));
@@ -455,9 +420,7 @@
         if (!finput.files?.[0]) { setMsg(byId('import-msg'),'error','Escolha um arquivo primeiro.'); return; }
 
         try {
-          // 1) Reparseia o CSV original
           const { header, rows } = parseCsvBasic(csvText);
-          // 2) Constrói CSV canônico para o backend: slug,nome,precoBase,duracaoMin,sinonimos
           const out = [];
           out.push('slug,nome,precoBase,duracaoMin,sinonimos');
           rows.forEach(cols=>{
@@ -465,43 +428,30 @@
             const precoRaw = pickBy(header, cols, colMap.preco);
             const tempoRaw = pickBy(header, cols, colMap.tempo);
             const outrasRaw = pickBy(header, cols, colMap.outras);
-
-            if (!nome) return; // pula linhas vazias
+            if (!nome) return;
             const slug = slugify(nome);
             const preco = parsePriceBRL(precoRaw);
             const tempo = parseInt(String(tempoRaw).replace(/\D/g,''), 10);
-            const tags = splitTags(outrasRaw).join(';'); // backend espera ";"
-
-            // valida mínimos; se preço/tempo ausentes, coloca 0/0 para backend validar
-            out.push([slug, `"${nome.replace(/"/g,'""')}"`, isFinite(preco)?preco.toFixed(2):'0.00', isFinite(tempo)?tempo:0, `"${tags.replace(/"/g,'""')}"`].join(','));
+            const tags = splitTags(outrasRaw).join(';');
+            out.push([slug, `"${nome.replace(/"/g,'""')}"`, 
+                      (isFinite(preco)?preco.toFixed(2):'0.00'), 
+                      (isFinite(tempo)?tempo:0), 
+                      `"${tags.replace(/"/g,'""')}"`].join(','));
           });
           const canonicalBlob = new Blob([out.join('\n')], {type:'text/csv;charset=utf-8'});
           const canonicalFile = new File([canonicalBlob], 'importado.csv', { type: 'text/csv' });
-
-          // 3) Envia para o backend
           const token = await currentUser.getIdToken(true);
           const url = BACKEND_BASE.replace(/\/$/,'') + '/api/importar-precos';
           const fd = new FormData();
           fd.append('file', canonicalFile, canonicalFile.name);
-
           const res = await fetch(url, { method:'POST', headers: { 'Authorization': 'Bearer ' + token }, body: fd });
           const text = await res.text();
           let json; try { json = JSON.parse(text); } catch { json = { ok:false, error: 'Resposta inesperada do servidor' }; }
-
-          if (!res.ok || json.ok === false) {
-            setMsg(byId('import-msg'),'error', json?.error || ('Falha HTTP ' + res.status));
-          } else {
-            const det = `Importados: ${json.imported ?? 0}` + (json.skipped ? ` | Ignorados: ${json.skipped}` : '');
-            setMsg(byId('import-msg'),'ok','Importação concluída. ' + det);
-            await loadServices();
-          }
-        } catch(e) {
-          console.error('[precos] import error', e);
-          setMsg(byId('import-msg'),'error','Não foi possível importar agora.');
-        }
+          if (!res.ok || json.ok === false) { setMsg(byId('import-msg'),'error', json?.error || ('Falha HTTP ' + res.status)); }
+          else { const det = `Importados: ${json.imported ?? 0}` + (json.skipped ? ` | Ignorados: ${json.skipped}` : ''); setMsg(byId('import-msg'),'ok','Importação concluída. ' + det); await loadServices(); }
+        } catch(e) { console.error('[precos] import error', e); setMsg(byId('import-msg'),'error','Não foi possível importar agora.'); }
       };
 
-      // ===== Lista de serviços (Firestore) =====
       async function loadServices(){
         const db = firebase.firestore();
         const col = db.collection('profissionais').doc(uid).collection('produtosEServicos');
@@ -510,6 +460,7 @@
           const v = d.data() || {};
           return {
             id: d.id,
+            codigo: v.codigo || '',
             nome: v.nome || '',
             precoBase: typeof v.precoBase === 'number' ? v.precoBase : parseFloat(v.precoBase || '0') || 0,
             duracaoMin: typeof v.duracaoMin === 'number' ? v.duracaoMin : parseInt(v.duracaoMin || '0') || 0,
@@ -518,36 +469,31 @@
         });
         applyFilter();
       }
-
       function normalize(t) { return String(t||'').toLowerCase().normalize('NFD').replace(/\p{Diacritic}/gu,''); }
-
       function applyFilter(){
         const q = normalize(byId('search').value || '');
         dataView = !q ? dataAll.slice() : dataAll.filter(s =>
-          normalize(s.nome).includes(q) || normalize((s.sinonimos||[]).join(' ')).includes(q)
+          normalize(s.codigo).includes(q) || normalize(s.nome).includes(q) || normalize((s.sinonimos||[]).join(' ')).includes(q)
         );
-        page = 0;
-        renderTable();
+        page = 0; renderTable();
       }
       byId('search').addEventListener('input', applyFilter);
 
       function renderTable(){
-        const body = byId('svc-body');
-        body.innerHTML = '';
+        const body = byId('svc-body'); body.innerHTML = '';
         if (!dataView.length) {
-          const tr=document.createElement('tr'); const td=document.createElement('td');
-          td.colSpan=5; td.textContent='Nenhum serviço cadastrado ainda.'; tr.appendChild(td); body.appendChild(tr);
+          const tr=document.createElement('tr'); const td=document.createElement('td'); td.colSpan=6; td.textContent='Nenhum serviço cadastrado ainda.'; tr.appendChild(td); body.appendChild(tr);
         } else {
           const start = page * PAGE_SIZE, end = Math.min(start + PAGE_SIZE, dataView.length);
           dataView.slice(start, end).forEach(s=>{
             const tr = document.createElement('tr');
             tr.innerHTML = `
+              <td class="nowrap">${s.codigo || '-'}</td>
               <td>${s.nome}</td>
               <td class="nowrap">${s.precoBase.toFixed(2)}</td>
               <td class="nowrap">${s.duracaoMin}</td>
               <td>${(s.sinonimos||[]).join(', ')}</td>
-              <td class="nowrap"><span class="help">Em breve</span></td>
-            `;
+              <td class="nowrap"><span class="help">Em breve</span></td>`;
             body.appendChild(tr);
           });
         }
@@ -558,52 +504,24 @@
       byId('prev').onclick = ()=>{ if(page>0){ page--; renderTable(); } };
       byId('next').onclick = ()=>{ if((page+1)*PAGE_SIZE < dataView.length){ page++; renderTable(); } };
 
-      // ===== Gate de sessão =====
       async function ensureAuth(){
         await maybeCleanSession();
         await ensureHeaderFooter();
-
         return new Promise((resolve)=>{
           firebase.auth().onAuthStateChanged(async (u)=>{
-            if (!u) {
-              REDIRECTING_TO_LOGIN = true;
-              log('Sem sessão: redirecionando para login');
-              location.href = '/pages/login.html';
-              return;
-            }
-            currentUser = u;
-            uid = u.uid;
-            isVerified = !!u.emailVerified;
-
-            // status curto no bloco de importação
+            if (!u) { REDIRECTING_TO_LOGIN = true; log('Sem sessão: redirecionando para login'); location.href = '/pages/login.html'; return; }
+            currentUser = u; uid = u.uid; isVerified = !!u.emailVerified;
             const ready = byId('import-ready');
-            if (isVerified) {
-              ready.textContent = '✅ Pronto para importar';
-            } else {
-              ready.innerHTML = '⚠️ Para importar, confirme seu e-mail. <a href="/verify-email.html">Verificar agora</a>';
-            }
-
-            // habilita botões conforme estado
+            ready.textContent = isVerified ? '✅ Pronto para importar' : '⚠️ Para importar, confirme seu e-mail.';
             byId('btn-import').disabled = !(finput.files?.[0] && isVerified);
             resolve();
           });
         });
       }
 
-      // ===== Init =====
       (async function init(){
-        try {
-          await ensureAuth();
-          if (REDIRECTING_TO_LOGIN) return;
-          await loadServices();
-          log('Pronto.');
-        } catch(e) {
-          console.error('[precos] init error', e);
-          if (!REDIRECTING_TO_LOGIN) {
-            const tb = byId('svc-body');
-            tb.innerHTML = '<tr><td colspan="5" class="msg err">Falha ao carregar a página. Recarregue e verifique sua conexão.</td></tr>';
-          }
-        }
+        try { await ensureAuth(); if (REDIRECTING_TO_LOGIN) return; await loadServices(); log('Pronto.'); }
+        catch(e) { console.error('[precos] init error', e); const tb = byId('svc-body'); tb.innerHTML = '<tr><td colspan="6" class="msg err">Falha ao carregar a página. Recarregue e verifique sua conexão.</td></tr>'; }
       })();
     })();
   </script>
