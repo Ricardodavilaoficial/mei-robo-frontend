@@ -1,4 +1,4 @@
-// public/assets/captcha_gate.js — Gate de login com Cloudflare Turnstile
+// public/assets/captcha_gate.js — Gate de login com Cloudflare Turnstile (fix ABS_API)
 (function() {
   const $container = document.getElementById('captcha-container');
   if (!$container) {
@@ -17,11 +17,29 @@
     return null;
   }
 
+  // Detecta a base da API do backend (Render)
+  function getApiBase() {
+    try {
+      if (window.API_BASE) return String(window.API_BASE);
+      if (window.apiBase)  return String(window.apiBase);
+    } catch {}
+    try {
+      const ls = localStorage.getItem('apiBase');
+      if (ls) return ls;
+    } catch {}
+    // fallback produção (Render)
+    return 'https://mei-robo-prod.onrender.com';
+  }
+
   const sitekey = getSiteKey();
   if (!sitekey) {
     console.error('[captcha_gate] SiteKey não configurada. Defina data-sitekey no container.');
     return;
   }
+
+  const API_BASE   = getApiBase().replace(/\/+$/, '');
+  const VERIFY_URL = API_BASE + '/captcha/verify';
+  console.log('[captcha_gate] VERIFY_URL =', VERIFY_URL);
 
   function setGatedEnabled(enabled) {
     const nodes = document.querySelectorAll('[data-human-gated]');
@@ -35,21 +53,20 @@
   setGatedEnabled(false);
 
   function onToken(token) {
-    fetch('/captcha/verify', {
+    fetch(VERIFY_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ token })
     })
     .then(async (resp) => {
-      const ok = resp.ok;
       let payload = null;
       try { payload = await resp.json(); } catch {}
-      if (!ok) {
+      if (!resp.ok || !(payload && payload.ok)) {
         console.warn('[captcha_gate] verificação falhou', payload || resp.status);
         setGatedEnabled(false);
         return;
       }
-      console.info('[captcha_gate] verificação ok', payload);
+      console.info('[captcha_gate] verificação ok');
       setGatedEnabled(true);
     })
     .catch((err) => {
