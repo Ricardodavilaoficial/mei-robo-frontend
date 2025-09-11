@@ -17,6 +17,9 @@
   <script src="/assets/firebase-init.js"></script>
   <!-- Patch de rotas (geral do app) -->
   <script src="/assets/backend-patch.js" defer></script>
+
+  <!-- Cloudflare Turnstile (CAPTCHA) -->
+  <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
 </head>
 <body>
   <div id="app-header"></div>
@@ -37,8 +40,12 @@
             <input id="senha" name="senha" class="input" type="password" placeholder="********" required />
           </div>
 
+          <!-- CAPTCHA: widget do Turnstile -->
+          <div id="captcha-container" data-sitekey="0x4AAAAAAB0t6kBJwJJgmsr3" style="margin:12px 0;"></div>
+
           <div class="actions" style="margin-top:12px">
-            <button class="cta" id="btn-login" type="submit">Entrar</button>
+            <!-- Gate humano: começa desabilitado, habilita após verificação -->
+            <button class="cta" id="btn-login" type="submit" data-human-gated disabled>Entrar</button>
             <a class="btn-secondary" id="btn-cadastrar" href="/cadastro.html">Criar conta</a>
           </div>
 
@@ -90,6 +97,9 @@
   <!-- Loader principal (se falhar, o fallback acima garante) -->
   <script defer src="/assets/layout.js?v=20250905a"></script>
 
+  <!-- Gate humano: habilita o botão após /captcha/verify ok -->
+  <script defer src="/assets/captcha_gate.js"></script>
+
   <script>
     (function () {
       const $form   = document.getElementById('login-form');
@@ -133,6 +143,9 @@
         const email = ($email.value || '').trim();
         const senha = ($senha.value || '').trim();
         if(!email || !senha){ say('Preencha e-mail e senha.'); return; }
+
+        // 🔒 Gate humano: impede submit por Enter antes de resolver o CAPTCHA
+        if ($btn.disabled) { say('Resolva o CAPTCHA para continuar.'); return; }
 
         let auth;
         try { auth = getLoginAuth(); }
@@ -201,3 +214,4 @@
   </script>
 </body>
 </html>
+
