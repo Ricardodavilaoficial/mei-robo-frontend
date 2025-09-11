@@ -3,12 +3,15 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Administrador — MEI Robô (v1.0.3)</title>
-  <link rel="stylesheet" href="/assets/styles.css?v=2025-09-10T131834" />
+  <title>Administrador — MEI Robô (v1.0.4)</title>
+  <link rel="stylesheet" href="/assets/styles.css?v=2025-09-10T133807" />
   <meta http-equiv="Cache-Control" content="no-store, max-age=0, must-revalidate" />
   <style>
-    :root{ --card-bg:#0f1513; --card-br:#1d2b26; --muted:#9fb0aa; --accent:#00a884; --danger:#d9534f; --ok:#2ecc71; --warn:#f1c40f; }
-    body{background:#0b1210;color:#f0f6f4;font-family:system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Noto Sans, Helvetica, Arial;}
+    :root{
+      --card-bg:#0f1513; --card-br:#1d2b26; --muted:#9fb0aa; --soft:#cfe3dc; --accent:#00a884;
+      --danger:#d9534f; --ok:#2ecc71; --warn:#f1c40f;
+    }
+    body{background:#0b1210;color:#f0f6f4;font-family:system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Noto Sans, Helvetica, Arial, "Apple Color Emoji","Segoe UI Emoji";}
     .container{max-width:1100px;margin:0 auto;padding:16px 16px 64px;}
     h1{font-size:1.6rem;margin:10px 0 6px;}
     .subtitle{color:var(--muted);font-size:.95rem;margin-bottom:16px;line-height:1.45}
@@ -25,16 +28,21 @@
     .btn{appearance:none;border:1px solid #1d2b26;background:#0a1a16;color:#e9fffa;border-radius:12px;padding:9px 12px;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;gap:8px;font-size:.95rem}
     .btn:hover{filter:brightness(1.1)}
     .btn-primary{background:var(--accent);border-color:#0c8d6e;color:#03241f}
+    .btn.disabled,[data-disabled="true"]{opacity:.6;cursor:not-allowed;pointer-events:none}
     .badge{display:inline-block;padding:3px 8px;border-radius:999px;font-size:.75rem;border:1px solid #2a3a35;background:#0a1a16;color:#cfe3dc}
     .badge.ok{border-color:#20563f;color:#bff1d8;background:#0e2a22}
     .badge.warn{border-color:#6a5f20;color:#fff3b0;background:#2a260e}
     .badge.off{border-color:#5c3a3a;color:#ffd4d4;background:#2a0e0e}
-    .footer-note{margin-top:18px;color:var(--muted);font-size:.85rem}
+    .footer-note{margin-top:18px;color:#9fb0aa;font-size:.85rem}
     .admin-chip{display:flex;align-items:center;gap:8px;padding:8px 12px;border-bottom:1px solid #1d2b26;background:#0a1310;position:sticky;top:0;z-index:40}
     .is-admin-shell .only-public{display:none !important}
     .is-admin-shell .only-admin{display:inherit !important}
   </style>
-  <script src="/assets/layout.js?v=2025-09-10T131834" defer></script>
+  <script>
+    // Força loader de layout a recarregar parciais (caderno #46)
+    window.__forceLayout = true;
+  </script>
+  <script src="/assets/layout.js?v=2025-09-10T133807" defer></script>
 </head>
 <body class="app-shell">
   <!-- Fallbacks mínimos -->
@@ -129,38 +137,67 @@
     Rodapé (fallback) — © 2025 MEI Robô
   </div>
 
-  <script src="/assets/firebase-init.js?v=2025-09-10T131834"></script>
-  <script src="/assets/backend-patch.js?v=2025-09-10T131834"></script>
+  <!-- Firebase/App init (existentes no projeto) -->
+  <script src="/assets/firebase-init.js?v=2025-09-10T133807"></script>
+  <script src="/assets/backend-patch.js?v=2025-09-10T133807"></script>
 
   <script type="module">
+    /*
+      Diretriz (comentário): Não mexer no que já funciona; passinhos de formiga; produção real (Hosting, Render, Firestore);
+      segurança por padrão; observabilidade; HTML no-store; mobile-first.
+    */
     const qs = new URLSearchParams(location.search);
     const isValidateMode = qs.get('validate') === '1';
     const $ = (id)=> document.getElementById(id);
     const setText = (id, v) => { const n = $(id); if(n) n.textContent = v; };
 
-    // --- Header/Footer fallback controller ---
+    // --- Header/Footer fallback (caderno #46) ---
     const headerSelectors = ['header','#app-header','[data-header]','[role="banner"]'];
     const footerSelectors = ['footer','#app-footer','[data-footer]','[role="contentinfo"]'];
-
-    function findAny(selectors) {
-      for (const sel of selectors) { const el = document.querySelector(sel); if (el) return el; }
-      return null;
+    function findAny(selectors) { for (const sel of selectors) { const el = document.querySelector(sel); if (el) return el; } return null; }
+    async function fetchPartial(url) {
+      try {
+        const res = await fetch(url, { cache:'no-store' });
+        if(!res.ok) return null;
+        return await res.text();
+      } catch { return null; }
     }
-
-    function handleShellFallbacks() {
+    async function injectFallbacks() {
+      const TS = '2025-09-10T133807';
+      // Header
+      if(!findAny(headerSelectors)) {
+        const html = await fetchPartial(`/partials/header.html?v=${TS}`);
+        if(html) {
+          const div = document.createElement('div'); div.innerHTML = html;
+          const node = div.firstElementChild || div;
+          document.body.insertAdjacentElement('afterbegin', node);
+          const fb = document.getElementById('fallback-header'); if(fb) fb.style.display='none';
+        } else {
+          const fb = document.getElementById('fallback-header'); if(fb) fb.style.display='block';
+        }
+      }
+      // Footer
+      if(!findAny(footerSelectors)) {
+        const html = await fetchPartial(`/partials/footer.html?v=${TS}`);
+        if(html) {
+          const div = document.createElement('div'); div.innerHTML = html;
+          const node = div.firstElementChild || div;
+          document.body.insertAdjacentElement('beforeend', node);
+          const ff = document.getElementById('fallback-footer'); if(ff) ff.style.display='none';
+        } else {
+          const ff = document.getElementById('fallback-footer'); if(ff) ff.style.display='block';
+        }
+      }
+    }
+    // Espera 1200ms para dar chance ao layout.js, depois injeta fallback se necessário
+    setTimeout(injectFallbacks, 1200);
+    // E observa o DOM para esconder fallbacks caso os reais cheguem depois
+    const mo = new MutationObserver(() => {
       const h = findAny(headerSelectors);
       const f = findAny(footerSelectors);
-      const hf = $('fallback-header');
-      const ff = $('fallback-footer');
-      if(h) { if(hf) hf.style.display='none'; }
-      else { if(hf) hf.style.display='block'; }
-      if(f) { if(ff) ff.style.display='none'; }
-      else { if(ff) ff.style.display='block'; }
-    }
-
-    // First check at 1.5s, then observe DOM changes for late injections
-    setTimeout(handleShellFallbacks, 1500);
-    const mo = new MutationObserver(() => handleShellFallbacks());
+      if(h) { const fb = document.getElementById('fallback-header'); if(fb) fb.style.display='none'; }
+      if(f) { const ff = document.getElementById('fallback-footer'); if(ff) ff.style.display='none'; }
+    });
     mo.observe(document.documentElement, { childList:true, subtree:true });
 
     // --- Admin shell toggle ---
@@ -172,7 +209,30 @@
         const chip = $('admin-chip'); if(chip) chip.style.display = 'flex';
       }
     }
-    applyAdminShellToggle();
+
+    // --- Cliente Zero: auto-elevação a admin via Firestore admins/{uid} (se existir) ---
+    function elevateAdminFromFirestore() {
+      const FNS = window.firebase && window.firebase.firestore;
+      const auth = window.firebase && window.firebase.auth && window.firebase.auth();
+      if(!FNS || !window.db || !auth) return; // Sem compat v8, não faz nada (evita erro no console)
+
+      auth.onAuthStateChanged(async (user) => {
+        if(!user) return;
+        const uid = user.uid;
+        try {
+          const docRef = FNS.collection(window.db, 'admins');
+          // getCountFromServer em doc não é aplicado; buscamos via get() defensivo
+          const snap = await FNS.getDoc ? FNS.getDoc(FNS.doc(window.db, 'admins', uid)) : null;
+          if(snap && (snap.exists ? snap.exists() : snap.exists)) {
+            localStorage.setItem('isAdmin','1');
+            localStorage.setItem('uid', uid);
+            applyAdminShellToggle(); // re-aplica se entrou depois
+          }
+        } catch (e) {
+          // Silencioso; página segue normal
+        }
+      });
+    }
 
     function requireAdminOrRedirect(){
       if(isValidateMode) return true;
@@ -195,7 +255,7 @@
       console.info('Header/Footer OK (validate)');
     }
 
-    // --- KPIs and Health (unchanged logic) ---
+    // --- Saúde leve ---
     async function loadHealthLight(){
       try {
         const backendURL = (window.BACKEND_BASE_URL || '/');
@@ -237,8 +297,9 @@
       }catch{}
     }
 
+    // --- KPIs (read-only) ---
     async function loadKPIs(){
-      if(!window.firebase || !window.db) return;
+      if(!window.firebase || !window.db || !window.firebase.firestore) return;
       const DB = window.db, F = window.firebase.firestore;
       const ts = (d)=>F.Timestamp.fromDate(d);
       const now = new Date(); const daysAgo=(n)=>ts(new Date(now.getTime()-n*86400000));
@@ -268,7 +329,14 @@
     }
 
     (async function start(){
+      // Elevação automática (se compat v8 estiver presente)
+      elevateAdminFromFirestore();
+      // Toggle imediato (também cobre ?validate=1)
+      applyAdminShellToggle();
+
+      // Gate leve
       if(!requireAdminOrRedirect()) return;
+
       try {
         if(isValidateMode) { await loadValidateData(); }
         else { await loadKPIs(); await loadHealthLight(); }
