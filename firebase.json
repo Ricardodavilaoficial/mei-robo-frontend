@@ -1,23 +1,68 @@
 {
   "hosting": {
     "public": "public",
-    "ignore": ["firebase.json", "**/.*", "**/node_modules/**"],
+    "ignore": [
+      "firebase.json",
+      "**/.*",
+      "**/node_modules/**"
+    ],
     "headers": [
       {
         "source": "**",
         "headers": [
-          { "key": "Strict-Transport-Security", "value": "max-age=31536000; includeSubDomains; preload" },
-          { "key": "X-Content-Type-Options", "value": "nosniff" },
-          { "key": "Referrer-Policy", "value": "same-origin" },
-          { "key": "X-Frame-Options", "value": "DENY" },
-          { "key": "X-Robots-Tag", "value": "noindex, nofollow, noarchive" }
+          {
+            "key": "Strict-Transport-Security",
+            "value": "max-age=31536000; includeSubDomains; preload"
+          },
+          {
+            "key": "X-Content-Type-Options",
+            "value": "nosniff"
+          },
+          {
+            "key": "Referrer-Policy",
+            "value": "same-origin"
+          },
+          {
+            "key": "X-Frame-Options",
+            "value": "DENY"
+          },
+          {
+            "key": "X-Robots-Tag",
+            "value": "noindex, nofollow, noarchive"
+          }
         ]
       },
-      { "source": "**/*.html", "headers": [ { "key": "Cache-Control", "value": "no-store" } ] }
+      {
+        "source": "**/*.html",
+        "headers": [
+          {
+            "key": "Cache-Control",
+            "value": "no-store"
+          }
+        ]
+      }
     ],
     "redirects": [
-      { "source": "/login",      "destination": "/pages/login.html", "type": 301 },
-      { "source": "/login.html", "destination": "/pages/login.html", "type": 301 }
+      {
+        "source": "/login",
+        "destination": "/pages/login.html",
+        "type": 301
+      },
+      {
+        "source": "/login.html",
+        "destination": "/pages/login.html",
+        "type": 301
+      },
+      {
+        "source": "/ativar",
+        "destination": "/pages/ativar.html",
+        "type": 301
+      },
+      {
+        "source": "/ativar.html",
+        "destination": "/pages/ativar.html",
+        "type": 301
+      }
     ]
   }
 }
