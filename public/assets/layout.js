@@ -10,7 +10,7 @@
 
 /* layout.js - injeta header e footer (UTF-8, ASCII only) */
 (function(){'use strict';
-  var VERSION = '2025-09-15-03';
+  var VERSION = '2025-09-15-01';
 
   function pickHeader(){ return document.getElementById('app-header') || document.querySelector('[data-include="header"]'); }
   function pickFooter(){ return document.getElementById('app-footer') || document.querySelector('[data-include="footer"]'); }
@@ -47,46 +47,19 @@
     } catch(e) { try { console.warn('[layout] script exec skip:', e.message || e); } catch(_ ){} }
   }
 
-  function hideFallbackStrict(kind){
+  function hideFallback(kind){
     try {
-      var container = document.querySelector(kind === 'header' ? '#app-header' : '#app-footer');
-      if (!container) return;
-
-      // Encontra o elemento injetado (normalmente <header class="site-header"> ou <footer class="site-footer">)
-      var injected = container.querySelector(kind);
-      if (!injected) return;
-
-      // Esconde QUALQUER outro <header>/<footer> fora do contêiner oficial
-      var nodes = document.querySelectorAll(kind);
-      Array.prototype.forEach.call(nodes, function(n){
-        if (n !== injected && !container.contains(n)) {
-          n.style.display = 'none';
-          n.setAttribute('data-legacy-hidden', '1');
-        }
-      });
-
-      // Alguns fallbacks podem não usar <header>/<footer>; esconder padrões comuns
-      var sel = [
-        kind + '._fallback',
-        kind + '[data-fallback]',
-        '.index-fallback ' + kind,
-        '#header-fallback',
-        '#footer-fallback'
-      ].join(',');
-      Array.prototype.forEach.call(document.querySelectorAll(sel), function(n){
-        if (!container.contains(n)) {
-          n.style.display = 'none';
-          n.setAttribute('data-legacy-hidden', '1');
-        }
-      });
-    } catch(e){ /* silencioso */ }
+      var sel = kind === 'header' ? 'header._fallback' : 'footer._fallback';
+      var nodes = document.querySelectorAll(sel);
+      nodes.forEach(function(n){ n.style.display = 'none'; });
+    } catch(e){}
   }
 
   function inject(el, html, kind){
     if (!el) return;
     el.innerHTML = html;
     runInlineScripts(el);
-    hideFallbackStrict(kind);
+    hideFallback(kind);
   }
 
   function logOk(name, via){
