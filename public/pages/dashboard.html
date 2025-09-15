@@ -5,6 +5,13 @@
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Dashboard — MEI Robô (v1.0)</title>
 
+  <!-- Firebase v8 SDK (precisa vir ANTES do seu init) -->
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+  <!-- seu init (garanta storageBucket=mei-robo-prod.appspot.com lá dentro) -->
+  <script src="/assets/firebase-init.js"></script>
+
   <!-- Assets canônicos -->
   <link rel="stylesheet" href="/assets/styles.css" />
 
@@ -173,9 +180,8 @@
 
   <div id="app-footer"></div>
 
-  <!-- Loader/header/footer + Firebase + patch canônico -->
+  <!-- Loader/header/footer + patch canônico -->
   <script src="/assets/layout.js" defer></script>
-  <script src="/assets/firebase-init.js" defer></script>
   <script src="/assets/backend-patch.js" defer></script>
 
   <script>
@@ -198,13 +204,13 @@
       span.textContent = state==='ok'?'OK':(state==='warn'?'Ajustar':'Falta');
     }
     function businessPhone(){
-      return (window.APP?.businessPhone || window.APP?.wabaPhone || "").replace(/\\D/g,'');
+      return (window.APP?.businessPhone || window.APP?.wabaPhone || "").replace(/\D/g,'');
     }
     function buildWaLink(){
       const phone = businessPhone();
-      const base = phone ? \`https://wa.me/\${phone}\` : \`https://wa.me/\`;
+      const base = phone ? `https://wa.me/${phone}` : `https://wa.me/`;
       const text = encodeURIComponent("Oi");
-      return \`\${base}?text=\${text}\';
+      return `${base}?text=${text}`;
     }
 
     function demo(){
@@ -225,12 +231,12 @@
       for(const r of rows){
         const tr=document.createElement('tr');
         const chip = r.state==='agendado'?'chip ok':(r.state==='pausado'?'chip warn':'chip');
-        tr.innerHTML = \`
-          <td>\${format(r.when)}</td>
-          <td>\${r.to}</td>
-          <td>\${r.kind}</td>
-          <td><span class="\${chip}">\${r.state}</span></td>
-          <td><button class="btn small" disabled title="Em breve">Ver</button></td>\`;
+        tr.innerHTML = `
+          <td>${format(r.when)}</td>
+          <td>${r.to}</td>
+          <td>${r.kind}</td>
+          <td><span class="${chip}">${r.state}</span></td>
+          <td><button class="btn small" disabled title="Em breve">Ver</button></td>`;
         queueBody.appendChild(tr);
       }
       // Passos
@@ -322,19 +328,19 @@
                 const st = String(o.state||'—');
                 const chip = st==='queued'?'chip warn':(st==='sent'?'chip ok':'chip');
                 const tr=document.createElement('tr');
-                tr.innerHTML = \`
-                  <td>\${o.createdAt?.seconds?new Date(o.createdAt.seconds*1000).toLocaleString():'—'}</td>
-                  <td>\${o.contactId||'—'}</td>
-                  <td>\${o.type||'—'}</td>
-                  <td><span class="\${chip}">\${st}</span></td>
-                  <td><button class="btn small" disabled title="Em breve">Ver</button></td>\`;
+                tr.innerHTML = `
+                  <td>${o.createdAt?.seconds?new Date(o.createdAt.seconds*1000).toLocaleString():'—'}</td>
+                  <td>${o.contactId||'—'}</td>
+                  <td>${o.type||'—'}</td>
+                  <td><span class="${chip}">${st}</span></td>
+                  <td><button class="btn small" disabled title="Em breve">Ver</button></td>`;
                 queueBody.appendChild(tr);
               });
             })
             .catch(()=>{
               // Sem outbox -> exemplo discreto
               const tr=document.createElement('tr');
-              tr.innerHTML = \`<td colspan="5" class="note">Sem itens por enquanto.</td>\`;
+              tr.innerHTML = `<td colspan="5" class="note">Sem itens por enquanto.</td>`;
               queueBody.appendChild(tr);
             });
         }
@@ -362,7 +368,7 @@
                 items.sort((a,b)=>String(a.hora||'').localeCompare(String(b.hora||'')));
                 items.slice(0,3).forEach(d=>{
                   const li=document.createElement('li');
-                  li.textContent=\`\${d.hora||'--:--'} · \${d.servico||'Serviço'}\`;
+                  li.textContent=`${d.hora||'--:--'} · ${d.servico||'Serviço'}`;
                   agendaList.appendChild(li);
                 });
               }
@@ -387,10 +393,10 @@
               });
               catalogoStats.innerHTML='';
               [
-                \`Total: \${total}\`,
-                \`Sem preço: \${semPreco}\`,
-                \`Sem duração: \${semDur}\`,
-                \`Sem código: \${semCodigo}\`
+                `Total: ${total}`,
+                `Sem preço: ${semPreco}`,
+                `Sem duração: ${semDur}`,
+                `Sem código: ${semCodigo}`
               ].forEach(txt=>{
                 const b=document.createElement('span'); b.className='badge'; b.textContent=txt; catalogoStats.appendChild(b);
               });
@@ -427,4 +433,3 @@
   </script>
 </body>
 </html>
-

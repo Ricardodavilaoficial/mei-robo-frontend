@@ -6,8 +6,19 @@
   <title>Ativar Conta — MEI Robô</title>
 
   <link rel="stylesheet" href="/assets/styles.css" />
+  <link rel="icon" href="data:,">
+
+  <!-- Firebase SDK v8 — ORDEM IMPORTA (apenas o necessário: app + auth) -->
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
+
+  <!-- Inicialização REAL do projeto (app DEFAULT único) -->
+  <script src="/assets/firebase-init.js"></script>
+
+  <!-- Patches/infra e layout -->
   <script src="/assets/backend-patch.js"></script>
   <script defer src="/assets/layout.js"></script>
+
   <style>
     .ok { color: #0a7a0a; }
     .warn { color: #a36b00; }
@@ -85,10 +96,12 @@
         if (cls) $out.className = cls;
       }
 
-      // Firebase idToken (se carregado por layout.js)
+      // Firebase idToken (via app DEFAULT do firebase-init.js) com fallback em localStorage
       async function getIdToken(maxWaitMs = 2500) {
         try {
-          if (window.firebase && firebase.auth) {
+          if (window.firebase && typeof firebase.auth === 'function') {
+            // Garante que o app DEFAULT existe (idempotente)
+            try { firebase.app(); } catch (e) { /* se não houver, algum outro script removeu init; seguimos para fallback */ }
             const cur = firebase.auth().currentUser;
             if (cur) return await cur.getIdToken();
             return await new Promise((resolve) => {
@@ -152,8 +165,12 @@
         return { ok: resp.ok, status: resp.status, json };
       }
 
+      function normalizeCode(v){
+        return String(v || '').trim().toUpperCase().replace(/[^A-Z0-9-]/g,'');
+      }
+
       async function onValidar() {
-        const codigo = ($codigo.value || '').trim();
+        const codigo = normalizeCode($codigo.value);
         if (!codigo) { $codigo.focus(); pill('informe um código', 'warn'); return; }
         $btnVal.disabled = true;
         $btnAtv.disabled = true;
@@ -179,7 +196,7 @@
       }
 
       async function onAtivar() {
-        let codigo = ($codigo.value || '').trim();
+        let codigo = normalizeCode($codigo.value);
         if (!codigo) {
           const pend = readPendingCupom();
           if (pend) { codigo = pend; $codigo.value = pend; }

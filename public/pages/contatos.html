@@ -6,6 +6,16 @@
   <title>Contatos e Consentimento — MEI Robô</title>
 
   <link rel="stylesheet" href="/assets/styles.css" />
+
+  <!-- Firebase SDK v8 — ORDEM IMPORTA (carregar no <head>) -->
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-storage.js"></script>
+
+  <!-- Inicialização DEFAULT do projeto (sem defer para estar pronto no load) -->
+  <script src="/assets/firebase-init.js"></script>
+
   <style>
     :root{
       --text-strong: rgba(255,255,255,.92);
@@ -73,7 +83,7 @@
       display:inline-block;
       padding:6px 10px;
       border-radius:10px;
-      background: rgba(37,211,102,0.12);   /* brand suave */
+      background: rgba(37,211,102,0.12);
       border:1px solid #1f6c3e;
       color:#d4ffe9;
       font-weight:700;
@@ -233,7 +243,6 @@
           <strong>Seus contatos</strong>
           <span id="totalSpan" class="value-soft"></span>
 
-          <!-- Microfrase importante e visível -->
           <span class="micro-important">
             IMPORTANTE: para <b>INICIAR A CONVERSA</b>, peça pelo seu WhatsApp pessoal para a pessoa mandar um “Oi” para o número do seu <b>MEI Robô</b>. Depois use o botão: <b>Autorização (WhatsApp)</b>.
           </span>
@@ -417,7 +426,6 @@
   <dialog id="modalConsent">
     <div class="modal-header">Autorização (WhatsApp)</div>
     <div class="modal-body">
-      <!-- guia simples -->
       <section class="card" style="margin-bottom:10px;">
         <strong>Como liberar este contato para receber seus avisos</strong>
         <ol class="value-soft" style="margin-top:8px; line-height:1.5;">
@@ -440,7 +448,6 @@
         <button class="btn small" id="btnMarkExternal">Marcar autorização externa</button>
       </div>
 
-      <!-- link gerado (sem QR) -->
       <div class="hint" id="linkArea" style="display:none; margin-top:8px;">
         Link para abrir o seu WhatsApp: <a id="waLink" href="#" target="_blank" rel="noopener" class="badge">abrir</a>
         <button class="btn small" id="btnCopyLink" type="button">Copiar link</button>
@@ -486,10 +493,7 @@
     </div>
   </dialog>
 
-  <input type="file" id="csvInput" accept=".csv,text/csv" style="display:none" />
-
   <script src="/assets/layout.js" defer></script>
-  <script src="/assets/firebase-init.js" defer></script>
   <script src="/assets/backend-patch.js" defer></script>
 
   <script>
@@ -531,7 +535,7 @@
     const consentInfo = $("#consentInfo");
     const btnGenLink = $("#btnGenLink");
     const btnRequestOptin = $("#btnRequestOptin");
-    theBtnSendConfirmation = $("#btnSendConfirmation"); // not used without backend, kept for UI
+    theBtnSendConfirmation = $("#btnSendConfirmation");
     const btnMarkExternal = $("#btnMarkExternal");
     const btnCloseConsent = $("#btnCloseConsent");
     const linkArea = $("#linkArea");
@@ -551,7 +555,7 @@
     let CURRENT_EDIT_ID = null;
     let CURRENT_CONSENT_ID = null;
     let CURRENT_ACERVO_ID = null;
-    const LIMITS = { fileMax: 5 * 1024 * 1024, contactMax: 25 * 1024 * 1024 }; // 5MB / 25MB
+    const LIMITS = { fileMax: 5 * 1024 * 1024, contactMax: 25 * 1024 * 1024 };
 
     /* ====== Utils ====== */
     function isValidateMode(){ try{ return new URLSearchParams(location.search).has('validate'); }catch{ return false; } }
@@ -586,7 +590,7 @@
       const PT = d.ptBrStrict?1:0;
       const E = d.emojis==='sem'?'SEM':(d.emojis==='poucos'?'POU':'POD');
       const L = d.tamanhoMsg==='detalhadas'?'D':(d.tamanhoMsg==='medias'?'M':'C');
-      const AR = d.audioRule==='off'?'OFF':(d.audioRule==='sometime'?'SM':'MT'); // MT=match
+      const AR = d.audioRule==='off'?'OFF':(d.audioRule==='sometime'?'SM':'MT');
       const SR = d.speechRate==='fast'?'FS':(d.speechRate==='slow'?'SL':'NM');
       const CP = d.clearPauses?1:0;
       return `T=${T};G=${G};H=${H};AN=${AN};F=${F};PT=${PT};E=${E};L=${L};AR=${AR};SR=${SR};CP=${CP}`;

@@ -56,7 +56,7 @@
       padding:8px 12px; border:1px solid var(--card-br); border-radius:999px; background:#0c120f; display:inline-flex; gap:8px; align-items:center;
     }
     .mini-pill b{ color:var(--ok); }
-    .mini-hint{ margin-top:10px; font-size:.92rem; color:var(--text-soft); text-align:center; }
+    .mini-hint{ margin-top:10px; font-size:.92rem; color:#text-soft; text-align:center; }
 
     /* Títulos de seção */
     .section-title{ font-size:1.15rem; font-weight:800; letter-spacing:.2px; margin: 24px auto 10px; max-width: 900px; color: var(--text); }
@@ -478,7 +478,7 @@
         const d = addDays(baseDate, i);
         const key = fmtISO(d);
         const dateStr = new Intl.DateTimeFormat('pt-BR', { year:'numeric', month:'2-digit', day:'2-digit' }).format(d);
-        const list = weekData[key] || [];
+        const list = weekData[key] || []
         list.forEach(it => {
           rows.push({ data: dateStr, hora: it.hhmm || '--:--', cliente: it.cliente, assunto: it.assunto, dur: it.dur, status: it.status });
         });
@@ -598,5 +598,3 @@
   </script>
 </body>
 </html>
-
-

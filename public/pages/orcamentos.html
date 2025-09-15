@@ -255,19 +255,29 @@
     const MSG_KEY  = 'mei_orc_msg_padrao';
 
     function hasFirebaseCompat(){
-      try { return !!(window.firebase && firebase.apps && firebase.apps.length >= 0); } catch(_) { return false; }
+      try { return !!(window.firebase && typeof firebase.initializeApp === 'function'); } catch(_) { return false; }
     }
     async function getUid(){
-      if(!hasFirebaseCompat() || !firebase.auth) return null;
-      const current = firebase.auth().currentUser;
-      if(current) return current.uid;
-      return await new Promise(resolve=> firebase.auth().onAuthStateChanged(u=> resolve(u?u.uid:null)));
+      try{
+        if(!hasFirebaseCompat() || typeof firebase.auth !== 'function') return null;
+        const auth = firebase.auth(); // pode lançar se app DEFAULT não estiver inicializado
+        const current = auth.currentUser;
+        if(current) return current.uid;
+        return await new Promise(resolve=> auth.onAuthStateChanged(u=> resolve(u?u.uid:null)));
+      }catch(_){
+        // SDK presente mas app DEFAULT não inicializado: tratar como offline/local
+        return null;
+      }
     }
     function getConfigDoc(uid){
-      if(!uid || !firebase.firestore) return null;
-      return firebase.firestore()
-        .collection('profissionais').doc(uid)
-        .collection('config').doc('orcamentos');
+      if(!uid || typeof firebase === 'undefined' || typeof firebase.firestore !== 'function') return null;
+      try{
+        return firebase.firestore()
+          .collection('profissionais').doc(uid)
+          .collection('config').doc('orcamentos');
+      }catch(_){
+        return null; // App DEFAULT não inicializado
+      }
     }
 
     async function loadCloudDefaults(){
@@ -350,4 +360,3 @@
   </script>
 </body>
 </html>
-

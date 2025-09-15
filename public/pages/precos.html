@@ -8,6 +8,14 @@
   <!-- Estilos canônicos do projeto -->
   <link rel="stylesheet" href="/assets/styles.css" />
 
+  <!-- Firebase SDK v8 — ORDEM IMPORTA -->
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+
+  <!-- Inicialização DEFAULT do projeto (sem defer, para estar pronto no load) -->
+  <script src="/assets/firebase-init.js"></script>
+
   <!-- Microlayout e legibilidade (herdando a paleta do tema escuro) -->
   <style>
     .app-main { min-height: 82svh; }
@@ -184,8 +192,7 @@
   <!-- Loader de header/footer -->
   <script src="/assets/layout.js"></script>
 
-  <!-- Firebase + helpers do projeto -->
-  <script src="/assets/firebase-init.js"></script>
+  <!-- Helpers do app (rotas/token etc.) -->
   <script src="/assets/backend-patch.js"></script>
 
   <!-- Lógica da página -->
@@ -640,4 +647,3 @@
   </script>
 </body>
 </html>
-

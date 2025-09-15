@@ -6,16 +6,19 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <link rel="stylesheet" href="/assets/styles.css" />
   <link rel="icon" href="data:,">
-  <!-- Firebase v8 -->
+  <!-- Firebase v8 (ordem importa) -->
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
-  <!-- Init -->
+  <!-- Init DEFAULT único do projeto -->
   <script src="/assets/firebase-init.js?v=login6"></script>
-  <!-- Patch de rotas -->
+  <!-- Patch de rotas (não reinicializa Firebase) -->
   <script src="/assets/backend-patch.js"></script>
   <!-- Loader de header/footer -->
   <script defer src="/assets/layout.js"></script>
   <!-- DIAG_VERSION=6 -->
+  <style>
+    .btn[disabled]{opacity:.6;cursor:not-allowed}
+  </style>
 </head>
 <body>
   <div id="app-header"></div>
@@ -92,357 +95,422 @@
   <div id="app-footer"></div>
 
   <script>
-    const ABS_API   = "https://mei-robo-prod.onrender.com";
-    const ADMIN_UID = "V4eFP2bNdXNtQz2Eh4PxpwHNLOP2"; // fallback seguro por UID
+    (function(){
+      'use strict';
 
-    function lsGet(key) { try { return window.localStorage.getItem(key); } catch { return null; } }
-    function lsSet(key, val) { try { window.localStorage.setItem(key, val); } catch {} }
-    function lsDel(key) { try { window.localStorage.removeItem(key); } catch {} }
-    const token = () => lsGet('idToken') || '';
+      const ABS_API   = "https://mei-robo-prod.onrender.com";
+      const ADMIN_UID = "V4eFP2bNdXNtQz2Eh4PxpwHNLOP2"; // fallback seguro por UID
 
-    function setOut(msg){
-      const el = document.getElementById('out');
-      if(!el) return;
-      if(msg == null || msg === '') { el.textContent = ''; return; }
-      if(typeof msg === 'string') el.textContent = msg;
-      else {
-        try { el.textContent = JSON.stringify(msg, null, 2); }
-        catch { el.textContent = String(msg); }
+      // --- storage helpers ---
+      function lsGet(key) { try { return window.localStorage.getItem(key); } catch { return null; } }
+      function lsSet(key, val) { try { window.localStorage.setItem(key, val); } catch {} }
+      function lsDel(key) { try { window.localStorage.removeItem(key); } catch {} }
+
+      // UI helpers
+      function setOut(msg){
+        const el = document.getElementById('out');
+        if(!el) return;
+        if(msg == null || msg === '') { el.textContent = ''; return; }
+        if(typeof msg === 'string') el.textContent = msg;
+        else {
+          try { el.textContent = JSON.stringify(msg, null, 2); }
+          catch { el.textContent = String(msg); }
+        }
       }
-    }
-
-    function updateAuthUI(u){
-      document.getElementById('uid').textContent = u ? (u.uid || '-') : '-';
-      document.getElementById('tok').textContent = token() ? 'token_ok' : '-';
-      document.getElementById('fbStatus').textContent = (typeof window.firebase !== 'undefined') ? 'ok' : 'indisponível';
-    }
-
-    async function refreshIdToken(){
-      try{
-        if (typeof firebase === 'undefined') { setOut('Firebase indisponível. Recarregue (Ctrl+F5).'); updateAuthUI(null); return; }
-        const u = firebase.auth().currentUser;
-        if(!u){ setOut('Sem usuário logado. Faça login.'); updateAuthUI(null); return; }
-        const t = await u.getIdToken(true);
-        if(t){ lsSet('idToken', t); }
-        updateAuthUI(u);
-        setOut('Token atualizado e salvo em localStorage.idToken ✅');
-        await applyWhoamiAdmin(); // reavalia após refresh
-      }catch(err){
-        setOut({ erro:'Falha ao atualizar token', detalhe: err.message });
+      function updateAuthUI(u){
+        document.getElementById('uid').textContent = u ? (u.uid || '-') : '-';
+        document.getElementById('tok').textContent = (u ? 'token?' : '-') || '-';
+        document.getElementById('fbStatus').textContent = (typeof window.firebase !== 'undefined') ? 'ok' : 'indisponível';
       }
-    }
+      function setBusy(btn, busy, labelBusy){
+        if(!btn) return ()=>{};
+        const prev = btn.textContent;
+        btn.disabled = !!busy;
+        if(busy && labelBusy){ btn.textContent = labelBusy; btn.setAttribute('aria-busy','true'); }
+        if(!busy){ btn.removeAttribute('aria-busy'); }
+        return function restore(){ btn.disabled = false; btn.textContent = prev; btn.removeAttribute('aria-busy'); };
+      }
 
-    // “Último cupom” (apenas admin)
-    function showLastCoupon(code, via){
-      const box = document.getElementById('last-coupon');
-      const elCode = document.getElementById('last-code');
-      const elVia  = document.getElementById('last-via');
-      if (!code) { box.style.display = 'none'; return; }
-      elCode.textContent = code;
-      elVia.textContent  = via || '-';
-      box.style.display  = '';
-    }
-    function saveLastCoupon(code, via){
-      try { lsSet('lastCoupon', JSON.stringify({ code, via, at: Date.now() })); } catch {}
-      showLastCoupon(code, via);
-    }
-
-    // ===== util: timeout + abort (diagnósticos) =====
-    let currentScan = null; // {controller, running}
-    function stopScan(reason){
-      if (currentScan && currentScan.controller) currentScan.controller.abort();
-      currentScan = null;
-      if (reason) setOut({ info:'Varredura cancelada', motivo: reason });
-    }
-    function fetchWithTimeout(url, init, ms, signal){
-      const ctrl = new AbortController();
-      const timer = setTimeout(()=>ctrl.abort(), ms);
-      if (signal) signal.addEventListener('abort', ()=>ctrl.abort(), { once:true });
-      const merged = { ...init, signal: ctrl.signal };
-      return fetch(url, merged).finally(()=>clearTimeout(timer));
-    }
-
-    // ===== Checagem: sou admin? (usa /auth/whoami) =====
-    async function isAdminUser(){
-      try{
-        const t = token();
-        if (!t) return false;
-        const r = await fetch(ABS_API + "/auth/whoami", {
-          method: "GET", mode: "cors",
-          headers: { "Authorization": "Bearer " + t }
-        });
-        if (!r.ok) return false;
-        const j = await r.json().catch(()=> ({}));
-
-        // Fallback por UID (se o backend não retorna admin:true)
-        if (j && j.ok && j.uid === ADMIN_UID) return true;
-
-        if (j && (j.admin === true || j.is_admin === true)) return true;
-        if (j && j.role === "admin") return true;
-        if (j && Array.isArray(j.roles) && j.roles.includes("admin")) return true;
-        if (j && j.claims && (j.claims.admin === true || j.claims.is_admin === true)) return true;
-        return false;
-      }catch{ return false; }
-    }
-
-    // Aplica/força UI de admin vs não-admin
-    async function applyWhoamiAdmin(){
-      const adm = await isAdminUser();
-
-      const adminArea    = document.getElementById('admin-area');
-      const nonAdmin     = document.getElementById('nonAdminBanner');
-      const gerarBtn     = document.getElementById('gerar');
-      const listarBtn    = document.getElementById('listar');
-      const table        = document.getElementById('tbl');
-      const admFlag      = document.getElementById('admFlag');
-      const badge        = document.getElementById('adminBadge');
-      const lastBox      = document.getElementById('last-coupon');
-
-      if (adm) {
-        adminArea.style.display = '';
-        nonAdmin.style.display  = 'none';
-        gerarBtn.disabled = false;
-        listarBtn.disabled = false;
-        table.style.display = ''; // só admins veem a tabela
-        admFlag.textContent = 'admin';
-        badge.style.background = '#10331b';
-
-        // restaura “último cupom” só para admin
-        try {
-          const raw = lsGet('lastCoupon');
-          if (raw) {
-            const obj = JSON.parse(raw);
-            showLastCoupon(obj.code, obj.via);
-          } else {
-            lastBox.style.display = 'none';
+      // Token helpers
+      async function getTokenPreferFresh(){
+        try{
+          if (typeof firebase !== 'undefined' && firebase.auth){
+            const u = firebase.auth().currentUser;
+            if(u) return await u.getIdToken();
           }
-        } catch { lastBox.style.display = 'none'; }
-
-      } else {
-        // Esconde a área restrita por completo para não-admin
-        adminArea.style.display = 'none';
-        nonAdmin.style.display  = '';
-        gerarBtn.disabled = true;
-        listarBtn.disabled = true;
-        table.style.display = 'none';
-        admFlag.textContent = 'não-admin';
-        badge.style.background = '#311b10';
-
-        // limpa qualquer vestígio local de cupom
-        lsDel('lastCoupon');
-        lastBox.style.display = 'none';
-        setOut('');
-
-        // Mostra "Entrar" se não logado; "Trocar conta" se logado
-        try {
-          const u = (typeof firebase !== 'undefined') ? firebase.auth().currentUser : null;
-          const btnIn  = document.getElementById('btnSignIn');
-          const btnSw  = document.getElementById('btnSwitch');
-          if (btnIn && btnSw) {
-            if (!u) {
-              btnIn.style.display = '';
-              btnSw.style.display = 'none';
-            } else {
-              btnIn.style.display = 'none';
-              btnSw.style.display = '';
-            }
-            // Handler: redireciona para o login canônico (sem popup)
-            btnIn.onclick = () => { window.location.href = '/pages/login.html'; };
-            btnSw.onclick = async () => {
-              try {
-                await firebase.auth().signOut();
-                lsDel('idToken');
-                updateAuthUI(null);
-                await applyWhoamiAdmin();
-              } catch(e) {
-                setOut({ erro: 'Falha ao sair', detalhe: String(e.message || e) });
-              }
-            };
-          }
-        } catch {}
+        }catch{}
+        return lsGet('idToken') || '';
       }
-
-      return adm;
-    }
-
-    // ====== GERAR (apenas admin; backend também exige) ======
-    async function gerar(){
-      setOut('Gerando cupom…');
-
-      const canAdmin = await isAdminUser();
-      if (!canAdmin) {
-        setOut({ erro: "Permissão negada", detalhe: "Somente administrador pode gerar cupons." });
-        return;
-      }
-
-      const dias    = Number(document.getElementById('dias').value || 0);
-      const prefixo = (document.getElementById('prefixo').value || '').trim();
-
-      const bodyAdmin = {};
-      if (dias > 0) bodyAdmin.diasValidade = dias;
-      if (prefixo)  bodyAdmin.prefixo = prefixo;
-      bodyAdmin.origem = "admin-cupons";
-
-      const headers = { "Content-Type": "application/json" };
-      const t = token();
-      if (t) headers["Authorization"] = "Bearer " + t;
-
-      async function postJson(url, body){
-        const r = await fetch(url, { method:"POST", mode:"cors", headers, body: JSON.stringify(body) });
-        const ct = r.headers.get("content-type") || "";
-        const data = ct.includes("application/json") ? await r.json() : (await r.text());
-        return { ok: r.ok, status: r.status, statusText: r.statusText, data };
-      }
-
-      try{
-        let resp = await postJson(ABS_API + "/admin/cupons", bodyAdmin);
-
-        // fallback defensivo: /gerar-cupom
-        if ([404,405].includes(resp.status)) {
-          resp = await postJson(ABS_API + "/gerar-cupom", bodyAdmin);
+      async function refreshIdToken(){
+        const btn = document.getElementById('refreshToken');
+        const restore = setBusy(btn, true, 'Atualizando…');
+        try{
+          if (typeof firebase === 'undefined' || !firebase.auth) { setOut('Firebase indisponível. Recarregue (Ctrl+F5).'); updateAuthUI(null); return; }
+          const u = firebase.auth().currentUser;
+          if(!u){ setOut('Sem usuário logado. Faça login.'); updateAuthUI(null); return; }
+          const t = await u.getIdToken(true);
+          if(t){ lsSet('idToken', t); }
+          updateAuthUI(u);
+          setOut('Token atualizado e salvo em localStorage.idToken ✅');
+          await applyWhoamiAdmin(); // reavalia após refresh
+        }catch(err){
+          setOut({ erro:'Falha ao atualizar token', detalhe: err && err.message ? err.message : String(err) });
+        }finally{
+          restore();
         }
-
-        if (!resp.ok) {
-          const resumo = typeof resp.data === 'string' ? resp.data.slice(0,200) : JSON.stringify(resp.data).slice(0,200);
-          throw new Error(`Falha ao criar cupom: ${resp.status} ${resp.statusText} — ${resumo}`);
-        }
-
-        const cup = resp.data || {};
-        const codigo = cup.codigo || cup.code || "(sem código)";
-        saveLastCoupon(codigo, "admin");
-        setOut({ ok:true, via:"admin", cupom: codigo, resposta: cup });
-
-        await listar();
-      } catch(err){
-        setOut({ erro: "Falha ao gerar cupom", detalhe: String(err.message || err) });
-      }
-    }
-
-    // ====== LISTAR (somente admin; usa /__list) ======
-    async function listar(){
-      const canAdmin = await isAdminUser();
-      if (!canAdmin) {
-        setOut({ erro:'Sem permissão', detalhe:'Somente administradores podem listar cupons.' });
-        return;
       }
 
-      setOut('Listando cupons…');
-      const tb = document.querySelector('#tbl tbody');
-      const table = document.getElementById('tbl');
-      tb.innerHTML = '';
-      table.style.display = 'none';
-
-      try{
-        const t = token();
-        const headers = {};
-        if (t) headers["Authorization"] = "Bearer " + t;
-
-        const url  = ABS_API + "/__list?col=cuponsAtivacao&limit=50";
-        const r = await fetch(url, { method:"GET", mode:"cors", headers });
-        const j = await r.json();
-
-        if (!r.ok || !j.ok) throw new Error((j.error||("status "+r.status)));
-
-        const arr = j.items || [];
-        for (const c of arr){
-          const status =
-            (typeof c.usosMax !== "undefined")
-              ? ((c.usos || 0) >= (c.usosMax || 1) ? "usado" : "disponível")
-              : (c.ativo === false ? "inativo" : "ativo");
-
-          const tr = document.createElement('tr');
-          tr.innerHTML = `
-            <td>${c.codigo ?? c.code ?? "-"}</td>
-            <td>${status}</td>
-            <td>${c.createdAt ?? c.criadoEm ?? "-"}</td>
-            <td>${c.expiraEm ?? c.validUntil ?? "-"}</td>`;
-          tb.appendChild(tr);
-        }
-
-        table.style.display = '';
-        setOut({ ok:true, itens: arr.length });
-      }catch(err){
-        setOut({ erro:'Falha ao listar cupons', detalhe: String(err).slice(0,200) });
+      // “Último cupom”
+      function showLastCoupon(code, via){
+        const box = document.getElementById('last-coupon');
+        const elCode = document.getElementById('last-code');
+        const elVia  = document.getElementById('last-via');
+        if (!code) { box.style.display = 'none'; return; }
+        elCode.textContent = code;
+        elVia.textContent  = via || '-';
+        box.style.display  = '';
       }
-    }
-
-    // ---- Diagnóstico (só admin usa na prática) ----
-    async function diagnosticarRotas(){
-      const canAdmin = await isAdminUser();
-      if (!canAdmin) { setOut('Diagnóstico indisponível para não-admin.'); return; }
-
-      try {
-        setOut('Diagnosticando rotas…');
-        const u = firebase.auth().currentUser;
-        if(!u){ setOut('Sem usuário logado. Faça login primeiro.'); return; }
-        const tok = await u.getIdToken(true);
-        const base = ABS_API;
-
-        async function ping(path, method, body){
-          let res;
-          try {
-            const needsJson = (method==="POST" || method==="PUT" || method==="PATCH");
-            res = await fetch(base + path, {
-              method, mode:"cors",
-              headers: { "Authorization":"Bearer "+tok, ...(needsJson?{"Content-Type":"application/json"}:{}) },
-              body: needsJson ? JSON.stringify(body||{origem:"admin-cupons"}) : undefined
-            });
-          } catch(e) {
-            return { path, method, status:'FETCH_ERR', allow:'-', acam:'-', sample:String(e) };
-          }
-          const allow = res.headers.get('allow') || '-';
-          const acam  = res.headers.get('access-control-allow-methods') || '-';
-          const ct = res.headers.get('content-type') || '';
-          let text;
-          try { text = ct.includes('application/json') ? JSON.stringify(await res.json()) : await res.text(); }
-          catch(e) { text = '(sem corpo)'; }
-          return { path, method, status: res.status, allow, acam, sample: (text||'').replace(/\s+/g,' ').slice(0,160) };
-        }
-
-        const rows = [];
-        rows.push(await ping("/admin/cupons", "POST", {diasValidade:3,prefixo:"MEI"}));
-        rows.push(await ping("/gerar-cupom", "POST", {diasValidade:3,prefixo:"MEI"}));
-        rows.push(await ping("/__list?col=cuponsAtivacao&limit=5", "GET"));
-
-        setOut("Resultado da sonda:\n" + rows.map(r => `${r.method} ${r.path} -> ${r.status} | Allow: ${r.allow} | ACAM: ${r.acam} | ${r.sample}…`).join('\n'));
-      } catch (err) {
-        setOut({ erro: 'Falha no diagnóstico', detalhe: err.message });
+      function saveLastCoupon(code, via){
+        try { lsSet('lastCoupon', JSON.stringify({ code, via, at: Date.now() })); } catch {}
+        showLastCoupon(code, via);
       }
-    }
 
-    // Bindings
-    window.addEventListener('DOMContentLoaded', async () => {
-      try {
-        if (typeof firebase !== 'undefined') {
-          firebase.auth().onAuthStateChanged(async u => {
-            updateAuthUI(u || null);
-            await applyWhoamiAdmin();
+      // ===== util: timeout + abort (diagnósticos) =====
+      let currentScan = null; // {controller}
+      function stopScan(reason){
+        try{
+          if (currentScan && currentScan.controller) currentScan.controller.abort();
+          currentScan = null;
+          if (reason) setOut({ info:'Varredura cancelada', motivo: reason });
+        }catch{}
+      }
+      function fetchWithTimeout(url, init, ms, signal){
+        const ctrl = new AbortController();
+        const timer = setTimeout(()=>ctrl.abort(), ms);
+        if (signal) signal.addEventListener('abort', ()=>ctrl.abort(), { once:true });
+        const merged = { ...init, signal: ctrl.signal };
+        return fetch(url, merged).finally(()=>clearTimeout(timer));
+      }
+
+      // ===== Checagem: sou admin? (usa /auth/whoami) =====
+      async function isAdminUser(){
+        try{
+          const t = await getTokenPreferFresh();
+          if (!t) return false;
+          const r = await fetch(ABS_API + "/auth/whoami", {
+            method: "GET", mode: "cors",
+            headers: { "Authorization": "Bearer " + t }
           });
+          if (!r.ok) return false;
+          const j = await r.json().catch(()=> ({}));
+
+          // Fallback por UID (se o backend não retorna admin:true)
+          if (j && j.ok && j.uid === ADMIN_UID) return true;
+
+          if (j && (j.admin === true || j.is_admin === true)) return true;
+          if (j && j.role === "admin") return true;
+          if (j && Array.isArray(j.roles) && j.roles.includes("admin")) return true;
+          if (j && j.claims && (j.claims.admin === true || j.claims.is_admin === true)) return true;
+          return false;
+        }catch{ return false; }
+      }
+
+      // Aplica/força UI de admin vs não-admin
+      async function applyWhoamiAdmin(){
+        const adm = await isAdminUser();
+
+        const adminArea    = document.getElementById('admin-area');
+        const nonAdmin     = document.getElementById('nonAdminBanner');
+        const gerarBtn     = document.getElementById('gerar');
+        const listarBtn    = document.getElementById('listar');
+        const table        = document.getElementById('tbl');
+        const admFlag      = document.getElementById('admFlag');
+        const badge        = document.getElementById('adminBadge');
+        const lastBox      = document.getElementById('last-coupon');
+
+        if (adm) {
+          adminArea.style.display = '';
+          nonAdmin.style.display  = 'none';
+          gerarBtn.disabled = false;
+          listarBtn.disabled = false;
+          table.style.display = ''; // só admins veem a tabela
+          admFlag.textContent = 'admin';
+          badge.style.background = '#10331b';
+
+          // restaura “último cupom” só para admin
+          try {
+            const raw = lsGet('lastCoupon');
+            if (raw) {
+              const obj = JSON.parse(raw);
+              showLastCoupon(obj.code, obj.via);
+            } else {
+              lastBox.style.display = 'none';
+            }
+          } catch { lastBox.style.display = 'none'; }
+
         } else {
+          // Esconde a área restrita por completo para não-admin
+          adminArea.style.display = 'none';
+          nonAdmin.style.display  = '';
+          gerarBtn.disabled = true;
+          listarBtn.disabled = true;
+          table.style.display = 'none';
+          admFlag.textContent = 'não-admin';
+          badge.style.background = '#311b10';
+
+          // limpa qualquer vestígio local de cupom
+          lsDel('lastCoupon');
+          lastBox.style.display = 'none';
+          setOut('');
+
+          // Mostra "Entrar" se não logado; "Trocar conta" se logado
+          try {
+            const u = (typeof firebase !== 'undefined') ? firebase.auth().currentUser : null;
+            const btnIn  = document.getElementById('btnSignIn');
+            const btnSw  = document.getElementById('btnSwitch');
+            if (btnIn && btnSw) {
+              if (!u) {
+                btnIn.style.display = '';
+                btnSw.style.display = 'none';
+              } else {
+                btnIn.style.display = 'none';
+                btnSw.style.display = '';
+              }
+              // Handler: redireciona para o login canônico (sem popup)
+              btnIn.onclick = () => { window.location.href = '/pages/login.html'; };
+              btnSw.onclick = async () => {
+                try {
+                  await firebase.auth().signOut();
+                  lsDel('idToken');
+                  updateAuthUI(null);
+                  await applyWhoamiAdmin();
+                } catch(e) {
+                  setOut({ erro: 'Falha ao sair', detalhe: String(e && e.message || e) });
+                }
+              };
+            }
+          } catch {}
+        }
+
+        return adm;
+      }
+
+      // ====== GERAR (idempotente + retry 401) ======
+      async function gerar(){
+        const btn = document.getElementById('gerar');
+        const restore = setBusy(btn, true, 'Gerando…');
+        try{
+          setOut('Gerando cupom…');
+
+          const canAdmin = await isAdminUser();
+          if (!canAdmin) {
+            setOut({ erro: "Permissão negada", detalhe: "Somente administrador pode gerar cupons." });
+            return;
+          }
+
+          const dias    = Number(document.getElementById('dias').value || 0);
+          const prefixo = (document.getElementById('prefixo').value || '').trim();
+
+          const bodyAdmin = {};
+          if (dias > 0) bodyAdmin.diasValidade = dias;
+          if (prefixo)  bodyAdmin.prefixo = prefixo;
+          bodyAdmin.origem = "admin-cupons";
+
+          async function postJsonWithToken(url, body, tokenValue){
+            const headers = { "Content-Type": "application/json" };
+            if (tokenValue) headers["Authorization"] = "Bearer " + tokenValue;
+            const r = await fetch(url, { method:"POST", mode:"cors", headers, body: JSON.stringify(body) });
+            const ct = r.headers.get("content-type") || "";
+            const data = ct.includes("application/json") ? await r.json() : (await r.text());
+            return { ok: r.ok, status: r.status, statusText: r.statusText, data };
+          }
+
+          let tok = await getTokenPreferFresh();
+          let resp = await postJsonWithToken(ABS_API + "/admin/cupons", bodyAdmin, tok);
+
+          // fallback defensivo: /gerar-cupom
+          if ([404,405].includes(resp.status)) {
+            resp = await postJsonWithToken(ABS_API + "/gerar-cupom", bodyAdmin, tok);
+          }
+
+          // retry 401 uma única vez após refresh
+          if (resp.status === 401) {
+            await refreshIdToken();
+            tok = await getTokenPreferFresh();
+            resp = await postJsonWithToken(ABS_API + "/admin/cupons", bodyAdmin, tok);
+            if ([404,405].includes(resp.status)) {
+              resp = await postJsonWithToken(ABS_API + "/gerar-cupom", bodyAdmin, tok);
+            }
+          }
+
+          if (!resp.ok) {
+            const resumo = typeof resp.data === 'string' ? resp.data.slice(0,200) : JSON.stringify(resp.data).slice(0,200);
+            throw new Error(`Falha ao criar cupom: ${resp.status} ${resp.statusText} — ${resumo}`);
+          }
+
+          const cup = resp.data || {};
+          const codigo = cup.codigo || cup.code || "(sem código)";
+          saveLastCoupon(codigo, "admin");
+          setOut({ ok:true, via:"admin", cupom: codigo, resposta: cup });
+
+          await listar();
+        } catch(err){
+          setOut({ erro: "Falha ao gerar cupom", detalhe: String(err && err.message || err) });
+        } finally{
+          restore();
+        }
+      }
+
+      // ====== LISTAR (idempotente + retry 401) ======
+      async function listar(){
+        const btn = document.getElementById('listar');
+        const restore = setBusy(btn, true, 'Atualizando…');
+
+        const canAdmin = await isAdminUser();
+        if (!canAdmin) {
+          setOut({ erro:'Sem permissão', detalhe:'Somente administradores podem listar cupons.' });
+          restore(); return;
+        }
+
+        setOut('Listando cupons…');
+        const tb = document.querySelector('#tbl tbody');
+        const table = document.getElementById('tbl');
+        tb.innerHTML = '';
+        table.style.display = 'none';
+
+        try{
+          async function doList(tokenValue){
+            const headers = {};
+            if (tokenValue) headers["Authorization"] = "Bearer " + tokenValue;
+            const url  = ABS_API + "/__list?col=cuponsAtivacao&limit=50";
+            const r = await fetch(url, { method:"GET", mode:"cors", headers });
+            const j = await r.json().catch(() => ({}));
+            return { r, j };
+          }
+
+          let tok = await getTokenPreferFresh();
+          let { r, j } = await doList(tok);
+
+          if (r.status === 401) {
+            await refreshIdToken();
+            tok = await getTokenPreferFresh();
+            ({ r, j } = await doList(tok));
+          }
+
+          if (!r.ok || !j || j.ok === false) throw new Error((j && j.error) || ("status "+r.status));
+
+          const arr = j.items || [];
+          for (const c of arr){
+            const status =
+              (typeof c.usosMax !== "undefined")
+                ? ((c.usos || 0) >= (c.usosMax || 1) ? "usado" : "disponível")
+                : (c.ativo === false ? "inativo" : "ativo");
+
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+              <td>${c.codigo ?? c.code ?? "-"}</td>
+              <td>${status}</td>
+              <td>${c.createdAt ?? c.criadoEm ?? "-"}</td>
+              <td>${c.expiraEm ?? c.validUntil ?? "-"}</td>`;
+            tb.appendChild(tr);
+          }
+
+          table.style.display = '';
+          setOut({ ok:true, itens: arr.length });
+        }catch(err){
+          setOut({ erro:'Falha ao listar cupons', detalhe: String(err).slice(0,200) });
+        }finally{
+          restore();
+        }
+      }
+
+      // ---- Diagnóstico com abort/timeout ----
+      async function diagnosticarRotas(){
+        const btn = document.getElementById('diagnosticar');
+        const restore = setBusy(btn, true, 'Diagnosticando…');
+
+        const canAdmin = await isAdminUser();
+        if (!canAdmin) { setOut('Diagnóstico indisponível para não-admin.'); restore(); return; }
+
+        try {
+          setOut('Diagnosticando rotas…');
+          const u = (typeof firebase !== 'undefined' && firebase.auth) ? firebase.auth().currentUser : null;
+          if(!u){ setOut('Sem usuário logado. Faça login primeiro.'); return; }
+          const tok = await u.getIdToken(true);
+          const base = ABS_API;
+
+          const controller = new AbortController();
+          currentScan = { controller };
+
+          async function ping(path, method, body){
+            const needsJson = (method==="POST" || method==="PUT" || method==="PATCH");
+            let res;
+            try {
+              res = await fetchWithTimeout(base + path, {
+                method, mode:"cors",
+                headers: { "Authorization":"Bearer "+tok, ...(needsJson?{"Content-Type":"application/json"}:{}) },
+                body: needsJson ? JSON.stringify(body||{origem:"admin-cupons"}) : undefined
+              }, 10000, controller.signal);
+            } catch(e) {
+              return { path, method, status:'FETCH_ERR', allow:'-', acam:'-', sample:String(e) };
+            }
+            const allow = res.headers.get('allow') || '-';
+            const acam  = res.headers.get('access-control-allow-methods') || '-';
+            const ct = res.headers.get('content-type') || '';
+            let text;
+            try { text = ct.includes('application/json') ? JSON.stringify(await res.json()) : await res.text(); }
+            catch(e) { text = '(sem corpo)'; }
+            return { path, method, status: res.status, allow, acam, sample: (text||'').replace(/\s+/g,' ').slice(0,160) };
+          }
+
+          const rows = [];
+          rows.push(await ping("/admin/cupons", "POST", {diasValidade:3,prefixo:"MEI"}));
+          rows.push(await ping("/gerar-cupom", "POST", {diasValidade:3,prefixo:"MEI"}));
+          rows.push(await ping("/__list?col=cuponsAtivacao&limit=5", "GET"));
+
+          setOut("Resultado da sonda:\n" + rows.map(r => `${r.method} ${r.path} -> ${r.status} | Allow: ${r.allow} | ACAM: ${r.acam} | ${r.sample}…`).join('\n'));
+        } catch (err) {
+          setOut({ erro: 'Falha no diagnóstico', detalhe: err && err.message ? err.message : String(err) });
+        } finally {
+          currentScan = null;
+          restore();
+        }
+      }
+
+      // Bindings
+      window.addEventListener('DOMContentLoaded', async () => {
+        try {
+          if (typeof firebase !== 'undefined' && firebase.auth) {
+            firebase.auth().onAuthStateChanged(async u => {
+              updateAuthUI(u || null);
+              await applyWhoamiAdmin();
+            });
+          } else {
+            updateAuthUI(null);
+            await applyWhoamiAdmin();
+          }
+        } catch(e) {
           updateAuthUI(null);
           await applyWhoamiAdmin();
         }
-      } catch(e) {
-        updateAuthUI(null);
-        await applyWhoamiAdmin();
-      }
 
-      document.getElementById('refreshToken').onclick = refreshIdToken;
-      document.getElementById('gerar').onclick = gerar;
-      document.getElementById('listar').onclick = listar;
-      document.getElementById('diagnosticar').onclick = diagnosticarRotas;
-      document.getElementById('stopScan').onclick = () => stopScan('botão parar');
+        document.getElementById('refreshToken').onclick = refreshIdToken;
+        document.getElementById('gerar').onclick = gerar;
+        document.getElementById('listar').onclick = listar;
+        document.getElementById('diagnosticar').onclick = diagnosticarRotas;
+        document.getElementById('stopScan').onclick = () => stopScan('botão parar');
 
-      const btnCopy = document.getElementById('copyLast');
-      if (btnCopy) btnCopy.onclick = async () => {
-        const code = (document.getElementById('last-code').textContent || '').trim();
-        if (!code) return;
-        try { await navigator.clipboard.writeText(code); setOut('Código copiado ✔'); }
-        catch { setOut('Não foi possível copiar automaticamente.'); }
-      };
+        const btnCopy = document.getElementById('copyLast');
+        if (btnCopy) btnCopy.onclick = async () => {
+          const code = (document.getElementById('last-code').textContent || '').trim();
+          if (!code) return;
+          try { await navigator.clipboard.writeText(code); setOut('Código copiado ✔'); }
+          catch { setOut('Não foi possível copiar automaticamente.'); }
+        };
 
-      // NÃO chamamos listar() automaticamente — somente quando admin clicar.
-    });
+        // NÃO chamamos listar() automaticamente — somente quando admin clicar.
+      });
+    })();
   </script>
 </body>
 </html>

@@ -8,12 +8,12 @@
   <link rel="stylesheet" href="/assets/styles.css" />
   <link rel="icon" href="data:,">
 
-  <!-- Firebase SDK v8 (compat) — ORDEM IMPORTA -->
+  <!-- Firebase SDK v8 — ORDEM IMPORTA -->
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
 
-  <!-- Inicialização real do projeto -->
+  <!-- Inicialização DEFAULT do projeto (sem defer, para estar pronto no load) -->
   <script src="/assets/firebase-init.js"></script>
   <!-- Patch de rotas (geral do app) -->
   <script src="/assets/backend-patch.js" defer></script>
@@ -29,15 +29,15 @@
       <h1 style="color:var(--wa-dark); margin:0 0 6px">Entrar</h1>
 
       <div class="form-grid">
-        <form id="login-form" class="form-card full" action="#" method="POST" novalidate>
+        <form id="login-form" class="form-card full" action="#" method="POST" novalidate autocomplete="on">
           <div class="form-row">
             <label for="email"><strong>E-mail</strong></label>
-            <input id="email" name="email" class="input" type="email" placeholder="voce@email.com" required />
+            <input id="email" name="email" class="input" type="email" placeholder="voce@email.com" required autocomplete="email" />
           </div>
 
           <div class="form-row">
             <label for="senha"><strong>Senha</strong></label>
-            <input id="senha" name="senha" class="input" type="password" placeholder="********" required />
+            <input id="senha" name="senha" class="input" type="password" placeholder="********" required autocomplete="current-password" />
           </div>
 
           <!-- CAPTCHA: widget do Turnstile -->
