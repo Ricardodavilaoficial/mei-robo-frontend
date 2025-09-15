@@ -1,34 +1,62 @@
-// HOTFIX: pular redirect global nesta página (ela própria faz o gate)
-(function () {
-  try {
-    var skipPages = ['/pages/configuracao.html'];
-    if (skipPages.indexOf(location.pathname) !== -1) {
-      window.__SKIP_GLOBAL_AUTH_REDIRECT__ = true;
-    }
-  } catch (e) {}
-})();
-
-/* layout.js - injeta header e footer (UTF-8, ASCII only) */
+/* layout.js - injeta header e footer (robusto a quedas de rede/QUIC) */
 (function(){'use strict';
-  var VERSION = '2025-09-15-06';
-
+  var VERSION = '2025-09-15-07';
 
   function pickHeader(){ return document.getElementById('app-header') || document.querySelector('[data-include="header"]'); }
   function pickFooter(){ return document.getElementById('app-footer') || document.querySelector('[data-include="footer"]'); }
 
-  function fetchWithPath(path){ 
-    return fetch(path + (path.indexOf('?') === -1 ? '?v=' + VERSION : '&v=' + VERSION), { cache: 'no-store' })
-      .then(function(r){ if (!r.ok) throw new Error('HTTP ' + r.status); return r.text(); });
+  function withVersion(url){
+    return url + (url.indexOf('?') === -1 ? '?v=' + VERSION : '&v=' + VERSION);
+  }
+
+  function sleep(ms){ return new Promise(function(r){ setTimeout(r, ms); }); }
+
+  // fetch de texto com timeout + cache reload (quando solicitado)
+  function fetchText(url, opts){
+    opts = opts || {};
+    var ctrl = new AbortController();
+    var t = setTimeout(function(){ try{ ctrl.abort(); }catch(_){ } }, opts.timeout || 9000);
+    var init = {
+      cache: opts.reload ? 'reload' : 'no-store',
+      credentials: 'same-origin',
+      signal: ctrl.signal
+    };
+    return fetch(url, init).then(function(r){
+      clearTimeout(t);
+      if(!r.ok) throw new Error('HTTP ' + r.status);
+      return r.text();
+    }).catch(function(e){
+      clearTimeout(t);
+      throw e;
+    });
+  }
+
+  // Tenta buscar com 1ª tentativa normal + retries com bust de conexão
+  function fetchWithRetry(url, tries){
+    tries = Math.max(1, tries || 2);
+    var attempt = 0;
+
+    function next(){
+      attempt++;
+      var bustUrl = attempt === 1 ? withVersion(url)
+        : withVersion(url + (url.indexOf('?') === -1 ? '?r=' : '&r=') + Math.floor(Math.random()*1e9));
+      var useReload = attempt > 1; // no 2º round em diante, força nova conexão
+      return fetchText(bustUrl, { timeout: 9000, reload: useReload }).catch(function(err){
+        if (attempt < tries){
+          return sleep(400 + attempt*250).then(next);
+        }
+        throw err;
+      });
+    }
+    return next().then(function(text){ return { html: text, src: url }; });
   }
 
   // Tenta 1) /assets/partials/{name}.html  2) /partials/{name}.html
   function fetchPartDual(name){
     var primary = '/assets/partials/' + name + '.html';
     var secondary = '/partials/' + name + '.html';
-    return fetchWithPath(primary).then(function(t){ return { html: t, src: primary }; })
-      .catch(function(){ 
-        return fetchWithPath(secondary).then(function(t){ return { html: t, src: secondary }; }); 
-      });
+    return fetchWithRetry(primary, 3)
+      .catch(function(){ return fetchWithRetry(secondary, 3); });
   }
 
   function runInlineScripts(container){
@@ -37,8 +65,8 @@
       scripts.forEach(function(old){
         var s = document.createElement('script');
         if (old.src) {
-          s.src = old.src + (old.src.indexOf('?') === -1 ? '?v=' + VERSION : '&v=' + VERSION);
-          s.async = false; s.defer = !!old.defer;
+          var src = old.src + (old.src.indexOf('?') === -1 ? '?v=' + VERSION : '&v=' + VERSION);
+          s.src = src; s.async = false; s.defer = !!old.defer;
         } else {
           s.text = old.textContent || '';
         }
@@ -53,9 +81,7 @@
       var container = document.querySelector(kind === 'header' ? '#app-header' : '#app-footer');
       if (!container) return;
 
-      // Encontra o elemento injetado (normalmente <header class="site-header"> ou <footer class="site-footer">)
       var injected = container.querySelector(kind);
-      // Hide extra same-tag elements outside container
       var nodes = document.querySelectorAll(kind);
       for (var i=0;i<nodes.length;i++) {
         var n = nodes[i];
@@ -65,7 +91,6 @@
         }
       }
 
-      // Seletores comuns de fallback
       var sel = [
         kind + '._fallback',
         kind + '[data-fallback]',
@@ -84,7 +109,6 @@
     } catch(e){ /* silencioso */ }
   }
 
-  // Observa DOM para esconder fallbacks que forem injetados depois (ex.: fallback tardio do index)
   function observeLateFallbacks(kind){
     try {
       var container = document.querySelector(kind === 'header' ? '#app-header' : '#app-footer');
@@ -95,13 +119,13 @@
           for (var j=0;j<nodes.length;j++) {
             var n = nodes[j];
             if (!n || n.nodeType !== 1) continue;
-            // Se o próprio node é header/footer e está fora do container, esconde
             var tag = (n.tagName||'').toLowerCase();
             if (tag === kind && !container.contains(n)) {
               n.style.display='none'; n.setAttribute('data-legacy-hidden','1');
             }
-            // Procura descendentes suspeitos
-            var q = n.querySelectorAll ? n.querySelectorAll(kind + ', ' + kind + '._fallback, ' + kind + '[data-fallback], .index-fallback ' + kind + ', #header-fallback, #footer-fallback') : [];
+            var q = n.querySelectorAll ? n.querySelectorAll(
+              kind + ', ' + kind + '._fallback, ' + kind + '[data-fallback], .index-fallback ' + kind + ', #header-fallback, #footer-fallback'
+            ) : [];
             for (var k=0;k<q.length;k++) {
               var el = q[k];
               if (!container.contains(el)) { el.style.display='none'; el.setAttribute('data-legacy-hidden','1'); }
@@ -123,12 +147,8 @@
     observeLateFallbacks(kind);
   }
 
-  function logOk(name, via){
-    try { console.log('[layout] OK:', name, 'via', via); } catch(e){}
-  }
-  function logFail(name, err){
-    try { console.warn('[layout] FAIL:', name, '-', (err && err.message) || err); } catch(e){}
-  }
+  function logOk(name, via){ try { console.log('[layout] OK:', name, 'via', via); } catch(e){} }
+  function logFail(name, err){ try { console.warn('[layout] FAIL:', name, '-', (err && err.message) || err); } catch(e){} }
 
   function boot(){
     var h = pickHeader();
@@ -136,22 +156,22 @@
     var jobs = [];
     if (h) {
       jobs.push(
-        fetchPartDual('header').then(function(res){ inject(h, res.html, 'header'); logOk('header', res.src); })
-                               .catch(function(e){ logFail('header', e); })
+        fetchPartDual('header')
+          .then(function(res){ inject(h, res.html, 'header'); logOk('header', res.src); })
+          .catch(function(e){ logFail('header', e); })
       );
     }
     if (f) {
       jobs.push(
-        fetchPartDual('footer').then(function(res){ inject(f, res.html, 'footer'); logOk('footer', res.src); })
-                               .catch(function(e){ logFail('footer', e); })
+        fetchPartDual('footer')
+          .then(function(res){ inject(f, res.html, 'footer'); logOk('footer', res.src); })
+          .catch(function(e){ logFail('footer', e); })
       );
     }
     return Promise.all(jobs);
   }
 
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', boot);
-  } else {
-    boot();
-  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);
+  else boot();
 })();
+
