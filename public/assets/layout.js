@@ -10,7 +10,8 @@
 
 /* layout.js - injeta header e footer (UTF-8, ASCII only) */
 (function(){'use strict';
-  var VERSION = '2025-09-15-01';
+  var VERSION = '2025-09-15-05';
+
 
   function pickHeader(){ return document.getElementById('app-header') || document.querySelector('[data-include="header"]'); }
   function pickFooter(){ return document.getElementById('app-footer') || document.querySelector('[data-include="footer"]'); }
