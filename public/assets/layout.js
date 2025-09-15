@@ -9,53 +9,83 @@
 })();
 
 /* layout.js - injeta header e footer (UTF-8, ASCII only) */
-(function(){
-  'use strict';
+(function(){'use strict';
+  var VERSION = '2025-09-15-01';
 
-  function pickHeader(){
-    return document.getElementById('app-header') || document.querySelector('[data-include="header"]');
-  }
-  function pickFooter(){
-    return document.getElementById('app-footer') || document.querySelector('[data-include="footer"]');
-  }
-  function fetchPart(name){
-    return fetch('/partials/' + name + '.html?v=2025-09-06-03', { cache: 'no-store' }).then(function(r){
-      if (!r.ok) throw new Error('HTTP ' + r.status);
-      return r.text();
-    });
-  }
-  function inject(el, html){
-    if (!el) return;
-    el.innerHTML = html;
+  function pickHeader(){ return document.getElementById('app-header') || document.querySelector('[data-include="header"]'); }
+  function pickFooter(){ return document.getElementById('app-footer') || document.querySelector('[data-include="footer"]'); }
 
-    // Executa <script> embutidos no parcial (header/footer)
+  function fetchWithPath(path){ 
+    return fetch(path + (path.indexOf('?') === -1 ? '?v=' + VERSION : '&v=' + VERSION), { cache: 'no-store' })
+      .then(function(r){ if (!r.ok) throw new Error('HTTP ' + r.status); return r.text(); });
+  }
+
+  // Tenta 1) /assets/partials/{name}.html  2) /partials/{name}.html
+  function fetchPartDual(name){
+    var primary = '/assets/partials/' + name + '.html';
+    var secondary = '/partials/' + name + '.html';
+    return fetchWithPath(primary).then(function(t){ return { html: t, src: primary }; })
+      .catch(function(){ 
+        return fetchWithPath(secondary).then(function(t){ return { html: t, src: secondary }; }); 
+      });
+  }
+
+  function runInlineScripts(container){
     try {
-      var scripts = Array.prototype.slice.call(el.querySelectorAll('script'));
+      var scripts = Array.prototype.slice.call(container.querySelectorAll('script'));
       scripts.forEach(function(old){
         var s = document.createElement('script');
         if (old.src) {
-          s.src = old.src + (old.src.indexOf('?') === -1 ? '?v=2025-09-06-03' : '');
-          s.async = false; s.defer = old.defer || false;
+          s.src = old.src + (old.src.indexOf('?') === -1 ? '?v=' + VERSION : '&v=' + VERSION);
+          s.async = false; s.defer = !!old.defer;
         } else {
           s.text = old.textContent || '';
         }
         document.head.appendChild(s);
-        old.parentNode && old.parentNode.removeChild(old);
+        if (old.parentNode) old.parentNode.removeChild(old);
       });
-    } catch(e) {
-      try { console.warn('[layout] script exec skip:', e.message || e); } catch(_){}
-    }
+    } catch(e) { try { console.warn('[layout] script exec skip:', e.message || e); } catch(_ ){} }
   }
-  function logOk(name){ try { console.log('[layout] OK:', name); } catch(e){} }
-  function logFail(name, err){ try { console.warn('[layout] FAIL:', name, '-', (err && err.message) || err); } catch(e){} }
+
+  function hideFallback(kind){
+    try {
+      var sel = kind === 'header' ? 'header._fallback' : 'footer._fallback';
+      var nodes = document.querySelectorAll(sel);
+      nodes.forEach(function(n){ n.style.display = 'none'; });
+    } catch(e){}
+  }
+
+  function inject(el, html, kind){
+    if (!el) return;
+    el.innerHTML = html;
+    runInlineScripts(el);
+    hideFallback(kind);
+  }
+
+  function logOk(name, via){
+    try { console.log('[layout] OK:', name, 'via', via); } catch(e){}
+  }
+  function logFail(name, err){
+    try { console.warn('[layout] FAIL:', name, '-', (err && err.message) || err); } catch(e){}
+  }
 
   function boot(){
     var h = pickHeader();
     var f = pickFooter();
-    Promise.all([
-      fetchPart('header').then(function(t){ inject(h, t); logOk('header'); }).catch(function(e){ logFail('header', e); }),
-      fetchPart('footer').then(function(t){ inject(f, t); logOk('footer'); }).catch(function(e){ logFail('footer', e); })
-    ]);
+    var jobs = [];
+    if (h) {
+      jobs.push(
+        fetchPartDual('header').then(function(res){ inject(h, res.html, 'header'); logOk('header', res.src); })
+                               .catch(function(e){ logFail('header', e); })
+      );
+    }
+    if (f) {
+      jobs.push(
+        fetchPartDual('footer').then(function(res){ inject(f, res.html, 'footer'); logOk('footer', res.src); })
+                               .catch(function(e){ logFail('footer', e); })
+      );
+    }
+    return Promise.all(jobs);
   }
 
   if (document.readyState === 'loading') {
