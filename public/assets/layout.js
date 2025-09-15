@@ -10,7 +10,7 @@
 
 /* layout.js - injeta header e footer (UTF-8, ASCII only) */
 (function(){'use strict';
-  var VERSION = '2025-09-15-05';
+  var VERSION = '2025-09-15-06';
 
 
   function pickHeader(){ return document.getElementById('app-header') || document.querySelector('[data-include="header"]'); }
@@ -48,19 +48,79 @@
     } catch(e) { try { console.warn('[layout] script exec skip:', e.message || e); } catch(_ ){} }
   }
 
-  function hideFallback(kind){
+  function hideFallbackStrict(kind){
     try {
-      var sel = kind === 'header' ? 'header._fallback' : 'footer._fallback';
-      var nodes = document.querySelectorAll(sel);
-      nodes.forEach(function(n){ n.style.display = 'none'; });
-    } catch(e){}
+      var container = document.querySelector(kind === 'header' ? '#app-header' : '#app-footer');
+      if (!container) return;
+
+      // Encontra o elemento injetado (normalmente <header class="site-header"> ou <footer class="site-footer">)
+      var injected = container.querySelector(kind);
+      // Hide extra same-tag elements outside container
+      var nodes = document.querySelectorAll(kind);
+      for (var i=0;i<nodes.length;i++) {
+        var n = nodes[i];
+        if ((!injected || n !== injected) && !container.contains(n)) {
+          n.style.display = 'none';
+          n.setAttribute('data-legacy-hidden','1');
+        }
+      }
+
+      // Seletores comuns de fallback
+      var sel = [
+        kind + '._fallback',
+        kind + '[data-fallback]',
+        '.index-fallback ' + kind,
+        '#header-fallback',
+        '#footer-fallback'
+      ].join(',');
+      var extras = document.querySelectorAll(sel);
+      for (var j=0;j<extras.length;j++) {
+        var e = extras[j];
+        if (!container.contains(e)) {
+          e.style.display = 'none';
+          e.setAttribute('data-legacy-hidden','1');
+        }
+      }
+    } catch(e){ /* silencioso */ }
+  }
+
+  // Observa DOM para esconder fallbacks que forem injetados depois (ex.: fallback tardio do index)
+  function observeLateFallbacks(kind){
+    try {
+      var container = document.querySelector(kind === 'header' ? '#app-header' : '#app-footer');
+      if (!container || !window.MutationObserver) return;
+      var mo = new MutationObserver(function(muts){
+        for (var i=0;i<muts.length;i++) {
+          var nodes = muts[i].addedNodes || [];
+          for (var j=0;j<nodes.length;j++) {
+            var n = nodes[j];
+            if (!n || n.nodeType !== 1) continue;
+            // Se o próprio node é header/footer e está fora do container, esconde
+            var tag = (n.tagName||'').toLowerCase();
+            if (tag === kind && !container.contains(n)) {
+              n.style.display='none'; n.setAttribute('data-legacy-hidden','1');
+            }
+            // Procura descendentes suspeitos
+            var q = n.querySelectorAll ? n.querySelectorAll(kind + ', ' + kind + '._fallback, ' + kind + '[data-fallback], .index-fallback ' + kind + ', #header-fallback, #footer-fallback') : [];
+            for (var k=0;k<q.length;k++) {
+              var el = q[k];
+              if (!container.contains(el)) { el.style.display='none'; el.setAttribute('data-legacy-hidden','1'); }
+            }
+          }
+        }
+      });
+      mo.observe(document.documentElement || document.body, { childList: true, subtree: true });
+      if (kind === 'header') window.__HIDE_FALLBACK_MO_HEADER__ = mo;
+      else window.__HIDE_FALLBACK_MO_FOOTER__ = mo;
+    } catch(e){ /* silencioso */ }
   }
 
   function inject(el, html, kind){
     if (!el) return;
     el.innerHTML = html;
     runInlineScripts(el);
-    hideFallback(kind);
+    hideFallbackStrict(kind);
+    observeLateFallbacks(kind);
   }
 
   function logOk(name, via){
