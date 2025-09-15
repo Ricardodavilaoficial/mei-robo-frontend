@@ -1,4 +1,4 @@
-<!-- public/partials/header.html (updated) -->
+<!-- public/partials/header.html (updated: hide legacy fallbacks safely) -->
 <header class="site-header" style="position:sticky;top:0;z-index:1000;background:#0b1f17;color:#fff;border-bottom:1px solid rgba(255,255,255,.08);">
   <div class="container" style="max-width:1100px;margin:0 auto;padding:10px 16px;display:flex;align-items:center;gap:16px;min-height:58px;">
     <!-- Marca -->
@@ -27,90 +27,64 @@
     </div>
   </div>
 
-  <!-- Acessibilidade: foco visível -->
+  <!-- Acessibilidade + Blindagem de fallback -->
   <style>
-    .site-header a:focus-visible, .site-header button:focus-visible {
-      outline: 2px solid #22c55e; outline-offset: 2px;
-    }
-    .site-header a[aria-current="page"] {
-      background: rgba(255,255,255,.09);
-    }
+    .site-header a:focus-visible, .site-header button:focus-visible { outline: 2px solid #22c55e; outline-offset: 2px; }
+    .site-header a[aria-current="page"] { background: rgba(255,255,255,.09); }
+    /* Blindagem: se existir um header de fallback com estas classes/atributos em qualquer página,
+       ele é ocultado quando este parcial está presente. */
+    header._fallback, header.header-fallback, header[data-fallback], #header-fallback {{ display: none !important; }}
   </style>
 
-  <!-- Script defensivo: autenticação e aria-current -->
+  <!-- Script defensivo: autenticação e aria-current (opcional) -->
   <script>
-    (function() {
-      try {
-        // Aplica aria-current baseado na URL atual (leve e não-intrusivo)
-        var href = (location.pathname || "") + (location.hash || "");
+    (function() {{
+      try {{
+        // Marcação da aba atual
         var navHome = document.querySelector('a[data-nav="home"]');
         var navComo = document.querySelector('a[data-nav="como"]');
         var navPrecos = document.querySelector('a[data-nav="precos"]');
-        if (navHome && (/\/index\.html$/.test(location.pathname) || location.pathname === "/")) {
-          navHome.setAttribute("aria-current", "page");
-        }
-        if (navComo && /#como-funciona$/.test(location.hash)) {
-          navComo.setAttribute("aria-current", "page");
-        }
-        if (navPrecos && /#precos$/.test(location.hash)) {
-          navPrecos.setAttribute("aria-current", "page");
-        }
+        if (navHome && (/\/index\.html$/.test(location.pathname) || location.pathname === "/")) navHome.setAttribute("aria-current", "page");
+        if (navComo && /#como-funciona$/.test(location.hash)) navComo.setAttribute("aria-current", "page");
+        if (navPrecos && /#precos$/.test(location.hash)) navPrecos.setAttribute("aria-current", "page");
 
-        // Toggle Entrar/Sair/saudação conforme autenticação (se Firebase existir)
+        // Toggle Entrar/Sair/saudação (se Firebase Auth existir). Sem login, nada muda.
         var hasFirebase = !!(window.firebase && window.firebase.auth);
         var linkEntrar = document.getElementById("link-entrar");
         var btnSair = document.getElementById("btn-sair");
         var saud = document.getElementById("saudacao");
 
-        function firstNameFromEmail(email) {
-          try {
-            if (!email) return "";
-            var name = email.split("@")[0] || "";
-            // Capitaliza o primeiro bloco
-            return name.charAt(0).toUpperCase() + name.slice(1);
-          } catch (e) { return ""; }
-        }
+        function firstNameFromEmail(email) {{
+          if (!email) return "";
+          var name = (email.split("@")[0] || "");
+          return name.charAt(0).toUpperCase() + name.slice(1);
+        }}
 
-        function applyUserUI(user) {
+        function applyUserUI(user) {{
           if (!linkEntrar || !btnSair || !saud) return;
-          if (user) {
-            // Saudações: displayName > parte do e-mail
+          if (user) {{
             var nome = (user.displayName && user.displayName.trim()) || firstNameFromEmail(user.email) || "você";
             saud.textContent = "Olá, " + nome;
             saud.style.display = "inline";
             btnSair.style.display = "inline-block";
             linkEntrar.style.display = "none";
-          } else {
+          }} else {{
             saud.style.display = "none";
             btnSair.style.display = "none";
             linkEntrar.style.display = "inline-block";
-          }
-        }
+          }}
+        }}
 
-        if (hasFirebase) {
-          window.firebase.auth().onAuthStateChanged(function(user) {
-            applyUserUI(user);
-          });
-          // Sair
-          btnSair && btnSair.addEventListener("click", function() {
-            try {
-              btnSair.disabled = true;
-              var maybePromise = window.firebase.auth().signOut();
-              if (maybePromise && typeof maybePromise.then === "function") {
-                maybePromise.finally(function(){ btnSair.disabled = false; });
-              } else {
-                btnSair.disabled = false;
-              }
-            } catch (e) { btnSair.disabled = false; }
-          });
-        } else {
-          // Sem Firebase: mantém estado padrão (Entrar visível)
+        if (hasFirebase) {{
+          window.firebase.auth().onAuthStateChanged(function(user) {{ applyUserUI(user); }});
+          btnSair && btnSair.addEventListener("click", function() {{
+            try {{ btnSair.disabled = true; window.firebase.auth().signOut().finally(function(){{ btnSair.disabled = false; }}); }}
+            catch (e) {{ btnSair.disabled = false; }}
+          }});
+        }} else {{
           applyUserUI(null);
-        }
-      } catch (err) {
-        // Failsafe completo: não quebra o header
-        console && console.warn && console.warn("[header] Non-fatal error:", err);
-      }
-    })();
+        }}
+      }} catch (err) {{ try {{ console.warn("[header] Non-fatal:", err.message || err); }} catch(_ ){{}} }}
+    }})();
   </script>
 </header>
