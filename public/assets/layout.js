@@ -1,6 +1,6 @@
-/* layout.js - injeta header e footer (robusto a quedas de rede/QUIC) */
+/* layout.js - injeta header e footer (robusto a quedas de rede/QUIC) :: v11 */
 (function(){'use strict';
-  var VERSION = '2025-09-15-07';
+  var VERSION = 'v11-2025-09-16-08';
 
   function pickHeader(){ return document.getElementById('app-header') || document.querySelector('[data-include="header"]'); }
   function pickFooter(){ return document.getElementById('app-footer') || document.querySelector('[data-include="footer"]'); }
@@ -174,4 +174,3 @@
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);
   else boot();
 })();
-
