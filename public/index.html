@@ -114,7 +114,7 @@
   </style>
 </head>
 <body>
-  <div id="site-header"></div> <!-- cabeçalho injetado pelo layout.js -->
+  <div id="site-header"></div>
 
   <main>
     <!-- HERO -->
@@ -145,17 +145,15 @@
             <a href="/pages/cadastro.html" class="btn btn-primary">Criar minha conta</a>
             <a href="#como-funciona" class="btn btn-ghost">Como funciona</a>
           </div>
-          <!-- Texto comercial para ocupar espaço e reforçar valor -->
           <p class="hero-note"><b>Por apenas R$ 89,00*</b> por mês, você tem um assistente 24 horas no WhatsApp: controla sua agenda de serviços, tira dúvidas, envia fotos e catálogos, dá preços, faz orçamentos e responde por texto ou áudio com a sua voz. <span class="fine">*Promoção válida por 12 meses.</span></p>
 
           <div class="trust">Seguro • Feito para WhatsApp • Comece quando quiser</div>
 
-          <!-- Frase extra com divisor para “arejar” -->
           <div class="divider"></div>
           <p><strong>Com o MEI Robô, você ganha tempo para o que importa.</strong> Ele prepara suas vendas de forma organizada — como se fosse você mesmo falando.</p>
         </div>
 
-        <!-- Mockup do celular atualizado -->
+        <!-- Mockup do celular -->
         <div aria-hidden="true">
           <div class="phone">
             <div class="phone-top">Cliente • WhatsApp</div>
@@ -245,7 +243,6 @@
         <h2 class="section-title">Preços</h2>
 
         <div class="pricing-grid">
-          <!-- Esquerda: Card principal de preço -->
           <div class="card price-card">
             <div class="price-highlight">
               <span class="price-badge">Promo</span>
@@ -268,7 +265,6 @@
             </div>
           </div>
 
-          <!-- Direita: Lista de inclusões para ocupar o espaço e dar concretude -->
           <div class="included">
             <h3>Incluso no plano</h3>
             <ul>
@@ -328,15 +324,14 @@
           <details><summary>Posso mudar meus preços?</summary><p class="muted">Sim, é simples e rápido.</p></details>
         </div>
 
-        <!-- Frase final fortalecida -->
         <div class="footer-hero">Feito sob medida para quem atende clientes todos os dias pelo WhatsApp.</div>
       </div>
     </section>
   </main>
 
-  <div id="site-footer"></div> <!-- rodapé injetado pelo layout.js -->
+  <div id="site-footer"></div>
 
-  <!-- Smooth scroll para âncoras internas -->
+  <!-- Smooth scroll (fechado corretamente) -->
   <script>
     (function(){
       const links = document.querySelectorAll('a[href^="#"]');
@@ -352,7 +347,7 @@
   </script>
 
   <!-- Loader principal dos parciais -->
-  <script src="/assets/layout.js?v=5" defer></script>
+  <script defer src="/assets/layout.js?v=5"></script>
 
   <!-- Fallback leve (1s): injeta header/footer manualmente se o loader falhar -->
   <script>
@@ -363,7 +358,7 @@
         fetch(url, {cache: "no-store"})
           .then(r => r.ok ? r.text() : Promise.reject())
           .then(html => { host.innerHTML = html; })
-          .catch(() => {/* silencioso */});
+          .catch(() => {});
       }
       window.addEventListener('load', function(){
         setTimeout(function(){
