@@ -115,6 +115,7 @@
 </head>
 <body>
   <div id="site-header"></div> <!-- cabeçalho injetado pelo layout.js -->
+
   <main>
     <!-- HERO -->
     <section class="hero">
@@ -333,6 +334,8 @@
     </section>
   </main>
 
+  <div id="site-footer"></div> <!-- rodapé injetado pelo layout.js -->
+
   <!-- Smooth scroll para âncoras internas -->
   <script>
     (function(){
@@ -346,6 +349,31 @@
         });
       }
     })();
+  </script>
+
+  <!-- Loader principal dos parciais -->
   <script src="/assets/layout.js?v=5" defer></script>
+
+  <!-- Fallback leve (1s): injeta header/footer manualmente se o loader falhar -->
+  <script>
+    (function(){
+      function inject(elId, url){
+        const host = document.getElementById(elId);
+        if(!host) return;
+        fetch(url, {cache: "no-store"})
+          .then(r => r.ok ? r.text() : Promise.reject())
+          .then(html => { host.innerHTML = html; })
+          .catch(() => {/* silencioso */});
+      }
+      window.addEventListener('load', function(){
+        setTimeout(function(){
+          const headerOK = document.getElementById('site-header')?.children?.length > 0;
+          const footerOK = document.getElementById('site-footer')?.children?.length > 0;
+          if(!headerOK) inject('site-header','/assets/partials/header.html');
+          if(!footerOK) inject('site-footer','/assets/partials/footer.html');
+        }, 1000);
+      });
+    })();
+  </script>
 </body>
 </html>
