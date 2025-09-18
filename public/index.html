@@ -139,7 +139,7 @@
 
           <div class="cta-row">
             <a href="/cadastro.html" class="btn btn-primary">Criar minha conta</a>
-            <a href="#como-funciona" class="btn btn-ghost">Como funciona</a>
+            <a href="#precos" class="btn btn-ghost">Plano Starter</a>
           </div>
           <p class="hero-note"><b>Por apenas R$ 89,00*</b> por mês, você tem um assistente 24 horas no WhatsApp: controla sua agenda de serviços, tira dúvidas, envia fotos e catálogos, dá preços, faz orçamentos e responde por texto ou áudio com a sua voz. <span class="fine">*Promoção válida por 12 meses.</span></p>
 
@@ -215,6 +215,11 @@
             <p class="muted">O MEI Robô responde por você com textos e áudios no seu tom, tirando dúvidas, enviando preços, <strong>marcando compromissos e organizando sua agenda</strong>.</p>
           </div>
         </div>
+
+        <!-- CTA adicional após "Como funciona" -->
+        <div class="center" style="margin-top:18px">
+          <a href="#precos" class="btn btn-primary">Ver detalhes do Plano Starter</a>
+        </div>
       </div>
     </section>
 
@@ -233,10 +238,10 @@
       </div>
     </section>
 
-    <!-- PREÇOS -->
+    <!-- PLANO STARTER -->
     <section id="precos">
       <div class="container">
-        <h2 class="section-title">Preços</h2>
+        <h2 class="section-title">Plano Starter</h2>
 
         <div class="pricing-grid">
           <div class="card price-card">
@@ -244,7 +249,7 @@
               <span class="price-badge">Promo</span>
               <span class="price-main">Por apenas <strong>R$ 89/mês</strong></span>
             </div>
-            <div class="price-note">Preço promocional válido por 12 meses. Mensalidade sem promoção: R$ 109/mês.</div>
+            <div class="price-note">Sem fidelidade: você pode cancelar quando quiser.</div>
             <div class="price-note">Configuração promocional: de <s>R$ 399</s> por <strong>R$ 250</strong> (pagamento único).</div>
 
             <ul class="muted" style="margin:6px 0 6px 18px">
@@ -252,12 +257,11 @@
               <li>Tabela de preços básica</li>
               <li>Propostas de horário (agenda simples)</li>
               <li>Memória rápida para histórico</li>
-              <li style="list-style:none; margin-top:6px; font-size:12px; color:#a5adb4;">Suporte humano após a ativação</li>
             </ul>
 
             <div class="cta-row">
               <a href="/cadastro.html" class="btn btn-primary">Criar minha conta</a>
-              <a href="#precos" class="btn btn-ghost">Plano Starter</a>
+              <a href="#topo" class="btn btn-ghost">Voltar ao topo</a>
             </div>
           </div>
 
@@ -270,6 +274,7 @@
               <li>Histórico de clientes sempre acessível</li>
               <li>Respostas em texto e áudio com a sua voz</li>
               <li>Agenda inteligente com lembretes</li>
+              <li>Suporte por e-mail</li>
             </ul>
           </div>
         </div>
@@ -356,3 +361,8 @@
   </script>
 </body>
 </html>
+"""
+path = "/mnt/data/index-atualizado.html"
+with open(path, "w", encoding="utf-8") as f:
+    f.write(index_html)
+path
