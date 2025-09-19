@@ -120,6 +120,23 @@
     .price-main{font-size: clamp(26px,3.2vw,34px); font-weight:800; color:var(--text)}
     .price-badge{font-size:12px; background:#113c2e; color:#a8f3cf; padding:6px 8px; border-radius:999px; border:1px solid #1e5b46}
     .price-note{font-size:12px; color:var(--muted)}
+    
+    /* Cookie banner (discreto, rodapé, não bloqueante) */
+    #cookie-banner{
+      position:fixed;
+      inset:auto 12px 12px 12px;
+      z-index:9999;
+      display:none;
+      background:var(--card);
+      color:var(--text);
+      border:1px solid var(--border);
+      border-radius:12px;
+      box-shadow: var(--shadow);
+      padding:12px 14px;
+    }
+    #cookie-banner .row{display:flex; gap:10px; align-items:center; justify-content:space-between; flex-wrap:wrap}
+    #cookie-banner p{margin:0; font-size:14px; color:var(--muted)}
+    #cookie-banner a{text-decoration:underline}
   </style>
 </head>
 <body>
@@ -163,7 +180,7 @@
               <div class="bubble m">
                 <div class="audio">
                   <div class="dot"></div>
-                  <div class="bar"></div>
+                  <div className="bar"></div>
                   <div class="time">0:12</div>
                 </div>
               </div>
@@ -261,7 +278,8 @@
 
             <div class="cta-row">
               <a href="/cadastro.html" class="btn btn-primary">Criar minha conta</a>
-              <a href="#topo" class="btn btn-ghost">Voltar ao topo</a>
+              <!-- Troca solicitada: "Voltar ao topo" -> "Perguntas Frequentes" -->
+              <a href="#faq" class="btn btn-ghost">Perguntas Frequentes</a>
             </div>
           </div>
 
@@ -274,7 +292,8 @@
               <li>Histórico de clientes sempre acessível</li>
               <li>Respostas em texto e áudio com a sua voz</li>
               <li>Agenda inteligente com lembretes</li>
-              <li>Suporte por e-mail</li>
+              <!-- Ajuste solicitado: remover "por e-mail" -->
+              <li>Suporte</li>
             </ul>
           </div>
         </div>
@@ -359,10 +378,34 @@
       });
     })();
   </script>
+
+  <!-- Banner de Cookies (discreto, rodapé) -->
+  <div id="cookie-banner" role="region" aria-label="Aviso de cookies">
+    <div class="row">
+      <p>Usamos cookies técnicos essenciais para o site funcionar. Veja a <a href="#site-footer">Política de Privacidade</a>.</p>
+      <button id="cookie-accept" class="btn btn-primary" type="button" aria-label="Entendi e aceitar cookies">Entendi</button>
+    </div>
+  </div>
+
+  <script>
+    (function(){
+      try {
+        var KEY = 'cookie_consent_v1';
+        var accepted = localStorage.getItem(KEY) === 'true';
+        var banner = document.getElementById('cookie-banner');
+        var btn = document.getElementById('cookie-accept');
+        if (!accepted && banner && btn){
+          banner.style.display = 'block';
+          btn.addEventListener('click', function(){
+            try { localStorage.setItem(KEY, 'true'); } catch(e){}
+            banner.remove();
+          });
+        }
+      } catch(e){
+        // Em caso de bloqueio a localStorage, mantemos o banner visível sem quebrar a navegação.
+      }
+    })();
+  </script>
 </body>
 </html>
-"""
-path = "/mnt/data/index-atualizado.html"
-with open(path, "w", encoding="utf-8") as f:
-    f.write(index_html)
-path
+
