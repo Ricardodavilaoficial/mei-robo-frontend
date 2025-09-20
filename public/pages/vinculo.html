@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="pt-br">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Confirme seu vínculo — MEI Robô</title>
+  <style>
+    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; margin: 24px; }
+    .grid { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); }
+    .card { border: 1px solid #ddd; border-radius: 10px; padding: 16px; }
+    .muted { color: #666; }
+    .btn { display:inline-block; padding: 10px 12px; border-radius: 10px; border: 1px solid #ccc; text-decoration: none; }
+    .pill { display:inline-block; padding:2px 8px; border-radius:999px; background:#f0f0f0; font-size:.8rem; }
+  </style>
+</head>
+<body>
+  <h1>Confirme seu vínculo com a empresa</h1>
+  <p class="muted">Para continuar, precisamos confirmar que você responde por este CNPJ.</p>
+  <p class="muted">Envie um documento (procuração, contrato social ou documento com foto) ou convide um sócio/administrador.</p>
+
+  <div class="grid" style="margin-top:16px;">
+    <div class="card">
+      <h3>Enviar documentos</h3>
+      <p class="muted">Aceitamos PDF, JPG ou PNG até 5MB.</p>
+      <a class="btn" href="#" onclick="alert('Upload real entra na próxima atividade.'); return false;">Abrir upload</a>
+    </div>
+    <div class="card" aria-disabled="true" style="opacity:.6;">
+      <h3>Convidar sócio</h3>
+      <p class="muted">Em breve você poderá convidar um sócio/administrador para validar seu acesso.</p>
+      <span class="pill">Em breve</span>
+    </div>
+  </div>
+
+  <div style="margin-top:16px;">
+    <p class="muted">Pagamentos e cupons ficam liberados após aprovação. Análise em até 1 dia útil.</p>
+  </div>
+</body>
+</html>
