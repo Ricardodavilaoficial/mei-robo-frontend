@@ -88,6 +88,10 @@
       cupomAtivar:  API_BASE + "/api/cupons/ativar"
     };
 
+    // MOCK DE PREVIEW: ?mock=ready | blocked | unauth | error
+    const __qs = new URLSearchParams(location.search);
+    const __mock = (__qs.get('mock')||'').toLowerCase();
+
     const $status = document.getElementById('status');
     const $content = document.getElementById('content');
     const $actions = document.getElementById('actions');
@@ -189,8 +193,21 @@
       $couponBox.hidden = true;
     }
 
+    // --- MOCK SWITCH ---
+    function __applyMock(){
+      if (!__mock) return false;
+      if (__mock === 'ready')   { renderReady();   return true; }
+      if (__mock === 'blocked') { renderBlocked({ needs_docs:true, pending_review:false }); return true; }
+      if (__mock === 'unauth')  { renderUnauth();  return true; }
+      if (__mock === 'error')   { renderError();   return true; }
+      return false;
+    }
+
     async function load(){
       try{
+        // se mock ativo, não chama backend
+        if (__applyMock()) return;
+
         pill('verificando…', 'muted');
         // tenta gate1 e depois gate2
         let g = null;
