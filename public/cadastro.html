@@ -8,9 +8,39 @@
   <!-- PRODUÇÃO: defina sua SITE KEY do reCAPTCHA v2 Invisible -->
   <meta name="RECAPTCHA_SITE_KEY" content="">
 
+  <!-- Estilos globais do projeto -->
   <link rel="stylesheet" href="/assets/styles.css" />
+
+  <style>
+    /* Caixa "escura" opcional para alinhar com outras páginas (não invasivo) */
+    .form-card.card-dark { background:#111; color:#eee; border:1px solid #2a2a2a; }
+    .form-card.card-dark .input { background:#1a1a1a; border-color:#333; color:#f3f3f3; }
+    .form-card.card-dark .hint { color:#c8c8c8; }
+    .form-card.card-dark a { color:#9fd6ff; }
+
+    /* Upload em caixa grande (restaurado) */
+    .upload-area{border:2px dashed #cfdad6;border-radius:12px;padding:20px;cursor:pointer;background:#fff}
+    .card-dark .upload-area{border-color:#3a3a3a;background:#161616}
+    .upload-area:hover{background:#f6fbf9}
+    .card-dark .upload-area:hover{background:#1c1c1c}
+    .upload-title{font-weight:700;margin:0 0 6px}
+    .upload-sub{margin:0 0 10px}
+    .upload-actions{display:flex;gap:10px;flex-wrap:wrap}
+    .btn-mini{cursor:pointer;border-radius:999px;padding:8px 14px;font-weight:800;border:1px solid #cdd7d4;background:#fff;color:var(--wa-dark)}
+    .card-dark .btn-mini{background:#111;border-color:#444;color:#eee}
+    .file-list{list-style:none;padding:0;margin:12px 0 0}
+    .file-item{display:flex;align-items:center;justify-content:space-between;gap:10px;background:#f8fbfa;border:1px solid #e7ecea;border-radius:10px;padding:8px 12px;margin:6px 0}
+    .card-dark .file-item{background:#1b1b1b;border-color:#333;color:#ddd}
+    .file-meta{font-size:.95rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+    .remove-btn{background:#fff;border:1px solid #ffb3b3;color:#a33;border-radius:999px;padding:6px 10px;font-weight:800;cursor:pointer}
+    .card-dark .remove-btn{background:#121212;border-color:#8a3a3a;color:#ffbdbd}
+
+    .meter-voice{margin-top:8px}
+    .btn-disabled{opacity:.55; pointer-events:none}
+  </style>
 </head>
 <body>
+  <!-- Header placeholders (mantêm compatibilidade com layout.js) -->
   <div id="app-header"></div>
   <div id="header"></div>
 
@@ -27,7 +57,8 @@
       </div>
 
       <div class="form-grid">
-        <form id="signupForm" class="form-card" action="#" method="POST" novalidate>
+        <!-- Aplique "card-dark" se quiser a versão de caixas escuras -->
+        <form id="signupForm" class="form-card card-dark" action="#" method="POST" novalidate>
           <div class="form-row">
             <label for="nome"><strong>Nome completo</strong></label>
             <input id="nome" name="name" class="input" type="text" placeholder="Ex.: Maria Silva" autocomplete="name" required />
@@ -78,21 +109,20 @@
             <input id="senha2" name="confirm-password" class="input" type="password" placeholder="Repita a senha" autocomplete="new-password" required />
           </div>
 
+          <!-- Upload de voz (CAIXA GRANDE RESTAURADA) -->
           <div class="form-row full">
             <label><strong>Envio de voz (obrigatório)</strong></label>
-            <span class="hint">
-              Clique para selecionar <em>(ou arraste)</em> até <strong>5 áudios</strong> (WAV/MP3/M4A/OGG/WEBM).
-              A soma precisa ter <strong>entre 1 e 30 minutos</strong>.
-            </span>
 
             <div id="uploadArea" class="upload-area" tabindex="0" role="button" aria-label="Enviar arquivos de áudio por clique ou arraste">
-              <div class="upload-head">
-                <div class="dim">Clique para escolher arquivos de áudio… ou arraste aqui.</div>
-                <div class="upload-actions">
-                  <input id="voiceFiles" type="file" accept=".wav,.mp3,.m4a,.ogg,.webm,audio/*" multiple hidden />
-                  <button type="button" class="btn-mini" id="btnChooseFiles">Escolher arquivos</button>
-                  <button type="button" class="btn-mini" id="btnClearFiles">Limpar</button>
-                </div>
+              <p class="upload-title">Envio de voz (obrigatório)</p>
+              <p class="upload-sub">
+                Clique para selecionar <em>(ou arraste)</em> até <strong>5 áudios</strong> (WAV/MP3/M4A/OGG/WEBM) somando ≥ <strong>1 minuto</strong>.<br/>
+                <strong>Grave em silêncio absoluto</strong>, sem eco e sem ruídos distantes.
+              </p>
+              <div class="upload-actions">
+                <input id="voiceFiles" type="file" accept=".wav,.mp3,.m4a,.ogg,.webm,audio/*" multiple hidden />
+                <button type="button" class="btn-mini" id="btnChooseFiles">Escolher arquivos</button>
+                <button type="button" class="btn-mini" id="btnClearFiles">Limpar</button>
               </div>
               <ul id="fileList" class="file-list"></ul>
               <div id="voiceMsg" class="hint" style="margin-top:6px"></div>
@@ -124,7 +154,7 @@
           <div id="formMsg" class="hint"></div>
 
           <div class="actions" style="margin-top:12px">
-            <button id="submitBtn" type="submit" class="cta">Criar minha conta</button>
+            <button id="submitBtn" type="submit" class="cta">Avançar</button>
           </div>
 
           <p class="hint" style="margin-top:10px">
@@ -136,25 +166,15 @@
         </form>
 
         <aside class="side">
-          <span class="badge-mini">Plano Starter</span>
           <h3>O que está incluído no plano</h3>
-          <div class="price-line">
-            <span class="hint">Taxa de configuração:</span>
-            <span><s>R$ 399</s> por <strong>R$ 250 (pagamento único)</strong></span>
-          </div>
-          <div class="price-line">
-            <span class="hint">Mensalidade:</span>
-            <span><s>R$ 109</s> por <strong>R$ 89/mês</strong> <span class="hint">— sem fidelidade</span></span>
-          </div>
           <ul>
-            <li>Até <strong>500 conversas iniciadas pelo cliente/mês</strong>.</li>
-            <li>Até <strong>250 conversas iniciadas por você</strong>.</li>
-            <li><strong>2 GB de memória segura</strong> para fotos, vídeos e catálogos.</li>
+            <li>Até <strong>500 conversas</strong> iniciadas pelo cliente/mês.</li>
+            <li>Até <strong>250 conversas</strong> iniciadas por você.</li>
+            <li><strong>2 GB</strong> de memória segura para fotos, vídeos e catálogos.</li>
             <li><strong>Histórico de clientes</strong> sempre acessível.</li>
             <li>Respostas em texto e áudio com a <strong>sua voz digitalizada</strong>.</li>
             <li><strong>Agenda inteligente</strong> com lembretes.</li>
           </ul>
-          <p class="note">Mensagens já incluídas no plano — sem custo extra dentro dos limites.</p>
         </aside>
       </div>
     </div>
@@ -163,7 +183,7 @@
   <div id="app-footer"></div>
   <div id="footer"></div>
 
-  <!-- Layout (header/footer) -->
+  <!-- Layout (carrega header/footer) -->
   <script src="/assets/layout.js?v=20250905f" defer></script>
 
   <!-- Limpa sessão no modo validate -->
@@ -220,15 +240,14 @@
   <script src="https://www.google.com/recaptcha/api.js?onload=onRecaptchaLoad&render=explicit" async defer></script>
 
   <script>
-    /* ====== CONFIG do Backend (PRODUÇÃO) ====== */
+    /* ====== CONFIG do Backend ====== */
     const API_BASE = "https://mei-robo-prod.onrender.com";
     const API = {
       availability: API_BASE + "/api/cnpj/availability",
       cadastro:     API_BASE + "/api/cadastro",
-      resendEmail:  API_BASE + "/api/auth/resend-verification"
     };
 
-    /* ====== UI ====== */
+    /* ====== UI refs ====== */
     const form = document.getElementById('signupForm');
     const submitBtn = document.getElementById('submitBtn');
     const formMsg = document.getElementById('formMsg');
@@ -256,6 +275,7 @@
     const voiceState={ files:[], totalSec:0 };
     let cnpjAvailability = 'unknown';
 
+    /* ====== Helpers ====== */
     function normalizeCNPJ(v){ return (v || '').replace(/\D+/g,''); }
     function validateCNPJ(cnpj){
       cnpj = normalizeCNPJ(cnpj);
@@ -320,6 +340,7 @@
     cnpjInput.addEventListener('blur', checkCNPJAvailability);
     cnpjInput.addEventListener('input', debouncedCheck);
 
+    /* Força da senha */
     function calcStrength(s){ let score=0; if(!s) return 0; if(s.length>=8)score++; if(s.length>=12)score++; if(/[a-z]/.test(s))score++; if(/[A-Z]/.test(s))score++; if(/[0-9]/.test(s))score++; if(/[^A-Za-z0-9]/.test(s))score++; return Math.min(5, Math.max(0, Math.floor(score*0.8))); }
     function updatePwdMeter(){ const s=pwd.value||''; const st=calcStrength(s); const pct=[0,20,40,60,80,100][st]; bar.style.width=pct+'%'; bar.className=['','strength-1','strength-2','strength-3','strength-4','strength-5'][st]||'strength-1'; const labels=['Muito fraca','Fraca','Razoável','Forte','Muito forte','Excelente']; strengthText.textContent=s?('Força da senha: '+labels[st]):''; }
     pwd.addEventListener('input', updatePwdMeter);
@@ -391,7 +412,7 @@
       }
     });
 
-    /* ====== Upload de voz (mesmos helpers) ====== */
+    /* ====== Upload de voz (helpers) ====== */
     function formatTime(sec){ const m=Math.floor(sec/60), s=Math.floor(sec%60); return `${m}m ${String(s).padStart(2,'0')}s`; }
     function renderFileList(){
       fileList.innerHTML='';
@@ -435,9 +456,9 @@
     document.getElementById('btnChooseFiles').addEventListener('click',()=>fileInput.click());
     document.getElementById('btnClearFiles').addEventListener('click',()=>{ voiceState.files=[]; renderFileList(); updateVoiceDurations(); });
     uploadArea.addEventListener('click',(e)=>{ const t=e.target; if(t && t.closest && t.closest('.btn-mini')) return; fileInput.click(); });
-    uploadArea.addEventListener('dragover',(e)=>{ e.preventDefault(); uploadArea.style.background='#f0fff7'; });
-    uploadArea.addEventListener('dragleave',()=>{ uploadArea.style.background='#fff'; });
-    uploadArea.addEventListener('drop',(e)=>{ e.preventDefault(); uploadArea.style.background='#fff'; addFiles(e.dataTransfer.files); });
+    uploadArea.addEventListener('dragover',(e)=>{ e.preventDefault(); uploadArea.style.background=''; });
+    uploadArea.addEventListener('dragleave',()=>{ uploadArea.style.background=''; });
+    uploadArea.addEventListener('drop',(e)=>{ e.preventDefault(); uploadArea.style.background=''; addFiles(e.dataTransfer.files); });
     fileInput.addEventListener('change',(e)=>{ const files=e.target && e.target.files?e.target.files:null; if(files) addFiles(files); fileInput.value=''; });
 
     document.addEventListener('DOMContentLoaded', () => { updatePwdMeter(); });
