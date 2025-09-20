@@ -11,57 +11,33 @@
   <link rel="stylesheet" href="/assets/styles.css" />
 
   <style>
-    :root {
-      --mr-green: #1faa85;
-      --mr-green-2: #158f72;
-      --mr-green-3: #0d715a;
-      --mr-green-soft: rgba(31,170,133,0.12);
-      --mr-dark: #101414;
-      --mr-dark-2: #141a1a;
-      --mr-border: #23302e;
-      --mr-text: #e9f4f1;
-      --mr-muted: #b6c9c3;
-    }
-    /* Dark, sóbrio e elegante com acentos verdes */
+    /* Dark sóbrio (sem sobrescrever as cores de link/botão do site) */
     .card-dark {
-      background: var(--mr-dark);
-      color: var(--mr-text);
-      border: 1px solid var(--mr-border);
+      background: #101414;
+      color: #e9f4f1;
+      border: 1px solid #23302e;
       border-radius: 14px;
       box-shadow: 0 10px 30px rgba(0,0,0,.35), inset 0 1px 0 rgba(255,255,255,.02);
     }
-    .card-dark .hint { color: var(--mr-muted); }
+    .card-dark .hint { color: #b6c9c3; }
     .card-dark .input {
-      background: var(--mr-dark-2);
-      border: 1px solid var(--mr-border);
-      color: var(--mr-text);
+      background: #141a1a;
+      border: 1px solid #23302e;
+      color: #e9f4f1;
     }
     .card-dark .input:focus {
-      border-color: var(--mr-green-2);
-      box-shadow: 0 0 0 2px var(--mr-green-soft);
+      border-color: #3a8f7c;
+      box-shadow: 0 0 0 2px rgba(31,170,133,0.12);
       outline: 0;
     }
-    /* Links padrão verdinhos do site */
-    a, .btn-secondary { color: var(--mr-green); }
-    a:hover, .btn-secondary:hover { color: #23bd97; }
-    a:focus, button:focus { outline: 2px solid var(--mr-green-2); outline-offset: 2px; }
 
-    /* CTA destaca em verde, mantendo sobriedade */
-    .cta {
-      background: var(--mr-green);
-      border: 1px solid var(--mr-green-2);
-      color: #06241d;
-      font-weight: 800;
-    }
-    .cta:hover { background: #23bd97; border-color: #23bd97; }
-
-    /* Upload em caixa grande com instruções */
+    /* Upload em caixa grande (mantém seus verdes de link/btn do tema global) */
     .upload-area{
-      border:2px dashed var(--mr-border);
+      border:2px dashed #23302e;
       border-radius:12px;
       padding:20px;
       cursor:pointer;
-      background: var(--mr-dark-2);
+      background:#141a1a;
     }
     .upload-area:hover{ background: #0e1413; }
     .upload-title{ font-weight:700; margin:0 0 6px }
@@ -72,19 +48,18 @@
       border-radius:999px;
       padding:8px 14px;
       font-weight:800;
-      border:1px solid var(--mr-border);
+      border:1px solid #23302e;
       background:#0c1211;
-      color: var(--mr-text);
+      color:#e9f4f1;
     }
-    .btn-mini:hover{ border-color: var(--mr-green-2); box-shadow: 0 0 0 2px var(--mr-green-soft); }
     .file-list{ list-style:none; padding:0; margin:12px 0 0 }
-    .file-item{ display:flex; align-items:center; justify-content:space-between; gap:10px; background:#0c1211; border:1px solid var(--mr-border); border-radius:10px; padding:8px 12px; margin:6px 0 }
-    .file-meta{ font-size:.95rem; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color: var(--mr-text) }
+    .file-item{ display:flex; align-items:center; justify-content:space-between; gap:10px; background:#0c1211; border:1px solid #23302e; border-radius:10px; padding:8px 12px; margin:6px 0 }
+    .file-meta{ font-size:.95rem; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:#e9f4f1 }
     .remove-btn{ background:#0c1211; border:1px solid #8a3a3a; color:#ffbdbd; border-radius:999px; padding:6px 10px; font-weight:800; cursor:pointer }
+
     .meter-voice{ margin-top:8px }
-    #voiceBar{ display:block; height:6px; background: var(--mr-green); border-radius: 999px; transition: width .25s ease }
+    #voiceBar{ display:block; height:6px; background: currentColor; border-radius: 999px; transition: width .25s ease }
     .btn-disabled{ opacity:.55; pointer-events:none }
-    .price-line s { color:#6b7f79; opacity:.6; text-decoration: line-through; }
   </style>
 </head>
 <body>
@@ -136,7 +111,9 @@
               pattern="^\d{14}$|^\d{2}\.\d{3}\.\d{3}/\d{4}-\d{2}$"
               title="Informe um CNPJ válido (14 dígitos ou 00.000.000/0000-00)"
               placeholder="Somente números ou 00.000.000/0000-00" autocomplete="on" required />
-            <span class="hint">Ex.: 12.345.678/0001-90 — checamos se já existe conta com este CNPJ.</span>
+            <span class="hint">
+              Checamos se já existe conta com este CNPJ. Você precisa estar vinculado ao CNPJ ou autorizado pela empresa.
+            </span>
             <div id="cnpjStatus" class="hint" aria-live="polite" style="margin-top:6px"></div>
             <div id="microVinculo" class="hint" style="margin-top:8px">
               Pagamento e cupom serão liberados <strong>depois</strong> que confirmarmos seu vínculo com o CNPJ.
@@ -368,7 +345,7 @@
 
     /* Força da senha */
     function calcStrength(s){ let score=0; if(!s) return 0; if(s.length>=8)score++; if(s.length>=12)score++; if(/[a-z]/.test(s))score++; if(/[A-Z]/.test(s))score++; if(/[0-9]/.test(s))score++; if(/[^A-Za-z0-9]/.test(s))score++; return Math.min(5, Math.max(0, Math.floor(score*0.8))); }
-    function updatePwdMeter(){ const s=pwd.value||''; const st=calcStrength(s); const pct=[0,20,40,60,80,100][st]; voiceBar.style.width='0%'; bar.style.width=pct+'%'; strengthText.textContent=s?(['Muito fraca','Fraca','Razoável','Forte','Muito forte','Excelente'][st]):''; }
+    function updatePwdMeter(){ const s=pwd.value||''; const st=calcStrength(s); const pct=[0,20,40,60,80,100][st]; document.getElementById('pwdBar').style.width=pct+'%'; strengthText.textContent=s?(['Muito fraca','Fraca','Razoável','Forte','Muito forte','Excelente'][st]):''; }
     pwd.addEventListener('input', updatePwdMeter);
     togglePwd.addEventListener('click', (e)=>{ e.preventDefault(); const visible=pwd.type==='text'; pwd.type=visible?'password':'text'; togglePwd.textContent=visible?'Mostrar':'Ocultar'; togglePwd.setAttribute('aria-pressed', String(!visible)); pwd.focus(); });
 
@@ -445,7 +422,7 @@
       });
       if(voiceState.files.length===0){
         voiceMsg.textContent='Nenhum arquivo selecionado. Envie pelo menos 1 áudio, com duração mínima de 1 minuto.';
-        voiceBar.style.width='0%';
+        document.getElementById('voiceBar').style.width='0%';
       }
     }
     function addFiles(list){
@@ -469,7 +446,7 @@
       const durations=await Promise.all(voiceState.files.map(getDuration));
       const total=durations.reduce((acc,d)=>acc+(d||0),0); voiceState.totalSec=total;
       const pct=Math.min(100, Math.max(0, Math.round((total/1800)*100)));
-      voiceBar.style.width=pct+'%';
+      document.getElementById('voiceBar').style.width=pct+'%';
       voiceMsg.textContent=`Duração total: ${formatTime(total)} — mínimo 1m00s, máximo 30m00s.`;
     }
     document.getElementById('btnChooseFiles').addEventListener('click',()=>fileInput.click());
@@ -479,7 +456,7 @@
     uploadArea.addEventListener('drop',(e)=>{ e.preventDefault(); addFiles(e.dataTransfer.files); });
     fileInput.addEventListener('change',(e)=>{ const files=e.target && e.target.files?e.target.files:null; if(files) addFiles(files); fileInput.value=''; });
 
-    document.addEventListener('DOMContentLoaded', () => { /* inicia barras/meters */ });
+    document.addEventListener('DOMContentLoaded', () => { /* init */ });
   </script>
 </body>
 </html>
