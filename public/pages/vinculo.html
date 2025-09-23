@@ -89,7 +89,8 @@
     const API_BASE = "https://mei-robo-prod.onrender.com";
     const API = {
       status: API_BASE + "/api/verificacao/autoridade/status",
-      upload: API_BASE + "/api/verificacao/autoridade/upload"
+      upload: API_BASE + "/api/verificacao/autoridade/upload",
+      gate:   API_BASE + "/api/stripe/gate" // guarda extra
     };
 
     const qs = new URLSearchParams(location.search);
@@ -106,12 +107,13 @@
     const $btnSend = document.getElementById('btnSend');
     const $msg = document.getElementById('msg');
 
-    const state = { files: [] };
+    const state = { files: [], view: 'needs' };
 
     function pill(text, cls){ $pill.textContent = text; $pill.className = 'badge ' + (cls || 'muted'); }
     function h(parts){ return parts.filter(Boolean).join(''); }
 
     function renderStatus(view){
+      state.view = view;
       if (view === 'approved'){
         pill('aprovado ✔', 'ok');
         $statusBox.innerHTML = h([
@@ -120,23 +122,39 @@
           '<p><a class="cta" href="/pages/ativar-cliente.html">Seguir para assinatura</a></p>'
         ]);
         $uploadBox.hidden = true;
+        // endurece upload UI
+        $btnSend.disabled = true;
+        $uploadArea.setAttribute('aria-hidden','true');
+        $uploadArea.style.pointerEvents = 'none';
         return;
       }
       if (view === 'pending'){
         pill('em revisão', 'warn');
         $statusBox.innerHTML = '<p class="muted">Recebemos seus documentos e estamos analisando. Normalmente leva poucas horas úteis.</p>';
         $uploadBox.hidden = true;
+        // endurece upload UI
+        $btnSend.disabled = true;
+        $uploadArea.setAttribute('aria-hidden','true');
+        $uploadArea.style.pointerEvents = 'none';
         return;
       }
       if (view === 'needs'){
         pill('documentos necessários', 'warn');
         $statusBox.innerHTML = '<p>Precisamos de documentos para confirmar seu vínculo com a empresa.</p>';
         $uploadBox.hidden = false;
+        // libera upload UI
+        $btnSend.disabled = false;
+        $uploadArea.removeAttribute('aria-hidden');
+        $uploadArea.style.pointerEvents = '';
         return;
       }
       pill('não foi possível verificar agora', 'err');
       $statusBox.innerHTML = '<p class="muted">Tente novamente em instantes. Se persistir, fale com o suporte.</p>';
       $uploadBox.hidden = true;
+      // endurece upload UI
+      $btnSend.disabled = true;
+      $uploadArea.setAttribute('aria-hidden','true');
+      $uploadArea.style.pointerEvents = 'none';
     }
 
     // MOCK para preview
@@ -148,12 +166,21 @@
       return null;
     }
 
-    function asView(resp){
+    function asViewFromStatus(resp){
       const b = resp && resp.body ? resp.body : {};
       if (b.stripe_enabled || b.reason === 'ok' || b.aprovado) return 'approved';
       if (b.pending_review) return 'pending';
       if (b.needs_docs) return 'needs';
       return 'error';
+    }
+
+    function asViewFromGate(resp){
+      const b = resp && resp.body ? resp.body : {};
+      const stripe_enabled = !!(b.stripe_enabled || b.stripeEnabled || b.ok || b.gate_ok);
+      const needs_docs = !!(b.needs_docs || b.needsDocs);
+      if (stripe_enabled && !needs_docs) return 'approved';
+      if (needs_docs) return 'needs';
+      return null;
     }
 
     async function fetchJSON(url, opts){
@@ -166,9 +193,21 @@
     async function loadStatus(){
       try{
         pill('verificando status…', 'muted');
+
+        // 1) mock curto-circuito para preview
         const mk = mockStatus();
-        const resp = mk || await fetchJSON(API.status);
-        const view = resp.ok ? asView(resp) : 'error';
+        if (mk) { renderStatus(asViewFromStatus(mk)); return; }
+
+        // 2) chama status primário
+        const respStatus = await fetchJSON(API.status).catch(()=>null);
+        let view = (respStatus && respStatus.ok) ? asViewFromStatus(respStatus) : 'error';
+
+        // 3) guarda extra: se gate já liberou, não precisa upload
+        const respGate = await fetchJSON(API.gate).catch(()=>null);
+        const gateView = (respGate && respGate.ok) ? asViewFromGate(respGate) : null;
+        if (gateView === 'approved') view = 'approved';
+        if (gateView === 'needs') view = 'needs';
+
         renderStatus(view);
       } catch(e){
         renderStatus('error');
@@ -187,16 +226,24 @@
     }
 
     function addFiles(list){
+      let total = state.files.reduce((s,f)=>s+f.size,0);
       for (const f of list) {
         const okType = /pdf|png|jpg|jpeg/i.test(f.type) || /\.(pdf|png|jpg|jpeg)$/i.test(f.name);
         if (!okType) { $msg.textContent='Apenas PDF, JPG ou PNG.'; continue; }
         if (state.files.length >= 10) { $msg.textContent='Limite de 10 arquivos.'; break; }
+        total += f.size;
+        if (total > 25 * 1024 * 1024) { $msg.textContent='Limite total de 25MB por envio.'; break; }
         state.files.push(f);
       }
       renderFiles();
     }
 
     async function send(){
+      // guarda cliente: só permite upload quando precisar
+      if (state.view !== 'needs'){
+        $msg.textContent = 'No momento não há necessidade de enviar documentos.';
+        return;
+      }
       if (!state.files.length){ $msg.textContent='Selecione ao menos um arquivo.'; return; }
       $btnSend.disabled = true; $msg.textContent='Enviando…';
       const fd = new FormData();
@@ -207,6 +254,9 @@
           $msg.textContent='Recebido! Vamos revisar em breve.';
           state.files = []; renderFiles();
           renderStatus('pending');
+        } else if (r.status === 401){
+          $msg.textContent='Faça login para enviar documentos.';
+          $btnSend.disabled = false;
         } else {
           $msg.textContent='Não foi possível enviar agora. Tente novamente.';
           $btnSend.disabled = false;
