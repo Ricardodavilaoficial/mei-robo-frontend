@@ -39,9 +39,9 @@
   <main class="wrap">
     <div class="card-dark">
       <h2 style="margin:0 0 6px">Concluir assinatura</h2>
-      <p class="muted" style="margin:0 0 12px">
-        Vamos checar seu vínculo com a empresa. Assim que estiver tudo certo,
-        você poderá finalizar a assinatura com segurança.
+      <!-- Tornamos o texto inicial dinâmico, sem mudar o layout -->
+      <p id="intro" class="muted" style="margin:0 0 12px">
+        Preparando sua assinatura com segurança…
       </p>
 
       <div id="status" class="badge muted">verificando…</div>
@@ -92,6 +92,7 @@
     const __qs = new URLSearchParams(location.search);
     const __mock = (__qs.get('mock')||'').toLowerCase();
 
+    const $intro = document.getElementById('intro');
     const $status = document.getElementById('status');
     const $content = document.getElementById('content');
     const $actions = document.getElementById('actions');
@@ -150,6 +151,7 @@
 
     function renderUnauth(){
       pill('entre para continuar', 'warn');
+      $intro.textContent = 'Entre na sua conta para concluir a assinatura.';
       $content.innerHTML = '<p class="muted">Você precisa entrar na sua conta para concluir a assinatura.</p><p><a class="btn-secondary" href="/pages/login.html">Entrar</a></p>';
       $actions.hidden = true;
       $couponBox.hidden = true;
@@ -159,6 +161,14 @@
       const needs = !!o.needs_docs;
       const pending = !!o.pending_review;
       pill('vínculo pendente', 'warn');
+      // Copy ajustada para o estado real
+      if (needs) {
+        $intro.textContent = 'Precisamos confirmar seu vínculo com a empresa. Envie os documentos para liberar a assinatura.';
+      } else if (pending) {
+        $intro.textContent = 'Estamos revisando seus documentos. Normalmente finalizamos em poucas horas úteis.';
+      } else {
+        $intro.textContent = 'Seu vínculo ainda não está liberado para assinatura.';
+      }
       $content.innerHTML = html([
         '<p><strong>Precisamos confirmar seu vínculo com a empresa.</strong></p>',
         needs ? '<p class="muted">Envie os documentos solicitados para liberar sua assinatura.</p>' : '',
@@ -173,6 +183,8 @@
 
     function renderReady(){
       pill('tudo certo ✔', 'ok');
+      // Copy afirmativa no mesmo bloco (sem redundância)
+      $intro.textContent = 'Conferimos o seu vínculo com a empresa. Está tudo certo — você já pode concluir sua assinatura com segurança.';
       $content.innerHTML = '<p><strong>Seu vínculo está confirmado.</strong> Você pode seguir para a etapa de assinatura com segurança.</p>';
       $actions.hidden = false;
       $btnDocs.hidden = true;
@@ -189,6 +201,7 @@
 
     function renderError(){
       pill('não foi possível verificar agora', 'err');
+      $intro.textContent = 'Não foi possível verificar agora. Tente novamente em instantes. Se persistir, fale com o suporte.';
       $content.innerHTML = '<p class="muted">Tente novamente em alguns instantes. Se persistir, fale com o suporte.</p>';
       $actions.hidden = true;
       $couponBox.hidden = true;
@@ -326,3 +339,4 @@
   </script>
 </body>
 </html>
+
