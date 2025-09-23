@@ -53,7 +53,6 @@
         <a id="btnContinuar" class="cta" href="/pages/dashboard.html">Salvar e continuar</a>
         <a class="btn-secondary" href="/pages/ativar-cliente.html">Voltar</a>
       </div>
-      <p id="docsHint" class="muted" style="display:none;margin-top:6px">Percebemos uma pendência de vínculo. Se necessário, <a href="/pages/vinculo.html">envie seus documentos aqui</a>.</p>
     </div>
   </main>
 
@@ -62,14 +61,10 @@
   <script>
   (function(){
     const API_BASE = "https://mei-robo-prod.onrender.com";
-    const API = { 
-      status: API_BASE + "/api/conta/status",
-      vinculo: API_BASE + "/api/verificacao/autoridade/status"
-    };
+    const API = { status: API_BASE + "/api/conta/status" };
 
     const $status  = document.getElementById('status');
     const $empresa = document.getElementById('empresa');
-    const $docsHint = document.getElementById('docsHint');
 
     // MOCK de preview: ?mock=ok | missing | error
     const qs = new URLSearchParams(location.search);
@@ -79,29 +74,10 @@
     function t(v){ return (v===null||v===undefined||v==='') ? "<span class='muted'>—</span>" : String(v); }
     function html(parts){ return parts.filter(Boolean).join(''); }
 
-    // Normaliza formatos alternativos de resposta
-    function normalizeConta(body){
-      if (!body || typeof body !== 'object') return { empresa:{}, vinculo:{} };
-      // Alguns backends retornam tudo na raiz
-      const empresa = body.empresa || {
-        cnpj: body.cnpj || body.CNPJ || null,
-        razaoSocial: body.razaoSocial || body.razao || null,
-        nomeFantasia: body.nomeFantasia || body.fantasia || null,
-        endereco: body.endereco || null,
-        cnaePrincipal: body.cnaePrincipal || body.cnae_principal || body.CNAE || null
-      };
-      const vinculo = body.vinculo || {
-        stripe_enabled: !!(body.stripe_enabled || body.stripeEnabled || body.assinatura_ativa),
-        needs_docs: !!(body.needs_docs || body.needsDocs || body.docs_pendentes)
-      };
-      return { empresa, vinculo };
-    }
-
     // Mapeia um CNAE (código/descrição) para um rótulo amigável
     function mapSegmento(cnae){
-      const base = cnae || {};
-      const txt = String(base.descricao || base.codigo || '').toLowerCase();
-      if (!txt) return { segmento: null, cnae: base };
+      const txt = (cnae?.descricao || cnae?.codigo || '').toLowerCase();
+      if (!txt) return { segmento: null, cnae: cnae || null };
 
       const M = [
         { key: /cabeleire|est(é|e)t(ica|ético)|manicure|sal(ã|a)o/, seg: "Beleza e estética" },
@@ -113,25 +89,24 @@
         { key: /educa|curso|aula|treina|coach/i, seg: "Educação e cursos" },
       ];
       const f = M.find(m => m.key.test(txt));
-      return { segmento: f ? f.seg : "Outros", cnae: base };
+      return { segmento: f ? f.seg : "Outros", cnae: cnae || null };
     }
 
     function renderEmpresa(data){
-      const norm = normalizeConta(data);
-      const emp = norm.empresa || {};
-      const vinc = norm.vinculo || {};
-      const cnae = emp.cnaePrincipal || {};
+      const emp = data?.empresa || {};
+      const vinc = data?.vinculo || {};
+      const cnae = emp?.cnaePrincipal || {};
       const seg  = mapSegmento(cnae);
 
       // Cabeçalho / pílulas
       const pills = html([
         emp.cnpj ? `<span class="pill mono">${emp.cnpj}</span>` : '',
         seg.segmento ? `<span class="pill">${seg.segmento}</span>` : '',
-        (cnae.descricao || cnae.codigo) ? `<span class="pill">${(cnae.descricao || cnae.codigo)}</span>` : ''
+        cnae.descricao ? `<span class="pill">${cnae.descricao}</span>` : ''
       ]);
 
-      const endereco = emp.endereco || {};
-      const loc = [endereco.municipio, endereco.uf].filter(Boolean).join(' / ');
+      const endereco = emp?.endereco || {};
+      const loc = [endereco?.municipio, endereco?.uf].filter(Boolean).join(' / ');
 
       $empresa.innerHTML = html([
         `<div class="grid">`,
@@ -142,13 +117,8 @@
           `<div class="field"><div class="label">Município/UF</div><div>${t(loc)}</div></div>`,
         `</div>`,
         pills ? `<div style="margin-top:10px">${pills}</div>` : '',
-        vinc.stripe_enabled ? `<p class="muted" style="margin:10px 0 0">Assinatura ativa ✔</p>` : ''
+        vinc?.stripe_enabled ? `<p class="muted" style="margin:10px 0 0">Assinatura ativa ✔</p>` : ''
       ]);
-
-      // Hint discreto de docs, sem mudar o fluxo
-      if (vinc.needs_docs) {
-        $docsHint.style.display = 'block';
-      }
     }
 
     // MOCK objects
@@ -184,7 +154,6 @@
         if (mk) {
           pill('dados carregados ✔', 'ok');
           renderEmpresa(mk);
-          safeCheckDocs(); // mostra hint se necessário
           return;
         }
 
@@ -192,6 +161,7 @@
         const r = await fetchJSON(API.status).catch(()=>null);
 
         if (!r || !r.ok || !r.body) {
+          // Se 401, pede login; senão, erro genérico
           if (r && r.status === 401) {
             pill('entre para continuar', 'warn');
             $empresa.innerHTML = '<p class="muted">Faça login para ver seus dados.</p><p><a class="btn-secondary" href="/pages/login.html">Entrar</a></p>';
@@ -204,21 +174,10 @@
 
         pill('dados carregados ✔', 'ok');
         renderEmpresa(r.body);
-        safeCheckDocs();
       } catch (e){
         pill('não foi possível carregar agora', 'err');
         $empresa.innerHTML = '<p class="muted">Tente novamente em alguns instantes. Se persistir, fale com o suporte.</p>';
       }
-    }
-
-    async function safeCheckDocs(){
-      try{
-        const r = await fetchJSON(API.vinculo);
-        if (r && r.ok && r.body) {
-          const needs = !!(r.body.needs_docs || r.body.needsDocs || r.body.docs_pendentes);
-          if (needs) $docsHint.style.display = 'block';
-        }
-      } catch(e){ /* opcional */ }
     }
 
     document.addEventListener('DOMContentLoaded', load);

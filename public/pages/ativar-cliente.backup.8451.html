@@ -136,13 +136,12 @@
 
     function asGate(obj){
       if (!obj || typeof obj !== 'object') return null;
-      const stripe_enabled = !!(obj.stripe_enabled ?? obj.stripeEnabled ?? obj.enabled ?? obj.allow ?? obj.gate_ok ?? obj.ok);
+      const stripe_enabled = !!(obj.stripe_enabled ?? obj.stripeEnabled ?? obj.gate_ok ?? obj.ok);
       const reason = obj.reason || obj.state || '';
-      const needs_docs = !!(obj.needs_docs ?? obj.needsDocs ?? obj.docs ?? obj.need_docs);
       return {
         stripe_enabled,
         reason,
-        needs_docs,
+        needs_docs: !!(obj.needs_docs ?? obj.needsDocs),
         pending_review: !!(obj.pending_review ?? obj.pendingReview),
         scoreVinculo: (typeof obj.scoreVinculo === 'number' ? obj.scoreVinculo : null)
       };
@@ -239,10 +238,9 @@
         const r = await fetchJSON(API.cupomValidar, {
           method:'POST',
           headers:{ 'Content-Type': 'application/json' },
-          body: JSON.stringify({ codigo, code: codigo }) // aceita ambas chaves
+          body: JSON.stringify({ codigo })
         });
-        const b = r.body || {};
-        if (r.ok && (b.ok || b.valido || b.disponivel || b.valid)) {
+        if (r.ok && r.body && (r.body.ok || r.body.valido || r.body.disponivel)) {
           cupomState.valid = true; cupomState.codigo = codigo;
           msg('Cupom válido! Clique em Aplicar para vincular à sua conta.', 'msg-ok');
           $btnAplicar.disabled = false;
@@ -269,7 +267,7 @@
         const r = await fetchJSON(API.cupomAtivar, {
           method:'POST',
           headers:{ 'Content-Type': 'application/json' },
-          body: JSON.stringify({ codigo, code: codigo }) // aceita ambas chaves
+          body: JSON.stringify({ codigo })
         });
         if (r.ok && r.body) {
           cupomState.aplicado = true;
@@ -299,8 +297,8 @@
         const qs = (!cupomState.aplicado && codigo) ? ('?cupom=' + encodeURIComponent(codigo)) : '';
         const r = await fetchJSON(API.checkout + qs);
 
-        if (r.ok && r.body && (r.body.checkoutUrl || r.body.url || r.body.location)) {
-          const url = r.body.checkoutUrl || r.body.url || r.body.location;
+        if (r.ok && r.body && (r.body.checkoutUrl || r.body.url)) {
+          const url = r.body.checkoutUrl || r.body.url;
           location.href = url;
           return;
         }

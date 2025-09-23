@@ -1,0 +1,13 @@
+C:\Users\Ricardo d'Avila\Desktop\meu-servico-cliente\Fontend GPT\public\pages\admin-cupons.html
+C:\Users\Ricardo d'Avila\Desktop\meu-servico-cliente\Fontend GPT\public\pages\admin.html
+C:\Users\Ricardo d'Avila\Desktop\meu-servico-cliente\Fontend GPT\public\pages\agenda.html
+C:\Users\Ricardo d'Avila\Desktop\meu-servico-cliente\Fontend GPT\public\pages\ativar.html
+C:\Users\Ricardo d'Avila\Desktop\meu-servico-cliente\Fontend GPT\public\pages\cnpj.html
+C:\Users\Ricardo d'Avila\Desktop\meu-servico-cliente\Fontend GPT\public\pages\configuracao.html
+C:\Users\Ricardo d'Avila\Desktop\meu-servico-cliente\Fontend GPT\public\pages\contatos.html
+C:\Users\Ricardo d'Avila\Desktop\meu-servico-cliente\Fontend GPT\public\pages\dashboard.html
+C:\Users\Ricardo d'Avila\Desktop\meu-servico-cliente\Fontend GPT\public\pages\email-preview.html
+C:\Users\Ricardo d'Avila\Desktop\meu-servico-cliente\Fontend GPT\public\pages\login.html
+C:\Users\Ricardo d'Avila\Desktop\meu-servico-cliente\Fontend GPT\public\pages\orcamentos.html
+C:\Users\Ricardo d'Avila\Desktop\meu-servico-cliente\Fontend GPT\public\pages\precos.backup.html
+C:\Users\Ricardo d'Avila\Desktop\meu-servico-cliente\Fontend GPT\public\pages\precos.html
