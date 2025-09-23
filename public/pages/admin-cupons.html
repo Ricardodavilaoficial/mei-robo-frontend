@@ -2,7 +2,7 @@
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8" />
-  <title>ADMIN — Cupons (diag6)</title>
+  <title>ADMIN — Cupons (diag7)</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <link rel="stylesheet" href="/assets/styles.css" />
   <link rel="icon" href="data:,">
@@ -15,9 +15,10 @@
   <script src="/assets/backend-patch.js"></script>
   <!-- Loader de header/footer -->
   <script defer src="/assets/layout.js"></script>
-  <!-- DIAG_VERSION=6 -->
+  <!-- DIAG_VERSION=7 -->
   <style>
     .btn[disabled]{opacity:.6;cursor:not-allowed}
+    code{word-break:break-all}
   </style>
 </head>
 <body>
@@ -29,7 +30,7 @@
       <p class="note">Acesso restrito. Somente administrador.</p>
 
       <div class="note" style="margin:8px 0; display:flex; gap:12px; align-items:center; flex-wrap:wrap;">
-        <span><strong>Versão:</strong> diag6</span>
+        <span><strong>Versão:</strong> diag7</span>
         <span id="adminBadge" class="badge" style="padding:2px 6px;border-radius:6px;background:#1b2a33;">status: <code id="admFlag">verificando…</code></span>
       </div>
 
@@ -99,7 +100,7 @@
       'use strict';
 
       const ABS_API   = "https://mei-robo-prod.onrender.com";
-      const ADMIN_UID = "V4eFP2bNdXNtQz2Eh4PxpwHNLOP2"; // fallback seguro por UID
+      // UID estático removido para evitar acoplamento; validação agora é 100% no backend.
 
       // --- storage helpers ---
       function lsGet(key) { try { return window.localStorage.getItem(key); } catch { return null; } }
@@ -192,26 +193,22 @@
         return fetch(url, merged).finally(()=>clearTimeout(timer));
       }
 
-      // ===== Checagem: sou admin? (usa /auth/whoami) =====
+      // ===== Checagem: sou admin? (usa /admin/ping) =====
       async function isAdminUser(){
         try{
-          const t = await getTokenPreferFresh();
+          let t = await getTokenPreferFresh();
+          if(!t && typeof firebase !== 'undefined' && firebase.auth){
+            const u = firebase.auth().currentUser || await new Promise(res => firebase.auth().onAuthStateChanged(res));
+            if (u) t = await u.getIdToken(true);
+          }
           if (!t) return false;
-          const r = await fetch(ABS_API + "/auth/whoami", {
+
+          const r = await fetch(ABS_API + "/admin/ping", {
             method: "GET", mode: "cors",
-            headers: { "Authorization": "Bearer " + t }
+            headers: { "Authorization": "Bearer " + t },
+            cache: "no-store"
           });
-          if (!r.ok) return false;
-          const j = await r.json().catch(()=> ({}));
-
-          // Fallback por UID (se o backend não retorna admin:true)
-          if (j && j.ok && j.uid === ADMIN_UID) return true;
-
-          if (j && (j.admin === true || j.is_admin === true)) return true;
-          if (j && j.role === "admin") return true;
-          if (j && Array.isArray(j.roles) && j.roles.includes("admin")) return true;
-          if (j && j.claims && (j.claims.admin === true || j.claims.is_admin === true)) return true;
-          return false;
+          return r.ok; // 200 => admin; 401/403 => não-admin
         }catch{ return false; }
       }
 
@@ -361,7 +358,7 @@
         }
       }
 
-      // ====== LISTAR (idempotente + retry 401) ======
+      // ====== LISTAR (resiliente, com fallbacks) ======
       async function listar(){
         const btn = document.getElementById('listar');
         const restore = setBusy(btn, true, 'Atualizando…');
@@ -379,46 +376,76 @@
         table.style.display = 'none';
 
         try{
-          async function doList(tokenValue){
+          async function tryListOnce(url, tokenValue){
             const headers = {};
             if (tokenValue) headers["Authorization"] = "Bearer " + tokenValue;
-            const url  = ABS_API + "/__list?col=cuponsAtivacao&limit=50";
-            const r = await fetch(url, { method:"GET", mode:"cors", headers });
-            const j = await r.json().catch(() => ({}));
-            return { r, j };
+            const r = await fetch(url, { method:"GET", mode:"cors", headers, cache:"no-store" });
+            const ct = r.headers.get("content-type") || "";
+            const data = ct.includes("application/json") ? await r.json() : (await r.text());
+            return { ok:r.ok, status:r.status, data };
+          }
+
+          async function doList(tokenValue){
+            const base = ABS_API;
+            const attempts = [
+              base + "/__list?col=cuponsAtivacao&limit=50",     // sua rota utilitária, se existir
+              base + "/api/admin/cupons?limit=50&status=todos", // rota oficial admin (se existir)
+              base + "/admin/cupons?limit=50&status=todos"      // alternativa
+            ];
+
+            for (const url of attempts){
+              const resp = await tryListOnce(url, tokenValue);
+              if (resp.ok && resp.data) return { url, payload: resp.data };
+            }
+            throw new Error("Nenhuma rota de listagem disponível/ok (/__list | /api/admin/cupons | /admin/cupons).");
           }
 
           let tok = await getTokenPreferFresh();
-          let { r, j } = await doList(tok);
+          let { url, payload } = await doList(tok);
 
-          if (r.status === 401) {
-            await refreshIdToken();
-            tok = await getTokenPreferFresh();
-            ({ r, j } = await doList(tok));
+          // retry 401: atualiza token e tenta de novo
+          if (!payload || (payload.ok === false) ) {
+            if (payload && payload.error && /unauth|401|token/i.test(String(payload.error))) {
+              await refreshIdToken();
+              tok = await getTokenPreferFresh();
+              ({ url, payload } = await doList(tok));
+            }
           }
 
-          if (!r.ok || !j || j.ok === false) throw new Error((j && j.error) || ("status "+r.status));
+          // Normalização de formatos
+          const items = Array.isArray(payload.items) ? payload.items
+                       : Array.isArray(payload) ? payload
+                       : (payload.documents || payload.docs || []);
 
-          const arr = j.items || [];
-          for (const c of arr){
-            const status =
-              (typeof c.usosMax !== "undefined")
-                ? ((c.usos || 0) >= (c.usosMax || 1) ? "usado" : "disponível")
-                : (c.ativo === false ? "inativo" : "ativo");
+          for (const c of items){
+            const codigo = c.codigo ?? c.code ?? c.id ?? "-";
+            const created = c.createdAt ?? c.criadoEm ?? c.created ?? c.created_at ?? "-";
+            const expira  = c.expiraEm ?? c.validUntil ?? c.expira ?? c.expira_em ?? "-";
+
+            let status = c.status || "-";
+            if (status === "-" || typeof status === "undefined") {
+              if (typeof c.usosMax !== "undefined") {
+                status = ((c.usos || 0) >= (c.usosMax || 1)) ? "usado" : "disponível";
+              } else if (typeof c.ativo !== "undefined") {
+                status = (c.ativo === false) ? "inativo" : "ativo";
+              } else {
+                status = "desconhecido";
+              }
+            }
 
             const tr = document.createElement('tr');
             tr.innerHTML = `
-              <td>${c.codigo ?? c.code ?? "-"}</td>
+              <td>${codigo}</td>
               <td>${status}</td>
-              <td>${c.createdAt ?? c.criadoEm ?? "-"}</td>
-              <td>${c.expiraEm ?? c.validUntil ?? "-"}</td>`;
+              <td>${created}</td>
+              <td>${expira}</td>`;
             tb.appendChild(tr);
           }
 
           table.style.display = '';
-          setOut({ ok:true, itens: arr.length });
+          setOut({ ok:true, origem:url, itens: (items && items.length) || 0 });
         }catch(err){
-          setOut({ erro:'Falha ao listar cupons', detalhe: String(err).slice(0,200) });
+          setOut({ erro:'Falha ao listar cupons', detalhe: String(err).slice(0,300) });
         }finally{
           restore();
         }
@@ -464,9 +491,11 @@
           }
 
           const rows = [];
+          rows.push(await ping("/admin/ping", "GET"));
           rows.push(await ping("/admin/cupons", "POST", {diasValidade:3,prefixo:"MEI"}));
           rows.push(await ping("/gerar-cupom", "POST", {diasValidade:3,prefixo:"MEI"}));
           rows.push(await ping("/__list?col=cuponsAtivacao&limit=5", "GET"));
+          rows.push(await ping("/api/admin/cupons?limit=5&status=todos", "GET"));
 
           setOut("Resultado da sonda:\n" + rows.map(r => `${r.method} ${r.path} -> ${r.status} | Allow: ${r.allow} | ACAM: ${r.acam} | ${r.sample}…`).join('\n'));
         } catch (err) {
@@ -507,8 +536,6 @@
           try { await navigator.clipboard.writeText(code); setOut('Código copiado ✔'); }
           catch { setOut('Não foi possível copiar automaticamente.'); }
         };
-
-        // NÃO chamamos listar() automaticamente — somente quando admin clicar.
       });
     })();
   </script>
