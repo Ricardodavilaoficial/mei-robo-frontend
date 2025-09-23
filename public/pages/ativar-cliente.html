@@ -39,10 +39,8 @@
   <main class="wrap">
     <div class="card-dark">
       <h2 style="margin:0 0 6px">Concluir assinatura</h2>
-      <!-- Tornamos o texto inicial dinâmico, sem mudar o layout -->
-      <p id="intro" class="muted" style="margin:0 0 12px">
-        Preparando sua assinatura com segurança…
-      </p>
+      <!-- Texto inicial dinâmico, sem mudar o layout -->
+      <p id="intro" class="muted" style="margin:0 0 12px">Preparando sua assinatura com segurança…</p>
 
       <div id="status" class="badge muted">verificando…</div>
 
@@ -153,6 +151,11 @@
       pill('entre para continuar', 'warn');
       $intro.textContent = 'Entre na sua conta para concluir a assinatura.';
       $content.innerHTML = '<p class="muted">Você precisa entrar na sua conta para concluir a assinatura.</p><p><a class="btn-secondary" href="/pages/login.html">Entrar</a></p>';
+      // Harden: garante não clicável
+      $btnDocs.hidden = true;
+      $btnDocs.removeAttribute('href');
+      $btnDocs.setAttribute('aria-hidden','true');
+      $btnDocs.style.pointerEvents = 'none';
       $actions.hidden = true;
       $couponBox.hidden = true;
     }
@@ -174,7 +177,20 @@
         needs ? '<p class="muted">Envie os documentos solicitados para liberar sua assinatura.</p>' : '',
         pending ? '<p class="muted">Estamos revisando seus documentos. Normalmente leva poucas horas úteis.</p>' : ''
       ]);
-      $btnDocs.hidden = !needs;
+
+      // Harden: só habilita Docs quando realmente precisa
+      if (needs) {
+        $btnDocs.hidden = false;
+        $btnDocs.href = "/pages/vinculo.html";
+        $btnDocs.removeAttribute('aria-hidden');
+        $btnDocs.style.pointerEvents = '';
+      } else {
+        $btnDocs.hidden = true;
+        $btnDocs.removeAttribute('href');
+        $btnDocs.setAttribute('aria-hidden','true');
+        $btnDocs.style.pointerEvents = 'none';
+      }
+
       $actions.hidden = false;
       $btnCheckout.disabled = true;
       $btnCheckout.title = "Assinatura liberada após a confirmação do vínculo.";
@@ -187,9 +203,14 @@
       $intro.textContent = 'Conferimos o seu vínculo com a empresa. Está tudo certo — você já pode concluir sua assinatura com segurança.';
       $content.innerHTML = '<p><strong>Seu vínculo está confirmado.</strong> Você pode seguir para a etapa de assinatura com segurança.</p>';
       $actions.hidden = false;
-      $btnDocs.hidden = true;
       $btnCheckout.disabled = false;
       $btnCheckout.title = "";
+
+      // Harden: torna Docs realmente inativo
+      $btnDocs.hidden = true;
+      $btnDocs.removeAttribute('href');
+      $btnDocs.setAttribute('aria-hidden','true');
+      $btnDocs.style.pointerEvents = 'none';
 
       // mostra UI de cupom quando liberado
       $couponBox.hidden = false;
@@ -203,6 +224,11 @@
       pill('não foi possível verificar agora', 'err');
       $intro.textContent = 'Não foi possível verificar agora. Tente novamente em instantes. Se persistir, fale com o suporte.';
       $content.innerHTML = '<p class="muted">Tente novamente em alguns instantes. Se persistir, fale com o suporte.</p>';
+      // Harden: desabilita Docs em erro
+      $btnDocs.hidden = true;
+      $btnDocs.removeAttribute('href');
+      $btnDocs.setAttribute('aria-hidden','true');
+      $btnDocs.style.pointerEvents = 'none';
       $actions.hidden = true;
       $couponBox.hidden = true;
     }
@@ -339,4 +365,3 @@
   </script>
 </body>
 </html>
-
