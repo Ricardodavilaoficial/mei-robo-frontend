@@ -37,8 +37,8 @@
 
   <main class="wrap">
     <div class="card-dark">
-      <h2 style="margin:0 0 6px">Confirme seu vínculo com a empresa</h2>
-      <p class="muted" style="margin:0 0 8px">
+      <h2 id="pageTitle" style="margin:0 0 6px">Confirme seu vínculo com a empresa</h2>
+      <p id="pageSubtitle" class="muted" style="margin:0 0 8px">
         Para sua segurança e da empresa, precisamos validar que você está <strong>vinculado ao CNPJ</strong> ou tem
         <strong>autorização</strong>. É rápido e você só faz uma vez.
       </p>
@@ -96,6 +96,8 @@
     const qs = new URLSearchParams(location.search);
     const mock = (qs.get('mock')||'').toLowerCase(); // needs | pending | approved | error
 
+    const $pageTitle = document.getElementById('pageTitle');
+    const $pageSubtitle = document.getElementById('pageSubtitle');
     const $pill = document.getElementById('pill');
     const $statusBox = document.getElementById('statusBox');
     const $uploadBox = document.getElementById('uploadBox');
@@ -112,9 +114,19 @@
     function pill(text, cls){ $pill.textContent = text; $pill.className = 'badge ' + (cls || 'muted'); }
     function h(parts){ return parts.filter(Boolean).join(''); }
 
+    function setApprovedHeader(){
+      $pageTitle.textContent = 'Vínculo confirmado com a empresa';
+      $pageSubtitle.innerHTML = 'Está tudo certo — você já pode concluir sua assinatura com segurança.';
+    }
+    function setDefaultHeader(){
+      $pageTitle.textContent = 'Confirme seu vínculo com a empresa';
+      $pageSubtitle.innerHTML = 'Para sua segurança e da empresa, precisamos validar que você está <strong>vinculado ao CNPJ</strong> ou tem <strong>autorização</strong>. É rápido e você só faz uma vez.';
+    }
+
     function renderStatus(view){
       state.view = view;
       if (view === 'approved'){
+        setApprovedHeader();
         pill('aprovado ✔', 'ok');
         $statusBox.innerHTML = h([
           '<p><strong>Seu vínculo está aprovado.</strong></p>',
@@ -122,42 +134,40 @@
           '<p><a class="cta" href="/pages/ativar-cliente.html">Seguir para assinatura</a></p>'
         ]);
         $uploadBox.hidden = true;
-        // endurece upload UI
         $btnSend.disabled = true;
         $uploadArea.setAttribute('aria-hidden','true');
         $uploadArea.style.pointerEvents = 'none';
         return;
       }
       if (view === 'pending'){
+        setDefaultHeader();
         pill('em revisão', 'warn');
         $statusBox.innerHTML = '<p class="muted">Recebemos seus documentos e estamos analisando. Normalmente leva poucas horas úteis.</p>';
         $uploadBox.hidden = true;
-        // endurece upload UI
         $btnSend.disabled = true;
         $uploadArea.setAttribute('aria-hidden','true');
         $uploadArea.style.pointerEvents = 'none';
         return;
       }
       if (view === 'needs'){
+        setDefaultHeader();
         pill('documentos necessários', 'warn');
         $statusBox.innerHTML = '<p>Precisamos de documentos para confirmar seu vínculo com a empresa.</p>';
         $uploadBox.hidden = false;
-        // libera upload UI
         $btnSend.disabled = false;
         $uploadArea.removeAttribute('aria-hidden');
         $uploadArea.style.pointerEvents = '';
         return;
       }
+      setDefaultHeader();
       pill('não foi possível verificar agora', 'err');
       $statusBox.innerHTML = '<p class="muted">Tente novamente em instantes. Se persistir, fale com o suporte.</p>';
       $uploadBox.hidden = true;
-      // endurece upload UI
       $btnSend.disabled = true;
       $uploadArea.setAttribute('aria-hidden','true');
       $uploadArea.style.pointerEvents = 'none';
     }
 
-    // MOCK para preview
     function mockStatus(){
       if (mock === 'approved') return { ok:true, body:{ stripe_enabled:true, reason:'ok' } };
       if (mock === 'pending') return { ok:true, body:{ pending_review:true, needs_docs:false, reason:'pending_review' } };
@@ -193,16 +203,12 @@
     async function loadStatus(){
       try{
         pill('verificando status…', 'muted');
-
-        // 1) mock curto-circuito para preview
         const mk = mockStatus();
         if (mk) { renderStatus(asViewFromStatus(mk)); return; }
 
-        // 2) chama status primário
         const respStatus = await fetchJSON(API.status).catch(()=>null);
         let view = (respStatus && respStatus.ok) ? asViewFromStatus(respStatus) : 'error';
 
-        // 3) guarda extra: se gate já liberou, não precisa upload
         const respGate = await fetchJSON(API.gate).catch(()=>null);
         const gateView = (respGate && respGate.ok) ? asViewFromGate(respGate) : null;
         if (gateView === 'approved') view = 'approved';
@@ -239,7 +245,6 @@
     }
 
     async function send(){
-      // guarda cliente: só permite upload quando precisar
       if (state.view !== 'needs'){
         $msg.textContent = 'No momento não há necessidade de enviar documentos.';
         return;
@@ -267,7 +272,6 @@
       }
     }
 
-    // Eventos upload
     $btnChoose.addEventListener('click', ()=> $docFiles.click());
     $btnClear .addEventListener('click', ()=> { state.files = []; renderFiles(); $msg.textContent=''; });
     $docFiles .addEventListener('change', (e)=> { if (e.target.files) addFiles(e.target.files); $docFiles.value=''; });
