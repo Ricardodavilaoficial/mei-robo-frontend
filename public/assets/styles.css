@@ -295,3 +295,57 @@ pre#out {
      .brand-name, .logo-title, .wordmark { font-size: 0.95rem; }
   */
 }
+powershell -Command "@'
+/* ================================================================== */
+/* ====================== PATCH HEADER — MOBILE ====================== */
+/* Alvo: corrigir corte de texto / “layout atropelado” no cabeçalho   */
+/* Estratégia: permitir wrap no container, dar min-width:0 ao texto,  */
+/* garantir que ações/badges não comprimam o título, e respeitar      */
+/* safe-area em iOS. Só ≤480px.                                       */
+/* ================================================================== */
+@media (max-width: 480px) {
+  /* 1) Containers do header podem quebrar linha e manter respiro */
+  header.site .inner,
+  .header-inner {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.4rem 0.6rem;
+    overflow: visible;
+    padding-top: calc(12px + env(safe-area-inset-top, 0px));
+  }
+
+  /* 2) Bloco de marca/título: ocupa espaço, pode quebrar e não estoura */
+  .brand,
+  .brand-name,
+  .logo-title,
+  .wordmark {
+    flex: 1 1 auto;
+    min-width: 0;
+    white-space: normal;
+    line-height: 1.15;
+  }
+
+  /* 3) Navegação e ações: não encolhem o texto principal */
+  .main-nav,
+  .header-actions,
+  .header-cta,
+  header.site nav {
+    flex: 0 0 auto;
+  }
+
+  /* 4) Badges/chips: não esmagam o fluxo; mantêm-se íntegros */
+  .header-badge,
+  .env-badge,
+  .mode-chip {
+    flex: 0 0 auto;
+    max-width: 100%;
+    white-space: nowrap;
+    overflow: visible;
+  }
+
+  /* 5) Ajuste fino opcional (se o SE/360–375px ficar “apertado”)
+     .brand-name, .logo-title, .wordmark { font-size: 0.95rem; }
+  */
+}
+'@ | Out-File -FilePath 'public/assets/styles.css' -Encoding UTF8 -Append"
