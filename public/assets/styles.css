@@ -1,4 +1,4 @@
-/* styles.css — canônico (revisado p/ produção) */
+﻿/* styles.css â€” canÃ´nico (revisado p/ produÃ§Ã£o) */
 :root {
   --bg: #0d1418;          /* tom WhatsApp dark */
   --card: #111b21;
@@ -36,7 +36,7 @@ a:hover { text-decoration: underline; }
   box-shadow: 0 6px 18px rgba(0,0,0,0.25);
 }
 
-/* Header/Rodapé canônicos */
+/* Header/RodapÃ© canÃ´nicos */
 header.site, footer.site,
 .site-footer {
   background: #0b1a12;
@@ -58,7 +58,7 @@ header.site .brand { font-weight: 700; letter-spacing: .3px; }
 
 main h2 { margin-top: 0; }
 
-/* Botões base */
+/* BotÃµes base */
 button {
   background: var(--accent);
   color: #001;
@@ -70,7 +70,7 @@ button {
 }
 button:disabled { opacity: .5; cursor: not-allowed; }
 
-/* Saída de debug */
+/* SaÃ­da de debug */
 pre#out {
   white-space: pre-wrap;
   background: #0c171d;
@@ -81,7 +81,7 @@ pre#out {
   margin-top: 16px;
 }
 
-/* ===== Complementos usados na Agenda e no rodapé ===== */
+/* ===== Complementos usados na Agenda e no rodapÃ© ===== */
 .note { color: var(--muted); margin: 0; }
 
 .badge{
@@ -111,14 +111,14 @@ pre#out {
 }
 .input:focus, select.input:focus, textarea.input:focus{ border-color:var(--accent); }
 
-/* Placeholder padrão do projeto (acinzentado) */
+/* Placeholder padrÃ£o do projeto (acinzentado) */
 .input::placeholder { color: rgba(233, 237, 239, 0.55); opacity: 1; }
 .input::-webkit-input-placeholder { color: rgba(233, 237, 239, 0.55); opacity: 1; }
 .input::-moz-placeholder { color: rgba(233, 237, 239, 0.55); opacity: 1; }
 .input:-ms-input-placeholder { color: rgba(233, 237, 239, 0.55); opacity: 1; }
 .input::-ms-input-placeholder { color: rgba(233, 237, 239, 0.55); opacity: 1; }
 
-/* Botões utilitários (para compatibilidade com telas existentes) */
+/* BotÃµes utilitÃ¡rios (para compatibilidade com telas existentes) */
 .btn{
   background:var(--accent);
   color:#001;
@@ -133,7 +133,7 @@ pre#out {
   color:var(--text);
   border:1px solid var(--border);
 }
-/* Também oferecemos a variante com hífen, usada em algumas páginas */
+/* TambÃ©m oferecemos a variante com hÃ­fen, usada em algumas pÃ¡ginas */
 .btn-secondary{
   background:transparent;
   color:var(--text);
@@ -144,7 +144,7 @@ pre#out {
   font-weight:600;
   display:inline-block;
 }
-/* CTA usada em formulários simples */
+/* CTA usada em formulÃ¡rios simples */
 .cta{
   background: var(--accent);
   color: #001;
@@ -190,7 +190,7 @@ pre#out {
   letter-spacing: .2px;
 }
 
-/* Navegação */
+/* NavegaÃ§Ã£o */
 .main-nav { display: flex; gap: 14px; flex-wrap: wrap; }
 .main-nav a {
   padding: 6px 10px;
@@ -202,7 +202,7 @@ pre#out {
   text-decoration: none;
 }
 
-/* ===== Rodapé centralizado ===== */
+/* ===== RodapÃ© centralizado ===== */
 .footer-inner {
   flex-direction: column;
   align-items: center;
@@ -220,10 +220,10 @@ pre#out {
 #app-header img[src$="mei-robo-icon.png"]{ width:180px; height:auto; vertical-align:middle; }
 @media (min-width:768px){ #app-header img[src$="mei-robo-icon.png"]{ width:220px; } }
 
-/* (removidas regras duplicadas e seletor :has com sintaxe inválida) */
+/* (removidas regras duplicadas e seletor :has com sintaxe invÃ¡lida) */
 
-/* ===================== App Shell Global (anti "página anã") ===================== */
-/* Use body.app-shell + main.app-main nas páginas curtas (verify-email, reset, etc.) */
+/* ===================== App Shell Global (anti "pÃ¡gina anÃ£") ===================== */
+/* Use body.app-shell + main.app-main nas pÃ¡ginas curtas (verify-email, reset, etc.) */
 .app-shell{
   min-height: 100svh;  /* mobile moderno */
   min-height: 100vh;   /* fallback desktop */
@@ -243,17 +243,17 @@ pre#out {
 .error{ color: #ff9c9c; }
 
 /* ================================================================== */
-/* ====================== PATCH HEADER — MOBILE ====================== */
-/* Alvo: corrigir corte de texto / “layout atropelado” no cabeçalho   */
-/* Estratégia: permitir wrap no container, dar min-width:0 ao texto,  */
-/* garantir que ações/badges não comprimam o título, e respeitar      */
-/* safe-area em iOS. Só ≤480px.                                       */
+/* ====================== PATCH HEADER â€” MOBILE ====================== */
+/* Alvo: corrigir corte de texto / â€œlayout atropeladoâ€ no cabeÃ§alho   */
+/* EstratÃ©gia: permitir wrap no container, dar min-width:0 ao texto,  */
+/* garantir que aÃ§Ãµes/badges nÃ£o comprimam o tÃ­tulo, e respeitar      */
+/* safe-area em iOS. SÃ³ â‰¤480px.                                       */
 /* ================================================================== */
 @media (max-width: 480px) {
   /* 1) Containers do header podem quebrar linha e manter respiro */
   header.site .inner,
   .header-inner {
-    display: flex;              /* reforça o layout flex */
+    display: flex;              /* reforÃ§a o layout flex */
     flex-wrap: wrap;            /* permite quebra controlada */
     align-items: center;
     gap: 0.4rem 0.6rem;         /* respiro vertical/horizontal */
@@ -261,7 +261,7 @@ pre#out {
     padding-top: calc(12px + env(safe-area-inset-top, 0px)); /* iOS notch seguro */
   }
 
-  /* 2) Bloco de marca/título: ocupa espaço, pode quebrar e não estoura */
+  /* 2) Bloco de marca/tÃ­tulo: ocupa espaÃ§o, pode quebrar e nÃ£o estoura */
   .brand,
   .brand-name,
   .logo-title,
@@ -272,15 +272,15 @@ pre#out {
     line-height: 1.15;          /* compacta levemente */
   }
 
-  /* 3) Navegação e ações: não encolhem o texto principal */
+  /* 3) NavegaÃ§Ã£o e aÃ§Ãµes: nÃ£o encolhem o texto principal */
   .main-nav,
   .header-actions,
   .header-cta,
   header.site nav {
-    flex: 0 0 auto;             /* não “roubam” largura do título */
+    flex: 0 0 auto;             /* nÃ£o â€œroubamâ€ largura do tÃ­tulo */
   }
 
-  /* 4) Badges/chips: não esmagam o fluxo; mantêm-se íntegros */
+  /* 4) Badges/chips: nÃ£o esmagam o fluxo; mantÃªm-se Ã­ntegros */
   .header-badge,
   .env-badge,
   .mode-chip {
@@ -290,62 +290,8 @@ pre#out {
     overflow: visible;
   }
 
-  /* 5) Ajuste fino opcional (SE necessário no iPhone SE/360–375px)
-     — Descomentar se notar “aperto” de tipografia:
+  /* 5) Ajuste fino opcional (SE necessÃ¡rio no iPhone SE/360â€“375px)
+     â€” Descomentar se notar â€œapertoâ€ de tipografia:
      .brand-name, .logo-title, .wordmark { font-size: 0.95rem; }
   */
 }
-powershell -Command "@'
-/* ================================================================== */
-/* ====================== PATCH HEADER — MOBILE ====================== */
-/* Alvo: corrigir corte de texto / “layout atropelado” no cabeçalho   */
-/* Estratégia: permitir wrap no container, dar min-width:0 ao texto,  */
-/* garantir que ações/badges não comprimam o título, e respeitar      */
-/* safe-area em iOS. Só ≤480px.                                       */
-/* ================================================================== */
-@media (max-width: 480px) {
-  /* 1) Containers do header podem quebrar linha e manter respiro */
-  header.site .inner,
-  .header-inner {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 0.4rem 0.6rem;
-    overflow: visible;
-    padding-top: calc(12px + env(safe-area-inset-top, 0px));
-  }
-
-  /* 2) Bloco de marca/título: ocupa espaço, pode quebrar e não estoura */
-  .brand,
-  .brand-name,
-  .logo-title,
-  .wordmark {
-    flex: 1 1 auto;
-    min-width: 0;
-    white-space: normal;
-    line-height: 1.15;
-  }
-
-  /* 3) Navegação e ações: não encolhem o texto principal */
-  .main-nav,
-  .header-actions,
-  .header-cta,
-  header.site nav {
-    flex: 0 0 auto;
-  }
-
-  /* 4) Badges/chips: não esmagam o fluxo; mantêm-se íntegros */
-  .header-badge,
-  .env-badge,
-  .mode-chip {
-    flex: 0 0 auto;
-    max-width: 100%;
-    white-space: nowrap;
-    overflow: visible;
-  }
-
-  /* 5) Ajuste fino opcional (se o SE/360–375px ficar “apertado”)
-     .brand-name, .logo-title, .wordmark { font-size: 0.95rem; }
-  */
-}
-'@ | Out-File -FilePath 'public/assets/styles.css' -Encoding UTF8 -Append"
