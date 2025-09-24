@@ -4,6 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <meta http-equiv="Cache-Control" content="no-store, max-age=0, must-revalidate" />
+  <meta name="robots" content="noindex, nofollow" />
   <title>Dashboard — MEI Robô (v1.0)</title>
 
   <!-- Firebase v8 SDK (precisa vir ANTES do seu init) -->
@@ -187,7 +188,7 @@
         </div>
       </div>
 
-      <!-- Área para mensagens de login/erro sem travar a página -->
+      <!-- Área para mensagens (mantida por compatibilidade, não usada no gate rígido) -->
       <div id="loginNotice" class="banner" style="display:none;" role="alert" aria-live="assertive"></div>
     </div>
   </main>
@@ -234,9 +235,7 @@
           arrivalBanner.textContent = hasFree
             ? 'Ativação concluída via cupom. Bem-vindo!'
             : 'Pagamento confirmado. Sua conta foi atualizada.';
-          // Se o layout expõe setArrivalHeader, chame-o:
           try{ if(typeof window.setArrivalHeader==='function'){ window.setArrivalHeader({free:hasFree, session_id:sessionId}); } }catch{}
-          // Limpa os params da URL de forma não disruptiva:
           const url = new URL(location.href);
           url.searchParams.delete('free'); url.searchParams.delete('session_id');
           history.replaceState({}, '', url.toString());
@@ -247,12 +246,10 @@
     function demo(){
       envChip.style.display='inline-block';
       envChip.textContent='Modo demonstração';
-      // KPIs exemplo
       kpiNovas.textContent='3';
       kpiEnviadas.textContent='12';
       kpiPendencias.textContent='2';
       kpiContatos.textContent='18';
-      // Fila exemplo
       const rows = [
         {when: Date.now()+15*60*1000, to:'Maria da Silva', kind:'Lembrete', state:'agendado'},
         {when: Date.now()+60*60*1000, to:'Seu João', kind:'Follow-up', state:'agendado'},
@@ -270,44 +267,34 @@
           <td><button class="btn small" disabled title="Em breve">Ver</button></td>`;
         queueBody.appendChild(tr);
       }
-      // Passos
       setChip(chkEmail,'warn');
       setChip(chkPhone, businessPhone()? 'ok':'warn');
       setChip(chkContato,'ok');
       setChip(chkConsent,'warn');
-
-      // Agenda demo
       agendaList.innerHTML = '';
       ['09:30 · Corte masculino — Pedro','14:00 · Manutenção — Carla','17:15 · Barba rápida — João'].forEach(t=>{
         const li=document.createElement('li'); li.textContent=t; agendaList.appendChild(li);
       });
-
-      // Catálogo demo
       catalogoStats.innerHTML = '';
       ['Total: 12','Sem preço: 3','Sem duração: 2','Sem código: 1'].forEach(t=>{
         const b=document.createElement('span'); b.className='badge'; b.textContent=t; catalogoStats.appendChild(b);
       });
-
       showArrivalBanner();
     }
 
     async function loadReal(){
-      // mostra chip de ambiente
       envChip.style.display='inline-block';
       envChip.textContent='Conectado';
       try{
-        // Auth
         if(!window.firebase || !firebase?.auth){ demo(); return; }
+
         const user = await new Promise(r=>{
           const off=firebase.auth().onAuthStateChanged(u=>{off(); r(u||null);});
         });
 
+        // GATE RÍGIDO: exige login antes de carregar o dashboard
         if(!user){
-          // Tratamento de 401 sem travar a página (CTA de login)
-          loginNotice.style.display='block';
-          loginNotice.innerHTML = 'Você não está autenticado. <a href="/pages/login.html" class="btn small" style="margin-left:8px;">Fazer login</a>';
-          // Mantém o restante em estado neutro e exibe demo leve para não “quebrar” a tela:
-          demo();
+          location.href = '/pages/login.html?next=' + encodeURIComponent(location.pathname + location.search);
           return;
         }
 
@@ -382,7 +369,6 @@
               });
             })
             .catch(()=>{
-              // Sem outbox -> exemplo discreto
               const tr=document.createElement('tr');
               tr.innerHTML = `<td colspan="5" class="note">Sem itens por enquanto.</td>`;
               queueBody.appendChild(tr);
@@ -395,7 +381,7 @@
         setChip(chkContato, (parseInt(kpiContatos.textContent)||0)>0 ? 'ok':'warn');
         setChip(chkConsent, consentOk>0 ? 'ok':'warn');
 
-        // Agenda (top 3 de hoje) — coleção "agenda" se existir
+        // Agenda (top 3 de hoje)
         if(fs()){
           const yyyymmdd = new Date().toISOString().slice(0,10);
           await db.collection('agenda')
@@ -451,7 +437,8 @@
         }
       }catch(e){
         console.error('[dashboard] loadReal', e);
-        demo(); // fallback visual
+        // Em caso de erro inesperado, não mostramos dados; se quiser demo só para QA, use ?validate
+        if (isValidateMode()) demo();
       }
     }
 
