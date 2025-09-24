@@ -2,23 +2,30 @@
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8" />
+  <meta http-equiv="Cache-Control" content="no-store, max-age=0, must-revalidate" />
   <title>ADMIN — Cupons (diag7)</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <link rel="stylesheet" href="/assets/styles.css" />
   <link rel="icon" href="data:,">
+
   <!-- Firebase v8 (ordem importa) -->
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
-  <!-- Init DEFAULT único do projeto -->
+
+  <!-- Init DEFAULT único do projeto (deve vir antes do backend-patch/layout) -->
   <script src="/assets/firebase-init.js?v=login6"></script>
+
   <!-- Patch de rotas (não reinicializa Firebase) -->
   <script src="/assets/backend-patch.js"></script>
-  <!-- Loader de header/footer -->
+
+  <!-- Loader de header/footer (defer) -->
   <script defer src="/assets/layout.js"></script>
+
   <!-- DIAG_VERSION=7 -->
   <style>
     .btn[disabled]{opacity:.6;cursor:not-allowed}
     code{word-break:break-all}
+    #out{white-space:pre-wrap}
   </style>
 </head>
 <body>
@@ -31,11 +38,13 @@
 
       <div class="note" style="margin:8px 0; display:flex; gap:12px; align-items:center; flex-wrap:wrap;">
         <span><strong>Versão:</strong> diag7</span>
-        <span id="adminBadge" class="badge" style="padding:2px 6px;border-radius:6px;background:#1b2a33;">status: <code id="admFlag">verificando…</code></span>
+        <span id="adminBadge" class="badge" style="padding:2px 6px;border-radius:6px;background:#1b2a33;">
+          status: <code id="admFlag">verificando…</code>
+        </span>
       </div>
 
       <!-- Aviso para não-admin -->
-      <div id="nonAdminBanner" class="card" style="display:none; margin:12px 0; background:#2a1210; border:1px solid #5a2a20;">
+      <div id="nonAdminBanner" class="card" style="display:none; margin:12px 0; background:#2a1210; border:1px solid #5a2a20;" role="alert" aria-live="assertive">
         <strong>Sem acesso.</strong> Esta área é exclusiva de administradores.
         <div id="nonAdminActions" style="margin-top:8px; display:flex; gap:8px; flex-wrap:wrap;">
           <button class="btn" id="btnSignIn" type="button" style="display:none;">Entrar</button>
@@ -81,7 +90,7 @@
           </div>
         </div>
 
-        <pre id="out" style="margin-top:12px; white-space:pre-wrap"></pre>
+        <pre id="out" role="status" aria-live="polite" style="margin-top:12px;"></pre>
 
         <table class="table" id="tbl" style="margin-top:8px; display:none;">
           <thead>
@@ -388,8 +397,8 @@
           async function doList(tokenValue){
             const base = ABS_API;
             const attempts = [
-              base + "/__list?col=cuponsAtivacao&limit=50",     // sua rota utilitária, se existir
-              base + "/api/admin/cupons?limit=50&status=todos", // rota oficial admin (se existir)
+              base + "/__list?col=cuponsAtivacao&limit=50",     // utilitária, se existir
+              base + "/api/admin/cupons?limit=50&status=todos", // rota oficial (se existir)
               base + "/admin/cupons?limit=50&status=todos"      // alternativa
             ];
 

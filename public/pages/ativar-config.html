@@ -7,8 +7,9 @@
 
   <link rel="stylesheet" href="/assets/styles.css" />
   <link rel="icon" href="data:,">
+  <script src="/assets/firebase-init.js"></script>
+  <script src="/assets/backend-patch.js"></script>
   <script defer src="/assets/layout.js"></script>
-
   <style>
     .wrap { max-width:900px; margin:24px auto; padding:0 12px; }
     .card-dark { background:#101414; color:#e9f4f1; border:1px solid #23302e; border-radius:14px; padding:16px; }
@@ -31,7 +32,7 @@
   <main class="wrap">
     <div class="card-dark">
       <h2 style="margin:0 0 6px">Boas-vindas! Vamos deixar tudo pronto.</h2>
-      <p class="muted" style="margin:0 0 10px">
+      <p id="introText" class="muted" style="margin:0 0 10px">
         Confirmamos sua assinatura. Confira abaixo os dados da sua empresa (já pré-preenchidos)
         e avance para as configurações iniciais.
       </p>
@@ -63,26 +64,39 @@
   (function(){
     const API_BASE = "https://mei-robo-prod.onrender.com";
     const API = { 
-      status: API_BASE + "/api/conta/status",
+      status:  API_BASE + "/api/conta/status",
       vinculo: API_BASE + "/api/verificacao/autoridade/status"
     };
 
-    const $status  = document.getElementById('status');
-    const $empresa = document.getElementById('empresa');
+    const $status   = document.getElementById('status');
+    const $empresa  = document.getElementById('empresa');
     const $docsHint = document.getElementById('docsHint');
 
     // MOCK de preview: ?mock=ok | missing | error
     const qs = new URLSearchParams(location.search);
     const mock = (qs.get('mock')||'').toLowerCase();
+    const isFree = qs.get('free') === '1';
+    const hasStripeSession = qs.has('session_id');
+    let arrivedMsg = null;
 
     function pill(text, cls){ $status.textContent = text; $status.className = 'badge ' + (cls || 'muted'); }
-    function t(v){ return (v===null||v===undefined||v==='') ? "<span class='muted'>—</span>" : String(v); }
     function html(parts){ return parts.filter(Boolean).join(''); }
+
+    // Escapa HTML para evitar XSS em dados vindos do backend
+    function esc(s){
+      return String(s)
+        .replace(/&/g,'&amp;')
+        .replace(/</g,'&lt;')
+        .replace(/>/g,'&gt;')
+        .replace(/"/g,'&quot;')
+        .replace(/'/g,'&#39;');
+    }
+    // Texto com placeholder seguro
+    function t(v){ return (v===null||v===undefined||v==='') ? "<span class='muted'>—</span>" : esc(String(v)); }
 
     // Normaliza formatos alternativos de resposta
     function normalizeConta(body){
       if (!body || typeof body !== 'object') return { empresa:{}, vinculo:{} };
-      // Alguns backends retornam tudo na raiz
       const empresa = body.empresa || {
         cnpj: body.cnpj || body.CNPJ || null,
         razaoSocial: body.razaoSocial || body.razao || null,
@@ -116,22 +130,36 @@
       return { segmento: f ? f.seg : "Outros", cnae: base };
     }
 
+    function setArrivalHeader(){
+      const h2 = document.querySelector('h2');
+      const p  = document.getElementById('introText');
+
+      if (isFree) {
+        if (h2) h2.textContent = 'Boas-vindas! Seu cupom foi aplicado.';
+        if (p)  p.innerHTML = 'Cupom validado e licença ativada. Confira os dados da sua empresa e avance para as configurações iniciais.';
+        arrivedMsg = 'cupom aplicado';
+      } else if (hasStripeSession) {
+        if (h2) h2.textContent = 'Boas-vindas! Pagamento confirmado.';
+        if (p)  p.innerHTML = 'Recebemos a confirmação do Stripe. Confira os dados da sua empresa e avance para as configurações iniciais.';
+        arrivedMsg = 'pagamento confirmado';
+      }
+    }
+
     function renderEmpresa(data){
       const norm = normalizeConta(data);
-      const emp = norm.empresa || {};
+      const emp  = norm.empresa || {};
       const vinc = norm.vinculo || {};
       const cnae = emp.cnaePrincipal || {};
       const seg  = mapSegmento(cnae);
 
-      // Cabeçalho / pílulas
       const pills = html([
-        emp.cnpj ? `<span class="pill mono">${emp.cnpj}</span>` : '',
-        seg.segmento ? `<span class="pill">${seg.segmento}</span>` : '',
-        (cnae.descricao || cnae.codigo) ? `<span class="pill">${(cnae.descricao || cnae.codigo)}</span>` : ''
+        emp.cnpj ? `<span class="pill mono">${t(emp.cnpj)}</span>` : '',
+        seg.segmento ? `<span class="pill">${t(seg.segmento)}</span>` : '',
+        (cnae.descricao || cnae.codigo) ? `<span class="pill">${t(cnae.descricao || cnae.codigo)}</span>` : ''
       ]);
 
       const endereco = emp.endereco || {};
-      const loc = [endereco.municipio, endereco.uf].filter(Boolean).join(' / ');
+      const loc = [endereco.municipio, endereco.uf].filter(Boolean).map(esc).join(' / ');
 
       $empresa.innerHTML = html([
         `<div class="grid">`,
@@ -139,13 +167,12 @@
           `<div class="field"><div class="label">Nome fantasia</div><div>${t(emp.nomeFantasia)}</div></div>`,
           `<div class="field"><div class="label">Segmento</div><div>${t(seg.segmento)}</div></div>`,
           `<div class="field"><div class="label">CNAE principal</div><div>${t(cnae.descricao || cnae.codigo)}</div></div>`,
-          `<div class="field"><div class="label">Município/UF</div><div>${t(loc)}</div></div>`,
+          `<div class="field"><div class="label">Município/UF</div><div>${loc || "<span class='muted'>—</span>"}</div></div>`,
         `</div>`,
         pills ? `<div style="margin-top:10px">${pills}</div>` : '',
         vinc.stripe_enabled ? `<p class="muted" style="margin:10px 0 0">Assinatura ativa ✔</p>` : ''
       ]);
 
-      // Hint discreto de docs, sem mudar o fluxo
       if (vinc.needs_docs) {
         $docsHint.style.display = 'block';
       }
@@ -178,13 +205,14 @@
     }
 
     async function load(){
+      setArrivalHeader(); // atualiza header conforme origem (cupom/stripe)
       try{
         // mock shortcut
         const mk = mockData();
         if (mk) {
           pill('dados carregados ✔', 'ok');
           renderEmpresa(mk);
-          safeCheckDocs(); // mostra hint se necessário
+          safeCheckDocs();
           return;
         }
 
