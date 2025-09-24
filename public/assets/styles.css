@@ -241,3 +241,57 @@ pre#out {
 .hint { color: var(--muted); }
 .ok   { color: #86f7c2; }
 .error{ color: #ff9c9c; }
+
+/* ================================================================== */
+/* ====================== PATCH HEADER — MOBILE ====================== */
+/* Alvo: corrigir corte de texto / “layout atropelado” no cabeçalho   */
+/* Estratégia: permitir wrap no container, dar min-width:0 ao texto,  */
+/* garantir que ações/badges não comprimam o título, e respeitar      */
+/* safe-area em iOS. Só ≤480px.                                       */
+/* ================================================================== */
+@media (max-width: 480px) {
+  /* 1) Containers do header podem quebrar linha e manter respiro */
+  header.site .inner,
+  .header-inner {
+    display: flex;              /* reforça o layout flex */
+    flex-wrap: wrap;            /* permite quebra controlada */
+    align-items: center;
+    gap: 0.4rem 0.6rem;         /* respiro vertical/horizontal */
+    overflow: visible;          /* evita clip oculto do texto */
+    padding-top: calc(12px + env(safe-area-inset-top, 0px)); /* iOS notch seguro */
+  }
+
+  /* 2) Bloco de marca/título: ocupa espaço, pode quebrar e não estoura */
+  .brand,
+  .brand-name,
+  .logo-title,
+  .wordmark {
+    flex: 1 1 auto;
+    min-width: 0;               /* permite encolher sem estourar largura */
+    white-space: normal;        /* remove nowrap agressivo */
+    line-height: 1.15;          /* compacta levemente */
+  }
+
+  /* 3) Navegação e ações: não encolhem o texto principal */
+  .main-nav,
+  .header-actions,
+  .header-cta,
+  header.site nav {
+    flex: 0 0 auto;             /* não “roubam” largura do título */
+  }
+
+  /* 4) Badges/chips: não esmagam o fluxo; mantêm-se íntegros */
+  .header-badge,
+  .env-badge,
+  .mode-chip {
+    flex: 0 0 auto;
+    max-width: 100%;
+    white-space: nowrap;
+    overflow: visible;
+  }
+
+  /* 5) Ajuste fino opcional (SE necessário no iPhone SE/360–375px)
+     — Descomentar se notar “aperto” de tipografia:
+     .brand-name, .logo-title, .wordmark { font-size: 0.95rem; }
+  */
+}
