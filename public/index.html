@@ -67,6 +67,10 @@
     .b{align-self:flex-start; background:#1b2125; color:#e8eaed}
     .m{align-self:flex-end; background:#005c4b; color:#e6f7ee}
     .bubble{max-width:86%; padding:10px 12px; border-radius:16px; box-shadow: 0 2px 8px rgba(0,0,0,.2); font-size:14px; line-height:1.35}
+    /* imagem dentro da bolha */
+    .bubble img{max-width:100%; height:auto; border-radius:12px; display:block}
+    .caption{font-size:12px; opacity:.9; margin-top:6px}
+
     .audio{display:flex; align-items:center; gap:8px}
     .audio .dot{width:10px; height:10px; border-radius:50%; background:#c4f2df; opacity:.85; animation: pulse 1.8s infinite ease-in-out}
     .audio .bar{flex:1; height:6px; background:#0c3a31; border-radius:999px; position:relative}
@@ -171,29 +175,28 @@
           <div class="phone">
             <div class="phone-top">Cliente • WhatsApp</div>
             <div class="chat">
-              <div class="bubble b">Oi! Faz barba e cabelo? Quanto sai?</div>
-              <div class="bubble m">Faço sim 😊 Corte: R$ 50 • Barba: R$ 35. Quer ver horário?</div>
-              <div class="bubble b">Quero sim, pode ser amanhã?</div>
-              <div class="bubble m">Claro! <strong>Qual seu nome</strong>, por favor?</div>
-              <div class="bubble b">Carlos.</div>
-              <div class="bubble m">Perfeito, Carlos. <strong>Vou te enviar um áudio</strong> explicando rapidinho como chegar aqui.</div>
+              <!-- >>>>> INÍCIO: roteiro final morena iluminada (com legenda corrigida) <<<<< -->
+              <div class="bubble b">Oi, bom dia! Queria dar uma clareada, um brilho na frente, perto do rosto. Você faz? Quanto fica?</div>
+              <div class="bubble m">Olá, bom dia! Faço sim 😊 Esse efeito chamamos de <strong>morena iluminada</strong>. Vou te mandar uma foto pra ver se é isso. Qual seu nome?</div>
+              <div class="bubble b">Pode mandar, sou Ana.</div>
+              <div class="bubble m">
+                <img src="/assets/img/mock/morena-iluminada.jpg" alt="Exemplo morena iluminada no salão">
+                <div class="caption">Exemplo de morena iluminada que fazemos aqui 😉</div>
+              </div>
+              <div class="bubble b">Isso mesmo, meu cabelo é parecido.</div>
+              <div class="bubble m">Legal, Ana! Pra você faço um valor especial: <strong>R$ 490,00</strong>. O serviço leva em torno de 3h. Amanhã tenho horários às 10:30, 14:00 e 18:15.</div>
+              <div class="bubble b">Ótimo, quero amanhã às 14:00.</div>
+              <div class="bubble m">Combinado! Vou te mandar um áudio curtinho explicando como chegar.</div>
               <div class="bubble m">
                 <div class="audio">
                   <div class="dot"></div>
-                  <div className="bar"></div>
+                  <div class="bar"></div>
                   <div class="time">0:12</div>
                 </div>
               </div>
-              <div class="bubble m">
-                Amanhã tenho:<br>10:30 • 14:00 • 18:15
-                <div class="options">
-                  <span class="opt">10:30</span>
-                  <span class="opt">14:00</span>
-                  <span class="opt">18:15</span>
-                </div>
-              </div>
-              <div class="bubble b">Fechado 14:00 👍</div>
-              <div class="bubble m"><strong>Agendado, Carlos!</strong> Amanhã <strong>14:00</strong> com <strong>João Barbeiro</strong>. Te dou um toque por aqui umas horas antes 😉</div>
+              <div class="bubble b">Fechado então, amanhã às 14:00! Obrigada.</div>
+              <div class="bubble m"><strong>Agendado, Ana!</strong> Amanhã <strong>14:00</strong> com a <strong>Júlia ✂️✨</strong>. Te mando um lembrete aqui um pouco antes 😉</div>
+              <!-- >>>>> FIM: roteiro final morena iluminada <<<<< -->
             </div>
             <div class="phone-bottom">
               <div class="input"></div>
@@ -408,4 +411,3 @@
   </script>
 </body>
 </html>
-
