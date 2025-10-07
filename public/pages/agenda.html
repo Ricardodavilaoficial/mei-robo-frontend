@@ -20,7 +20,7 @@
       --ok:#2ad39b;
       --text:#e6f0ec;
       --text-soft:#cfe3dc;
-      --daybox-minh: 620px; /* garantir caixas do mesmo tamanho visual */
+      --daybox-minh: 620px;
     }
     body { background:#0b0f0e; color:var(--text); font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, 'Helvetica Neue', 'Noto Sans', Arial, 'Apple Color Emoji', 'Segoe UI Emoji'; }
 
@@ -84,9 +84,9 @@
 
     .btn-ghost{ border:1px dashed var(--card-br); background:transparent; color:#cfe3dc; }
 
-    /* Grade de horários — 2 colunas internas (cada uma com lista hora|slot) */
+    /* Grade de horários — 2 colunas internas */
     .grid-2col{
-      display:grid; grid-template-columns: 1fr 1fr; gap:0; /* colunas encostadas para parecer uma única caixa */
+      display:grid; grid-template-columns: 1fr 1fr; gap:0;
     }
     .col{
       display:block; border-right:1px solid var(--card-br);
@@ -107,7 +107,7 @@
     .pill.danger .dot{ background:#e45858; }
     .pill small{ opacity:.7; font-weight:600; }
 
-    /* 7 dias em 7 colunas */
+    /* 7 dias */
     .week-grid{
       display:grid; grid-template-columns: repeat(7, 1fr); gap:0;
       overflow:auto;
@@ -139,7 +139,7 @@
     .chip{ padding:6px 10px; border:1px solid var(--card-br); border-radius:999px; cursor:pointer; user-select:none; background:#0c120f; font-weight:700; }
     .chip.active{ outline: 2px solid var(--accent); }
 
-    /* Nav local (harmonização com fluxo) */
+    /* Nav local */
     .page-nav{ max-width:900px; margin:0 auto 16px; display:flex; gap:8px; justify-content:space-between; }
     .page-nav .left, .page-nav .right{ display:flex; gap:8px; }
 
@@ -153,7 +153,7 @@
       .slot-row{ grid-template-columns: 92px 1fr; height: 44px; }
     }
 
-    /* Fallback header/footer pequenos */
+    /* Fallback header/footer */
     .app-shell{ min-height:82svh; }
     header._fallback, footer._fallback{ max-width: 1100px; margin: 0 auto; padding: 10px 16px; opacity:.8; }
     header._fallback{ border-bottom:1px solid var(--card-br); }
@@ -170,17 +170,15 @@
   </noscript>
 
   <main class="container app-main">
-    <!-- Navegação local (harmonização) -->
+    <!-- Navegação local -->
     <div class="page-nav">
       <div class="left">
         <a class="btn" href="/pages/dashboard.html" id="btnVoltar">← Voltar</a>
       </div>
-      <div class="right">
-        <!-- Reservado para “Próximo” quando houver próxima tela definida -->
-      </div>
+      <div class="right"></div>
     </div>
 
-    <!-- Mini dashboard centralizado: data, botões, contadores  -->
+    <!-- Mini dashboard -->
     <section class="mini-dashboard" id="miniDashboard">
       <div class="mini-top">
         <div class="today-date" id="todayDate">Hoje</div>
@@ -193,9 +191,9 @@
       </div>
       <div class="mini-title">Quantidade de agendamentos</div>
       <div class="mini-line">
-        <span class="mini-pill">Hoje: <b id="qtdHoje">8</b></span>
-        <span class="mini-pill">Amanhã: <b id="qtdAmanha">3</b></span>
-        <span class="mini-pill">Próx. 7 dias: <b id="qtd7">16</b></span>
+        <span class="mini-pill">Hoje: <b id="qtdHoje">0</b></span>
+        <span class="mini-pill">Amanhã: <b id="qtdAmanha">0</b></span>
+        <span class="mini-pill">Próx. 7 dias: <b id="qtd7">0</b></span>
       </div>
       <div class="mini-hint" id="miniHint">Resumo automático do período selecionado.</div>
     </section>
@@ -264,7 +262,7 @@
         </div>
         <div class="h-right">
           <button class="btn btn-ghost" id="exportSete">Exportar CSV</button>
-          <span class="badge" id="contSete">16 no total</span>
+          <span class="badge" id="contSete">0 no total</span>
         </div>
       </div>
       <div class="week-grid" id="weekGrid"></div>
@@ -293,7 +291,7 @@
 
     // ===== Utilidades de Agenda =====
     const startMinutes = 8 * 60;       // 08:00
-    const endMinutes   = 18 * 60 + 30;  // 18:30
+    const endMinutes   = 18 * 60 + 30; // 18:30
     const step = 30; // minutos
 
     function pad(n){ return (n<10?'0':'') + n; }
@@ -301,20 +299,18 @@
     function buildSlots(){
       const slots = [];
       for(let m = startMinutes; m <= endMinutes; m += step){ slots.push(minutesToHHMM(m)); }
-      return slots; // 22 slots
+      return slots;
     }
     function splitInTwo(arr){ return [arr.slice(0,11), arr.slice(11)]; }
     function addDays(base, d){ const x = new Date(base); x.setDate(x.getDate()+d); return x; }
 
-    // Localização de datas
-    const fmtLong = new Intl.DateTimeFormat('pt-BR', { weekday:'short', day:'2-digit', month:'short' });
     const fmtISO = (d)=> [d.getFullYear(), pad(d.getMonth()+1), pad(d.getDate())].join('-');
 
-    // Modo validação
+    // Modo validação (ativa dados de exemplo quando ?validate=1)
     const params = new URLSearchParams(location.search);
     const validateMode = params.get('validate') === '1';
 
-    // Dados de exemplo (validação)
+    // ===== Dados de demonstração (apenas quando validate=1) =====
     const demoHoje = [
       { hhmm:'08:30', cliente:'João Barbeiro', assunto:'Corte masculino', dur:30, status:'agendado', level:'ok' },
       { hhmm:'09:00', cliente:'Ana Paula', assunto:'Coloração', dur:60, status:'agendado', level:'warn' },
@@ -332,7 +328,6 @@
       { hhmm:'16:30', cliente:'Tiago', assunto:'Corte', dur:30, status:'agendado', level:'ok' },
       { hhmm:'17:30', cliente:'Gabi', assunto:'Escova', dur:30, status:'agendado', level:'ok' }
     ];
-    // Distribui alguns exemplos pelos próximos 7 dias
     function makeWeekDemo(baseDate){
       const samples = [
         { hhmm:'09:00', cliente:'André', assunto:'Corte', dur:30, status:'agendado', level:'ok' },
@@ -346,11 +341,10 @@
       for(let i=2;i<=8;i++){
         const d = addDays(baseDate, i);
         const key = fmtISO(d);
-        const n = Math.floor(Math.random()*4); // 0-3 agendamentos por dia
+        const n = Math.floor(Math.random()*4);
         week[key] = [];
         for(let k=0;k<n;k++){
           const t = samples[Math.floor(Math.random()*samples.length)];
-          // escolher um horário livre
           const hhmm = slots[Math.floor(Math.random()*slots.length)];
           week[key].push({ ...t, hhmm });
         }
@@ -407,6 +401,7 @@
     function renderWeekGrid(container, baseDate, weekData, filterMode, term){
       container.innerHTML = '';
       const slots = buildSlots();
+      let total = 0;
 
       for(let i=2;i<=8;i++){
         const d = addDays(baseDate, i);
@@ -418,7 +413,8 @@
 
         // head
         const head = document.createElement('div'); head.className = 'day-col-head';
-        const title = document.createElement('div'); title.className = 'day-col-title'; title.textContent = new Intl.DateTimeFormat('pt-BR', { weekday:'short' }).format(d) + ' ' + new Intl.DateTimeFormat('pt-BR', { day:'2-digit', month:'2-digit' }).format(d);
+        const title = document.createElement('div'); title.className = 'day-col-title';
+        title.textContent = new Intl.DateTimeFormat('pt-BR', { weekday:'short' }).format(d) + ' ' + new Intl.DateTimeFormat('pt-BR', { day:'2-digit', month:'2-digit' }).format(d);
         const count = document.createElement('div'); count.className = 'day-col-count'; count.textContent = '0 ag.';
         head.appendChild(title); head.appendChild(count);
 
@@ -437,7 +433,7 @@
           }
 
           if(visible){
-            if(isBusy) dayCount++;
+            if(isBusy){ dayCount++; total++; }
             body.appendChild(makeMiniRow(h, it));
           }
         });
@@ -446,12 +442,19 @@
         col.appendChild(head); col.appendChild(body);
         container.appendChild(col);
       }
+
+      // atualiza badge do topo (7 dias)
+      var contSete = document.getElementById('contSete');
+      if(contSete) contSete.textContent = total + ' no total';
+      // também o mini-pill
+      var qtd7 = document.getElementById('qtd7');
+      if(qtd7) qtd7.textContent = String(total);
     }
 
     function exportCSV(filename, rows){
       const headers = ['Data','Hora','Cliente','Assunto','Duração(min)','Status'];
       const data = [headers].concat(rows.map(r => [r.data, r.hora, r.cliente, r.assunto, r.dur, r.status]));
-      const csv = data.map(line => line.map(v => `"${(v??'').toString().replace(/"/g,'""')}"`).join(',')).join('\\r\\n');
+      const csv = data.map(line => line.map(v => `"${(v??'').toString().replace(/"/g,'""')}"`).join(',')).join('\r\n');
       const blob = new Blob([csv], {type:'text/csv;charset=utf-8;'});
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -478,7 +481,7 @@
         const d = addDays(baseDate, i);
         const key = fmtISO(d);
         const dateStr = new Intl.DateTimeFormat('pt-BR', { year:'numeric', month:'2-digit', day:'2-digit' }).format(d);
-        const list = weekData[key] || []
+        const list = weekData[key] || [];
         list.forEach(it => {
           rows.push({ data: dateStr, hora: it.hhmm || '--:--', cliente: it.cliente, assunto: it.assunto, dur: it.dur, status: it.status });
         });
@@ -501,21 +504,22 @@
       document.getElementById('periodAmanha').textContent = '— ' + new Intl.DateTimeFormat('pt-BR', { weekday:'short', day:'2-digit', month:'short' }).format(d1);
       document.getElementById('periodSete').textContent = '— ' + new Intl.DateTimeFormat('pt-BR', { day:'2-digit', month:'2-digit' }).format(d2) + ' a ' + new Intl.DateTimeFormat('pt-BR', { day:'2-digit', month:'2-digit' }).format(d8);
 
-      // Mini-dashboard contadores (mantidos como demo)
-      document.getElementById('qtdHoje').textContent = '8';
-      document.getElementById('qtdAmanha').textContent = '3';
-      document.getElementById('qtd7').textContent = '16';
-      document.getElementById('miniHint').textContent = 'Resumo automático do período selecionado.';
+      // Dados ativos (produção vazia; validação com demo)
+      const listHoje   = validateMode ? [].concat(demoHoje)   : [];
+      const listAmanha = validateMode ? [].concat(demoAmanha) : [];
+      const weekData   = validateMode ? makeWeekDemo(now)     : {};
 
       // Render Hoje & Amanhã (duas colunas)
-      const contHoje = renderTwoCols(document.getElementById('colHojeA'), document.getElementById('colHojeB'), validateMode ? [].concat(demoHoje) : []);
-      const contAmanha = renderTwoCols(document.getElementById('colAmanhaA'), document.getElementById('colAmanhaB'), validateMode ? [].concat(demoAmanha) : []);
+      const contHoje = renderTwoCols(document.getElementById('colHojeA'), document.getElementById('colHojeB'), listHoje);
+      const contAmanha = renderTwoCols(document.getElementById('colAmanhaA'), document.getElementById('colAmanhaB'), listAmanha);
       document.getElementById('contHoje').textContent = contHoje + (contHoje===1?' agendamento':' agendamentos');
       document.getElementById('contAmanha').textContent = contAmanha + (contAmanha===1?' agendamento':' agendamentos');
 
-      // Semana (período D+2 a D+8) — grid 7 colunas
-      const weekData = validateMode ? makeWeekDemo(now) : {};
-      // Default visual para 7 dias: 'livres'
+      // Atualiza mini-dashboard com os contadores reais
+      document.getElementById('qtdHoje').textContent = String(contHoje);
+      document.getElementById('qtdAmanha').textContent = String(contAmanha);
+
+      // Semana (D+2 a D+8) — grid 7 colunas; default visual 'livres'
       renderWeekGrid(document.getElementById('weekGrid'), now, weekData, 'livres', '');
 
       // Filtros locais (ocupados/livres/todos) + busca
@@ -525,7 +529,6 @@
 
       function applyFilters(){
         const term = (busca.value || '').trim().toLowerCase();
-
         // Hoje & Amanhã
         ['colHojeA','colHojeB','colAmanhaA','colAmanhaB'].forEach(id => {
           document.querySelectorAll('#'+id+' .slot-row').forEach(row => {
@@ -539,7 +542,6 @@
             row.style.display = visible ? '' : 'none';
           });
         });
-
         // 7 dias
         renderWeekGrid(document.getElementById('weekGrid'), now, weekData, active, term);
       }
@@ -553,7 +555,6 @@
         });
       });
       busca.addEventListener('input', applyFilters);
-      // Default: "Todos" inicialmente; botão 'Próx. 7 dias' ajusta p/ 'Livres'
       document.querySelector('.chip[data-filter="all"]').classList.add('active');
 
       // Botões âncora + default de filtro
@@ -581,11 +582,11 @@
 
       // Exportações CSV
       document.getElementById('exportHoje').addEventListener('click', ()=>{
-        const rows = collectRowsDay(d0, validateMode ? demoHoje : []);
+        const rows = collectRowsDay(d0, listHoje);
         exportCSV('agendamentos-hoje.csv', rows);
       });
       document.getElementById('exportAmanha').addEventListener('click', ()=>{
-        const rows = collectRowsDay(d1, validateMode ? demoAmanha : []);
+        const rows = collectRowsDay(d1, listAmanha);
         exportCSV('agendamentos-amanha.csv', rows);
       });
       document.getElementById('exportSete').addEventListener('click', ()=>{
@@ -593,6 +594,8 @@
         exportCSV('agendamentos-prox7dias.csv', rows);
       });
     }
+
+    function pad(n){ return (n<10?'0':'') + n; }
 
     document.addEventListener('DOMContentLoaded', init);
   </script>
