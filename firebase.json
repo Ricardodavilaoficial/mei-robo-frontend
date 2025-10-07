@@ -1,81 +1,32 @@
 {
+  "storage": {
+    "rules": "storage.rules"
+  },
   "hosting": {
     "public": "public",
-    "ignore": [
-      "firebase.json",
-      "**/.*",
-      "**/node_modules/**"
-    ],
+    "ignore": ["firebase.json", "**/.*", "**/node_modules/**"],
     "headers": [
       {
-        "source": "**",
+        "source": "**/*.@(html|htm)",
         "headers": [
-          {
-            "key": "Strict-Transport-Security",
-            "value": "max-age=31536000; includeSubDomains; preload"
-          },
-          {
-            "key": "X-Content-Type-Options",
-            "value": "nosniff"
-          },
-          {
-            "key": "Referrer-Policy",
-            "value": "same-origin"
-          },
-          {
-            "key": "X-Frame-Options",
-            "value": "DENY"
-          },
-          {
-            "key": "X-Robots-Tag",
-            "value": "noindex, nofollow, noarchive"
-          }
+          { "key": "Cache-Control", "value": "no-store" },
+          { "key": "X-Frame-Options", "value": "DENY" },
+          { "key": "X-Content-Type-Options", "value": "nosniff" }
         ]
       },
       {
-        "source": "**/*.html",
+        "source": "/assets/partials/**",
         "headers": [
-          {
-            "key": "Cache-Control",
-            "value": "no-store"
-          }
+          { "key": "Cache-Control", "value": "no-store" }
         ]
-      }
-    ],
-    "redirects": [
-      {
-        "source": "/login",
-        "destination": "/pages/login.html",
-        "type": 301
       },
       {
-        "source": "/login.html",
-        "destination": "/pages/login.html",
-        "type": 301
-      },
-      {
-        "source": "/ativar",
-        "destination": "/pages/ativar.html",
-        "type": 301
-      },
-      {
-        "source": "/ativar.html",
-        "destination": "/pages/ativar.html",
-        "type": 301
+        "source": "assets/**",
+        "headers": [
+          { "key": "Cache-Control", "value": "public,max-age=86400,immutable" },
+          { "key": "X-Content-Type-Options", "value": "nosniff" }
+        ]
       }
     ]
-  },
-  "functions": [
-    {
-      "source": "functions",
-      "codebase": "default",
-      "ignore": [
-        "node_modules",
-        ".git",
-        "firebase-debug.log",
-        "firebase-debug.*.log",
-        "*.local"
-      ]
-    }
-  ]
+  }
 }
