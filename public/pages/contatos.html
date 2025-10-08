@@ -89,6 +89,9 @@
       font-weight:700;
       font-size:.9rem;
     }
+    /* Estado desativado para vitrine */
+    .disabled-all *{ pointer-events:none !important; }
+    .disabled-all input,.disabled-all select,.disabled-all textarea,.disabled-all button{ opacity:.7 }
   </style>
 </head>
 <body class="app-shell">
@@ -142,6 +145,18 @@
               <option value="informal">Bem informal</option>
             </select>
             <div class="hint">Como o robô deve falar com esta pessoa.</div>
+          </div>
+
+          <!-- Telefone / Email -->
+          <div>
+            <label for="n_tel">Telefone (WhatsApp)</label>
+            <input id="n_tel" name="telefone" type="tel" inputmode="tel" placeholder="+55 (11) 91234-5678" />
+            <div class="hint">Formato Brasil com DDI. Ex.: +55 (11) 9XXXX-XXXX</div>
+          </div>
+          <div>
+            <label for="n_email">Email</label>
+            <input id="n_email" name="email" type="email" placeholder="nome@exemplo.com" />
+            <div class="hint">Usamos apenas quando fizer sentido.</div>
           </div>
 
           <!-- Ajustes finos (opcional) -->
@@ -338,6 +353,16 @@
           </select>
         </div>
 
+        <!-- Telefone / Email -->
+        <div>
+          <label for="c_tel">Telefone (WhatsApp)</label>
+          <input id="c_tel" type="tel" inputmode="tel" placeholder="+55 (11) 91234-5678" />
+        </div>
+        <div>
+          <label for="c_email">Email</label>
+          <input id="c_email" type="email" placeholder="nome@exemplo.com" />
+        </div>
+
         <!-- Finos dentro do modal -->
         <div>
           <label for="c_slang">Gírias</label>
@@ -472,14 +497,14 @@
         <div>
           <label for="a_tags">Tags</label>
           <input id="a_tags" type="text" placeholder="Ex.: revisão anual; corte social; manual" />
-          <div class="hint">Separe com ponto e vírgula (;)</div>
+          <div class="hint">Separe com ponto e vírgula (;). Máx. 10 tags.</div>
         </div>
       </div>
 
       <div class="card" style="margin-top:10px;">
         <strong>Arquivos (imagens/PDF)</strong>
         <div class="actions" style="margin:8px 0;">
-          <input type="file" id="a_file" accept="image/*,.pdf" />
+          <input type="file" id="a_file" accept="image/*,.pdf" multiple />
           <button class="btn small" id="btnUpload">Enviar</button>
           <span class="value-soft" id="a_limit">Limite: 5 MB por arquivo · 25 MB por contato</span>
         </div>
@@ -498,7 +523,13 @@
 
   <script>
   (function(){
-    const $ = (q)=>document.querySelector(q);
+    
+    // --- SANDBOX UID via query (?uid=demo_uid) ---
+    const _qp = new URLSearchParams(location.search);
+    const SANDBOX_UID = _qp.get('uid') || 'demo_uid';
+    window.MEI_ROBO = window.MEI_ROBO || {};
+    window.MEI_ROBO.DEMO_UID = SANDBOX_UID;
+const $ = (q)=>document.querySelector(q);
 
     /* ====== Refs ====== */
     const formNew = $("#formNewContact");
@@ -527,6 +558,7 @@
       tom: $("#c_tom"), slang: $("#c_slang"), humor: $("#c_humor"), anedotas: $("#c_anedotas"), ptbr: $("#c_ptbr"),
       emojis: $("#c_emojis"), tamanho: $("#c_tamanho"),
       audioRule: $("#c_audio_rule"), speechRate: $("#c_speech_rate"), clearPauses: $("#c_clear_pauses"),
+      telefone: $("#c_tel"), email: $("#c_email"),
       resumoRelacionamento: $("#c_resumo"), observacoes: $("#c_obs"),
       btnCancel: $("#btnCancelContact"), btnSave: $("#btnSaveContact")
     };
@@ -535,7 +567,7 @@
     const consentInfo = $("#consentInfo");
     const btnGenLink = $("#btnGenLink");
     const btnRequestOptin = $("#btnRequestOptin");
-    theBtnSendConfirmation = $("#btnSendConfirmation");
+    const theBtnSendConfirmation = $("#btnSendConfirmation");
     const btnMarkExternal = $("#btnMarkExternal");
     const btnCloseConsent = $("#btnCloseConsent");
     const linkArea = $("#linkArea");
@@ -559,7 +591,7 @@
 
     /* ====== Utils ====== */
     function isValidateMode(){ try{ return new URLSearchParams(location.search).has('validate'); }catch{ return false; } }
-    function escapeHtml(s){ return String(s??"").replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39'}[m])); }
+    function escapeHtml(s){ return String(s??"").replace(/[&<>\"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;','\'':'&#39'}[m])); }
     function formatWhen(ts){
       if(!ts) return "—";
       try{
@@ -579,7 +611,7 @@
 
     function fs(){ return (window.firebase?.firestore) ? firebase.firestore(): null; }
     function st(){ return (window.firebase?.storage) ? firebase.storage(): null; }
-    function pathClientes(uid){ return fs().collection('profissionais').doc(uid).collection('clientes'); }
+    function pathClientes(){ return fs().collection('profissionais').doc(SANDBOX_UID).collection('clientes'); }
 
     function styleCodeFrom(d){
       const T = d.tom==='informal'?'INF':(d.tom==='formal'?'FOR':'EQ');
@@ -602,6 +634,24 @@
       if(legacy==='texto') return 'off';
       if(legacy==='permitido') return 'match';
       return 'match';
+    }
+
+    /* ====== Máscaras & validações básicas ====== */
+    const phoneRegex = /^\+55\s?\(?\d{2}\)?\s?9?\d{4}-?\d{4}$/;
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/i;
+    function maskPhoneInput(el){
+      el.addEventListener('input', ()=>{
+        let v = el.value.replace(/\D/g,'');
+        if(!v.startsWith('55')) v = '55' + v;
+        if(v.length > 13) v = v.slice(0,13); // 55 + 2 DDD + 9 + 8
+        // Formatar: +55 (11) 91234-5678
+        const ddi = '+55';
+        const ddd = v.slice(2,4);
+        const nine = v.slice(4,5);
+        const part1 = v.slice(5,9);
+        const part2 = v.slice(9,13);
+        el.value = ddd ? `${ddi} (${ddd}) ${nine}${part1}-${part2}`.trim() : `${ddi} `;
+      });
     }
 
     /* ====== Render ====== */
@@ -636,7 +686,7 @@
     async function loadContacts(){
       const db = fs(); if(!db || !CURRENT_USER) return;
       CURRENT_ROWS = [];
-      const snap = await pathClientes(CURRENT_USER.uid).orderBy('nome','asc').get().catch(e=>{
+      const snap = await pathClientes().orderBy('nome','asc').get().catch(e=>{
         console.error('[contatos] loadContacts', e); return {empty:true, forEach:()=>{}};
       });
       if(!snap.empty){
@@ -655,8 +705,16 @@
     }
 
     async function ensureAuth(){
-      if(!window.firebase || !firebase?.auth){
-        if(isValidateMode()){ demoPopulate(); return {demo:true}; }
+      if(!window.firebase || !firebase?.auth){ return null; }
+      try{
+        await firebase.auth().signInAnonymously();
+        CURRENT_USER = { uid: SANDBOX_UID };
+        return CURRENT_USER;
+      }catch(e){
+        console.error('[contatos] ensureAuth', e);
+        return null;
+      }
+    }; }
         setTimeout(()=>location.href='/pages/login.html',150);
         return null;
       }
@@ -671,10 +729,44 @@
       return user;
     }
 
+    function disableForVitrine(){
+      if(!isValidateMode()) return;
+      document.body.classList.add('disabled-all');
+    }
+
     /* ====== CRUD ====== */
+    // --- Telefone BR: normalização para msisdn/waKey ---
+    function _digits(s){ return String(s||'').replace(/\D+/g,''); }
+    function normalizeBRPhone(input){
+      let raw = _digits(input);
+      raw = raw.replace(/^55/, '') || raw;
+      const ddd = raw.slice(0,2);
+      let base = raw.slice(2);
+      const cand = new Set();
+      if(base.length === 9){
+        cand.add(`55${ddd}${base}`);
+        if(base.startsWith('9')) cand.add(`55${ddd}${base.slice(1)}`);
+      } else if(base.length === 8){
+        cand.add(`55${ddd}${base}`);
+        cand.add(`55${ddd}9${base}`);
+      } else {
+        cand.add(`55${raw}`);
+      }
+      let msisdn = null;
+      for(const c of cand){ if(c.length===13){ msisdn=c; break; } }
+      if(!msisdn) msisdn=[...cand][0];
+      const without55 = msisdn.replace(/^55/, '');
+      const wDDD = without55.slice(0,2);
+      const rest = without55.slice(2);
+      const with9 = rest.length===9 ? rest : (rest.length===8 ? ('9'+rest) : rest);
+      const no9  = with9.startsWith('9') ? with9.slice(1) : with9;
+      const waKey = `br:${wDDD}:${no9}:${with9}`;
+      return { raw: input, msisdn, waKey };
+    }
+
     async function upsertContact(data, id){
       const db=fs(); if(!db || !CURRENT_USER) return;
-      const col=pathClientes(CURRENT_USER.uid);
+      const col=pathClientes();
       const payload={
         nome:data.nome||'', comoChama:data.comoChama||'', categoria:data.categoria||'',
         tom:data.tom||'equilibrado',
@@ -688,22 +780,24 @@
         audioRule: data.audioRule||'match',
         speechRate: data.speechRate||'normal',
         clearPauses: !!data.clearPauses,
-        telefone: data.telefone||'',
-        email: data.email||'',
+        telefone: (data.telefone||'').trim(),
+        email: (data.email||'').trim(),
         resumoRelacionamento: (data.resumoRelacionamento||'').slice(0,200),
         observacoes: data.observacoes||'',
       };
       payload.preferenciaAudio = (payload.audioRule==='off')?'texto':'permitido';
       payload.styleCode = styleCodeFrom(payload);
+      try { const tn = normalizeBRPhone(payload.telefone); payload.telefone_v2 = { raw: payload.telefone, msisdn: tn.msisdn, waKey: tn.waKey }; } catch{}_;
+
       if(id){ await col.doc(id).set(payload,{merge:true}); }
       else { await col.add(payload); }
     }
 
     async function setConsentExternal(contatoId){
       const db=fs(); if(!db || !CURRENT_USER) return;
-      const ref=pathClientes(CURRENT_USER.uid).doc(contatoId);
+      const ref=pathClientes().doc(contatoId);
       const now = (firebase.firestore.FieldValue.serverTimestamp?.() || new Date());
-      await ref.set({ consentimento:{ status:'consentido', origem:'externo', atualizadoEm: now } }, {merge:true});
+      await ref.set({ consentimento:{ status:'consentido', origem:'externo', atualizadoEm: now }, consent: { status:'consentido', source:'externo', timestamp: now } }, {merge:true});
     }
 
     /* ====== New form ====== */
@@ -742,6 +836,8 @@
       if(isValidateMode()) return;
       const data=readNewForm();
       if(!data.nome){ alert('Informe o nome do contato.'); return; }
+      if(data.email && !emailRegex.test(data.email)){ alert('Email inválido.'); return; }
+      if(data.telefone && !phoneRegex.test(data.telefone)){ alert('Telefone inválido. Use +55 (DD) 9XXXX-XXXX'); return; }
       btnSaveNew.disabled=true;
       try{
         await upsertContact(data,null);
@@ -823,6 +919,8 @@
         C.nome.value = 'Maria da Silva'; C.comoChama.value='Dona Maria';
         C.categoria.value = 'cliente';
         C.tom.value = 'equilibrado';
+        C.telefone.value = '+55 (11) 91234-5678';
+        C.email.value = 'maria@exemplo.com';
         C.slang.value = "1"; C.humor.value="1"; C.anedotas.value='nunca'; C.ptbr.checked=true;
         C.emojis.value='poucos'; C.tamanho.value='curtas';
         C.audioRule.value='match'; C.speechRate.value='normal'; C.clearPauses.checked=true;
@@ -832,12 +930,14 @@
         return;
       }
       try{
-        const doc=await pathClientes(CURRENT_USER.uid).doc(id).get();
+        const doc=await pathClientes().doc(id).get();
         const c=doc.data()||{};
         $("#c_id").value = id;
         C.nome.value = c.nome||""; C.comoChama.value=c.comoChama||"";
         C.categoria.value = c.categoria||"";
         C.tom.value = c.tom||"equilibrado";
+        C.telefone.value = c.telefone||"";
+        C.email.value = c.email||"";
         C.slang.value = String(c.slang ?? 1);
         C.humor.value = String(c.humor ?? 1);
         C.anedotas.value = c.anecdotesAllow?'rara':(c.anecdotesFreq||'nunca');
@@ -871,10 +971,14 @@
         audioRule: C.audioRule.value||"match",
         speechRate: C.speechRate.value||"normal",
         clearPauses: !!C.clearPauses.checked,
+        telefone: C.telefone.value.trim(),
+        email: C.email.value.trim(),
         resumoRelacionamento: C.resumoRelacionamento.value.trim(),
         observacoes: C.observacoes.value.trim()
       };
       if(!data.nome){ alert('Informe o nome do contato.'); return; }
+      if(data.email && !emailRegex.test(data.email)){ alert('Email inválido.'); return; }
+      if(data.telefone && !phoneRegex.test(data.telefone)){ alert('Telefone inválido. Use +55 (DD) 9XXXX-XXXX'); return; }
       C.btnSave.disabled=true;
       try{
         await upsertContact(data, data.id);
@@ -908,7 +1012,7 @@
         lastInbound = within24h(c.ultimaInteracaoEm);
       } else {
         try{
-          const doc=await pathClientes(CURRENT_USER.uid).doc(id).get();
+          const doc=await pathClientes().doc(id).get();
           const c=doc.data()||{};
           st=(c.consentimento&&c.consentimento.status)||'pendente';
           updated=(c.consentimento&&c.consentimento.atualizadoEm)
@@ -968,7 +1072,7 @@
         a_notes.value=''; a_tags.value=''; filesList.textContent='Modo de validação: arquivos desativados.'; if(!modalAcervo.open) modalAcervo.showModal(); return;
       }
       try{
-        const doc=await pathClientes(CURRENT_USER.uid).doc(id).get();
+        const doc=await pathClientes().doc(id).get();
         const c=doc.data()||{};
         a_notes.value = (c.acervo && c.acervo.notes) || '';
         a_tags.value = (c.acervo && c.acervo.tags && c.acervo.tags.join('; ')) || '';
@@ -977,10 +1081,16 @@
       }catch(e){ console.error('[acervo] abrir', e); alert('Não foi possível abrir o acervo.'); }
     }
 
+    function parseTagsLimited(){
+      const tags = a_tags.value.split(';').map(s=>s.trim()).filter(Boolean);
+      if(tags.length > 10){ alert('Máximo de 10 tags.'); return tags.slice(0,10); }
+      return tags;
+    }
+
     async function refreshFilesList(){
       filesList.textContent='Carregando…';
       const db=fs(); if(!db || !CURRENT_USER || !CURRENT_ACERVO_ID){ filesList.textContent='Indisponível.'; return; }
-      const fileCol=pathClientes(CURRENT_USER.uid).doc(CURRENT_ACERVO_ID).collection('files');
+      const fileCol=pathClientes().doc(CURRENT_ACERVO_ID).collection('files');
       const snap=await fileCol.orderBy('createdAt','desc').get().catch(e=>{console.error('[acervo] listar',e);return{empty:true,forEach:()=>{}};});
       let html=''; let total=0;
       if(!snap.empty){
@@ -992,59 +1102,79 @@
               <div class="note">${escapeHtml(f.note||'')}</div>
             </div>
             <div class="actions">
-              <a class="btn small" href="${escapeHtml(f.url||'#')}" target="_blank" rel="noopener">Abrir</a>
+              ${f.url?`<a class="btn small" href="${escapeHtml(f.url)}" target="_blank" rel="noopener">Abrir</a>`:''}
+              ${f.storagePath?`<button class="btn small" data-del="${escapeHtml(doc.id)}" data-path="${escapeHtml(f.storagePath)}">Excluir</button>`:''}
             </div>
           </div>`;
         });
       }
       const usedMB=(total/1024/1024).toFixed(2);
       filesList.innerHTML = (html||'<div class="value-soft">Nenhum arquivo enviado ainda.</div>') + `<div class="hint" style="margin-top:8px">Usado: <b>${usedMB} MB</b> de <b>${(LIMITS.contactMax/1024/1024).toFixed(0)} MB</b> por contato.</div>`;
-      await pathClientes(CURRENT_USER.uid).doc(CURRENT_ACERVO_ID).set({ acervo:{ usage:{ totalBytes: total, maxBytesPerContact: LIMITS.contactMax } } }, {merge:true});
+      await pathClientes().doc(CURRENT_ACERVO_ID).set({ acervo:{ usage:{ totalBytes: total, maxBytesPerContact: LIMITS.contactMax } } }, {merge:true});
     }
+
+    filesList?.addEventListener('click', async (ev)=>{
+      const delId = ev.target?.getAttribute?.('data-del');
+      const path = ev.target?.getAttribute?.('data-path');
+      if(!delId || !path || isValidateMode()) return;
+      if(!confirm('Excluir este arquivo?')) return;
+      try{
+        await st().ref().child(path).delete();
+        await pathClientes().doc(CURRENT_ACERVO_ID).collection('files').doc(delId).delete();
+        await refreshFilesList();
+      }catch(e){ console.error('[acervo] excluir',e); alert('Falha ao excluir.'); }
+    });
 
     btnUpload?.addEventListener('click', async ()=>{
       if(isValidateMode() || !CURRENT_ACERVO_ID) return;
-      const file=a_file.files?.[0]; if(!file){ alert('Escolha um arquivo.'); return; }
-      if(file.size > LIMITS.fileMax){ alert('Arquivo maior que 5 MB.'); return; }
+      const files = Array.from(a_file.files||[]);
+      if(!files.length){ alert('Escolha um arquivo.'); return; }
       try{
-        const doc=await pathClientes(CURRENT_USER.uid).doc(CURRENT_ACERVO_ID).get();
-        const used = ((doc.data()?.acervo?.usage?.totalBytes)||0);
-        if(used + file.size > LIMITS.contactMax){ alert('Limite por contato atingido. Exclua algo ou mude de plano.'); return; }
+        const doc=await pathClientes().doc(CURRENT_ACERVO_ID).get();
+        let used = ((doc.data()?.acervo?.usage?.totalBytes)||0);
 
         const storage=st(); const db=fs(); if(!storage || !db){ alert('Storage indisponível.'); return; }
-        const ext = (file.name.split('.').pop()||'').toLowerCase();
-        const isImg = file.type.startsWith('image/');
-        const isPdf = ext==='pdf' || file.type==='application/pdf';
-        if(!isImg && !isPdf){ alert('Apenas imagens ou PDF.'); return; }
 
-        const path=`users/${CURRENT_USER.uid}/contacts/${CURRENT_ACERVO_ID}/${Date.now()}_${file.name.replace(/[^a-zA-Z0-9._-]/g,'_')}`;
-        const ref=storage.ref().child(path);
+        upBar.style.display='block'; upProg.style.width='0%';
+        let sent=0;
+        for(const file of files){
+          if(file.size > LIMITS.fileMax){ alert(`Arquivo ${file.name} maior que 5 MB.`); continue; }
+          if(used + file.size > LIMITS.contactMax){ alert('Limite por contato atingido. Exclua algo ou mude de plano.'); break; }
+          const ext = (file.name.split('.').pop()||'').toLowerCase();
+          const isImg = file.type.startsWith('image/');
+          const isPdf = ext==='pdf' || file.type==='application/pdf';
+          if(!isImg && !isPdf){ alert('Apenas imagens ou PDF.'); continue; }
 
-        document.querySelector('.bar').style.display='block'; upProg.style.width='0%';
-        await new Promise((resolve,reject)=>{
-          const task=ref.put(file);
-          task.on('state_changed', snap=>{
-            const pct = (snap.bytesTransferred/snap.totalBytes)*100; upProg.style.width = pct.toFixed(0)+'%';
-          }, reject, resolve);
-        });
+          const path=`sandbox/${SANDBOX_UID}/contatos/${CURRENT_ACERVO_ID}/${Date.now()}_${file.name.replace(/[^a-zA-Z0-9._-]/g,'_')}`;
+          const ref=storage.ref().child(path);
 
-        const url = await ref.getDownloadURL();
-        const meta = {
-          name:file.name,type:file.type,size:file.size,storagePath:path,url,
-          createdAt: firebase.firestore.FieldValue.serverTimestamp?.() || new Date()
-        };
-        await pathClientes(CURRENT_USER.uid).doc(CURRENT_ACERVO_ID).collection('files').add(meta);
-        document.querySelector('.bar').style.display='none'; a_file.value='';
-        await refreshFilesList();
-      }catch(e){ console.error('[acervo] upload',e); alert('Falha no upload.'); document.querySelector('.bar').style.display='none'; }
+          await new Promise((resolve,reject)=>{
+            const task=ref.put(file);
+            task.on('state_changed', snap=>{
+              const pct = (snap.bytesTransferred/snap.totalBytes)*100;
+              upProg.style.width = pct.toFixed(0)+'%';
+            }, reject, resolve);
+          });
+
+          const url = await ref.getDownloadURL();
+          const meta = {
+            name:file.name,type:file.type,size:file.size,storagePath:path,url,
+            createdAt: firebase.firestore.FieldValue.serverTimestamp?.() || new Date()
+          };
+          await pathClientes().doc(CURRENT_ACERVO_ID).collection('files').add(meta);
+          used += file.size; sent++;
+        }
+        upBar.style.display='none'; a_file.value='';
+        if(sent>0) await refreshFilesList();
+      }catch(e){ console.error('[acervo] upload',e); alert('Falha no upload.'); upBar.style.display='none'; }
     });
 
     btnSaveAcervo?.addEventListener('click', async ()=>{
       if(isValidateMode() || !CURRENT_ACERVO_ID) return;
       const notes = a_notes.value.slice(0,500);
-      const tags = a_tags.value.split(';').map(s=>s.trim()).filter(Boolean);
+      const tags = parseTagsLimited();
       try{
-        await pathClientes(CURRENT_USER.uid).doc(CURRENT_ACERVO_ID).set({ acervo:{ notes: notes, tags: tags } }, {merge:true});
+        await pathClientes().doc(CURRENT_ACERVO_ID).set({ acervo:{ notes: notes, tags: tags } }, {merge:true});
         alert('Anotações salvas.');
       }catch(e){ console.error('[acervo] salvar',e); alert('Não foi possível salvar.'); }
     });
@@ -1055,6 +1185,12 @@
 
     /* ====== Bootstrap ====== */
     window.addEventListener('load', async ()=>{
+      // máscaras
+      if(NC.telefone) maskPhoneInput(NC.telefone);
+      if(C.telefone) maskPhoneInput(C.telefone);
+
+      disableForVitrine();
+
       const u = await ensureAuth();
       if(!u) return;
       if(u.demo){ demoPopulate(); return; }
@@ -1065,3 +1201,4 @@
   </script>
 </body>
 </html>
+

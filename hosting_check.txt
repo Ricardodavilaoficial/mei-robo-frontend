@@ -1,0 +1,88 @@
+== 07/10/2025 14:20:23,19 HEADERS == 
+--- https://meirobo.com.br/ 
+HTTP/1.1 200 OK
+Connection: keep-alive
+Content-Length: 21887
+Cache-Control: max-age=3600
+Content-Type: text/html; charset=utf-8
+Etag: "d5641eba2f4005f1b4a05c1e998916de87c13f05d20edc4b30836b009872fc7e"
+Last-Modified: Tue, 07 Oct 2025 15:19:00 GMT
+Referrer-Policy: same-origin
+Strict-Transport-Security: max-age=31536000; includeSubDomains; preload
+X-Content-Type-Options: nosniff
+X-Frame-Options: DENY
+X-Robots-Tag: noindex, nofollow, noarchive
+Accept-Ranges: bytes
+Date: Tue, 07 Oct 2025 17:20:23 GMT
+X-Served-By: cache-gru-sbgr1930020-GRU
+X-Cache: HIT
+X-Cache-Hits: 0
+X-Timer: S1759857624.728642,VS0,VE2
+Vary: x-fh-requested-host, accept-encoding
+alt-svc: h3=":443";ma=86400,h3-29=":443";ma=86400,h3-27=":443";ma=86400
+
+--- https://www.meirobo.com.br/ 
+HTTP/1.1 200 OK
+Connection: keep-alive
+Content-Length: 21887
+Cache-Control: max-age=3600
+Content-Type: text/html; charset=utf-8
+Etag: "d5641eba2f4005f1b4a05c1e998916de87c13f05d20edc4b30836b009872fc7e"
+Last-Modified: Tue, 07 Oct 2025 15:19:00 GMT
+Referrer-Policy: same-origin
+Strict-Transport-Security: max-age=31536000; includeSubDomains; preload
+X-Content-Type-Options: nosniff
+X-Frame-Options: DENY
+X-Robots-Tag: noindex, nofollow, noarchive
+Accept-Ranges: bytes
+Date: Tue, 07 Oct 2025 17:20:24 GMT
+X-Served-By: cache-gru-sbgr1930037-GRU
+X-Cache: HIT
+X-Cache-Hits: 0
+X-Timer: S1759857625.581178,VS0,VE1
+Vary: x-fh-requested-host, accept-encoding
+alt-svc: h3=":443";ma=86400,h3-29=":443";ma=86400,h3-27=":443";ma=86400
+
+--- https://meirobo.com.br/pages/agenda.html 
+HTTP/1.1 200 OK
+Connection: keep-alive
+Cache-Control: no-store
+Content-Type: text/html; charset=utf-8
+Etag: "719512f117af191a146d3f88a907c9fe66673ad387aee6f3e2fb191e830169c7"
+Last-Modified: Tue, 07 Oct 2025 15:19:00 GMT
+Referrer-Policy: same-origin
+Strict-Transport-Security: max-age=31536000; includeSubDomains; preload
+X-Content-Type-Options: nosniff
+X-Frame-Options: DENY
+X-Robots-Tag: noindex, nofollow, noarchive
+Accept-Ranges: bytes
+Date: Tue, 07 Oct 2025 17:20:25 GMT
+X-Served-By: cache-gru-sbgr1930034-GRU
+X-Cache: MISS
+X-Cache-Hits: 0
+X-Timer: S1759857625.018505,VS0,VE239
+Vary: x-fh-requested-host, accept-encoding
+alt-svc: h3=":443";ma=86400,h3-29=":443";ma=86400,h3-27=":443";ma=86400
+
+--- https://meirobo.com.br/assets/logo-meirobo-320.png 
+HTTP/1.1 200 OK
+Connection: keep-alive
+Content-Length: 175661
+Cache-Control: max-age=3600
+Content-Type: image/png
+Etag: "e989743235663d9cff3a79d7c104374aa95508c1437d186868be910f039e8493"
+Last-Modified: Tue, 07 Oct 2025 15:19:00 GMT
+Referrer-Policy: same-origin
+Strict-Transport-Security: max-age=31536000; includeSubDomains; preload
+X-Content-Type-Options: nosniff
+X-Frame-Options: DENY
+X-Robots-Tag: noindex, nofollow, noarchive
+Accept-Ranges: bytes
+Date: Tue, 07 Oct 2025 17:20:25 GMT
+X-Served-By: cache-gru-sbgr1930042-GRU
+X-Cache: HIT
+X-Cache-Hits: 0
+X-Timer: S1759857626.684317,VS0,VE1
+Vary: x-fh-requested-host, accept-encoding
+alt-svc: h3=":443";ma=86400,h3-29=":443";ma=86400,h3-27=":443";ma=86400
+
