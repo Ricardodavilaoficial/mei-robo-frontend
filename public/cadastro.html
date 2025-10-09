@@ -365,20 +365,70 @@
       voiceState.files.forEach((file)=> fd.append('voice', file, file.name));
 
       try{
-        /* === INÍCIO DO NOVO BLOCO try ===
-           1) Captura do idToken do Firebase
-           2) Conversão do FormData (fd) em JSON (arquivos => metadados)
-           3) fetch com JSON + Authorization: Bearer <idToken>
-        */
-        const user =
-          (window.firebase && firebase.auth && typeof firebase.auth === 'function' && firebase.auth().currentUser) ||
-          (window.auth && auth.currentUser) ||
-          null;
+        /* ==== NOVO BLOCO try (autentica e envia JSON com Bearer) ==== */
 
-        if (!user) throw new Error('Usuário não autenticado. Faça login para concluir o cadastro.');
+        // 1) Pegar email/senha do formulário (já validados acima)
+        const email = (emailInput.value || '').trim();
+        const password = (pwd.value || '');
 
+        // 2) Obter uma instância de Auth (compatível com v8/v9 compat e v9 modular)
+        const getAuthCompatOrModular = () => {
+          // v8/v9 compat via CDN
+          if (window.firebase?.auth) {
+            try { return firebase.auth(); } catch(_) {}
+          }
+          // v9 modular (getAuth global injetado em layout.js, por ex.)
+          if (window.getAuth) {
+            try { return window.getAuth(); } catch(_) {}
+          }
+          // fallback: alguma variável global 'auth'
+          if (window.auth) return window.auth;
+          return null;
+        };
+        const authInst = getAuthCompatOrModular();
+        if (!authInst) throw new Error('Firebase Auth não inicializado nesta página.');
+
+        // 3) Garantir usuário autenticado: cria conta ou faz login se já existir
+        async function ensureAuthenticated(email, password){
+          // Se já logado, retorna
+          if (authInst.currentUser) return authInst.currentUser;
+
+          // Compat (v8/v9 compat)
+          if (typeof authInst.createUserWithEmailAndPassword === 'function') {
+            try {
+              const cred = await authInst.createUserWithEmailAndPassword(email, password);
+              return cred.user;
+            } catch (e) {
+              if (e && (e.code === 'auth/email-already-in-use' || e.code === 'auth/email-already-exists')) {
+                const cred = await authInst.signInWithEmailAndPassword(email, password);
+                return cred.user;
+              }
+              throw e;
+            }
+          }
+
+          // Modular (v9)
+          if (window.createUserWithEmailAndPassword && window.signInWithEmailAndPassword) {
+            const inst = window.getAuth ? window.getAuth() : authInst;
+            try {
+              const cred = await window.createUserWithEmailAndPassword(inst, email, password);
+              return cred.user;
+            } catch (e) {
+              if (e && (e.code === 'auth/email-already-in-use' || e.code === 'auth/email-already-exists')) {
+                const cred = await window.signInWithEmailAndPassword(inst, email, password);
+                return cred.user;
+              }
+              throw e;
+            }
+          }
+
+          throw new Error('SDK do Firebase Auth indisponível para criar/entrar.');
+        }
+
+        const user = await ensureAuthenticated(email, password);
         const idToken = await user.getIdToken();
 
+        // 4) Converter o FormData em JSON (arquivos => metadados)
         const toJson = (formData) => {
           const obj = {};
           for (const [k, v] of formData.entries()) {
@@ -394,9 +444,9 @@
           }
           return obj;
         };
-
         const payload = toJson(fd);
 
+        // 5) Enviar o cadastro como JSON com Authorization: Bearer <idToken>
         const res = await fetch(API.cadastro, {
           method: 'POST',
           headers: {
@@ -412,6 +462,7 @@
 
         const data = await res.json().catch(()=>({}));
 
+        // 6) Mantém a lógica de redirecionamento original
         if (data.next === 'verifyEmail') {
           const mail = (data.email || (emailInput.value||'')).trim();
           location.href = '/verify-email.html?email=' + encodeURIComponent(mail);
@@ -419,7 +470,8 @@
         }
         if (data.checkoutUrl) { location.href = data.checkoutUrl; return; }
         location.href = '/verify-email.html';
-        /* === FIM DO NOVO BLOCO try === */
+
+        /* ==== FIM DO NOVO BLOCO try ==== */
       } catch(e){
         console.error(e);
         formMsg.className='error';
