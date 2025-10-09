@@ -13,7 +13,6 @@
   <script defer src="/__/firebase/9.22.2/firebase-auth-compat.js"></script>
   <script defer src="/__/firebase/init.js?useEmulator=false"></script>
   <script>
-    // Após init.js, a app já está criada; expõe window.auth
     window.addEventListener('load', () => {
       try {
         if (window.firebase?.apps?.length) {
@@ -28,26 +27,18 @@
 
   <style>
     .center{ max-width:720px; margin:0 auto; width:100%; }
-
-    /* Chip de e-mail apenas leitura */
     .email-chip{
       font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
       font-weight: 700; padding: 2px 8px; border-radius: 8px;
       background:#0f3b2f; color:#b9f4d8; word-break:break-all;
     }
-
-    /* Texto do input menos branco quando tem value */
     .value-soft{ color: rgba(233,237,239,.80) !important; }
     .readonly{ opacity:.9; }
-
-    /* Placeholder acinzentado (fallback local garantido) */
     #email.input::placeholder{ color: rgba(233,237,239,.55) !important; opacity:1; }
     #email.input::-webkit-input-placeholder{ color: rgba(233,237,239,.55) !important; opacity:1; }
     #email.input::-moz-placeholder{ color: rgba(233,237,239,.55) !important; opacity:1; }
     #email.input:-ms-input-placeholder{ color: rgba(233,237,239,.55) !important; opacity:1; }
     #email.input::-ms-input-placeholder{ color: rgba(233,237,239,.55) !important; opacity:1; }
-
-    /* Mensagens */
     #msg.hint{ color: rgba(255,255,255,0.85); }
     #msg.ok{ color: #86f7c2; }
     #msg.error{ color: #ff9c9c; }
@@ -56,7 +47,6 @@
 <body class="app-shell">
   <div id="app-header"></div>
 
-  <!-- Fallback inline de altura confortável -->
   <main class="section app-main" style="min-height:82svh">
     <div class="container center">
       <h1 style="color:var(--wa-dark); margin:0 0 6px">Confirme seu e-mail</h1>
@@ -98,14 +88,14 @@
 
   <div id="app-footer"></div>
 
-  <!-- removido: /assets/firebase-init.js (não precisamos mais) -->
+  <!-- IMPORTANTE: NÃO carregar /assets/firebase-init.js aqui -->
   <script src="/assets/layout.js" defer></script>
 
   <script>
   (function(){
     const BACKEND = 'https://mei-robo-prod.onrender.com';
     const API = {
-      // Mantemos checkStatus como fallback; resend agora é pelo Firebase
+      // Mantido apenas como fallback
       checkStatus:  BACKEND + '/api/auth/check-verification'
     };
 
@@ -117,8 +107,8 @@
     const btnCheck  = $('#btnCheck');
     const btnChange = $('#btnChange');
 
-    let authEmail = null;   // se logado, usamos este e-mail
-    let idToken   = null;   // se logado, mandamos Bearer (fallback)
+    let authEmail = null;
+    let idToken   = null;
 
     function setMsg(text, cls){ msg.className = cls || 'hint'; msg.textContent = text || ''; }
     function sanitizeEmail(s){ if(!s||typeof s!=='string')return''; s=s.trim().replace(/\s+/g,''); return s.replace(/[\u200B-\u200D\uFEFF]/g,''); }
@@ -159,7 +149,6 @@
       e.preventDefault();
       setMsg('Enviando...', 'hint');
 
-      // se logado, força uso do e-mail autenticado
       const email = authEmail ? authEmail : sanitizeEmail(emailInput.value || '');
       if(!isValidEmail(email)){ setMsg('Informe um e-mail válido.', 'error'); emailInput.focus(); return; }
 
@@ -175,7 +164,6 @@
         } else {
           await user.reload();
           if (user.email !== email) {
-            // Mantemos a UX coerente: se o usuário logado tem outro e-mail, usamos o do usuário
             applyEmailToUI(user.email);
           }
           await user.sendEmailVerification({
@@ -214,15 +202,13 @@
           }catch(e){ console.info('[verify] firebase reload falhou:', e); }
         }
 
-        // Fallback no backend (caso o usuário tenha verificado em outro device)
+        // Fallback no backend
         const email = authEmail ? authEmail : sanitizeEmail(emailInput.value || '');
         const payload = isValidEmail(email) ? { email } : {};
         const headers = {'Content-Type': 'application/json'};
         if(idToken){ headers['Authorization'] = 'Bearer ' + idToken; }
 
-        const res = await fetch(API.checkStatus, {
-          method:'POST', headers, body: JSON.stringify(payload)
-        });
+        const res = await fetch(API.checkStatus, { method:'POST', headers, body: JSON.stringify(payload) });
         const data = await res.json().catch(()=> ({}));
         if(res.ok && (data.verified===true || data.ok===true)){
           setMsg('E-mail verificado com sucesso! Redirecionando…', 'ok');
@@ -238,7 +224,7 @@
       }
     });
 
-    // ====== Trocar e-mail → voltar ao cadastro (limpando sessão) ======
+    // ====== Trocar e-mail → voltar ao cadastro ======
     btnChange.addEventListener('click', async (e)=>{
       try{
         e.preventDefault();
@@ -255,14 +241,13 @@
     (async function init(){
       await ensureHeaderFooter();
 
-      // Preferir e-mail do usuário autenticado, se houver.
       try{
         const hasFirebase = typeof window.firebase !== 'undefined' && firebase?.auth;
         if(hasFirebase){
           const user = firebase.auth().currentUser || null;
           if(user?.email){
             authEmail = user.email;
-            try{ idToken = await user.getIdToken(/* forceRefresh */ false); }catch{}
+            try{ idToken = await user.getIdToken(false); }catch{}
           }
         }
       }catch(e){ console.info('[verify] firebase init note:', e); }
@@ -271,14 +256,12 @@
       const displayEmail = authEmail || fromQuery;
       applyEmailToUI(displayEmail);
 
-      // Se estiver logado, trava o input (não é para "editar" aqui)
       if(authEmail){
         emailInput.readOnly = true;
         emailInput.classList.add('readonly');
         emailInput.value = authEmail;
       }
 
-      // limpar msg ao digitar (só faz sentido se não estiver readonly)
       emailInput.addEventListener('input', ()=> setMsg('', 'hint'));
     })();
   })();
