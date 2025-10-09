@@ -365,9 +365,53 @@
       voiceState.files.forEach((file)=> fd.append('voice', file, file.name));
 
       try{
-        const res = await fetch(API.cadastro, { method:'POST', body: fd, credentials:'include' });
-        if (!res.ok) throw new Error('Falha no cadastro: HTTP '+res.status);
+        /* === INÍCIO DO NOVO BLOCO try ===
+           1) Captura do idToken do Firebase
+           2) Conversão do FormData (fd) em JSON (arquivos => metadados)
+           3) fetch com JSON + Authorization: Bearer <idToken>
+        */
+        const user =
+          (window.firebase && firebase.auth && typeof firebase.auth === 'function' && firebase.auth().currentUser) ||
+          (window.auth && auth.currentUser) ||
+          null;
+
+        if (!user) throw new Error('Usuário não autenticado. Faça login para concluir o cadastro.');
+
+        const idToken = await user.getIdToken();
+
+        const toJson = (formData) => {
+          const obj = {};
+          for (const [k, v] of formData.entries()) {
+            const val = (v instanceof File)
+              ? { name: v.name, size: v.size, type: v.type || '', lastModified: v.lastModified || null }
+              : v;
+            if (Object.prototype.hasOwnProperty.call(obj, k)) {
+              if (Array.isArray(obj[k])) obj[k].push(val);
+              else obj[k] = [obj[k], val];
+            } else {
+              obj[k] = val;
+            }
+          }
+          return obj;
+        };
+
+        const payload = toJson(fd);
+
+        const res = await fetch(API.cadastro, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+            'Authorization': 'Bearer ' + idToken
+          },
+          body: JSON.stringify(payload),
+          credentials: 'include'
+        });
+
+        if (!res.ok) throw new Error('Falha no cadastro: HTTP ' + res.status);
+
         const data = await res.json().catch(()=>({}));
+
         if (data.next === 'verifyEmail') {
           const mail = (data.email || (emailInput.value||'')).trim();
           location.href = '/verify-email.html?email=' + encodeURIComponent(mail);
@@ -375,6 +419,7 @@
         }
         if (data.checkoutUrl) { location.href = data.checkoutUrl; return; }
         location.href = '/verify-email.html';
+        /* === FIM DO NOVO BLOCO try === */
       } catch(e){
         console.error(e);
         formMsg.className='error';
