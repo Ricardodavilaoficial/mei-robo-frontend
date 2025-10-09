@@ -8,6 +8,24 @@
   <meta http-equiv="Cache-Control" content="no-store" />
   <link rel="stylesheet" href="/assets/styles.css" />
 
+  <!-- Firebase Hosting: SDK compat + init automático -->
+  <script defer src="/__/firebase/9.22.2/firebase-app-compat.js"></script>
+  <script defer src="/__/firebase/9.22.2/firebase-auth-compat.js"></script>
+  <script defer src="/__/firebase/init.js?useEmulator=false"></script>
+  <script>
+    // Após init.js, a app já está criada; expõe window.auth
+    window.addEventListener('load', () => {
+      try {
+        if (window.firebase?.apps?.length) {
+          window.auth = firebase.auth();
+          console.log('[verify] Firebase pronto');
+        } else {
+          console.error('[verify] Firebase não inicializou via Hosting.');
+        }
+      } catch (e) { console.error(e); }
+    });
+  </script>
+
   <style>
     .center{ max-width:720px; margin:0 auto; width:100%; }
 
@@ -80,14 +98,14 @@
 
   <div id="app-footer"></div>
 
-  <script src="/assets/firebase-init.js" defer></script>
+  <!-- removido: /assets/firebase-init.js (não precisamos mais) -->
   <script src="/assets/layout.js" defer></script>
 
   <script>
   (function(){
     const BACKEND = 'https://mei-robo-prod.onrender.com';
     const API = {
-      resendEmail:  BACKEND + '/api/auth/resend-verification',
+      // Mantemos checkStatus como fallback; resend agora é pelo Firebase
       checkStatus:  BACKEND + '/api/auth/check-verification'
     };
 
@@ -100,7 +118,7 @@
     const btnChange = $('#btnChange');
 
     let authEmail = null;   // se logado, usamos este e-mail
-    let idToken   = null;   // se logado, mandamos Bearer
+    let idToken   = null;   // se logado, mandamos Bearer (fallback)
 
     function setMsg(text, cls){ msg.className = cls || 'hint'; msg.textContent = text || ''; }
     function sanitizeEmail(s){ if(!s||typeof s!=='string')return''; s=s.trim().replace(/\s+/g,''); return s.replace(/[\u200B-\u200D\uFEFF]/g,''); }
@@ -136,7 +154,7 @@
       }catch(e){ console.info('[verify] fallback header/footer falhou:', e); }
     }
 
-    // ====== Reenviar ======
+    // ====== Reenviar (via Firebase) ======
     document.getElementById('resendForm').addEventListener('submit', async (e)=>{
       e.preventDefault();
       setMsg('Enviando...', 'hint');
@@ -148,22 +166,27 @@
       btnResend.disabled = true; btnCheck.setAttribute('aria-disabled','true');
 
       try{
-        const headers = {'Content-Type': 'application/json'};
-        if(idToken){ headers['Authorization'] = 'Bearer ' + idToken; }
+        const hasFirebase = typeof window.firebase !== 'undefined' && firebase?.auth;
+        if (!hasFirebase) throw new Error('firebase_unavailable');
 
-        const res = await fetch(API.resendEmail, {
-          method:'POST', headers, body: JSON.stringify({ email })
-        });
-        const data = await res.json().catch(()=> ({}));
-        if(res.ok && (data.ok===true || data.success===true)){
-          setMsg('Pronto! Verifique sua caixa de entrada.', 'ok');
-        }else{
-          const m = (data && (data.message || data.error)) || 'Não foi possível reenviar agora.';
-          setMsg('Falha ao reenviar: ' + m, 'error');
+        const user = firebase.auth().currentUser || null;
+        if (!user || !user.email) {
+          setMsg('Faça login novamente para reenviar a verificação.', 'error');
+        } else {
+          await user.reload();
+          if (user.email !== email) {
+            // Mantemos a UX coerente: se o usuário logado tem outro e-mail, usamos o do usuário
+            applyEmailToUI(user.email);
+          }
+          await user.sendEmailVerification({
+            url: 'https://www.meirobo.com.br/verify-email.html',
+            handleCodeInApp: false
+          });
+          setMsg('Pronto! Verifique sua caixa de entrada (e Spam).', 'ok');
         }
       }catch(err){
         console.info('[verify] resend error:', err);
-        setMsg('Erro de rede ao reenviar. Tente novamente em instantes.', 'error');
+        setMsg('Erro ao reenviar pelo Firebase. Tente novamente em instantes.', 'error');
       }finally{
         btnResend.disabled = false; btnCheck.removeAttribute('aria-disabled');
       }
@@ -191,6 +214,7 @@
           }catch(e){ console.info('[verify] firebase reload falhou:', e); }
         }
 
+        // Fallback no backend (caso o usuário tenha verificado em outro device)
         const email = authEmail ? authEmail : sanitizeEmail(emailInput.value || '');
         const payload = isValidEmail(email) ? { email } : {};
         const headers = {'Content-Type': 'application/json'};
