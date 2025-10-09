@@ -4,35 +4,31 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>MEI Robô — Cadastro</title>
+  
+  <!-- Firebase Hosting: SDK compat + init automático -->
+  <script defer src="/__/firebase/9.22.2/firebase-app-compat.js"></script>
+  <script defer src="/__/firebase/9.22.2/firebase-auth-compat.js"></script>
+  <script defer src="/__/firebase/init.js?useEmulator=false"></script>
+  <script>
+  // Quando o init.js terminar, firebase.apps[0] já existe.
+  window.addEventListener('load', () => {
+    try {
+      if (window.firebase?.apps?.length) {
+        window.auth = firebase.auth();
+        console.log('[cadastro] Firebase pronto (Hosting init).');
+      } else {
+        console.error('[cadastro] Firebase não inicializou via Hosting.');
+      }
+    } catch (e) { console.error(e); }
+  });
+  </script>
 
   <!-- PRODUÇÃO: defina sua SITE KEY do reCAPTCHA v2 Invisible -->
   <meta name="RECAPTCHA_SITE_KEY" content="">
 
   <link rel="stylesheet" href="/assets/styles.css" />
 
-  <!-- Firebase (compat) para garantir Auth nesta página -->
-  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
-  <script>
-    // Inicializa Firebase usando o objeto global que seu layout.js costuma expor.
-    (function initFirebaseFromLayout(){
-      try {
-        if (!window.firebase) return; // SDK não carregou (raro)
-        if (!firebase.apps?.length) {
-          const cfg = window.__FIREBASE_CONFIG || null;
-          if (cfg && cfg.apiKey) {
-            firebase.initializeApp(cfg);
-          }
-        }
-        // Expõe um auth reutilizável (compat)
-        if (firebase.auth && !window.auth) {
-          window.auth = firebase.auth();
-        }
-      } catch(e){ console.warn('[cadastro] Firebase init skip/ok', e); }
-    })();
-  </script>
-
-  <style>
+   <style>
     /* Dark sóbrio (sem sobrescrever as cores de link/botão do site) */
     .card-dark {
       background: #101414;
