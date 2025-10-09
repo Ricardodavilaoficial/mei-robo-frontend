@@ -10,6 +10,28 @@
 
   <link rel="stylesheet" href="/assets/styles.css" />
 
+  <!-- Firebase (compat) para garantir Auth nesta página -->
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
+  <script>
+    // Inicializa Firebase usando o objeto global que seu layout.js costuma expor.
+    (function initFirebaseFromLayout(){
+      try {
+        if (!window.firebase) return; // SDK não carregou (raro)
+        if (!firebase.apps?.length) {
+          const cfg = window.__FIREBASE_CONFIG || null;
+          if (cfg && cfg.apiKey) {
+            firebase.initializeApp(cfg);
+          }
+        }
+        // Expõe um auth reutilizável (compat)
+        if (firebase.auth && !window.auth) {
+          window.auth = firebase.auth();
+        }
+      } catch(e){ console.warn('[cadastro] Firebase init skip/ok', e); }
+    })();
+  </script>
+
   <style>
     /* Dark sóbrio (sem sobrescrever as cores de link/botão do site) */
     .card-dark {
@@ -318,7 +340,8 @@
       cnpjStatus.textContent = 'Verificando disponibilidade...';
       cnpjStatus.className = 'hint';
       try{
-        const res = await fetch(API.availability + '?cnpj=' + encodeURIComponent(digits), { credentials:'include' });
+        // REMOVE credentials:'include' (não precisamos cookies; evita CORS hard)
+        const res = await fetch(API.availability + '?cnpj=' + encodeURIComponent(digits));
         if (!res.ok) throw new Error('HTTP ' + res.status);
         const data = await res.json();
         if (data && data.available === true) {
@@ -365,35 +388,28 @@
       voiceState.files.forEach((file)=> fd.append('voice', file, file.name));
 
       try{
-        /* ==== NOVO BLOCO try (autentica e envia JSON com Bearer) ==== */
+        /* ==== Autentica e envia JSON com Bearer (sem cookies) ==== */
 
-        // 1) Pegar email/senha do formulário (já validados acima)
         const email = (emailInput.value || '').trim();
         const password = (pwd.value || '');
 
-        // 2) Obter uma instância de Auth (compatível com v8/v9 compat e v9 modular)
+        // Pega uma instância de Auth (compat já inicializado no head)
         const getAuthCompatOrModular = () => {
-          // v8/v9 compat via CDN
           if (window.firebase?.auth) {
             try { return firebase.auth(); } catch(_) {}
           }
-          // v9 modular (getAuth global injetado em layout.js, por ex.)
           if (window.getAuth) {
             try { return window.getAuth(); } catch(_) {}
           }
-          // fallback: alguma variável global 'auth'
           if (window.auth) return window.auth;
           return null;
         };
         const authInst = getAuthCompatOrModular();
         if (!authInst) throw new Error('Firebase Auth não inicializado nesta página.');
 
-        // 3) Garantir usuário autenticado: cria conta ou faz login se já existir
         async function ensureAuthenticated(email, password){
-          // Se já logado, retorna
           if (authInst.currentUser) return authInst.currentUser;
 
-          // Compat (v8/v9 compat)
           if (typeof authInst.createUserWithEmailAndPassword === 'function') {
             try {
               const cred = await authInst.createUserWithEmailAndPassword(email, password);
@@ -407,7 +423,6 @@
             }
           }
 
-          // Modular (v9)
           if (window.createUserWithEmailAndPassword && window.signInWithEmailAndPassword) {
             const inst = window.getAuth ? window.getAuth() : authInst;
             try {
@@ -428,7 +443,6 @@
         const user = await ensureAuthenticated(email, password);
         const idToken = await user.getIdToken();
 
-        // 4) Converter o FormData em JSON (arquivos => metadados)
         const toJson = (formData) => {
           const obj = {};
           for (const [k, v] of formData.entries()) {
@@ -446,7 +460,6 @@
         };
         const payload = toJson(fd);
 
-        // 5) Enviar o cadastro como JSON com Authorization: Bearer <idToken>
         const res = await fetch(API.cadastro, {
           method: 'POST',
           headers: {
@@ -454,15 +467,14 @@
             'Accept': 'application/json',
             'Authorization': 'Bearer ' + idToken
           },
-          body: JSON.stringify(payload),
-          credentials: 'include'
+          body: JSON.stringify(payload)
+          // <<< sem credentials
         });
 
         if (!res.ok) throw new Error('Falha no cadastro: HTTP ' + res.status);
 
         const data = await res.json().catch(()=>({}));
 
-        // 6) Mantém a lógica de redirecionamento original
         if (data.next === 'verifyEmail') {
           const mail = (data.email || (emailInput.value||'')).trim();
           location.href = '/verify-email.html?email=' + encodeURIComponent(mail);
@@ -471,7 +483,6 @@
         if (data.checkoutUrl) { location.href = data.checkoutUrl; return; }
         location.href = '/verify-email.html';
 
-        /* ==== FIM DO NOVO BLOCO try ==== */
       } catch(e){
         console.error(e);
         formMsg.className='error';
@@ -523,9 +534,25 @@
       }
     }
     function addFiles(list){
+      const extsOK = ['.wav','.mp3','.m4a','.ogg','.webm'];
+      const isAudio = f => {
+        const t = (f.type||'').toLowerCase();
+        if (t.startsWith('audio/')) return true;
+        const n = (f.name||'').toLowerCase();
+        return extsOK.some(ext => n.endsWith(ext));
+      };
+
       for(const f of list){
-        if(voiceState.files.length>=5){ formMsg.className='error'; formMsg.textContent='Limite de 5 arquivos de voz atingido.'; break; }
-        if(!(f.type||'').startsWith('audio/')){ formMsg.className='error'; formMsg.textContent='Apenas arquivos de áudio são aceitos.'; continue; }
+        if(voiceState.files.length>=5){
+          formMsg.className='error';
+          formMsg.textContent='Limite de 5 arquivos de voz atingido.';
+          break;
+        }
+        if(!isAudio(f)){
+          formMsg.className='error';
+          formMsg.textContent='Arquivo rejeitado: extensão não reconhecida como áudio.';
+          continue;
+        }
         voiceState.files.push(f);
       }
       renderFileList(); updateVoiceDurations();
