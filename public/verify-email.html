@@ -95,8 +95,8 @@
   (function(){
     const BACKEND = 'https://mei-robo-prod.onrender.com';
     const API = {
-      // Mantido apenas como fallback
-      checkStatus:  BACKEND + '/api/auth/check-verification'
+      // Endpoint protegido por Bearer
+      checkStatus: BACKEND + '/api/auth/check-verification'
     };
 
     const $ = (s)=>document.querySelector(s);
@@ -132,12 +132,12 @@
         const headerOk = document.getElementById('app-header')?.children?.length > 0;
         const footerOk = document.getElementById('app-footer')?.children?.length > 0;
         if(!headerOk){
-          const h = await fetch('/partials/header.html').then(r=>r.text());
+          const h = await fetch('/assets/partials/header.html').then(r=>r.text());
           document.getElementById('app-header').innerHTML = h;
           console.info('[verify] header fallback aplicado');
         }
         if(!footerOk){
-          const f = await fetch('/partials/footer.html').then(r=>r.text());
+          const f = await fetch('/assets/partials/footer.html').then(r=>r.text());
           document.getElementById('app-footer').innerHTML = f;
           console.info('[verify] footer fallback aplicado');
         }
@@ -180,48 +180,98 @@
       }
     });
 
+    // ====== E-mail actions (oobCode) na URL ======
+    function readActionParams(){
+      try{
+        const p = new URLSearchParams(location.search);
+        return {
+          mode:     p.get('mode') || '',
+          oobCode:  p.get('oobCode') || '',
+          apiKey:   p.get('apiKey') || '',
+          cont:     p.get('continueUrl') || '',
+          lang:     p.get('lang') || ''
+        };
+      }catch{ return { mode:'', oobCode:'', apiKey:'', cont:'', lang:'' }; }
+    }
+
+    // ====== Núcleo: checar/aplicar verificação com sessão e Bearer ======
+    async function postCheckVerification(){
+      setMsg('Verificando sua conta…', 'hint');
+      const hasFirebase = typeof window.firebase !== 'undefined' && firebase?.auth;
+      if (!hasFirebase){
+        setMsg('Serviço de login indisponível. Recarregue a página.', 'error');
+        return;
+      }
+
+      const user = firebase.auth().currentUser || null;
+      if (!user){
+        setMsg('Entre para continuar.', 'error');
+        const a = document.createElement('a');
+        a.href = '/pages/login.html';
+        a.textContent = 'Ir para login';
+        a.style.marginLeft = '6px';
+        msg.appendChild(a);
+        return;
+      }
+
+      try{
+        const act = readActionParams();
+        await user.reload();
+
+        // Se veio do link de ação do Firebase, tentar aplicar antes
+        if (act.mode === 'verifyEmail' && act.oobCode && user.emailVerified !== true){
+          try{
+            await firebase.auth().applyActionCode(act.oobCode);
+            console.info('[verify] applyActionCode OK');
+            await user.reload();
+          }catch(err){
+            console.info('[verify] applyActionCode falhou:', err);
+            // segue para validação no backend
+          }
+        }
+
+        if (user.email) {
+          authEmail = user.email;
+          applyEmailToUI(user.email);
+        }
+
+        // Força refresh do token para garantir Bearer válido
+        const tok = await user.getIdToken(true);
+        idToken = tok;
+
+        // Backend: SOMENTE com Authorization: Bearer
+        const res = await fetch(API.checkStatus, {
+          method: 'POST',
+          headers: { 'Authorization': 'Bearer ' + tok, 'Accept':'application/json' }
+        });
+
+        if (res.ok){
+          setMsg('E-mail verificado com sucesso! Redirecionando…', 'ok');
+          setTimeout(()=> location.href='/configuracao.html', 600);
+          return;
+        }
+
+        const body = await res.json().catch(()=> ({}));
+        if (res.status === 401){
+          setMsg('Sessão inválida ou expirada. Faça login novamente.', 'error');
+        } else if (body?.verified === false){
+          setMsg('Ainda não detectamos a verificação. Aguarde alguns segundos e tente de novo.', 'hint');
+        } else {
+          setMsg('Não foi possível confirmar agora. Tente novamente em instantes.', 'error');
+        }
+      }catch(err){
+        console.info('[verify] postCheckVerification error:', err);
+        setMsg('Erro ao checar verificação. Tente novamente em instantes.', 'error');
+      }
+    }
+
     // ====== Já verifiquei ======
     btnCheck.addEventListener('click', async (e)=>{
       e.preventDefault();
       setMsg('', 'hint');
       btnCheck.setAttribute('aria-disabled','true'); btnResend.disabled = true;
-
-      try{
-        const hasFirebase = typeof window.firebase !== 'undefined' && firebase?.auth;
-        if(hasFirebase){
-          try{
-            const user = firebase.auth().currentUser || null;
-            if(user){
-              await user.reload();
-              if(user.emailVerified === true){
-                setMsg('E-mail verificado com sucesso! Redirecionando…', 'ok');
-                setTimeout(()=> location.href='/configuracao.html', 600);
-                return;
-              }
-            }
-          }catch(e){ console.info('[verify] firebase reload falhou:', e); }
-        }
-
-        // Fallback no backend
-        const email = authEmail ? authEmail : sanitizeEmail(emailInput.value || '');
-        const payload = isValidEmail(email) ? { email } : {};
-        const headers = {'Content-Type': 'application/json'};
-        if(idToken){ headers['Authorization'] = 'Bearer ' + idToken; }
-
-        const res = await fetch(API.checkStatus, { method:'POST', headers, body: JSON.stringify(payload) });
-        const data = await res.json().catch(()=> ({}));
-        if(res.ok && (data.verified===true || data.ok===true)){
-          setMsg('E-mail verificado com sucesso! Redirecionando…', 'ok');
-          setTimeout(()=> location.href='/configuracao.html', 600);
-        }else{
-          setMsg('Ainda não detectamos a verificação. Tente novamente em alguns segundos.', 'hint');
-        }
-      }catch(err){
-        console.info('[verify] check error:', err);
-        setMsg('Erro ao checar verificação. Tente novamente em instantes.', 'error');
-      }finally{
-        btnCheck.removeAttribute('aria-disabled'); btnResend.disabled = false;
-      }
+      await postCheckVerification();
+      btnCheck.removeAttribute('aria-disabled'); btnResend.disabled = false;
     });
 
     // ====== Trocar e-mail → voltar ao cadastro ======
@@ -248,6 +298,11 @@
           if(user?.email){
             authEmail = user.email;
             try{ idToken = await user.getIdToken(false); }catch{}
+            if (user.emailVerified === true){
+              // Se já estiver verificado, atalho UX
+              setMsg('E-mail já verificado. Redirecionando…', 'ok');
+              setTimeout(()=> location.href='/configuracao.html', 500);
+            }
           }
         }
       }catch(e){ console.info('[verify] firebase init note:', e); }
@@ -263,6 +318,13 @@
       }
 
       emailInput.addEventListener('input', ()=> setMsg('', 'hint'));
+
+      // Se veio de link do e-mail com oobCode, aplica/valida automaticamente
+      const act = readActionParams();
+      if (act.mode === 'verifyEmail' && act.oobCode){
+        setMsg('Aplicando verificação do e-mail…', 'hint');
+        setTimeout(()=> { postCheckVerification(); }, 150);
+      }
     })();
   })();
   </script>

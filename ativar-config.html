@@ -1,0 +1,57 @@
+[1mdiff --git a/public/pages/ativar-config.html b/public/pages/ativar-config.html[m
+[1mindex 96a509f..684a8b4 100644[m
+[1m--- a/public/pages/ativar-config.html[m
+[1m+++ b/public/pages/ativar-config.html[m
+[36m@@ -63,7 +63,7 @@[m
+   <script>[m
+   (function(){[m
+     const API_BASE = "https://mei-robo-prod.onrender.com";[m
+[31m-    const API = { [m
+[32m+[m[32m    const API = {[m
+       status:  API_BASE + "/api/conta/status",[m
+       vinculo: API_BASE + "/api/verificacao/autoridade/status"[m
+     };[m
+[36m@@ -140,7 +140,8 @@[m
+         arrivedMsg = 'cupom aplicado';[m
+       } else if (hasStripeSession) {[m
+         if (h2) h2.textContent = 'Boas-vindas! Pagamento confirmado.';[m
+[31m-        if (p)  p.innerHTML = 'Recebemos a confirmação do Stripe. Confira os dados da sua empresa e avance para as configurações iniciais.';[m
+[32m+[m[32m        /* >>> TEXTO AJUSTADO (SLA 7 dias úteis) <<< */[m
+[32m+[m[32m        if (p)  p.innerHTML = 'Seu número de WhatsApp com o MEI Robô chega em até 7 dias úteis. Siga com as configurações para habilitá-lo.';[m
+         arrivedMsg = 'pagamento confirmado';[m
+       }[m
+     }[m
+[36m@@ -224,8 +225,14 @@[m
+             pill('entre para continuar', 'warn');[m
+             $empresa.innerHTML = '<p class="muted">Faça login para ver seus dados.</p><p><a class="btn-secondary" href="/pages/login.html">Entrar</a></p>';[m
+           } else {[m
+[31m-            pill('não foi possível carregar agora', 'err');[m
+[31m-            $empresa.innerHTML = '<p class="muted">Tente novamente em alguns instantes. Se persistir, fale com o suporte.</p>';[m
+[32m+[m[32m            /* >>> AJUSTE: não exibir “erro” no estado feliz pós-Stripe/cupom <<< */[m
+[32m+[m[32m            if (hasStripeSession || isFree) {[m
+[32m+[m[32m              pill('dados pendentes', 'muted');[m
+[32m+[m[32m              $empresa.innerHTML = '<p class="muted">Você pode seguir com as configurações iniciais; os dados da empresa serão carregados em breve.</p>';[m
+[32m+[m[32m            } else {[m
+[32m+[m[32m              pill('não foi possível carregar agora', 'err');[m
+[32m+[m[32m              $empresa.innerHTML = '<p class="muted">Tente novamente em alguns instantes. Se persistir, fale com o suporte.</p>';[m
+[32m+[m[32m            }[m
+           }[m
+           return;[m
+         }[m
+[36m@@ -234,8 +241,14 @@[m
+         renderEmpresa(r.body);[m
+         safeCheckDocs();[m
+       } catch (e){[m
+[31m-        pill('não foi possível carregar agora', 'err');[m
+[31m-        $empresa.innerHTML = '<p class="muted">Tente novamente em alguns instantes. Se persistir, fale com o suporte.</p>';[m
+[32m+[m[32m        /* >>> AJUSTE: silenciar erro visual no pós-Stripe/cupom <<< */[m
+[32m+[m[32m        if (hasStripeSession || isFree) {[m
+[32m+[m[32m          pill('dados pendentes', 'muted');[m
+[32m+[m[32m          $empresa.innerHTML = '<p class="muted">Você pode seguir com as configurações iniciais; os dados da empresa serão carregados em breve.</p>';[m
+[32m+[m[32m        } else {[m
+[32m+[m[32m          pill('não foi possível carregar agora', 'err');[m
+[32m+[m[32m          $empresa.innerHTML = '<p class="muted">Tente novamente em alguns instantes. Se persistir, fale com o suporte.</p>';[m
+[32m+[m[32m        }[m
+       }[m
+     }[m
+ [m
