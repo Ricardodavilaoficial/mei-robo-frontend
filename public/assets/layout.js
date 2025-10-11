@@ -174,3 +174,65 @@
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);
   else boot();
 })();
+
+/* === Canonical WWW v1.0 — acrescento sem alterar o fluxo acima ===
+   - Força/atualiza <link rel="canonical">, <meta property="og:url"> e <meta name="twitter:url">
+   - Usa o www canônico + location.pathname normalizado.
+   - Idempotente, roda após DOM pronto. */
+(function(){
+  'use strict';
+  var BASE_WWW = 'https://www.meirobo.com.br';
+
+  function normalizePath(p){
+    try{
+      p = p || '/';
+      // remove /index.html do fim
+      if (/\/index\.html$/i.test(p)) p = p.replace(/index\.html$/i, '');
+      // garante barra inicial
+      if (p.charAt(0) !== '/') p = '/' + p;
+      // remove barra final (exceto raiz)
+      if (p !== '/' && p.endsWith('/')) p = p.slice(0, -1);
+      return p || '/';
+    }catch(_){ return '/'; }
+  }
+
+  function upsert(selector, createEl){
+    var el = document.querySelector(selector);
+    if (!el){
+      el = createEl();
+      (document.head || document.getElementsByTagName('head')[0]).appendChild(el);
+    }
+    return el;
+  }
+
+  function apply(){
+    var href = BASE_WWW + normalizePath(location.pathname || '/');
+
+    // canonical
+    var canon = upsert('link[rel="canonical"]', function(){
+      var x = document.createElement('link'); x.setAttribute('rel','canonical'); return x;
+    });
+    if (canon.getAttribute('href') !== href) canon.setAttribute('href', href);
+
+    // og:url
+    var og = upsert('meta[property="og:url"]', function(){
+      var m = document.createElement('meta'); m.setAttribute('property','og:url'); return m;
+    });
+    if (og.getAttribute('content') !== href) og.setAttribute('content', href);
+
+    // twitter:url (name ou property)
+    var tw = document.querySelector('meta[name="twitter:url"], meta[property="twitter:url"]');
+    if (!tw){
+      tw = document.createElement('meta');
+      tw.setAttribute('name','twitter:url');
+      (document.head || document.getElementsByTagName('head')[0]).appendChild(tw);
+    }
+    if (tw.getAttribute('content') !== href) tw.setAttribute('content', href);
+  }
+
+  if (document.readyState === 'loading'){
+    document.addEventListener('DOMContentLoaded', function(){ try{ apply(); }catch(_){ } });
+  } else {
+    try{ apply(); }catch(_){ }
+  }
+})();
