@@ -5,6 +5,18 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Ativar Conta — MEI Robô</title>
 
+  <!-- SEO/Social: operacional (não indexar) + canonical WWW -->
+  <meta name="robots" content="noindex, nofollow" />
+  <meta http-equiv="Cache-Control" content="no-store" />
+  <link rel="canonical" href="https://www.meirobo.com.br/pages/ativar.html" />
+  <meta property="og:url" content="https://www.meirobo.com.br/pages/ativar.html" />
+  <meta name="twitter:url" content="https://www.meirobo.com.br/pages/ativar.html" />
+
+  <!-- Perf: conexões antecipadas (não crítico, só ajuda) -->
+  <link rel="preconnect" href="https://mei-robo-prod.onrender.com" crossorigin>
+  <link rel="preconnect" href="https://www.gstatic.com" crossorigin>
+  <link rel="preconnect" href="https://firebase.googleapis.com" crossorigin>
+
   <link rel="stylesheet" href="/assets/styles.css" />
   <link rel="icon" href="data:,">
 
@@ -34,7 +46,7 @@
 
   <main class="container" style="padding:16px;">
     <div class="card" style="padding:16px; max-width:760px;">
-      <h2 style="margin-top:0;">Ativar Conta</h2>
+      <h1 style="margin-top:0;font-size:1.35rem">Ativar Conta</h1>
 
       <nav aria-label="Navegação secundária" style="margin-bottom:12px;">
         <a href="/pages/dashboard.html">Dashboard</a>
@@ -44,12 +56,13 @@
         <a href="/pages/admin-cupons.html">Admin Cupons</a>
       </nav>
 
-      <label for="codigo" style="display:block;margin:8px 0;">Código do cupom</label>
-      <input class="input" id="codigo" placeholder="Ex.: ABCDE-1234" />
+      <label for="codigo" style="display:block;margin:8px 0;"><strong>Código do cupom</strong></label>
+      <input class="input" id="codigo" placeholder="Ex.: ABCDE-1234" inputmode="latin" autocomplete="one-time-code" aria-describedby="ajudaCupom" />
+      <div id="ajudaCupom" class="muted" style="margin-top:6px">Digite seu cupom, valide e depois ative na sua conta.</div>
 
       <div class="stack" style="margin-top:12px;">
-        <button class="btn" id="validar">Validar</button>
-        <button class="btn" id="ativar">Ativar</button>
+        <button class="btn" id="validar" type="button">Validar</button>
+        <button class="btn" id="ativar" type="button">Ativar</button>
         <button class="btn outline" id="abrir-admin" type="button">Abrir Admin Cupons</button>
         <span id="status-pill" class="badge muted" aria-live="polite">aguardando…</span>
       </div>
@@ -68,6 +81,26 @@
 
   <div id="app-footer"></div>
 
+  <!-- Fallback leve de header/footer caso layout.js não injete -->
+  <script>
+    (function(){
+      function hasContent(id){ var el=document.getElementById(id); return !!(el && (el.children?.length || (el.innerHTML||'').trim())); }
+      function inject(id, url){
+        var host=document.getElementById(id);
+        if(!host) return;
+        fetch(url,{cache:'no-store'}).then(function(r){ if(!r.ok) throw 0; return r.text(); })
+          .then(function(html){ if(!hasContent(id)) host.innerHTML = html; })
+          .catch(function(){});
+      }
+      window.addEventListener('load', function(){
+        setTimeout(function(){
+          if(!hasContent('app-header')) inject('app-header','/assets/partials/header.html');
+          if(!hasContent('app-footer')) inject('app-footer','/assets/partials/footer.html');
+        }, 600);
+      });
+    })();
+  </script>
+
   <script>
     (function () {
       // --- helpers de storage/ambiente ---
@@ -75,13 +108,17 @@
       function setLS(key, val) { try { window.localStorage.setItem(key, val); } catch {} }
       function delLS(key) { try { window.localStorage.removeItem(key); } catch {} }
 
-      const API_BASE = getLS('apiBase') || ''; // ex.: https://mei-robo-prod.onrender.com (opcional)
-      const $codigo = document.getElementById('codigo');
-      const $btnVal = document.getElementById('validar');
-      const $btnAtv = document.getElementById('ativar');
-      const $btnAdmin = document.getElementById('abrir-admin');
-      const $out = document.getElementById('out');
-      const $pill = document.getElementById('status-pill');
+      // DEFAULT seguro para produção (se não houver override em localStorage)
+      var API_DEFAULT = 'https://mei-robo-prod.onrender.com';
+      var LS_BASE = getLS('apiBase');
+      var API_BASE = (LS_BASE && LS_BASE.trim()) ? LS_BASE.replace(/\/+$/,'') : API_DEFAULT;
+
+      var $codigo = document.getElementById('codigo');
+      var $btnVal = document.getElementById('validar');
+      var $btnAtv = document.getElementById('ativar');
+      var $btnAdmin = document.getElementById('abrir-admin');
+      var $out = document.getElementById('out');
+      var $pill = document.getElementById('status-pill');
 
       function pill(text, cls) {
         $pill.textContent = text;
@@ -97,41 +134,40 @@
       }
 
       // Firebase idToken (via app DEFAULT do firebase-init.js) com fallback em localStorage
-      async function getIdToken(maxWaitMs = 2500) {
+      async function getIdToken(maxWaitMs) {
+        maxWaitMs = maxWaitMs || 2500;
         try {
           if (window.firebase && typeof firebase.auth === 'function') {
-            // Garante que o app DEFAULT existe (idempotente)
-            try { firebase.app(); } catch (e) { /* se não houver, algum outro script removeu init; seguimos para fallback */ }
-            const cur = firebase.auth().currentUser;
+            try { firebase.app(); } catch (e) {}
+            var cur = firebase.auth().currentUser;
             if (cur) return await cur.getIdToken();
-            return await new Promise((resolve) => {
-              let done = false;
-              const timer = setTimeout(() => { if (!done) { done = true; resolve(null); } }, maxWaitMs);
-              const unsub = firebase.auth().onAuthStateChanged(async (u) => {
-                try { unsub && unsub(); } catch {}
-                if (!done) {
-                  done = true;
-                  clearTimeout(timer);
+            return await new Promise(function(resolve){
+              var done = false;
+              var timer = setTimeout(function(){ if(!done){ done=true; resolve(null); } }, maxWaitMs);
+              var unsub = firebase.auth().onAuthStateChanged(async function(u){
+                try{ unsub && unsub(); }catch(_){}
+                if(!done){
+                  done = true; clearTimeout(timer);
                   resolve(u ? await u.getIdToken() : null);
                 }
               });
             });
           }
         } catch {}
-        const tok = getLS('idToken');
-        return tok && tok.includes('.') ? tok : null;
+        var tok = getLS('idToken');
+        return (tok && tok.includes('.')) ? tok : null;
       }
 
       // guarda cupom pendente para pós-login (expira em 1h)
       function savePendingCupom(codigo) {
-        const payload = { codigo, ts: Date.now(), ttl: 3600_000 };
+        var payload = { codigo: codigo, ts: Date.now(), ttl: 3600*1000 };
         setLS('cupomPendente', JSON.stringify(payload));
       }
       function readPendingCupom() {
         try {
-          const raw = getLS('cupomPendente');
+          var raw = getLS('cupomPendente');
           if (!raw) return null;
-          const o = JSON.parse(raw);
+          var o = JSON.parse(raw);
           if (!o || !o.codigo) return null;
           if ((Date.now() - (o.ts || 0)) > (o.ttl || 0)) { delLS('cupomPendente'); return null; }
           return o.codigo;
@@ -139,30 +175,30 @@
       }
 
       async function validarPublico(codigo) {
-        const url = (API_BASE ? API_BASE : '') + '/api/cupons/validar-publico';
-        const resp = await fetch(url, {
+        var url = API_BASE + '/api/cupons/validar-publico';
+        var resp = await fetch(url, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ codigo })
+          body: JSON.stringify({ codigo: codigo })
         });
-        const json = await resp.json().catch(() => ({}));
-        return { ok: resp.ok && json && json.ok, json, status: resp.status };
+        var json = await resp.json().catch(function(){ return {}; });
+        return { ok: resp.ok && json && json.ok, json: json, status: resp.status };
       }
 
       async function ativarAutenticado(codigo) {
-        const url = (API_BASE ? API_BASE : '') + '/api/cupons/ativar';
-        const idToken = await getIdToken(2500);
+        var url = API_BASE + '/api/cupons/ativar';
+        var idToken = await getIdToken(2500);
         if (!idToken) return { ok: false, status: 401, json: { erro: 'Não autenticado' } };
-        const resp = await fetch(url, {
+        var resp = await fetch(url, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
             'Authorization': 'Bearer ' + idToken
           },
-          body: JSON.stringify({ codigo })
+          body: JSON.stringify({ codigo: codigo })
         });
-        const json = await resp.json().catch(async () => ({ message: await resp.text() }));
-        return { ok: resp.ok, status: resp.status, json };
+        var json = await resp.json().catch(async function(){ return { message: await resp.text() }; });
+        return { ok: resp.ok, status: resp.status, json: json };
       }
 
       function normalizeCode(v){
@@ -170,14 +206,14 @@
       }
 
       async function onValidar() {
-        const codigo = normalizeCode($codigo.value);
+        var codigo = normalizeCode($codigo.value);
         if (!codigo) { $codigo.focus(); pill('informe um código', 'warn'); return; }
         $btnVal.disabled = true;
         $btnAtv.disabled = true;
         pill('validando…', 'muted');
         log('Validando…');
         try {
-          const r = await validarPublico(codigo);
+          var r = await validarPublico(codigo);
           if (r.ok) {
             pill('cupom válido!', 'ok');
             log(r.json);
@@ -196,9 +232,9 @@
       }
 
       async function onAtivar() {
-        let codigo = normalizeCode($codigo.value);
+        var codigo = normalizeCode($codigo.value);
         if (!codigo) {
-          const pend = readPendingCupom();
+          var pend = readPendingCupom();
           if (pend) { codigo = pend; $codigo.value = pend; }
         }
         if (!codigo) { $codigo.focus(); pill('informe um código', 'warn'); return; }
@@ -209,12 +245,12 @@
         log('Ativando…');
 
         try {
-          const r = await ativarAutenticado(codigo);
+          var r = await ativarAutenticado(codigo);
           if (r.ok) {
             pill('ativado!', 'ok');
             log(r.json, 'ok');
             delLS('cupomPendente');
-            setTimeout(() => { window.location.href = '/pages/dashboard.html'; }, 1200);
+            setTimeout(function(){ window.location.href = '/pages/dashboard.html'; }, 1200);
           } else if (r.status === 401) {
             pill('faça login para ativar', 'warn');
             log('⚠️ Você precisa entrar na sua conta para ativar o cupom. Valide primeiro e depois faça login.', 'warn');
@@ -235,11 +271,11 @@
       // eventos
       $btnVal.addEventListener('click', onValidar);
       $btnAtv.addEventListener('click', onAtivar);
-      $codigo.addEventListener('keydown', (ev) => { if (ev.key === 'Enter') onValidar(); });
-      $btnAdmin.addEventListener('click', () => { window.location.href = '/pages/admin-cupons.html'; });
+      $codigo.addEventListener('keydown', function(ev){ if (ev.key === 'Enter') onValidar(); });
+      $btnAdmin.addEventListener('click', function(){ window.location.href = '/pages/admin-cupons.html'; });
 
       // preenche campo com cupom pendente (se houver)
-      const pend = readPendingCupom();
+      var pend = readPendingCupom();
       if (pend) { $codigo.value = pend; pill('cupom pendente detectado', 'warn'); }
       else { pill('aguardando…', 'muted'); }
     })();
