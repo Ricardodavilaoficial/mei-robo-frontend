@@ -5,7 +5,13 @@
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Verifique seu e-mail — MEI Robô</title>
 
+  <!-- Não cachear esta tela -->
   <meta http-equiv="Cache-Control" content="no-store" />
+  <!-- Evitar indexação (defensivo; também configurado via X-Robots no hosting) -->
+  <meta name="robots" content="noindex, nofollow" />
+  <!-- Referrer seguro (complementar ao header do hosting) -->
+  <meta name="referrer" content="strict-origin-when-cross-origin" />
+
   <link rel="stylesheet" href="/assets/styles.css" />
 
   <!-- Canonical WWW v1.0 placeholders (layout.js sobrescreve em runtime) -->
@@ -47,6 +53,7 @@
     #msg.hint{ color: rgba(255,255,255,0.85); }
     #msg.ok{ color: #86f7c2; }
     #msg.error{ color: #ff9c9c; }
+    noscript{display:block; background:#2b2f33; color:#fff; padding:10px; border-radius:8px; margin:10px 0}
   </style>
 </head>
 <body class="app-shell">
@@ -88,6 +95,8 @@
       <p class="note" style="margin-top:10px">
         Dica: confira a pasta de <strong>Spam</strong>/<strong>Promoções</strong> e adicione nosso remetente à lista segura.
       </p>
+
+      <noscript>Ative o JavaScript para verificar seu e-mail corretamente.</noscript>
     </div>
   </main>
 
@@ -252,7 +261,7 @@
 
         if (res.ok){
           setMsg('E-mail verificado com sucesso! Redirecionando…', 'ok');
-          setTimeout(()=> location.href='/configuracao.html', 600);
+          setTimeout(()=> location.href='/pages/configuracao.html', 600);
           return;
         }
 
@@ -306,7 +315,7 @@
             if (user.emailVerified === true){
               // Se já estiver verificado, atalho UX
               setMsg('E-mail já verificado. Redirecionando…', 'ok');
-              setTimeout(()=> location.href='/configuracao.html', 500);
+              setTimeout(()=> location.href='/pages/configuracao.html', 500);
             }
           }
         }
