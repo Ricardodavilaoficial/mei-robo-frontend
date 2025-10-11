@@ -7,6 +7,11 @@
   <meta name="robots" content="noindex, nofollow" />
   <title>Dashboard — MEI Robô (v1.0)</title>
 
+  <!-- Canonical WWW v1.0 placeholders (coerência interna; mantém noindex) -->
+  <link rel="canonical" href="https://www.meirobo.com.br/pages/dashboard.html" />
+  <meta property="og:url" content="https://www.meirobo.com.br/pages/dashboard.html" />
+  <meta name="twitter:url" content="https://www.meirobo.com.br/pages/dashboard.html" />
+
   <!-- Firebase v8 SDK (precisa vir ANTES do seu init) -->
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
@@ -77,6 +82,8 @@
   </style>
 </head>
 <body class="app-shell">
+  <noscript><div class="banner" role="alert">Ative o JavaScript para usar o Dashboard.</div></noscript>
+
   <div id="app-header"></div>
 
   <main class="app-main">
@@ -195,6 +202,28 @@
 
   <div id="app-footer"></div>
 
+  <!-- Fallback leve para header/footer, coerente com outras páginas -->
+  <script>
+    (function(){
+      function inject(elId, url){
+        const host = document.getElementById(elId);
+        if(!host) return;
+        fetch(url, {cache: "no-store"})
+          .then(r => r.ok ? r.text() : Promise.reject())
+          .then(html => { if(!host.children.length) host.innerHTML = html; })
+          .catch(()=>{});
+      }
+      window.addEventListener('load', function(){
+        setTimeout(function(){
+          const headerOK = document.getElementById('app-header')?.children?.length > 0;
+          const footerOK = document.getElementById('app-footer')?.children?.length > 0;
+          if(!headerOK) inject('app-header','/assets/partials/header.html');
+          if(!footerOK) inject('app-footer','/assets/partials/footer.html');
+        }, 600);
+      });
+    })();
+  </script>
+
   <script>
   (function(){
     const $ = s=>document.querySelector(s);
@@ -294,7 +323,8 @@
 
         // GATE RÍGIDO: exige login antes de carregar o dashboard
         if(!user){
-          location.href = '/pages/login.html?next=' + encodeURIComponent(location.pathname + location.search);
+          const next = encodeURIComponent(location.pathname + location.search);
+          location.href = '/pages/login.html?next=' + next;
           return;
         }
 
@@ -437,7 +467,6 @@
         }
       }catch(e){
         console.error('[dashboard] loadReal', e);
-        // Em caso de erro inesperado, não mostramos dados; se quiser demo só para QA, use ?validate
         if (isValidateMode()) demo();
       }
     }

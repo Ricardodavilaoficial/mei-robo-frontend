@@ -5,6 +5,11 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Agenda — MEI Robô (V1.5 FINAL)</title>
 
+  <!-- Canonical WWW v1.0 placeholders (layout.js pode sobrescrever em runtime) -->
+  <link rel="canonical" href="https://www.meirobo.com.br/pages/agenda.html" />
+  <meta property="og:url" content="https://www.meirobo.com.br/pages/agenda.html" />
+  <meta name="twitter:url" content="https://www.meirobo.com.br/pages/agenda.html" />
+
   <!-- Assets canônicos -->
   <link rel="stylesheet" href="/assets/styles.css" />
 
@@ -56,7 +61,7 @@
       padding:8px 12px; border:1px solid var(--card-br); border-radius:999px; background:#0c120f; display:inline-flex; gap:8px; align-items:center;
     }
     .mini-pill b{ color:var(--ok); }
-    .mini-hint{ margin-top:10px; font-size:.92rem; color:#text-soft; text-align:center; }
+    .mini-hint{ margin-top:10px; font-size:.92rem; color: var(--text-soft); text-align:center; }
 
     /* Títulos de seção */
     .section-title{ font-size:1.15rem; font-weight:800; letter-spacing:.2px; margin: 24px auto 10px; max-width: 900px; color: var(--text); }
@@ -287,6 +292,25 @@
         s.onerror = function(){ console.warn('[layout] fallback ativo'); };
         document.head.appendChild(s);
       }catch(e){ console.warn('[layout] erro ao injetar', e); }
+    })();
+
+    // Fallback leve: injeta header/footer se layout.js não preencher
+    (function(){
+      function hasContent(el){ return !!(el && ((el.children && el.children.length) || (el.innerHTML && el.innerHTML.trim() !== ''))); }
+      async function inject(id, url){
+        try{
+          const host = document.getElementById(id);
+          if(!host || hasContent(host)) return;
+          const html = await fetch(url, {cache:'no-store'}).then(r=>r.ok?r.text():Promise.reject());
+          host.innerHTML = html;
+        }catch{}
+      }
+      window.addEventListener('load', function(){
+        setTimeout(function(){
+          inject('app-header','/assets/partials/header.html');
+          inject('app-footer','/assets/partials/footer.html');
+        }, 600);
+      });
     })();
 
     // ===== Utilidades de Agenda =====
@@ -594,8 +618,6 @@
         exportCSV('agendamentos-prox7dias.csv', rows);
       });
     }
-
-    function pad(n){ return (n<10?'0':'') + n; }
 
     document.addEventListener('DOMContentLoaded', init);
   </script>
