@@ -279,6 +279,44 @@
       }
     }
 
+    // ====== Auto-poll silencioso (quando URL não tem oobCode) ======
+    async function autoPollVerification({ tries = 10, intervalMs = 2000 } = {}) {
+      setMsg('Confirmando sua verificação…', 'hint');
+      btnCheck.setAttribute('aria-disabled','true');
+      btnResend.disabled = true;
+
+      for (let i = 0; i < tries; i++) {
+        try {
+          const hasFirebase = typeof window.firebase !== 'undefined' && firebase?.auth;
+          if (!hasFirebase) break;
+          const user = firebase.auth().currentUser || null;
+
+          if (user) {
+            await user.reload();
+            const tok = await user.getIdToken(true);
+            const res = await fetch(API.checkStatus, {
+              method: 'POST',
+              headers: { 'Authorization': 'Bearer ' + tok, 'Accept':'application/json' }
+            });
+            if (res.ok) {
+              setMsg('E-mail verificado! Redirecionando…', 'ok');
+              setTimeout(()=> location.href='/pages/configuracao.html', 400);
+              return true;
+            }
+          }
+        } catch (e) {
+          // silencioso — tenta novamente
+        }
+        await new Promise(r => setTimeout(r, intervalMs));
+      }
+
+      // Exibe fallback se não confirmou no tempo
+      setMsg('Ainda não detectamos a verificação. Você pode tentar novamente ou reenviar o e-mail.', 'hint');
+      btnCheck.removeAttribute('aria-disabled');
+      btnResend.disabled = false;
+      return false;
+    }
+
     // ====== Já verifiquei ======
     btnCheck.addEventListener('click', async (e)=>{
       e.preventDefault();
@@ -338,6 +376,9 @@
       if (act.mode === 'verifyEmail' && act.oobCode){
         setMsg('Aplicando verificação do e-mail…', 'hint');
         setTimeout(()=> { postCheckVerification(); }, 150);
+      } else {
+        // Novo: sem oobCode → auto-poll silencioso por ~20s (10 tentativas x 2s)
+        setTimeout(()=> { autoPollVerification({ tries: 10, intervalMs: 2000 }); }, 200);
       }
     })();
   })();
