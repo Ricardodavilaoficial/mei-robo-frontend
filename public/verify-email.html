@@ -139,6 +139,20 @@
         emailLabel.removeAttribute('title');
       }
     }
+    function emailsMatch(intended, actual){
+      if(!intended || !actual) return true; // sem intended, não bloqueia
+      return intended.toLowerCase() === actual.toLowerCase();
+    }
+    function blockForMismatch(intended, actual){
+      setMsg(
+        `Você está logado como ${actual} mas solicitou verificar ${intended}. ` +
+        `Clique em “Trocar e-mail” para entrar com o e-mail correto.`,
+        'error'
+      );
+      // Desabilita ações que poderiam “seguir errado”
+      btnResend.disabled = true;
+      btnCheck.setAttribute('aria-disabled','true');
+    }
 
     async function ensureHeaderFooter(){
       try{
@@ -209,7 +223,7 @@
     }
 
     // ====== Núcleo: checar/aplicar verificação com sessão e Bearer ======
-    async function postCheckVerification(){
+    async function postCheckVerification(intendedEmail){
       setMsg('Verificando sua conta…', 'hint');
       const hasFirebase = typeof window.firebase !== 'undefined' && firebase?.auth;
       if (!hasFirebase){
@@ -231,6 +245,12 @@
       try{
         const act = readActionParams();
         await user.reload();
+
+        // Se e-mail pretendido não for o da sessão, bloqueia
+        if (!emailsMatch(intendedEmail, user.email || '')) {
+          blockForMismatch(intendedEmail, user.email || '(sem e-mail)');
+          return;
+        }
 
         // Se veio do link de ação do Firebase, tentar aplicar antes
         if (act.mode === 'verifyEmail' && act.oobCode && user.emailVerified !== true){
@@ -280,7 +300,7 @@
     }
 
     // ====== Auto-poll silencioso (quando URL não tem oobCode) ======
-    async function autoPollVerification({ tries = 10, intervalMs = 2000 } = {}) {
+    async function autoPollVerification(intendedEmail, { tries = 10, intervalMs = 2000 } = {}) {
       setMsg('Confirmando sua verificação…', 'hint');
       btnCheck.setAttribute('aria-disabled','true');
       btnResend.disabled = true;
@@ -293,6 +313,13 @@
 
           if (user) {
             await user.reload();
+
+            // Bloqueia se sessão ≠ e-mail pretendido
+            if (!emailsMatch(intendedEmail, user.email || '')) {
+              blockForMismatch(intendedEmail, user.email || '(sem e-mail)');
+              return false;
+            }
+
             const tok = await user.getIdToken(true);
             const res = await fetch(API.checkStatus, {
               method: 'POST',
@@ -322,7 +349,8 @@
       e.preventDefault();
       setMsg('', 'hint');
       btnCheck.setAttribute('aria-disabled','true'); btnResend.disabled = true;
-      await postCheckVerification();
+      const intended = sanitizeEmail(readQueryEmail());
+      await postCheckVerification(intended);
       btnCheck.removeAttribute('aria-disabled'); btnResend.disabled = false;
     });
 
@@ -343,6 +371,9 @@
     (async function init(){
       await ensureHeaderFooter();
 
+      const intended = sanitizeEmail(readQueryEmail()); // e-mail pretendido do cadastro (se informado)
+      if(intended) applyEmailToUI(intended);
+
       try{
         const hasFirebase = typeof window.firebase !== 'undefined' && firebase?.auth;
         if(hasFirebase){
@@ -351,23 +382,18 @@
             authEmail = user.email;
             try{ idToken = await user.getIdToken(false); }catch{}
             if (user.emailVerified === true){
-              // Se já estiver verificado, atalho UX
-              setMsg('E-mail já verificado. Redirecionando…', 'ok');
-              setTimeout(()=> location.href='/pages/configuracao.html', 500);
+              // Somente redireciona se a sessão for do e-mail pretendido (quando houver)
+              if (emailsMatch(intended, user.email)) {
+                setMsg('E-mail já verificado. Redirecionando…', 'ok');
+                setTimeout(()=> location.href='/pages/configuracao.html', 500);
+                return;
+              } else {
+                blockForMismatch(intended, user.email);
+              }
             }
           }
         }
       }catch(e){ console.info('[verify] firebase init note:', e); }
-
-      const fromQuery = sanitizeEmail(readQueryEmail());
-      const displayEmail = authEmail || fromQuery;
-      applyEmailToUI(displayEmail);
-
-      if(authEmail){
-        emailInput.readOnly = true;
-        emailInput.classList.add('readonly');
-        emailInput.value = authEmail;
-      }
 
       emailInput.addEventListener('input', ()=> setMsg('', 'hint'));
 
@@ -375,10 +401,11 @@
       const act = readActionParams();
       if (act.mode === 'verifyEmail' && act.oobCode){
         setMsg('Aplicando verificação do e-mail…', 'hint');
-        setTimeout(()=> { postCheckVerification(); }, 150);
+        setTimeout(()=> { postCheckVerification(intended); }, 150);
       } else {
-        // Novo: sem oobCode → auto-poll silencioso por ~20s (10 tentativas x 2s)
-        setTimeout(()=> { autoPollVerification({ tries: 10, intervalMs: 2000 }); }, 200);
+        // Sem oobCode → auto-poll silencioso por ~20s (10 tentativas x 2s),
+        // mas só se não houver mismatch de e-mail
+        setTimeout(()=> { autoPollVerification(intended, { tries: 10, intervalMs: 2000 }); }, 200);
       }
     })();
   })();
