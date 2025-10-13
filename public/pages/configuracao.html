@@ -1,4 +1,4 @@
-<!doctype html>
+<!doctype html> 
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8" />
@@ -303,7 +303,7 @@
       return { uid, idToken };
     }
 
-    function escapeHtml(str){ return String(str).replace(/[&<>"']/g, s => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[s])); }
+    function escapeHtml(str){ return String(str).replace(/[&<>"']/g, s => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[s]) ); }
     function formatDateBR(iso){
       try { const d = new Date(iso); const dd = String(d.getDate()).padStart(2,'0'); const mm = String(d.getMonth()+1).padStart(2,'0'); const yy = d.getFullYear(); return `${dd}/${mm}/${yy}`; }
       catch(_){ return iso; }
@@ -395,7 +395,9 @@
           const headers = {}; if (idToken) headers['Authorization'] = 'Bearer ' + idToken;
           const resp = await fetch(`${API_BASE}/api/configuracao?uid=${encodeURIComponent(uid)}`, { method: 'GET', headers });
           if (resp.ok) {
-            const data = await resp.json();
+            const payload = await resp.json();
+            // aceita formato {ok, data:{...}} ou {...} direto
+            const data = (payload && payload.data) ? payload.data : (payload || {});
 
             // Exibe dados fixos (secos) + mantém hidden p/ payload
             if (data.nome)  { dNome.textContent = data.nome; hNome.value = data.nome; }
@@ -453,7 +455,7 @@
     async function tryAutofillFromCNPJ(cnpj14){
       try {
         console.log('[cnpj] consulta iniciada');
-        const r = await fetch(`${API_BASE}/integracoes/cnpj/${encodeURIComponent(cnpj14)}`);
+        const r = await fetch(`${API_BASE}/integracoes/cnpj/${encodeURIComponent(cnpj14)}`, { credentials: "include" });
         if (!r.ok) { console.warn('[cnpj] falha', r.status); return; }
         const j = await r.json();
         // Segmento (CNAE descrição)
@@ -479,7 +481,7 @@
     async function tryCheckCnpjVinculo(cnpj14, nomeBusca){
       try {
         const u = `${API_BASE}/integracoes/cnpj/${encodeURIComponent(cnpj14)}?nome=${encodeURIComponent(nomeBusca)}`;
-        const r = await fetch(u);
+        const r = await fetch(u, { credentials: "include" });
         if (!r.ok) return;
         const j = await r.json();
         const v = j && j.vinculoNome && j.vinculoNome.avaliacao;
