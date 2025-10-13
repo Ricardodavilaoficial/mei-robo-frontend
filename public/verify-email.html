@@ -7,9 +7,9 @@
 
   <!-- Não cachear esta tela -->
   <meta http-equiv="Cache-Control" content="no-store" />
-  <!-- Evitar indexação (defensivo; também configurado via X-Robots no hosting) -->
+  <!-- Evitar indexação -->
   <meta name="robots" content="noindex, nofollow" />
-  <!-- Referrer seguro (complementar ao header do hosting) -->
+  <!-- Referrer seguro -->
   <meta name="referrer" content="strict-origin-when-cross-origin" />
 
   <link rel="stylesheet" href="/assets/styles.css" />
@@ -53,6 +53,8 @@
     #msg.hint{ color: rgba(255,255,255,0.85); }
     #msg.ok{ color: #86f7c2; }
     #msg.error{ color: #ff9c9c; }
+    .note-compact{ margin-top:8px; font-size:.95rem; opacity:.9 }
+    .actions .btn-link{ text-decoration:underline; padding:0 4px; }
     noscript{display:block; background:#2b2f33; color:#fff; padding:10px; border-radius:8px; margin:10px 0}
   </style>
 </head>
@@ -89,12 +91,12 @@
           </div>
 
           <div id="msg" class="hint" style="margin-top:8px"></div>
+          <div class="note-compact">
+            Dica: use o <strong>mesmo navegador</strong> onde você iniciou o cadastro. Se abrir o link do e-mail em outro dispositivo, tudo bem:
+            a verificação será concluída aqui e você pode <em>voltar à janela original</em> e clicar em “Já verifiquei — continuar”.
+          </div>
         </form>
       </div>
-
-      <p class="note" style="margin-top:10px">
-        Dica: confira a pasta de <strong>Spam</strong>/<strong>Promoções</strong> e adicione nosso remetente à lista segura.
-      </p>
 
       <noscript>Ative o JavaScript para verificar seu e-mail corretamente.</noscript>
     </div>
@@ -109,8 +111,7 @@
   (function(){
     const BACKEND = 'https://mei-robo-prod.onrender.com';
     const API = {
-      // Endpoint protegido por Bearer
-      checkStatus: BACKEND + '/api/auth/check-verification'
+      checkStatus: BACKEND + '/api/auth/check-verification' // protegido por Bearer
     };
 
     const $ = (s)=>document.querySelector(s);
@@ -150,7 +151,6 @@
         `Clique em “Trocar e-mail” para entrar com o e-mail correto.`,
         'error'
       );
-      // Desabilita ações que poderiam “seguir errado”
       btnResend.disabled = true;
       btnCheck.setAttribute('aria-disabled','true');
     }
@@ -229,7 +229,29 @@
     // ====== Núcleo: checar/aplicar verificação com sessão e Bearer ======
     async function postCheckVerification(intendedEmail){
       setMsg('Verificando sua conta…', 'hint');
+
       const hasFirebase = typeof window.firebase !== 'undefined' && firebase?.auth;
+      const act = readActionParams();
+
+      // Caso especial: veio do e-mail em outro navegador (sem sessão)
+      if (!firebase?.auth?.currentUser && act.mode === 'verifyEmail' && act.oobCode) {
+        try {
+          await firebase.auth().applyActionCode(act.oobCode);
+          setMsg('✅ E-mail verificado com sucesso. Volte à janela onde iniciou o cadastro e clique em “Já verifiquei — continuar”.', 'ok');
+
+          // Oferece opção de login para continuar NESTA guia
+          const extra = document.createElement('div');
+          extra.className = 'note-compact';
+          extra.innerHTML = `Ou <a class="btn-link" href="/pages/login.html">entre na sua conta</a> para continuar nesta guia.`;
+          msg.parentNode.insertBefore(extra, msg.nextSibling);
+          return;
+        } catch (err) {
+          console.info('[verify] applyActionCode (sem sessão) falhou:', err);
+          setMsg('Não foi possível concluir aqui. Entre na sua conta ou use a janela original.', 'error');
+          return;
+        }
+      }
+
       if (!hasFirebase){
         setMsg('Serviço de login indisponível. Recarregue a página.', 'error');
         return;
@@ -247,7 +269,6 @@
       }
 
       try{
-        const act = readActionParams();
         await user.reload();
 
         // Se e-mail pretendido não for o da sessão, bloqueia
@@ -256,11 +277,11 @@
           return;
         }
 
-        // Se veio do link de ação do Firebase, tentar aplicar antes
+        // Se veio do link do e-mail, aplicar antes (com sessão)
         if (act.mode === 'verifyEmail' && act.oobCode && user.emailVerified !== true){
           try{
             await firebase.auth().applyActionCode(act.oobCode);
-            console.info('[verify] applyActionCode OK');
+            console.info('[verify] applyActionCode OK (com sessão)');
             await user.reload();
           }catch(err){
             console.info('[verify] applyActionCode falhou:', err);
@@ -277,7 +298,7 @@
         const tok = await user.getIdToken(true);
         idToken = tok;
 
-        // Backend: SOMENTE com Authorization: Bearer
+        // Backend confirma (fonte de verdade)
         const res = await fetch(API.checkStatus, {
           method: 'POST',
           headers: { 'Authorization': 'Bearer ' + tok, 'Accept':'application/json' }
@@ -318,7 +339,6 @@
           if (user) {
             await user.reload();
 
-            // Bloqueia se sessão ≠ e-mail pretendido
             if (!emailsMatch(intendedEmail, user.email || '')) {
               blockForMismatch(intendedEmail, user.email || '(sem e-mail)');
               return false;
@@ -341,7 +361,6 @@
         await new Promise(r => setTimeout(r, intervalMs));
       }
 
-      // Exibe fallback se não confirmou no tempo
       setMsg('Ainda não detectamos a verificação. Você pode tentar novamente ou reenviar o e-mail.', 'hint');
       btnCheck.removeAttribute('aria-disabled');
       btnResend.disabled = false;
@@ -371,11 +390,11 @@
       }
     });
 
-    // ====== Init (HOTFIX: não checar automaticamente sem oobCode) ======
+    // ====== Init (sem auto-check sem oobCode; UX clara) ======
     (async function init(){
       await ensureHeaderFooter();
 
-      const intended = sanitizeEmail(readQueryEmail()); // e-mail pretendido do cadastro (se informado)
+      const intended = sanitizeEmail(readQueryEmail()); // e-mail do cadastro (se informado)
       if(intended) applyEmailToUI(intended);
 
       try{
@@ -385,15 +404,11 @@
 
           if(user?.email){
             authEmail = user.email;
-
-            // Atualiza estado antes de qualquer decisão
             try { await user.reload(); } catch {}
 
-            // Se o e-mail da sessão diverge do "pretendido", bloqueia
             if (!emailsMatch(intended, user.email || '')) {
               blockForMismatch(intended, user.email || '(sem e-mail)');
             } else {
-              // Só age automaticamente se veio do link do e-mail (com oobCode)
               const act = readActionParams();
               if (act.mode === 'verifyEmail' && act.oobCode){
                 setMsg('Aplicando verificação do e-mail…', 'hint');
@@ -401,7 +416,6 @@
                 await postCheckVerification(intended);
                 return;
               }
-              // Caso contrário, não faz nada automático. Usuário clica “Já verifiquei”.
               setMsg('Abra o e-mail e clique no link. Depois, toque em “Já verifiquei — continuar”.', 'hint');
             }
           }
@@ -410,7 +424,6 @@
 
       emailInput.addEventListener('input', ()=> setMsg('', 'hint'));
 
-      // Se não fizemos checagem no init e NÃO há oobCode → NÃO iniciar auto-poll
       const act = readActionParams();
       if (!initHasRunVerification) {
         if (act.mode === 'verifyEmail' && act.oobCode){
