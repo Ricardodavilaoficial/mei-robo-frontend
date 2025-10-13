@@ -303,7 +303,7 @@
       }
     }
 
-    // ====== Auto-poll silencioso (quando URL não tem oobCode) ======
+    // ====== Auto-poll (DESLIGADO quando não há oobCode) ======
     async function autoPollVerification(intendedEmail, { tries = 10, intervalMs = 2000 } = {}) {
       setMsg('Confirmando sua verificação…', 'hint');
       btnCheck.setAttribute('aria-disabled','true');
@@ -371,7 +371,7 @@
       }
     });
 
-    // ====== Init (corrigido: sem early redirect; sempre reload + backend) ======
+    // ====== Init (HOTFIX: não checar automaticamente sem oobCode) ======
     (async function init(){
       await ensureHeaderFooter();
 
@@ -393,18 +393,16 @@
             if (!emailsMatch(intended, user.email || '')) {
               blockForMismatch(intended, user.email || '(sem e-mail)');
             } else {
-              // Evita duplicidade com o auto-poll
-              initHasRunVerification = true;
-
-              // Se veio com oobCode, aplica/valida; senão, valida no backend
+              // Só age automaticamente se veio do link do e-mail (com oobCode)
               const act = readActionParams();
               if (act.mode === 'verifyEmail' && act.oobCode){
                 setMsg('Aplicando verificação do e-mail…', 'hint');
-              } else {
-                setMsg('Confirmando sua verificação…', 'hint');
+                initHasRunVerification = true;
+                await postCheckVerification(intended);
+                return;
               }
-              await postCheckVerification(intended);
-              return; // não iniciar auto-poll se já fizemos a checagem
+              // Caso contrário, não faz nada automático. Usuário clica “Já verifiquei”.
+              setMsg('Abra o e-mail e clique no link. Depois, toque em “Já verifiquei — continuar”.', 'hint');
             }
           }
         }
@@ -412,15 +410,13 @@
 
       emailInput.addEventListener('input', ()=> setMsg('', 'hint'));
 
-      // Se não fizemos checagem no init e não há oobCode → auto-poll por ~20s
+      // Se não fizemos checagem no init e NÃO há oobCode → NÃO iniciar auto-poll
       const act = readActionParams();
       if (!initHasRunVerification) {
         if (act.mode === 'verifyEmail' && act.oobCode){
-          // Sem sessão pronta, aguarda um tique e tenta checar
           setTimeout(()=> { postCheckVerification(intended); }, 150);
-        } else {
-          setTimeout(()=> { autoPollVerification(intended, { tries: 10, intervalMs: 2000 }); }, 200);
         }
+        // Sem oobCode → sem auto-poll.
       }
     })();
   })();
