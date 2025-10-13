@@ -15,35 +15,48 @@
   <script defer src="/assets/layout.js?v=2025-09-06-07"></script>
 
   <style>
-    :root { --input-h: 48px; --input-br: 10px; --input-bc: #d8d8d8; --input-fc: #222; --hint: .92rem; }
+    :root { --input-h: 48px; --input-br: 10px; --hint: .92rem; }
     .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
     .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; }
     @media (max-width: 900px) { .grid-2, .grid-3 { grid-template-columns: 1fr; } }
     .mt-6{margin-top:6px}.mt-8{margin-top:8px}.mt-12{margin-top:12px}.mt-16{margin-top:16px}.mt-20{margin-top:20px}.mt-24{margin-top:24px}
     .w-100{width:100%}.hint{font-size:var(--hint);opacity:.9} form section{margin-top:18px} form label{display:block;margin:8px 0}
 
+    /* ===== Tema escuro local (apenas nesta página) ===== */
+    /* Usa tons próximos ao restante da plataforma */
+    :root {
+      --bg-input: rgba(255,255,255,0.06);
+      --bd-input: #374151;   /* cinza-500 aprox */
+      --fg-input: #e5e7eb;   /* cinza-200 aprox */
+      --ph-input: 0.55;      /* opacidade do placeholder */
+      --fg-display: #e5e7eb;
+    }
+
     /* Inputs padrão (apenas os editáveis ficam assim) */
     input[type="text"],input[type="email"],input[type="tel"],select{
-      width:100%;height:var(--input-h);border:1px solid var(--input-bc);
-      border-radius:var(--input-br);padding:0 12px;color:var(--input-fc);
-      outline:none;box-sizing:border-box;background:#fff
+      width:100%;height:var(--input-h);
+      border:1px solid var(--bd-input);
+      border-radius:var(--input-br);
+      padding:0 12px;
+      color:var(--fg-input);
+      outline:none;box-sizing:border-box;
+      background:var(--bg-input);
     }
-    input::placeholder{opacity:.75}
+    input::placeholder{opacity:var(--ph-input)}
 
     /* Valores fixos exibidos “secos” (sem caixa) */
     .display-value{
       display:block;
       padding: 10px 0 2px;
       font-weight:600;
-      color:#1f2937;
+      color:var(--fg-display);
       letter-spacing:.2px;
-      /* sem borda, sem fundo */
     }
 
     /* Botões */
     .btn{padding:10px 14px;border:0;border-radius:8px;cursor:pointer}
     .btn.primary{background:#25D366;color:#fff}
-    .btn.outline{background:#fff;border:1px solid #ccc}
+    .btn.outline{background:transparent;border:1px solid var(--bd-input);color:var(--fg-input)}
     .btn[disabled]{opacity:.6;cursor:not-allowed}
     .card + .card{margin-top:16px}
 
@@ -53,6 +66,11 @@
     .pill-prov{background:#eef5ff;color:#0b63c9;border:1px solid #cfe0ff}
     .pill-active{background:#e8fff2;color:#116a3d;border:1px solid #25D366}
     .pill-failed{background:#feecec;color:#9b1c1c;border:1px solid #fecaca}
+
+    /* Branding radios */
+    .branding-options { display:grid; gap:10px; }
+    .branding-option { display:flex; align-items:flex-start; gap:10px; padding:10px; border:1px solid var(--bd-input); border-radius:10px; background:rgba(255,255,255,0.03); }
+    .branding-option small { opacity:.8 }
   </style>
 </head>
 <body>
@@ -92,15 +110,66 @@
               <span id="disp-email" class="display-value">—</span>
               <input type="hidden" name="email" id="hid-email" />
             </div>
-            <label>Telefone (WhatsApp)
-              <input type="tel" name="telefone" autocomplete="tel" placeholder="Ex.: (11) 91234-5678" />
-              <span class="hint">Use o número que atende seus clientes.</span>
+
+            <!-- WhatsApp do usuário (para notificações) -->
+            <label>Seu WhatsApp (para notificações)
+              <input type="tel" name="telefone" autocomplete="tel" placeholder="Ex.: +55 11 91234-5678" />
+              <span class="hint">Usaremos este número para avisos e testes. O número do MEI Robô será configurado depois.</span>
             </label>
+
             <div>
               <label>CNPJ</label>
               <span id="disp-cnpj" class="display-value">—</span>
               <input type="hidden" name="cnpj" id="hid-cnpj" />
             </div>
+          </div>
+
+          <!-- Identidade legal (somente leitura) -->
+          <div class="grid-2 mt-12">
+            <div>
+              <label>Razão Social (legal)</label>
+              <span id="disp-legalname" class="display-value">—</span>
+              <input type="hidden" name="legal_name" id="hid-legalname" />
+            </div>
+            <div>
+              <label>Nome Fantasia</label>
+              <span id="disp-tradename" class="display-value">—</span>
+              <input type="hidden" name="trade_name" id="hid-tradename" />
+            </div>
+          </div>
+
+          <!-- Vínculo leve ao CNPJ (não-bloqueante) -->
+          <p id="cnpj-vinculo-hint" class="hint mt-8"></p>
+        </section>
+
+        <!-- Marca pública -->
+        <section>
+          <h3>Como seu negócio deve aparecer para os clientes?</h3>
+          <div class="branding-options" id="branding-options">
+            <label class="branding-option">
+              <input type="radio" name="branding_choice" value="trade_name" />
+              <div>
+                <div><strong>Usar Nome Fantasia</strong> <small>(se existir)</small></div>
+                <div class="hint">Aparece em mensagens, orçamentos e materiais.</div>
+              </div>
+            </label>
+
+            <label class="branding-option">
+              <input type="radio" name="branding_choice" value="legal_name" />
+              <div>
+                <div><strong>Usar Razão Social</strong></div>
+                <div class="hint">Opção conservadora, costuma bater com cadastros oficiais.</div>
+              </div>
+            </label>
+
+            <label class="branding-option">
+              <input type="radio" name="branding_choice" value="custom" />
+              <div class="w-100">
+                <div><strong>Definir um nome personalizado</strong></div>
+                <input type="text" name="public_brand" id="public_brand" placeholder="Ex.: Ed Barba" class="mt-8" />
+                <div class="hint mt-6">Esse nome aparece para seus clientes. Documentos fiscais continuam com a Razão Social.</div>
+              </div>
+            </label>
           </div>
         </section>
 
@@ -234,6 +303,13 @@
       return { uid, idToken };
     }
 
+    function escapeHtml(str){ return String(str).replace(/[&<>"']/g, s => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[s])); }
+    function formatDateBR(iso){
+      try { const d = new Date(iso); const dd = String(d.getDate()).padStart(2,'0'); const mm = String(d.getMonth()+1).padStart(2,'0'); const yy = d.getFullYear(); return `${dd}/${mm}/${yy}`; }
+      catch(_){ return iso; }
+    }
+    function onlyDigits(s){ return String(s||'').replace(/\D+/g,''); }
+
     // ============================== ELEMENTOS =========================
     const form = document.getElementById('config-form');
     const cfgFeedback = document.getElementById('config-feedback');
@@ -243,12 +319,16 @@
     const dNome = document.getElementById('disp-nome');
     const dEmail = document.getElementById('disp-email');
     const dCnpj = document.getElementById('disp-cnpj');
-    const dSeg = document.getElementById('disp-segmento');
+    const dSeg  = document.getElementById('disp-segmento');
+    const dLegal= document.getElementById('disp-legalname');
+    const dTrade= document.getElementById('disp-tradename');
 
     const hNome = document.getElementById('hid-nome');
-    const hEmail = document.getElementById('hid-email');
+    const hEmail= document.getElementById('hid-email');
     const hCnpj = document.getElementById('hid-cnpj');
-    const hSeg = document.getElementById('hid-segmento');
+    const hSeg  = document.getElementById('hid-segmento');
+    const hLegal= document.getElementById('hid-legalname');
+    const hTrade= document.getElementById('hid-tradename');
 
     // Editáveis
     const fTel   = form.querySelector('input[name="telefone"]');
@@ -263,13 +343,46 @@
     const wrapCustom = document.getElementById('custom-horario');
     const fJanelaCustom = form.querySelector('input[name="janela_resposta_custom"]');
 
+    // Branding
+    const brandingOptions = document.getElementsByName('branding_choice');
+    const fPublicBrand = document.getElementById('public_brand');
+
+    // WABA UI
     const wabaBadge = document.getElementById('waba-badge');
     const wabaNote  = document.getElementById('waba-note');
     const wabaEta   = document.getElementById('waba-eta');
 
+    // CNPJ vínculo hint
+    const cnpjVinculoHint = document.getElementById('cnpj-vinculo-hint');
+
     fJanela.addEventListener('change', () => {
       wrapCustom.style.display = (fJanela.value === 'custom') ? 'block' : 'none';
     });
+
+    function selectBranding(choice){
+      for (const r of brandingOptions) r.checked = (r.value === choice);
+      // só mostra/capta public_brand quando custom
+      if (choice === 'custom') {
+        fPublicBrand.removeAttribute('disabled');
+      } else {
+        fPublicBrand.setAttribute('disabled','disabled');
+      }
+    }
+
+    function initBranding(data){
+      // data pode trazer legal_name, trade_name, branding_choice, public_brand
+      const legal = data.legal_name || '';
+      const trade = data.trade_name || '';
+      hLegal.value = legal; dLegal.textContent = legal || '—';
+      hTrade.value = trade; dTrade.textContent = trade || '—';
+
+      const choice = data.branding_choice || (trade ? 'trade_name' : 'legal_name');
+      const custom = data.public_brand || '';
+
+      selectBranding(choice);
+      if (custom) fPublicBrand.value = custom;
+      if (choice !== 'custom') fPublicBrand.value = custom || ''; // mantém vazio quando não for custom
+    }
 
     // ============================== INIT ==============================
     (async function init() {
@@ -290,6 +403,10 @@
             if (data.cnpj)  { dCnpj.textContent = data.cnpj; hCnpj.value = data.cnpj; }
             if (data.segmento) { dSeg.textContent = data.segmento; hSeg.value = data.segmento; }
 
+            // Identidade legal/trade se vierem do backend
+            if (data.legal_name) { dLegal.textContent = data.legal_name; hLegal.value = data.legal_name; }
+            if (data.trade_name) { dTrade.textContent = data.trade_name; hTrade.value = data.trade_name; }
+
             // Demais campos
             if (data.telefone) fTel.value = data.telefone;
             if (data.esp1) fEsp1.value = data.esp1;
@@ -306,6 +423,20 @@
             if (data.janela_resposta_custom) {
               fJanelaCustom.value = data.janela_resposta_custom;
             }
+
+            // Inicializa branding (marca pública)
+            initBranding(data);
+
+            // Se temos CNPJ mas não temos segmento, tentar auto-fill via rota pública
+            const cnpjDigits = onlyDigits(hCnpj.value);
+            if (cnpjDigits.length === 14 && !hSeg.value) {
+              await tryAutofillFromCNPJ(cnpjDigits);
+            }
+
+            // Verificação leve de vínculo (não-bloqueante)
+            if (cnpjDigits.length === 14 && hNome.value) {
+              tryCheckCnpjVinculo(cnpjDigits, hNome.value);
+            }
           } else {
             cfgFeedback.textContent = '⚠️ Não foi possível carregar seus dados agora.';
           }
@@ -318,6 +449,47 @@
       // Carrega status do número virtual (WABA)
       await loadWabaStatus(uid, idToken);
     })();
+
+    async function tryAutofillFromCNPJ(cnpj14){
+      try {
+        console.log('[cnpj] consulta iniciada');
+        const r = await fetch(`${API_BASE}/integracoes/cnpj/${encodeURIComponent(cnpj14)}`);
+        if (!r.ok) { console.warn('[cnpj] falha', r.status); return; }
+        const j = await r.json();
+        // Segmento (CNAE descrição)
+        const desc = (j && j.cnaePrincipal && j.cnaePrincipal.descricao) ? String(j.cnaePrincipal.descricao) : '';
+        if (desc && !hSeg.value) {
+          hSeg.value = desc;
+          dSeg.textContent = desc;
+          console.log('[cnpj] segmento preenchido');
+        }
+        // Legal / trade se vierem e ainda não estiverem setados
+        if (j && j.razaoSocial && !hLegal.value) { hLegal.value = j.razaoSocial; dLegal.textContent = j.razaoSocial; }
+        if (j && j.nomeFantasia && !hTrade.value) { hTrade.value = j.nomeFantasia; dTrade.textContent = j.nomeFantasia; }
+
+        // Branding: se não houve escolha ainda, preferir trade_name se existir
+        if (![...brandingOptions].some(r=>r.checked)) {
+          selectBranding(hTrade.value ? 'trade_name' : 'legal_name');
+        }
+      } catch(e){
+        console.warn('[cnpj] erro', e);
+      }
+    }
+
+    async function tryCheckCnpjVinculo(cnpj14, nomeBusca){
+      try {
+        const u = `${API_BASE}/integracoes/cnpj/${encodeURIComponent(cnpj14)}?nome=${encodeURIComponent(nomeBusca)}`;
+        const r = await fetch(u);
+        if (!r.ok) return;
+        const j = await r.json();
+        const v = j && j.vinculoNome && j.vinculoNome.avaliacao;
+        if (v === 'EXATO' || v === 'PROVAVEL') {
+          cnpjVinculoHint.textContent = '✅ Vínculo ao CNPJ: ok.';
+        } else if (v === 'NAO_ENCONTRADO') {
+          cnpjVinculoHint.textContent = '⚠️ Não confirmamos vínculo do nome informado com este CNPJ. Se estiver tudo certo, siga; nossa validação acontece no backend.';
+        }
+      } catch(_){}
+    }
 
     async function loadWabaStatus(uid, idToken){
       try {
@@ -364,12 +536,6 @@
       }
     }
 
-    function escapeHtml(str){ return String(str).replace(/[&<>"']/g, s => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[s])); }
-    function formatDateBR(iso){
-      try { const d = new Date(iso); const dd = String(d.getDate()).padStart(2,'0'); const mm = String(d.getMonth()+1).padStart(2,'0'); const yy = d.getFullYear(); return `${dd}/${mm}/${yy}`; }
-      catch(_){ return iso; }
-    }
-
     // ============================== SUBMIT ============================
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
@@ -393,9 +559,18 @@
           fd.delete('janela_resposta_custom');
         }
 
-        // Segmento vem do hidden
-        const segVal = document.getElementById('hid-segmento').value || '';
-        fd.set('segmento', segVal);
+        // Segmento vem do hidden (preenchido por auto-fill do CNPJ, se houver)
+        fd.set('segmento', document.getElementById('hid-segmento').value || '');
+
+        // Branding: se não for custom, limpamos public_brand (evita sujar o BD)
+        const brandingChoice = (fd.get('branding_choice') || '').trim();
+        if (brandingChoice !== 'custom') {
+          fd.set('public_brand', '');
+        }
+
+        // Identidade legal/trade (somente se já carregadas)
+        fd.set('legal_name', document.getElementById('hid-legalname').value || '');
+        fd.set('trade_name', document.getElementById('hid-tradename').value || '');
 
         const headers = {}; if (idToken) headers['Authorization'] = 'Bearer ' + idToken;
         const resp = await fetch(`${API_BASE}/api/configuracao`, {
@@ -421,6 +596,11 @@
         btnSalvar.textContent = 'Salvar e continuar';
       }
     });
+
+    // Branding: clique nos radios → habilita/desabilita input custom
+    for (const r of brandingOptions) {
+      r.addEventListener('change', () => selectBranding(r.value));
+    }
   </script>
 </body>
 </html>
