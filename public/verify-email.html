@@ -123,6 +123,7 @@
 
     let authEmail = null;
     let idToken   = null;
+    let initHasRunVerification = false;
 
     function setMsg(text, cls){ msg.className = cls || 'hint'; msg.textContent = text || ''; }
     function sanitizeEmail(s){ if(!s||typeof s!=='string')return''; s=s.trim().replace(/\s+/g,''); return s.replace(/[\u200B-\u200D\uFEFF]/g,''); }
@@ -186,6 +187,9 @@
         const hasFirebase = typeof window.firebase !== 'undefined' && firebase?.auth;
         if (!hasFirebase) throw new Error('firebase_unavailable');
 
+        // idioma PT-BR para o template do email
+        try { firebase.auth().languageCode = 'pt_BR'; } catch {}
+
         const user = firebase.auth().currentUser || null;
         if (!user || !user.email) {
           setMsg('Faça login novamente para reenviar a verificação.', 'error');
@@ -216,7 +220,7 @@
           mode:     p.get('mode') || '',
           oobCode:  p.get('oobCode') || '',
           apiKey:   p.get('apiKey') || '',
-          cont:     p.get('continueUrl') || '',
+          cont:     p.get('continueUrl') || p.get('cont') || '',
           lang:     p.get('lang') || ''
         };
       }catch{ return { mode:'', oobCode:'', apiKey:'', cont:'', lang:'' }; }
@@ -367,7 +371,7 @@
       }
     });
 
-    // ====== Init ======
+    // ====== Init (corrigido: sem early redirect; sempre reload + backend) ======
     (async function init(){
       await ensureHeaderFooter();
 
@@ -378,18 +382,29 @@
         const hasFirebase = typeof window.firebase !== 'undefined' && firebase?.auth;
         if(hasFirebase){
           const user = firebase.auth().currentUser || null;
+
           if(user?.email){
             authEmail = user.email;
-            try{ idToken = await user.getIdToken(false); }catch{}
-            if (user.emailVerified === true){
-              // Somente redireciona se a sessão for do e-mail pretendido (quando houver)
-              if (emailsMatch(intended, user.email)) {
-                setMsg('E-mail já verificado. Redirecionando…', 'ok');
-                setTimeout(()=> location.href='/pages/configuracao.html', 500);
-                return;
+
+            // Atualiza estado antes de qualquer decisão
+            try { await user.reload(); } catch {}
+
+            // Se o e-mail da sessão diverge do "pretendido", bloqueia
+            if (!emailsMatch(intended, user.email || '')) {
+              blockForMismatch(intended, user.email || '(sem e-mail)');
+            } else {
+              // Evita duplicidade com o auto-poll
+              initHasRunVerification = true;
+
+              // Se veio com oobCode, aplica/valida; senão, valida no backend
+              const act = readActionParams();
+              if (act.mode === 'verifyEmail' && act.oobCode){
+                setMsg('Aplicando verificação do e-mail…', 'hint');
               } else {
-                blockForMismatch(intended, user.email);
+                setMsg('Confirmando sua verificação…', 'hint');
               }
+              await postCheckVerification(intended);
+              return; // não iniciar auto-poll se já fizemos a checagem
             }
           }
         }
@@ -397,15 +412,15 @@
 
       emailInput.addEventListener('input', ()=> setMsg('', 'hint'));
 
-      // Se veio de link do e-mail com oobCode, aplica/valida automaticamente
+      // Se não fizemos checagem no init e não há oobCode → auto-poll por ~20s
       const act = readActionParams();
-      if (act.mode === 'verifyEmail' && act.oobCode){
-        setMsg('Aplicando verificação do e-mail…', 'hint');
-        setTimeout(()=> { postCheckVerification(intended); }, 150);
-      } else {
-        // Sem oobCode → auto-poll silencioso por ~20s (10 tentativas x 2s),
-        // mas só se não houver mismatch de e-mail
-        setTimeout(()=> { autoPollVerification(intended, { tries: 10, intervalMs: 2000 }); }, 200);
+      if (!initHasRunVerification) {
+        if (act.mode === 'verifyEmail' && act.oobCode){
+          // Sem sessão pronta, aguarda um tique e tenta checar
+          setTimeout(()=> { postCheckVerification(intended); }, 150);
+        } else {
+          setTimeout(()=> { autoPollVerification(intended, { tries: 10, intervalMs: 2000 }); }, 200);
+        }
       }
     })();
   })();
