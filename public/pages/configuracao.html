@@ -99,9 +99,7 @@
               <label>CNPJ</label>
               <span id="disp-cnpj" class="display-value">—</span>
               <input type="hidden" name="cnpj" id="hid-cnpj" />
-              <!-- [FALLBACK CNPJ] input visível só quando não temos CNPJ do backend -->
-              <input type="text" id="cnpj-fallback" placeholder="Digite seu CNPJ (apenas números)" style="margin-top:6px;display:none" inputmode="numeric" autocomplete="off" />
-              <span id="cnpj-fallback-hint" class="hint soft" style="display:none">Ao informar, buscamos seu CNAE e preenchemos automaticamente.</span>
+              <span class="hint soft">CNPJ vinculado à conta. Para alterar, fale com o suporte.</span>
             </div>
           </div>
 
@@ -245,35 +243,23 @@
       });
     }
 
-    (async function authGate() {
-      const fbReady = await waitForFirebaseAuth();
-      if (fbReady && window.firebase && firebase.auth) {
-        await new Promise((resolve) => {
-          let resolved = false;
-          const unsub = firebase.auth().onAuthStateChanged((user) => {
-            if (resolved) return;
-            resolved = true; unsub();
-            resolve();
-          });
-          setTimeout(() => { if (!resolved) { resolved = true; resolve(); } }, 3000);
-        });
-      }
-    })();
-
-    async function getAuthContext() {
-      let uid = localStorage.getItem('uid') || sessionStorage.getItem('uid') || null;
-      let idToken = null;
+    (async function gatekeeper() {
+      await waitForFirebaseAuth();
+      let user = null;
       if (window.firebase && firebase.auth) {
-        try {
-          const user = firebase.auth().currentUser;
-          if (user) {
-            uid = user.uid;
-            idToken = await user.getIdToken(true);
-          }
-        } catch (_) {}
+        user = firebase.auth().currentUser;
+        try { await user?.reload(); } catch(_) {}
       }
-      return { uid, idToken };
-    }
+      if (!user) {
+        location.href = '/pages/login.html';
+        return;
+      }
+      if (!user.emailVerified) {
+        location.href = '/verify-email.html';
+        return;
+      }
+      init(); // só segue após login + email verificado
+    })();
 
     function escapeHtml(str){ return String(str).replace(/[&<>"']/g, s => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[s])); }
     function formatDateBR(iso){ try { const d=new Date(iso); return `${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}/${d.getFullYear()}` } catch(_){ return iso; } }
@@ -318,10 +304,6 @@
 
     const cnpjVinculoHint = document.getElementById('cnpj-vinculo-hint');
 
-    // [FALLBACK CNPJ] elementos
-    const cnpjFallback = document.getElementById('cnpj-fallback');
-    const cnpjFallbackHint = document.getElementById('cnpj-fallback-hint');
-
     fJanela.addEventListener('change', () => {
       wrapCustom.style.display = (fJanela.value === 'custom') ? 'block' : 'none';
     });
@@ -345,123 +327,90 @@
       if (choice !== 'custom') fPublicBrand.value = custom || '';
     }
 
-    // [FALLBACK CNPJ] dado um CNPJ, consulta pública e preenche
-    async function hydrateFromCNPJ(cnpj14){
-      const cnpj = onlyDigits(cnpj14||'');
-      if (cnpj.length !== 14) return;
-      try{
-        const r = await fetch(`${API_BASE}/integracoes/cnpj/${encodeURIComponent(cnpj)}`, { credentials: "include" });
-        if (!r.ok) return;
-        const j = await r.json();
-        // CNPJ nos hidden/display
-        hCnpj.value = cnpj; dCnpj.textContent = cnpj;
-        // Segmento
-        const desc = j && j.cnaePrincipal && j.cnaePrincipal.descricao;
-        if (desc) { hSeg.value = desc; dSeg.textContent = desc; }
-        // Razão Social / Fantasia
-        if (j && j.razaoSocial && !hLegal.value) { hLegal.value = j.razaoSocial; dLegal.textContent = j.razaoSocial; }
-        if (j && j.nomeFantasia && !hTrade.value) { hTrade.value = j.nomeFantasia; dTrade.textContent = j.nomeFantasia; }
-        // Branding default
-        if (![...brandingOptions].some(r=>r.checked)) {
-          selectBranding(hTrade.value ? 'trade_name' : 'legal_name');
-        }
-      } catch(_){}
+    async function getAuthContext() {
+      let idToken = null;
+      let uid = null;
+      if (window.firebase && firebase.auth && firebase.auth().currentUser) {
+        const user = firebase.auth().currentUser;
+        uid = user.uid;
+        try { idToken = await user.getIdToken(true); } catch(_) {}
+      }
+      return { uid, idToken };
     }
 
-    // ============================== INIT ==============================
-    (async function init() {
-      await waitForFirebaseAuth();
+    async function init() {
       const { uid, idToken } = await getAuthContext();
+      if (!uid) { location.href = '/pages/login.html'; return; }
 
-      // [GET CONFIG ROBUSTO] tenta com Bearer (sem uid) quando autenticado
+      // GET /api/configuracao — exige CNPJ já salvo; sem CNPJ → redireciona ao cadastro
       try {
         const headers = {};
-        let url = `${API_BASE}/api/configuracao`;
         if (idToken) headers['Authorization'] = 'Bearer ' + idToken;
-        else if (uid) url += `?uid=${encodeURIComponent(uid)}`; // fallback diagnóstico
 
-        const resp = await fetch(url, { method: 'GET', headers });
-        if (resp.ok) {
-          const payload = await resp.json();
-          const data = (payload && payload.data) ? payload.data : (payload || {});
-
-          if (data.nome)  { dNome.textContent = data.nome; hNome.value = data.nome; }
-          if (data.email) { dEmail.textContent = data.email; hEmail.value = data.email; }
-          if (data.cnpj)  { dCnpj.textContent = data.cnpj; hCnpj.value = data.cnpj; }
-          if (data.segmento) { dSeg.textContent = data.segmento; hSeg.value = data.segmento; }
-          if (data.legal_name) { dLegal.textContent = data.legal_name; hLegal.value = data.legal_name; }
-          if (data.trade_name) { dTrade.textContent = data.trade_name; hTrade.value = data.trade_name; }
-
-          if (data.telefone) fTel.value = data.telefone;
-          if (data.esp1) fEsp1.value = data.esp1;
-          if (data.esp2) fEsp2.value = data.esp2;
-          if (data.formalidade) fFormal.value = data.formalidade;
-          if (data.emojis) fEmojis.value = data.emojis;
-          if (data.saudacao) fSaud.value = data.saudacao;
-          if (data.display_name) fDisp.value = data.display_name;
-          if (data.closing_text) fClose.value = data.closing_text;
-          if (data.janela_resposta) {
-            fJanela.value = data.janela_resposta;
-            wrapCustom.style.display = (fJanela.value === 'custom') ? 'block' : 'none';
-          }
-          if (data.janela_resposta_custom) fJanelaCustom.value = data.janela_resposta_custom;
-
-          initBranding(data);
-
-          // >>> NOVO: se veio 200 mas SEM CNPJ, liga o fallback editável
-          const hasCnpj = (onlyDigits(hCnpj.value).length === 14);
-          if (!hasCnpj) {
-            enableCnpjFallbackUI();
-            if (!cnpjVinculoHint.textContent) {
-              cnpjVinculoHint.textContent = 'Digite seu CNPJ para preencher automaticamente (CNAE, razão social, fantasia).';
-            }
-          }
-
-          // Auto-fill CNAE se temos CNPJ e segmento vazio
-          const cnpjDigits = onlyDigits(hCnpj.value);
-          if (cnpjDigits.length === 14 && !hSeg.value) await hydrateFromCNPJ(cnpjDigits);
-          if (cnpjDigits.length === 14 && hNome.value) tryCheckCnpjVinculo(cnpjDigits, hNome.value);
-        } else {
-          // 404/401 → mostrar fallback de CNPJ editável
-          enableCnpjFallbackUI();
+        const resp = await fetch(`${API_BASE}/api/configuracao`, { method: 'GET', headers });
+        if (!resp.ok) {
+          if (resp.status === 401) { location.href = '/pages/login.html'; return; }
+          if (resp.status === 403 || resp.status === 428) { location.href = '/verify-email.html'; return; }
+          // Em qualquer outra falha, voltar para o início do onboarding
+          location.href = '/pages/ativar-cliente.html';
+          return;
         }
-      } catch (e) {
-        // falha de rede → mostrar fallback
-        enableCnpjFallbackUI();
+
+        const payload = await resp.json();
+        const data = (payload && payload.data) ? payload.data : (payload || {});
+
+        const cnpjDigits = onlyDigits(data?.cnpj || '');
+        if (cnpjDigits.length !== 14) {
+          // Estado inválido para esta tela: exigir retorno ao passo de CNPJ
+          location.href = '/pages/ativar-cliente.html?step=cnpj_required';
+          return;
+        }
+
+        // Preencher UI (somente leitura para CNPJ e dados oficiais)
+        if (data.nome)  { dNome.textContent = data.nome; hNome.value = data.nome; }
+        if (data.email) { dEmail.textContent = data.email; hEmail.value = data.email; }
+        dCnpj.textContent = cnpjDigits; hCnpj.value = cnpjDigits;
+
+        if (data.segmento)   { dSeg.textContent = data.segmento; hSeg.value = data.segmento; }
+        if (data.legal_name) { dLegal.textContent = data.legal_name; hLegal.value = data.legal_name; }
+        if (data.trade_name) { dTrade.textContent = data.trade_name; hTrade.value = data.trade_name; }
+
+        if (data.telefone) fTel.value = data.telefone;
+        if (data.esp1) fEsp1.value = data.esp1;
+        if (data.esp2) fEsp2.value = data.esp2;
+        if (data.formalidade) fFormal.value = data.formalidade;
+        if (data.emojis) fEmojis.value = data.emojis;
+        if (data.saudacao) fSaud.value = data.saudacao;
+        if (data.display_name) fDisp.value = data.display_name;
+        if (data.closing_text) fClose.value = data.closing_text;
+        if (data.janela_resposta) {
+          fJanela.value = data.janela_resposta;
+          wrapCustom.style.display = (fJanela.value === 'custom') ? 'block' : 'none';
+        }
+        if (data.janela_resposta_custom) fJanelaCustom.value = data.janela_resposta_custom;
+
+        initBranding(data);
+
+        // (Opcional) checagem de vínculo exibe apenas um ok visual
+        tryCheckCnpjVinculo(cnpjDigits, data.nome || '');
+      } catch(e) {
+        // Qualquer erro inesperado: volta ao início do onboarding
+        location.href = '/pages/ativar-cliente.html';
       }
 
-      await loadWabaStatus(uid, idToken);
-    })();
-
-    function enableCnpjFallbackUI(){
-      // guarda para evitar listeners duplicados
-      if (enableCnpjFallbackUI.__on) return;
-      enableCnpjFallbackUI.__on = true;
-
-      cnpjFallback.style.display = '';
-      cnpjFallbackHint.style.display = '';
-      // ao digitar 14 dígitos, já preenche a partir do CNPJ
-      cnpjFallback.addEventListener('input', () => {
-        const d = onlyDigits(cnpjFallback.value);
-        if (d.length > 14) cnpjFallback.value = d.slice(0,14);
-      });
-      cnpjFallback.addEventListener('change', () => {
-        const d = onlyDigits(cnpjFallback.value);
-        if (d.length === 14) hydrateFromCNPJ(d);
-      });
+      const { uid: u2, idToken: t2 } = await getAuthContext();
+      await loadWabaStatus(u2, t2);
     }
 
     async function tryCheckCnpjVinculo(cnpj14, nomeBusca){
       try {
-        const u = `${API_BASE}/integracoes/cnpj/${encodeURIComponent(cnpj14)}?nome=${encodeURIComponent(nomeBusca)}`;
+        const u = `${API_BASE}/integracoes/cnpj/${encodeURIComponent(cnpj14)}?nome=${encodeURIComponent(nomeBusca||'')}`;
         const r = await fetch(u, { credentials: "include" });
         if (!r.ok) return;
         const j = await r.json();
         const v = j && j.vinculoNome && j.vinculoNome.avaliacao;
         if (v === 'EXATO' || v === 'PROVAVEL') {
           cnpjVinculoHint.textContent = '✅ Vínculo ao CNPJ: ok.';
-        } else if (v === 'NAO_ENCONTRADO') {
-          cnpjVinculoHint.textContent = '⚠️ Não confirmamos vínculo do nome informado com este CNPJ. Se estiver tudo certo, siga; nossa validação acontece no backend.';
         }
       } catch(_){}
     }
@@ -484,7 +433,9 @@
 
     function setWabaUI(status, data){
       const s = (status || '').toUpperCase();
-      const badge = wabaBadge; const note = wabaNote; const eta = wabaEta;
+      const badge = document.getElementById('waba-badge');
+      const note = document.getElementById('waba-note');
+      const eta  = document.getElementById('waba-eta');
       badge.className = 'pill'; eta.textContent = ''; note.textContent = '';
 
       if (s === 'ACTIVE') {
@@ -511,35 +462,31 @@
 
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
+      const cfgFeedback = document.getElementById('config-feedback');
+      const btnSalvar = document.getElementById('btn-salvar');
+
       cfgFeedback.textContent = '';
       btnSalvar.disabled = true;
       btnSalvar.textContent = 'Enviando…';
 
-      const { uid, idToken } = await getAuthContext();
-      if (!uid) {
-        cfgFeedback.textContent = '❌ Faça login para salvar suas configurações.';
-        btnSalvar.disabled = false;
-        btnSalvar.textContent = 'Salvar e continuar';
-        return;
-      }
-
+      // CNPJ é somente leitura aqui; apenas envia o que já está nos hiddens
       try {
+        let idToken = null;
+        if (window.firebase && firebase.auth && firebase.auth().currentUser) {
+          try { idToken = await firebase.auth().currentUser.getIdToken(true); } catch(_) {}
+        }
+
         const fd = new FormData(form);
-        fd.append('uid', uid);
 
         if (fd.get('janela_resposta') !== 'custom') fd.delete('janela_resposta_custom');
 
-        // Usa hidden (ou fallback) para CNPJ e Segmento
-        if (!document.getElementById('hid-cnpj').value && cnpjFallback.value) {
-          document.getElementById('hid-cnpj').value = onlyDigits(cnpjFallback.value);
-        }
+        fd.set('cnpj', document.getElementById('hid-cnpj').value || '');
         fd.set('segmento', document.getElementById('hid-segmento').value || '');
+        fd.set('legal_name', document.getElementById('hid-legalname').value || '');
+        fd.set('trade_name', document.getElementById('hid-tradename').value || '');
 
         const brandingChoice = (fd.get('branding_choice') || '').trim();
         if (brandingChoice !== 'custom') fd.set('public_brand', '');
-
-        fd.set('legal_name', document.getElementById('hid-legalname').value || '');
-        fd.set('trade_name', document.getElementById('hid-tradename').value || '');
 
         const headers = {}; if (idToken) headers['Authorization'] = 'Bearer ' + idToken;
         const resp = await fetch(`${API_BASE}/api/configuracao`, { method: 'POST', headers, body: fd });
@@ -563,7 +510,14 @@
       }
     });
 
-    for (const r of brandingOptions) r.addEventListener('change', () => selectBranding(r.value));
+    for (const r of document.getElementsByName('branding_choice')) {
+      r.addEventListener('change', () => {
+        const choice = r.value;
+        for (const x of document.getElementsByName('branding_choice')) x.checked = (x.value === choice);
+        if (choice === 'custom') document.getElementById('public_brand').removeAttribute('disabled');
+        else document.getElementById('public_brand').setAttribute('disabled','disabled');
+      });
+    }
   </script>
 </body>
 </html>
