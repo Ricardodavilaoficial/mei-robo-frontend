@@ -5,13 +5,11 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Configuração de comunicação — MEI Robô</title>
 
-  <!-- Canonical WWW v1.0 (placeholders estáticos; layout.js pode sobrescrever em runtime) -->
   <link rel="canonical" href="https://www.meirobo.com.br/pages/configuracao.html" />
   <meta property="og:url" content="https://www.meirobo.com.br/pages/configuracao.html" />
   <meta name="twitter:url" content="https://www.meirobo.com.br/pages/configuracao.html" />
 
   <link rel="stylesheet" href="/assets/styles.css" />
-  <!-- Bust leve pra evitar cache local -->
   <script defer src="/assets/layout.js?v=2025-09-06-07"></script>
 
   <style>
@@ -22,55 +20,38 @@
     .mt-6{margin-top:6px}.mt-8{margin-top:8px}.mt-12{margin-top:12px}.mt-16{margin-top:16px}.mt-20{margin-top:20px}.mt-24{margin-top:24px}
     .w-100{width:100%}.hint{font-size:var(--hint);opacity:.9} form section{margin-top:18px} form label{display:block;margin:8px 0}
 
-    /* ===== Tema escuro local (apenas nesta página) ===== */
-    /* Usa tons próximos ao restante da plataforma */
     :root {
       --bg-input: rgba(255,255,255,0.06);
-      --bd-input: #374151;   /* cinza-500 aprox */
-      --fg-input: #e5e7eb;   /* cinza-200 aprox */
-      --ph-input: 0.55;      /* opacidade do placeholder */
+      --bd-input: #374151;
+      --fg-input: #e5e7eb;
+      --ph-input: 0.55;
       --fg-display: #e5e7eb;
     }
 
-    /* Inputs padrão (apenas os editáveis ficam assim) */
     input[type="text"],input[type="email"],input[type="tel"],select{
       width:100%;height:var(--input-h);
       border:1px solid var(--bd-input);
       border-radius:var(--input-br);
-      padding:0 12px;
-      color:var(--fg-input);
-      outline:none;box-sizing:border-box;
-      background:var(--bg-input);
+      padding:0 12px;color:var(--fg-input);
+      outline:none;box-sizing:border-box;background:var(--bg-input);
     }
     input::placeholder{opacity:var(--ph-input)}
 
-    /* Valores fixos exibidos “secos” (sem caixa) */
-    .display-value{
-      display:block;
-      padding: 10px 0 2px;
-      font-weight:600;
-      color:var(--fg-display);
-      letter-spacing:.2px;
-    }
-
-    /* Botões */
+    .display-value{display:block;padding:10px 0 2px;font-weight:600;color:var(--fg-display);letter-spacing:.2px}
     .btn{padding:10px 14px;border:0;border-radius:8px;cursor:pointer}
     .btn.primary{background:#25D366;color:#fff}
     .btn.outline{background:transparent;border:1px solid var(--bd-input);color:var(--fg-input)}
     .btn[disabled]{opacity:.6;cursor:not-allowed}
     .card + .card{margin-top:16px}
-
-    /* Badges (apenas para status WABA) */
     .pill{display:inline-block;font-size:.76rem;line-height:1;padding:5px 8px;border-radius:999px;vertical-align:middle;margin-left:8px}
     .pill-pending{background:#fff7e6;color:#8a5a00;border:1px solid #f5d08a}
     .pill-prov{background:#eef5ff;color:#0b63c9;border:1px solid #cfe0ff}
     .pill-active{background:#e8fff2;color:#116a3d;border:1px solid #25D366}
     .pill-failed{background:#feecec;color:#9b1c1c;border:1px solid #fecaca}
-
-    /* Branding radios */
     .branding-options { display:grid; gap:10px; }
     .branding-option { display:flex; align-items:flex-start; gap:10px; padding:10px; border:1px solid var(--bd-input); border-radius:10px; background:rgba(255,255,255,0.03); }
     .branding-option small { opacity:.8 }
+    .soft{opacity:.8}
   </style>
 </head>
 <body>
@@ -83,7 +64,6 @@
       <p class="hint mt-8">Este é o <strong>padrão geral</strong>. Depois dá pra ajustar por contato.</p>
 
       <form id="config-form" class="mt-16" novalidate>
-        <!-- Status do número virtual -->
         <section id="sec-waba">
           <h3>WhatsApp Business - Conta comercial com MEI Robô - <span id="waba-badge" class="pill pill-pending">em validação</span></h3>
           <p id="waba-fixed" class="hint mt-6">
@@ -96,7 +76,6 @@
           <p id="waba-eta" class="hint"></p>
         </section>
 
-        <!-- Dados da conta (exibição seca) -->
         <section class="mt-20">
           <h3>Dados da conta</h3>
           <div class="grid-2">
@@ -111,7 +90,6 @@
               <input type="hidden" name="email" id="hid-email" />
             </div>
 
-            <!-- WhatsApp do usuário (para notificações) -->
             <label>Seu WhatsApp (para notificações)
               <input type="tel" name="telefone" autocomplete="tel" placeholder="Ex.: +55 11 91234-5678" />
               <span class="hint">Usaremos este número para avisos e testes. O número do MEI Robô será configurado depois.</span>
@@ -121,10 +99,12 @@
               <label>CNPJ</label>
               <span id="disp-cnpj" class="display-value">—</span>
               <input type="hidden" name="cnpj" id="hid-cnpj" />
+              <!-- [FALLBACK CNPJ] input visível só quando não temos CNPJ do backend -->
+              <input type="text" id="cnpj-fallback" placeholder="Digite seu CNPJ (apenas números)" style="margin-top:6px;display:none" inputmode="numeric" autocomplete="off" />
+              <span id="cnpj-fallback-hint" class="hint soft" style="display:none">Ao informar, buscamos seu CNAE e preenchemos automaticamente.</span>
             </div>
           </div>
 
-          <!-- Identidade legal (somente leitura) -->
           <div class="grid-2 mt-12">
             <div>
               <label>Razão Social (legal)</label>
@@ -138,11 +118,9 @@
             </div>
           </div>
 
-          <!-- Vínculo leve ao CNPJ (não-bloqueante) -->
           <p id="cnpj-vinculo-hint" class="hint mt-8"></p>
         </section>
 
-        <!-- Marca pública -->
         <section>
           <h3>Como seu negócio deve aparecer para os clientes?</h3>
           <div class="branding-options" id="branding-options">
@@ -173,7 +151,6 @@
           </div>
         </section>
 
-        <!-- Segmento e áreas -->
         <section>
           <h3>Segmento profissional</h3>
           <div class="grid-2">
@@ -191,7 +168,6 @@
           </div>
         </section>
 
-        <!-- Seu jeito de falar -->
         <section>
           <h3>Seu jeito de falar</h3>
           <p class="hint">Defina o estilo que você costuma usar com a maioria dos clientes. Depois dá pra personalizar por contato.</p>
@@ -255,10 +231,8 @@
   <div id="app-footer"></div>
 
   <script>
-    // ============================ API BASE ============================
     const API_BASE = (localStorage.getItem('apiBase') || 'https://mei-robo-prod.onrender.com').replace(/\/+$/, '');
 
-    // ====================== Firebase readiness helper =================
     async function waitForFirebaseAuth(timeoutMs = 10000) {
       return new Promise((resolve) => {
         const start = Date.now();
@@ -271,7 +245,6 @@
       });
     }
 
-    // =============== AUTH GATE (discreto; sem CTA de login aqui) ======
     (async function authGate() {
       const fbReady = await waitForFirebaseAuth();
       if (fbReady && window.firebase && firebase.auth) {
@@ -287,7 +260,6 @@
       }
     })();
 
-    // ============================== HELPERS ===========================
     async function getAuthContext() {
       let uid = localStorage.getItem('uid') || sessionStorage.getItem('uid') || null;
       let idToken = null;
@@ -303,34 +275,28 @@
       return { uid, idToken };
     }
 
-    function escapeHtml(str){ return String(str).replace(/[&<>"']/g, s => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[s]) ); }
-    function formatDateBR(iso){
-      try { const d = new Date(iso); const dd = String(d.getDate()).padStart(2,'0'); const mm = String(d.getMonth()+1).padStart(2,'0'); const yy = d.getFullYear(); return `${dd}/${mm}/${yy}`; }
-      catch(_){ return iso; }
-    }
+    function escapeHtml(str){ return String(str).replace(/[&<>"']/g, s => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[s])); }
+    function formatDateBR(iso){ try { const d=new Date(iso); return `${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}/${d.getFullYear()}` } catch(_){ return iso; } }
     function onlyDigits(s){ return String(s||'').replace(/\D+/g,''); }
 
-    // ============================== ELEMENTOS =========================
     const form = document.getElementById('config-form');
     const cfgFeedback = document.getElementById('config-feedback');
     const btnSalvar = document.getElementById('btn-salvar');
 
-    // Displays e inputs ocultos p/ dados fixos
-    const dNome = document.getElementById('disp-nome');
+    const dNome  = document.getElementById('disp-nome');
     const dEmail = document.getElementById('disp-email');
-    const dCnpj = document.getElementById('disp-cnpj');
-    const dSeg  = document.getElementById('disp-segmento');
-    const dLegal= document.getElementById('disp-legalname');
-    const dTrade= document.getElementById('disp-tradename');
+    const dCnpj  = document.getElementById('disp-cnpj');
+    const dSeg   = document.getElementById('disp-segmento');
+    const dLegal = document.getElementById('disp-legalname');
+    const dTrade = document.getElementById('disp-tradename');
 
-    const hNome = document.getElementById('hid-nome');
-    const hEmail= document.getElementById('hid-email');
-    const hCnpj = document.getElementById('hid-cnpj');
-    const hSeg  = document.getElementById('hid-segmento');
-    const hLegal= document.getElementById('hid-legalname');
-    const hTrade= document.getElementById('hid-tradename');
+    const hNome  = document.getElementById('hid-nome');
+    const hEmail = document.getElementById('hid-email');
+    const hCnpj  = document.getElementById('hid-cnpj');
+    const hSeg   = document.getElementById('hid-segmento');
+    const hLegal = document.getElementById('hid-legalname');
+    const hTrade = document.getElementById('hid-tradename');
 
-    // Editáveis
     const fTel   = form.querySelector('input[name="telefone"]');
     const fEsp1  = form.querySelector('input[name="esp1"]');
     const fEsp2  = form.querySelector('input[name="esp2"]');
@@ -343,17 +309,18 @@
     const wrapCustom = document.getElementById('custom-horario');
     const fJanelaCustom = form.querySelector('input[name="janela_resposta_custom"]');
 
-    // Branding
     const brandingOptions = document.getElementsByName('branding_choice');
     const fPublicBrand = document.getElementById('public_brand');
 
-    // WABA UI
     const wabaBadge = document.getElementById('waba-badge');
     const wabaNote  = document.getElementById('waba-note');
     const wabaEta   = document.getElementById('waba-eta');
 
-    // CNPJ vínculo hint
     const cnpjVinculoHint = document.getElementById('cnpj-vinculo-hint');
+
+    // [FALLBACK CNPJ] elementos
+    const cnpjFallback = document.getElementById('cnpj-fallback');
+    const cnpjFallbackHint = document.getElementById('cnpj-fallback-hint');
 
     fJanela.addEventListener('change', () => {
       wrapCustom.style.display = (fJanela.value === 'custom') ? 'block' : 'none';
@@ -361,16 +328,11 @@
 
     function selectBranding(choice){
       for (const r of brandingOptions) r.checked = (r.value === choice);
-      // só mostra/capta public_brand quando custom
-      if (choice === 'custom') {
-        fPublicBrand.removeAttribute('disabled');
-      } else {
-        fPublicBrand.setAttribute('disabled','disabled');
-      }
+      if (choice === 'custom') fPublicBrand.removeAttribute('disabled');
+      else fPublicBrand.setAttribute('disabled','disabled');
     }
 
     function initBranding(data){
-      // data pode trazer legal_name, trade_name, branding_choice, public_brand
       const legal = data.legal_name || '';
       const trade = data.trade_name || '';
       hLegal.value = legal; dLegal.textContent = legal || '—';
@@ -378,10 +340,32 @@
 
       const choice = data.branding_choice || (trade ? 'trade_name' : 'legal_name');
       const custom = data.public_brand || '';
-
       selectBranding(choice);
       if (custom) fPublicBrand.value = custom;
-      if (choice !== 'custom') fPublicBrand.value = custom || ''; // mantém vazio quando não for custom
+      if (choice !== 'custom') fPublicBrand.value = custom || '';
+    }
+
+    // [FALLBACK CNPJ] dado um CNPJ, consulta pública e preenche
+    async function hydrateFromCNPJ(cnpj14){
+      const cnpj = onlyDigits(cnpj14||'');
+      if (cnpj.length !== 14) return;
+      try{
+        const r = await fetch(`${API_BASE}/integracoes/cnpj/${encodeURIComponent(cnpj)}`, { credentials: "include" });
+        if (!r.ok) return;
+        const j = await r.json();
+        // CNPJ nos hidden/display
+        hCnpj.value = cnpj; dCnpj.textContent = cnpj;
+        // Segmento
+        const desc = j && j.cnaePrincipal && j.cnaePrincipal.descricao;
+        if (desc) { hSeg.value = desc; dSeg.textContent = desc; }
+        // Razão Social / Fantasia
+        if (j && j.razaoSocial && !hLegal.value) { hLegal.value = j.razaoSocial; dLegal.textContent = j.razaoSocial; }
+        if (j && j.nomeFantasia && !hTrade.value) { hTrade.value = j.nomeFantasia; dTrade.textContent = j.nomeFantasia; }
+        // Branding default
+        if (![...brandingOptions].some(r=>r.checked)) {
+          selectBranding(hTrade.value ? 'trade_name' : 'legal_name');
+        }
+      } catch(_){}
     }
 
     // ============================== INIT ==============================
@@ -389,93 +373,82 @@
       await waitForFirebaseAuth();
       const { uid, idToken } = await getAuthContext();
 
-      // Carrega snapshot de configuração
-      if (uid) {
-        try {
-          const headers = {}; if (idToken) headers['Authorization'] = 'Bearer ' + idToken;
-          const resp = await fetch(`${API_BASE}/api/configuracao?uid=${encodeURIComponent(uid)}`, { method: 'GET', headers });
-          if (resp.ok) {
-            const payload = await resp.json();
-            // aceita formato {ok, data:{...}} ou {...} direto
-            const data = (payload && payload.data) ? payload.data : (payload || {});
+      // [GET CONFIG ROBUSTO] tenta com Bearer (sem uid) quando autenticado
+      try {
+        const headers = {};
+        let url = `${API_BASE}/api/configuracao`;
+        if (idToken) headers['Authorization'] = 'Bearer ' + idToken;
+        else if (uid) url += `?uid=${encodeURIComponent(uid)}`; // fallback diagnóstico
 
-            // Exibe dados fixos (secos) + mantém hidden p/ payload
-            if (data.nome)  { dNome.textContent = data.nome; hNome.value = data.nome; }
-            if (data.email) { dEmail.textContent = data.email; hEmail.value = data.email; }
-            if (data.cnpj)  { dCnpj.textContent = data.cnpj; hCnpj.value = data.cnpj; }
-            if (data.segmento) { dSeg.textContent = data.segmento; hSeg.value = data.segmento; }
+        const resp = await fetch(url, { method: 'GET', headers });
+        if (resp.ok) {
+          const payload = await resp.json();
+          const data = (payload && payload.data) ? payload.data : (payload || {});
 
-            // Identidade legal/trade se vierem do backend
-            if (data.legal_name) { dLegal.textContent = data.legal_name; hLegal.value = data.legal_name; }
-            if (data.trade_name) { dTrade.textContent = data.trade_name; hTrade.value = data.trade_name; }
+          if (data.nome)  { dNome.textContent = data.nome; hNome.value = data.nome; }
+          if (data.email) { dEmail.textContent = data.email; hEmail.value = data.email; }
+          if (data.cnpj)  { dCnpj.textContent = data.cnpj; hCnpj.value = data.cnpj; }
+          if (data.segmento) { dSeg.textContent = data.segmento; hSeg.value = data.segmento; }
+          if (data.legal_name) { dLegal.textContent = data.legal_name; hLegal.value = data.legal_name; }
+          if (data.trade_name) { dTrade.textContent = data.trade_name; hTrade.value = data.trade_name; }
 
-            // Demais campos
-            if (data.telefone) fTel.value = data.telefone;
-            if (data.esp1) fEsp1.value = data.esp1;
-            if (data.esp2) fEsp2.value = data.esp2;
-            if (data.formalidade) fFormal.value = data.formalidade;
-            if (data.emojis) fEmojis.value = data.emojis;
-            if (data.saudacao) fSaud.value = data.saudacao;
-            if (data.display_name) fDisp.value = data.display_name;
-            if (data.closing_text) fClose.value = data.closing_text;
-            if (data.janela_resposta) {
-              fJanela.value = data.janela_resposta;
-              wrapCustom.style.display = (fJanela.value === 'custom') ? 'block' : 'none';
-            }
-            if (data.janela_resposta_custom) {
-              fJanelaCustom.value = data.janela_resposta_custom;
-            }
-
-            // Inicializa branding (marca pública)
-            initBranding(data);
-
-            // Se temos CNPJ mas não temos segmento, tentar auto-fill via rota pública
-            const cnpjDigits = onlyDigits(hCnpj.value);
-            if (cnpjDigits.length === 14 && !hSeg.value) {
-              await tryAutofillFromCNPJ(cnpjDigits);
-            }
-
-            // Verificação leve de vínculo (não-bloqueante)
-            if (cnpjDigits.length === 14 && hNome.value) {
-              tryCheckCnpjVinculo(cnpjDigits, hNome.value);
-            }
-          } else {
-            cfgFeedback.textContent = '⚠️ Não foi possível carregar seus dados agora.';
+          if (data.telefone) fTel.value = data.telefone;
+          if (data.esp1) fEsp1.value = data.esp1;
+          if (data.esp2) fEsp2.value = data.esp2;
+          if (data.formalidade) fFormal.value = data.formalidade;
+          if (data.emojis) fEmojis.value = data.emojis;
+          if (data.saudacao) fSaud.value = data.saudacao;
+          if (data.display_name) fDisp.value = data.display_name;
+          if (data.closing_text) fClose.value = data.closing_text;
+          if (data.janela_resposta) {
+            fJanela.value = data.janela_resposta;
+            wrapCustom.style.display = (fJanela.value === 'custom') ? 'block' : 'none';
           }
-        } catch (err) {
-          console.error(err);
-          cfgFeedback.textContent = '⚠️ Erro ao carregar dados.';
+          if (data.janela_resposta_custom) fJanelaCustom.value = data.janela_resposta_custom;
+
+          initBranding(data);
+
+          // >>> NOVO: se veio 200 mas SEM CNPJ, liga o fallback editável
+          const hasCnpj = (onlyDigits(hCnpj.value).length === 14);
+          if (!hasCnpj) {
+            enableCnpjFallbackUI();
+            if (!cnpjVinculoHint.textContent) {
+              cnpjVinculoHint.textContent = 'Digite seu CNPJ para preencher automaticamente (CNAE, razão social, fantasia).';
+            }
+          }
+
+          // Auto-fill CNAE se temos CNPJ e segmento vazio
+          const cnpjDigits = onlyDigits(hCnpj.value);
+          if (cnpjDigits.length === 14 && !hSeg.value) await hydrateFromCNPJ(cnpjDigits);
+          if (cnpjDigits.length === 14 && hNome.value) tryCheckCnpjVinculo(cnpjDigits, hNome.value);
+        } else {
+          // 404/401 → mostrar fallback de CNPJ editável
+          enableCnpjFallbackUI();
         }
+      } catch (e) {
+        // falha de rede → mostrar fallback
+        enableCnpjFallbackUI();
       }
 
-      // Carrega status do número virtual (WABA)
       await loadWabaStatus(uid, idToken);
     })();
 
-    async function tryAutofillFromCNPJ(cnpj14){
-      try {
-        console.log('[cnpj] consulta iniciada');
-        const r = await fetch(`${API_BASE}/integracoes/cnpj/${encodeURIComponent(cnpj14)}`, { credentials: "include" });
-        if (!r.ok) { console.warn('[cnpj] falha', r.status); return; }
-        const j = await r.json();
-        // Segmento (CNAE descrição)
-        const desc = (j && j.cnaePrincipal && j.cnaePrincipal.descricao) ? String(j.cnaePrincipal.descricao) : '';
-        if (desc && !hSeg.value) {
-          hSeg.value = desc;
-          dSeg.textContent = desc;
-          console.log('[cnpj] segmento preenchido');
-        }
-        // Legal / trade se vierem e ainda não estiverem setados
-        if (j && j.razaoSocial && !hLegal.value) { hLegal.value = j.razaoSocial; dLegal.textContent = j.razaoSocial; }
-        if (j && j.nomeFantasia && !hTrade.value) { hTrade.value = j.nomeFantasia; dTrade.textContent = j.nomeFantasia; }
+    function enableCnpjFallbackUI(){
+      // guarda para evitar listeners duplicados
+      if (enableCnpjFallbackUI.__on) return;
+      enableCnpjFallbackUI.__on = true;
 
-        // Branding: se não houve escolha ainda, preferir trade_name se existir
-        if (![...brandingOptions].some(r=>r.checked)) {
-          selectBranding(hTrade.value ? 'trade_name' : 'legal_name');
-        }
-      } catch(e){
-        console.warn('[cnpj] erro', e);
-      }
+      cnpjFallback.style.display = '';
+      cnpjFallbackHint.style.display = '';
+      // ao digitar 14 dígitos, já preenche a partir do CNPJ
+      cnpjFallback.addEventListener('input', () => {
+        const d = onlyDigits(cnpjFallback.value);
+        if (d.length > 14) cnpjFallback.value = d.slice(0,14);
+      });
+      cnpjFallback.addEventListener('change', () => {
+        const d = onlyDigits(cnpjFallback.value);
+        if (d.length === 14) hydrateFromCNPJ(d);
+      });
     }
 
     async function tryCheckCnpjVinculo(cnpj14, nomeBusca){
@@ -501,12 +474,10 @@
         if (!r.ok) { setWabaUI('UNKNOWN'); return; }
         const data = await r.json();
         setWabaUI(String(data.status || 'UNKNOWN').toUpperCase(), data);
-
         if (data.status && !/ACTIVE|FAILED/i.test(data.status)) {
           setTimeout(() => loadWabaStatus(uid, idToken), 60000);
         }
       } catch(e){
-        console.warn('[waba] status erro:', e);
         setWabaUI('UNKNOWN');
       }
     }
@@ -538,7 +509,6 @@
       }
     }
 
-    // ============================== SUBMIT ============================
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
       cfgFeedback.textContent = '';
@@ -557,27 +527,22 @@
         const fd = new FormData(form);
         fd.append('uid', uid);
 
-        if (fd.get('janela_resposta') !== 'custom') {
-          fd.delete('janela_resposta_custom');
-        }
+        if (fd.get('janela_resposta') !== 'custom') fd.delete('janela_resposta_custom');
 
-        // Segmento vem do hidden (preenchido por auto-fill do CNPJ, se houver)
+        // Usa hidden (ou fallback) para CNPJ e Segmento
+        if (!document.getElementById('hid-cnpj').value && cnpjFallback.value) {
+          document.getElementById('hid-cnpj').value = onlyDigits(cnpjFallback.value);
+        }
         fd.set('segmento', document.getElementById('hid-segmento').value || '');
 
-        // Branding: se não for custom, limpamos public_brand (evita sujar o BD)
         const brandingChoice = (fd.get('branding_choice') || '').trim();
-        if (brandingChoice !== 'custom') {
-          fd.set('public_brand', '');
-        }
+        if (brandingChoice !== 'custom') fd.set('public_brand', '');
 
-        // Identidade legal/trade (somente se já carregadas)
         fd.set('legal_name', document.getElementById('hid-legalname').value || '');
         fd.set('trade_name', document.getElementById('hid-tradename').value || '');
 
         const headers = {}; if (idToken) headers['Authorization'] = 'Bearer ' + idToken;
-        const resp = await fetch(`${API_BASE}/api/configuracao`, {
-          method: 'POST', headers, body: fd
-        });
+        const resp = await fetch(`${API_BASE}/api/configuracao`, { method: 'POST', headers, body: fd });
 
         let payload; const ct = resp.headers.get('content-type') || '';
         if (ct.includes('application/json')) payload = await resp.json();
@@ -592,17 +557,13 @@
         cfgFeedback.textContent = '✅ Configuração salva. Continuando…';
         setTimeout(() => { window.location.href = '/pages/dashboard.html'; }, 600);
       } catch (err) {
-        console.error(err);
         cfgFeedback.textContent = '❌ Erro ao comunicar com o servidor.';
         btnSalvar.disabled = false;
         btnSalvar.textContent = 'Salvar e continuar';
       }
     });
 
-    // Branding: clique nos radios → habilita/desabilita input custom
-    for (const r of brandingOptions) {
-      r.addEventListener('change', () => selectBranding(r.value));
-    }
+    for (const r of brandingOptions) r.addEventListener('change', () => selectBranding(r.value));
   </script>
 </body>
 </html>
