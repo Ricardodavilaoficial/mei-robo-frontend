@@ -53,6 +53,15 @@
     .branding-option small { opacity:.8 }
     .soft{opacity:.8}
   </style>
+  
+ <!-- opcional: só use se a API estiver em outro domínio/host -->
+<script>
+  window.API_BASE = "https://mei-robo-prod.onrender.com";
+</script>
+
+<!-- script de autofill do CNPJ -->
+<script src="/assets/js/configuracao.cnpj.js" defer></script>
+
 </head>
 <body>
   <div id="app-header"></div>
@@ -227,6 +236,9 @@
   </main>
 
   <div id="app-footer"></div>
+
+  <!-- CNPJ: auto-preenchimento via /api/configuracao -> /api/cnpj/<cnpj> -->
+  <script src="/assets/js/configuracao.cnpj.js?v=1"></script>
 
   <script>
     const API_BASE = (localStorage.getItem('apiBase') || 'https://mei-robo-prod.onrender.com').replace(/\/+$/, '');
