@@ -52,15 +52,31 @@
     .branding-option { display:flex; align-items:flex-start; gap:10px; padding:10px; border:1px solid var(--bd-input); border-radius:10px; background:rgba(255,255,255,0.03); }
     .branding-option small { opacity:.8 }
     .soft{opacity:.8}
+
+    /* UI de voz (apenas nesta página) */
+    .upload-area{
+      border:1px dashed var(--bd-input);
+      border-radius:12px;
+      padding:16px;
+      background:rgba(255,255,255,0.03);
+    }
+    .upload-actions{ display:flex; gap:10px; flex-wrap:wrap; margin-top:8px }
+    .file-list{ list-style:none; padding:0; margin:12px 0 0 }
+    .file-item{ display:flex; align-items:center; justify-content:space-between; gap:10px; background:rgba(255,255,255,0.04); border:1px solid var(--bd-input); border-radius:10px; padding:8px 12px; margin:6px 0 }
+    .file-meta{ font-size:.95rem; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:#e9f4f1 }
+    .remove-btn{ background:transparent; border:1px solid #8a3a3a; color:#ffbdbd; border-radius:999px; padding:6px 10px; font-weight:800; cursor:pointer }
+    .progress-wrap{ margin-top:8px }
+    .progress{ width:100%; height:8px; background:rgba(255,255,255,0.08); border-radius:999px; overflow:hidden }
+    .progress > span{ display:block; height:100%; width:0% }
   </style>
   
- <!-- opcional: só use se a API estiver em outro domínio/host -->
-<script>
-  window.API_BASE = "https://mei-robo-prod.onrender.com";
-</script>
+  <!-- opcional: só use se a API estiver em outro domínio/host -->
+  <script>
+    window.API_BASE = "https://mei-robo-prod.onrender.com";
+  </script>
 
-<!-- script de autofill do CNPJ -->
-<script src="/assets/js/configuracao.cnpj.js" defer></script>
+  <!-- script de autofill do CNPJ -->
+  <script src="/assets/js/configuracao.cnpj.js" defer></script>
 
 </head>
 <body>
@@ -223,6 +239,42 @@
           <div id="custom-horario" class="mt-8" style="display:none">
             <label>Informe seu horário (livre)
               <input type="text" name="janela_resposta_custom" placeholder="Ex.: Respondo das 9h às 18h e, às vezes, até 22h" />
+            </label>
+          </div>
+        </section>
+
+        <!-- ====== NOVA SEÇÃO: Voz (upload/gravação + progresso + polling) ====== -->
+        <section class="mt-24" id="sec-voz">
+          <h3>Sua voz (obrigatório)</h3>
+          <p class="hint">Envie até <strong>5 áudios</strong> (WAV/MP3/M4A/OGG/WEBM). A soma deve ter pelo menos <strong>1 minuto</strong> (ideal 10–30min). Grave em local silencioso.</p>
+
+          <div class="upload-area" id="uploadArea">
+            <div class="upload-actions">
+              <input id="voiceFiles" type="file" accept=".wav,.mp3,.m4a,.ogg,.webm,audio/*" multiple hidden />
+              <button type="button" class="btn outline" id="btnChooseFiles">Escolher arquivos</button>
+
+              <button type="button" class="btn outline" id="btnStartRec">Gravar</button>
+              <button type="button" class="btn outline" id="btnStopRec" disabled>Parar</button>
+
+              <button type="button" class="btn outline" id="btnClearFiles">Limpar</button>
+              <button type="button" class="btn primary" id="btnEnviar" disabled>Enviar & Processar</button>
+            </div>
+
+            <ul id="fileList" class="file-list"></ul>
+
+            <div class="progress-wrap">
+              <div class="progress" aria-hidden="true"><span id="uploadBar"></span></div>
+              <div id="vozMsg" class="hint mt-6"></div>
+            </div>
+
+            <label class="inline mt-8" style="gap:8px">
+              <input type="checkbox" id="aceiteVoz" />
+              <span class="hint">
+                Autorizo o uso da minha voz <strong>somente</strong> na minha conta,
+                conforme o <a href="/consentimento-voz.html" target="_blank" rel="noopener noreferrer">Consentimento de Voz</a>,
+                a <a href="/privacidade.html" target="_blank" rel="noopener noreferrer">Política de Privacidade</a> e os
+                <a href="/termos.html" target="_blank" rel="noopener noreferrer">Termos de Uso</a>.
+              </span>
             </label>
           </div>
         </section>
@@ -405,6 +457,9 @@
 
         // (Opcional) checagem de vínculo exibe apenas um ok visual
         tryCheckCnpjVinculo(cnpjDigits, data.nome || '');
+
+        // tentar mostrar status atual da voz
+        setupVoice(uid, idToken);
       } catch(e) {
         // Qualquer erro inesperado: volta ao início do onboarding
         location.href = '/pages/ativar-cliente.html';
@@ -470,6 +525,197 @@
         badge.classList.add('pill-pending'); badge.textContent = 'em validação';
         note.textContent = 'Estamos verificando o status do seu número virtual.';
       }
+    }
+
+    /* ==========================
+       Seção de VOZ: upload/rec/poll
+       ========================== */
+    const voiceEls = {
+      area: document.getElementById('uploadArea'),
+      input: document.getElementById('voiceFiles'),
+      btnChoose: document.getElementById('btnChooseFiles'),
+      btnClear: document.getElementById('btnClearFiles'),
+      btnEnviar: document.getElementById('btnEnviar'),
+      list: document.getElementById('fileList'),
+      msg: document.getElementById('vozMsg'),
+      bar: document.getElementById('uploadBar'),
+      aceite: document.getElementById('aceiteVoz'),
+      recStart: document.getElementById('btnStartRec'),
+      recStop: document.getElementById('btnStopRec'),
+    };
+    const voiceState = { files: [], totalSec: 0, uploading: false, polling: null, media: {rec:null, chunks:[]} };
+
+    function setVoiceMsg(text, isError=false){ voiceEls.msg.textContent = text || ''; voiceEls.msg.className = isError ? 'hint error' : 'hint'; }
+    function setUploadPct(pct){ voiceEls.bar.style.width = Math.max(0, Math.min(100, pct)) + '%'; }
+    function enableVoiceControls(on){
+      const d = !on;
+      voiceEls.btnChoose.disabled = d;
+      voiceEls.btnClear.disabled = d;
+      voiceEls.btnEnviar.disabled = d;
+      voiceEls.recStart.disabled = d;
+      voiceEls.recStop.disabled = d || !voiceState.media.rec;
+      voiceEls.input.disabled = d;
+    }
+
+    function renderFileList(){
+      voiceEls.list.innerHTML='';
+      voiceState.files.forEach((f,idx)=>{
+        const li=document.createElement('li'); li.className='file-item';
+        const meta=document.createElement('div'); meta.className='file-meta'; meta.textContent=`${f.name} (${Math.round(f.size/1024)} KB)`;
+        const rm=document.createElement('button'); rm.className='remove-btn'; rm.textContent='Remover';
+        rm.addEventListener('click',()=>{ voiceState.files.splice(idx,1); renderFileList(); validateVoiceReady(); });
+        li.appendChild(meta); li.appendChild(rm); voiceEls.list.appendChild(li);
+      });
+    }
+
+    function addFiles(list){
+      const extsOK = ['.wav','.mp3','.m4a','.ogg','.webm'];
+      const isAudio = f => {
+        const t = (f.type||'').toLowerCase();
+        if (t.startsWith('audio/')) return true;
+        const n = (f.name||'').toLowerCase();
+        return extsOK.some(ext => n.endsWith(ext));
+      };
+      for(const f of list){
+        if(voiceState.files.length>=5){ setVoiceMsg('Limite de 5 arquivos atingido.', true); break; }
+        if(!isAudio(f)){ setVoiceMsg('Arquivo rejeitado: extensão não reconhecida como áudio.', true); continue; }
+        voiceState.files.push(f);
+      }
+      renderFileList(); validateVoiceReady();
+    }
+
+    function validateVoiceReady(){
+      setVoiceMsg('');
+      if (voiceState.files.length===0){ setVoiceMsg('Nenhum arquivo selecionado. Envie pelo menos 1 áudio, com duração mínima de 1 minuto.'); voiceEls.btnEnviar.disabled = true; return; }
+      voiceEls.btnEnviar.disabled = !voiceEls.aceite.checked;
+    }
+
+    // Gravação (MediaRecorder)
+    async function startRec(){
+      try{
+        const stream = await navigator.mediaDevices.getUserMedia({ audio:true });
+        const rec = new MediaRecorder(stream);
+        voiceState.media.rec = rec;
+        voiceState.media.chunks = [];
+        rec.ondataavailable = (e)=>{ if(e.data && e.data.size) voiceState.media.chunks.push(e.data); };
+        rec.onstop = ()=>{
+          try{ stream.getTracks().forEach(t=>t.stop()); }catch(_){}
+          const blob = new Blob(voiceState.media.chunks, { type: 'audio/webm' });
+          const file = new File([blob], `gravacao_${Date.now()}.webm`, { type: 'audio/webm' });
+          addFiles([file]);
+          voiceEls.recStop.disabled = true;
+          voiceEls.recStart.disabled = false;
+        };
+        rec.start();
+        voiceEls.recStart.disabled = true;
+        voiceEls.recStop.disabled = false;
+        setVoiceMsg('Gravando… clique em Parar para finalizar.');
+      } catch(e){
+        setVoiceMsg('Não foi possível acessar o microfone.', true);
+      }
+    }
+    function stopRec(){
+      try{ voiceState.media.rec?.stop(); }catch(_){}
+      setVoiceMsg('Gravação finalizada. Arquivo adicionado.');
+    }
+
+    async function uploadAndProcess(uid, idToken){
+      if (!voiceEls.aceite.checked){ setVoiceMsg('Confirme a autorização de uso da voz para continuar.', true); return; }
+      if (voiceState.files.length===0){ setVoiceMsg('Selecione/grave pelo menos 1 áudio.', true); return; }
+
+      voiceState.uploading = true;
+      enableVoiceControls(false);
+      setUploadPct(0);
+      setVoiceMsg('Enviando áudio com segurança…');
+
+      // Monta FormData
+      const fd = new FormData();
+      voiceState.files.forEach((f)=> fd.append('voice', f, f.name));
+
+      const url = `${API_BASE}/api/voz/process?uid=${encodeURIComponent(uid)}`;
+      try{
+        // XHR para acompanhar progresso
+        const xhr = new XMLHttpRequest();
+        xhr.open('POST', url, true);
+        if (idToken) xhr.setRequestHeader('Authorization','Bearer ' + idToken);
+        xhr.upload.onprogress = (e)=>{ if(e.lengthComputable){ setUploadPct(Math.round(e.loaded/e.total*100)); } };
+        xhr.onreadystatechange = function(){
+          if (xhr.readyState === 4){
+            if (xhr.status >=200 && xhr.status <300){
+              setVoiceMsg('Upload concluído. Processando a voz…');
+              setUploadPct(100);
+              startPolling(uid, idToken);
+            } else {
+              setVoiceMsg('Falha no envio. Tente novamente.', true);
+              voiceState.uploading = false;
+              enableVoiceControls(true);
+            }
+          }
+        };
+        xhr.send(fd);
+      } catch(e){
+        setVoiceMsg('Erro inesperado no envio.', true);
+        voiceState.uploading = false;
+        enableVoiceControls(true);
+      }
+    }
+
+    async function fetchLast(uid, idToken){
+      const headers = {}; if (idToken) headers['Authorization'] = 'Bearer ' + idToken;
+      const r = await fetch(`${API_BASE}/api/voz/last?uid=${encodeURIComponent(uid)}`, { headers, cache:'no-store' });
+      if (!r.ok) throw new Error('HTTP '+r.status);
+      return r.json();
+    }
+
+    function startPolling(uid, idToken){
+      clearInterval(voiceState.polling);
+      voiceState.polling = setInterval(async ()=>{
+        try{
+          const data = await fetchLast(uid, idToken);
+          const st = (data && data.status || '').toLowerCase();
+          if (st === 'ready'){
+            clearInterval(voiceState.polling);
+            setVoiceMsg('✅ Voz pronta para uso.');
+            enableVoiceControls(true);
+            voiceState.uploading = false;
+          } else if (st === 'failed'){
+            clearInterval(voiceState.polling);
+            setVoiceMsg('❌ O processamento falhou. Tente reenviar os áudios.', true);
+            enableVoiceControls(true);
+            voiceState.uploading = false;
+          } else {
+            setVoiceMsg('Processando… aguarde mais um pouco.');
+          }
+        } catch(e){
+          // mantém polling silencioso por alguns ciclos
+        }
+      }, 4000);
+    }
+
+    function setupVoice(uid, idToken){
+      // eventos UI
+      voiceEls.btnChoose.addEventListener('click',()=> voiceEls.input.click());
+      voiceEls.input.addEventListener('change',(e)=>{ const files=e.target?.files; if(files) addFiles(files); voiceEls.input.value=''; });
+      voiceEls.btnClear.addEventListener('click',()=>{ voiceState.files=[]; renderFileList(); validateVoiceReady(); setUploadPct(0); setVoiceMsg(''); });
+      voiceEls.recStart.addEventListener('click', startRec);
+      voiceEls.recStop.addEventListener('click', stopRec);
+      voiceEls.aceite.addEventListener('change', validateVoiceReady);
+      voiceEls.btnEnviar.addEventListener('click', ()=> uploadAndProcess(uid, idToken));
+
+      // estado inicial
+      renderFileList(); validateVoiceReady();
+
+      // tentar obter status atual (se já existir voz processada)
+      (async ()=>{
+        try{
+          const data = await fetchLast(uid, idToken);
+          if (data && data.status){
+            const st = String(data.status).toLowerCase();
+            if (st === 'ready') setVoiceMsg('✅ Sua voz já está pronta para uso.');
+            else if (st === 'processing'){ setVoiceMsg('Processando voz anterior…'); startPolling(uid, idToken); }
+          }
+        }catch(_){}
+      })();
     }
 
     form.addEventListener('submit', async (e) => {
