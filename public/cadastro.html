@@ -375,7 +375,7 @@
 
       try{
         /* ==== Autentica e envia JSON com Bearer (sem cookies) ==== */
-        const name = (document.getElementById('nome').value || '').trim();
+        const nome = (document.getElementById('nome').value || '').trim();  /* <— foi 'name' antes, agora só variável local */
         const email = (emailInput.value || '').trim();
         const password = (pwd.value || '');
         const cnpjDigits = normalizeCNPJ(cnpjInput.value || '');
@@ -431,12 +431,12 @@
         createdNewUser = !!created;
         const idToken = await user.getIdToken();
 
-        // 🚩 Payload JSON explícito, tipos corretos
+        // 🚩 Payload JSON — ajustes mínimos: nome + aceitarTermos como string "true"
         const payload = {
-          name,
+          nome,                       // <— backend espera "nome"
           email,
           cnpj: cnpjDigits,
-          aceitarTermos: true,
+          aceitarTermos: "true",      // <— string, não boolean
         };
         if (captchaToken) payload.cf_turnstile = captchaToken;
 
