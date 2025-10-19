@@ -28,8 +28,12 @@
   });
   </script>
 
-  <!-- PRODUÇÃO: defina sua SITE KEY do reCAPTCHA v2 Invisible -->
+  <!-- PRODUÇÃO: defina sua SITE KEY do reCAPTCHA v2 Invisible (mantido como fallback, mas NÃO usado) -->
   <meta name="RECAPTCHA_SITE_KEY" content="">
+
+  <!-- Cloudflare Turnstile (produção) -->
+  <meta name="TURNSTILE_SITE_KEY" content="0x4AAAAAAB0t6kBJwJJgmsr3">
+  <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
 
   <link rel="stylesheet" href="/assets/styles.css" />
 
@@ -53,6 +57,7 @@
       box-shadow: 0 0 0 2px rgba(31,170,133,0.12);
       outline: 0;
     }
+    .btn-disabled { opacity: .6; pointer-events: none; }
   </style>
 </head>
 <body>
@@ -157,8 +162,14 @@
             Já tem conta? <a href="/pages/login.html">Entrar</a>
           </p>
 
-          <!-- reCAPTCHA invisível -->
-          <div id="recaptcha" class="g-recaptcha" data-size="invisible"></div>
+          <!-- Turnstile (invisible) -->
+          <div id="cf-turnstile-container" class="cf-turnstile"
+               data-sitekey="0x4AAAAAAB0t6kBJwJJgmsr3"
+               data-size="invisible"
+               data-callback="onTurnstile"></div>
+
+          <!-- reCAPTCHA invisível (mantido apenas como fallback NÃO usado) -->
+          <div id="recaptcha" class="g-recaptcha" data-size="invisible" style="display:none"></div>
         </form>
 
         <aside class="side">
@@ -181,7 +192,7 @@
 
   <script src="/assets/layout.js?v=20250905f" defer></script>
 
-  <!-- reCAPTCHA (invisible v2, explicit render) -->
+  <!-- reCAPTCHA (invisible v2, explicit render) - mantido como fallback -->
   <script>
     let recaptchaWidgetId = null;
     let pendingSubmit = null;
@@ -199,17 +210,8 @@
         });
       } catch(e){ console.error(e); }
     }
-    function onRecaptchaSuccess(token){
-      if (pendingSubmit) pendingSubmit(token);
-      pendingSubmit = null;
-      try{ grecaptcha.reset(recaptchaWidgetId); }catch(_){}
-    }
-    function onRecaptchaError(){
-      const msg = document.getElementById('formMsg');
-      msg.className='error';
-      msg.textContent='Falha no reCAPTCHA. Atualize a página e tente novamente.';
-      pendingSubmit = null;
-    }
+    function onRecaptchaSuccess(token){ if (pendingSubmit) pendingSubmit(token); pendingSubmit = null; try{ grecaptcha.reset(recaptchaWidgetId);}catch(_){} }
+    function onRecaptchaError(){ const msg=document.getElementById('formMsg'); msg.className='error'; msg.textContent='Falha no reCAPTCHA. Atualize a página e tente novamente.'; pendingSubmit=null; }
     function onRecaptchaExpired(){}
     window.onRecaptchaLoad = onRecaptchaLoad;
   </script>
@@ -237,6 +239,16 @@
     const strengthText = document.getElementById('pwdStrength');
     const togglePwd = document.getElementById('togglePwd');
     let cnpjAvailability = 'unknown';
+
+    /* ====== Turnstile state ====== */
+    let cfToken = null; // token atual
+    function onTurnstile(token){
+      cfToken = token;
+      if (typeof pendingSubmit === 'function') {
+        try { pendingSubmit(token); } catch(_) {}
+        pendingSubmit = null;
+      }
+    }
 
     /* ====== Helpers ====== */
     function normalizeCNPJ(v){ return (v || '').replace(/\D+/g,''); }
@@ -309,25 +321,30 @@
     pwd.addEventListener('input', updatePwdMeter);
     togglePwd.addEventListener('click', (e)=>{ e.preventDefault(); const visible=pwd.type==='text'; pwd.type=visible?'password':'text'; togglePwd.textContent=visible?'Mostrar':'Ocultar'; togglePwd.setAttribute('aria-pressed', String(!visible)); pwd.focus(); });
 
-    /* Submit + reCAPTCHA */
-    async function proceedSubmit(recaptchaToken){
+    /* Submit + Turnstile (prioritário) */
+    async function proceedSubmit(captchaTokenFromCallback){
       formMsg.className='hint';
       formMsg.textContent='Enviando cadastro com segurança...';
+
+      submitBtn.classList.add('btn-disabled');
+      submitBtn.setAttribute('aria-disabled','true');
 
       const fd = new FormData();
       fd.append('nome',  (document.getElementById('nome').value || '').trim());
       fd.append('email', (emailInput.value || '').trim());
       fd.append('cnpj',  (cnpjInput.value || '').trim());
       fd.append('aceitarTermos', 'true');
-      if (recaptchaToken) fd.append('recaptchaToken', recaptchaToken);
+
+      // Captcha token (Turnstile prioridade; fallback: parametro do callback)
+      const captchaToken = cfToken || captchaTokenFromCallback || null;
+      if (captchaToken) fd.append('cf_turnstile', captchaToken);
 
       try{
         /* ==== Autentica e envia JSON com Bearer (sem cookies) ==== */
-
         const email = (emailInput.value || '').trim();
         const password = (pwd.value || '');
 
-        // Pega uma instância de Auth (compat já inicializado no head)
+        // Pega Auth (compat/modular)
         const getAuthCompatOrModular = () => {
           if (window.firebase?.auth) {
             try { return firebase.auth(); } catch(_) {}
@@ -394,19 +411,37 @@
         };
         const payload = toJson(fd);
 
+        const headers = {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+          'Authorization': 'Bearer ' + idToken
+        };
+        if (captchaToken) { headers['cf-turnstile-response'] = captchaToken; }
+
         const res = await fetch(API.cadastro, {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Accept': 'application/json',
-            'Authorization': 'Bearer ' + idToken
-          },
+          headers,
           body: JSON.stringify(payload)
         });
 
-        if (!res.ok) throw new Error('Falha no cadastro: HTTP ' + res.status);
+        const text = await res.text();
+        let data = {};
+        try { data = text ? JSON.parse(text) : {}; } catch(_) {}
 
-        const data = await res.json().catch(()=>({}));
+        if (!res.ok) {
+          // Tratamento específico para captcha
+          if (res.status === 429 && data && (data.error === 'captcha_required' || data.error === 'captcha_failed')) {
+            formMsg.className='error';
+            formMsg.textContent = data.error === 'captcha_failed'
+              ? 'Falha na validação de segurança. Atualize a página e tente novamente.'
+              : 'Valide o desafio de segurança para continuar.';
+            // força novo token
+            try { if (window.turnstile) turnstile.reset(); } catch(_) {}
+            submitBtn.classList.remove('btn-disabled'); submitBtn.removeAttribute('aria-disabled');
+            return;
+          }
+          throw new Error('Falha no cadastro: HTTP ' + res.status);
+        }
 
         if (data.next === 'verifyEmail') {
           const mail = (data.email || (emailInput.value||'')).trim();
@@ -420,6 +455,7 @@
         console.error(e);
         formMsg.className='error';
         formMsg.textContent='Não foi possível concluir agora. Tente novamente.';
+        submitBtn.classList.remove('btn-disabled'); submitBtn.removeAttribute('aria-disabled');
       }
     }
 
@@ -436,6 +472,15 @@
       if (!(rules.every(r=>r.test(pwd.value)) && pwd.value.length>=8)) { formMsg.className='error'; formMsg.textContent='Sua senha precisa ter 8 caracteres, incluindo letras maiúsculas, minúsculas, número e símbolo.'; return; }
       if (!document.getElementById('aceite').checked) { formMsg.className='error'; formMsg.textContent='Confirme que leu e aceitou os Termos e a Política de Privacidade.'; return; }
 
+      // Priorize Turnstile invisível
+      if (window.turnstile) {
+        formMsg.textContent='Validando segurança...';
+        pendingSubmit = (token)=> proceedSubmit(token);
+        try { turnstile.execute(); } catch(_) { proceedSubmit(null); }
+        return;
+      }
+
+      // Fallback legacy (reCAPTCHA) — não usado em produção, mas mantido
       if (typeof grecaptcha !== 'undefined' && typeof grecaptcha.execute === 'function' && recaptchaWidgetId !== null) {
         formMsg.textContent='Validando segurança...';
         pendingSubmit = (token)=> proceedSubmit(token);
