@@ -356,8 +356,10 @@
       submitBtn.classList.add('btn-disabled');
       submitBtn.setAttribute('aria-disabled','true');
 
+      // Captcha token (Turnstile prioridade; fallback: parametro do callback)
       const captchaToken = cfToken || captchaTokenFromCallback || null;
 
+      // Se Turnstile estiver presente mas sem token, não envia
       if (window.turnstile && !captchaToken) {
         formMsg.className='error';
         formMsg.textContent='Valide o desafio de segurança para continuar.';
@@ -367,6 +369,7 @@
         return;
       }
 
+      // variáveis para cleanup de Auth em caso de falha
       let createdNewUser = false;
       let authInst = null;
 
@@ -377,10 +380,14 @@
         const password = (pwd.value || '');
         const cnpjDigits = normalizeCNPJ(cnpjInput.value || '');
 
-        // pega Auth (compat/modular)
+        // Pega Auth
         const getAuthCompatOrModular = () => {
-          if (window.firebase?.auth) { try { return firebase.auth(); } catch(_) {} }
-          if (window.getAuth) { try { return window.getAuth(); } catch(_) {} }
+          if (window.firebase?.auth) {
+            try { return firebase.auth(); } catch(_) {}
+          }
+          if (window.getAuth) {
+            try { return window.getAuth(); } catch(_) {}
+          }
           if (window.auth) return window.auth;
           return null;
         };
@@ -389,6 +396,7 @@
 
         async function ensureAuthenticated(email, password){
           if (authInst.currentUser) return { user: authInst.currentUser, created: false };
+
           if (typeof authInst.createUserWithEmailAndPassword === 'function') {
             try {
               const cred = await authInst.createUserWithEmailAndPassword(email, password);
@@ -401,6 +409,7 @@
               throw e;
             }
           }
+
           if (window.createUserWithEmailAndPassword && window.signInWithEmailAndPassword) {
             const inst = window.getAuth ? window.getAuth() : authInst;
             try {
@@ -414,6 +423,7 @@
               throw e;
             }
           }
+
           throw new Error('SDK do Firebase Auth indisponível para criar/entrar.');
         }
 
@@ -421,14 +431,14 @@
         createdNewUser = !!created;
         const idToken = await user.getIdToken();
 
-        // ✅ Payload sem campos extras proibidos
+        // ✅ Payload mínimo e compatível com schema estrito
         const payload = {
-          nome,                  // requerido pelo backend
-          name: nome,            // compat opcional
+          nome,                 // requerido (PT-BR)
           email,
-          cnpj: cnpjDigits,
-          aceitarTermos: "true"  // string, não boolean
-          // ❌ NÃO enviar cf_turnstile aqui
+          cnpj: cnpjDigits,     // só dígitos
+          aceitar_termos: "true"// string em snake_case
+          // ❌ NÃO enviar cf_turnstile no body
+          // ❌ NÃO enviar name (evita campos extras)
         };
 
         const headers = {
@@ -436,7 +446,7 @@
           'Accept': 'application/json',
           'Authorization': 'Bearer ' + idToken
         };
-        // ✅ Captcha apenas no header (padrão esperado)
+        // ✅ Captcha apenas no header
         if (captchaToken) { headers['cf-turnstile-response'] = captchaToken; }
 
         const res = await fetch(API.cadastro, {
@@ -450,9 +460,12 @@
         try { data = text ? JSON.parse(text) : {}; } catch(_) {}
 
         if (!res.ok) {
-          console.warn('[cadastro][422/debug]', res.status, data || text);
+          // DEBUG reforçado p/ diagnósticos de schema
+          console.warn('[cadastro][422/debug]', res.status, data || text, {
+            contentType: res.headers.get('content-type') || '(sem content-type)',
+            raw: text
+          });
 
-          // Mensagem vinda do backend (detail/message ou lista Pydantic)
           const serverMsg =
             (data && (data.message || data.detail || (Array.isArray(data) && data.map(d => d.msg).join('; ')))) || '';
 
