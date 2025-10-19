@@ -162,10 +162,8 @@
             Já tem conta? <a href="/pages/login.html">Entrar</a>
           </p>
 
-          <!-- Turnstile (invisible) -->
-          <div id="cf-turnstile-container" class="cf-turnstile"
-               data-sitekey="0x4AAAAAAB0t6kBJwJJgmsr3"
-               data-callback="onTurnstile"></div>
+          <!-- Turnstile container (render EXPLÍCITO; sem classe cf-turnstile para evitar auto-render) -->
+          <div id="cf-turnstile-container"></div>
 
           <!-- reCAPTCHA invisível (fallback, não usado em produção) -->
           <div id="recaptcha" class="g-recaptcha" data-size="invisible" style="display:none"></div>
@@ -250,11 +248,16 @@
         if (cfWidgetId) return;
         const meta = document.querySelector('meta[name="TURNSTILE_SITE_KEY"]');
         const SITE_KEY = (meta?.content || '0x4AAAAAAB0t6kBJwJJgmsr3').trim();
+
+        // Render explícito (sem classe cf-turnstile no HTML para evitar auto-render)
         cfWidgetId = turnstile.render('#cf-turnstile-container', {
           sitekey: SITE_KEY,
           callback: onTurnstile,
-          size: 'invisible',
-          'retry': 'auto',
+          // invisível "correto" no Turnstile:
+          appearance: 'interaction-only', // só aparece se necessário
+          execution: 'execute',           // chamamos execute() via JS
+          size: 'flexible',               // valores válidos: 'normal' | 'compact' | 'flexible'
+          retry: 'auto',
           'retry-interval': 8000
         });
       } catch(e){ console.error('[turnstile] render falhou', e); }
