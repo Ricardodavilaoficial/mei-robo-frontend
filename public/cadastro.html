@@ -356,10 +356,8 @@
       submitBtn.classList.add('btn-disabled');
       submitBtn.setAttribute('aria-disabled','true');
 
-      // Captcha token (Turnstile prioridade; fallback: parametro do callback)
       const captchaToken = cfToken || captchaTokenFromCallback || null;
 
-      // Se Turnstile estiver presente mas sem token, não envia
       if (window.turnstile && !captchaToken) {
         formMsg.className='error';
         formMsg.textContent='Valide o desafio de segurança para continuar.';
@@ -369,25 +367,20 @@
         return;
       }
 
-      // variáveis para cleanup de Auth em caso de falha
       let createdNewUser = false;
       let authInst = null;
 
       try{
         /* ==== Autentica e envia JSON com Bearer (sem cookies) ==== */
-        const nome = (document.getElementById('nome').value || '').trim();  /* <— foi 'name' antes, agora só variável local */
+        const nome = (document.getElementById('nome').value || '').trim();
         const email = (emailInput.value || '').trim();
         const password = (pwd.value || '');
         const cnpjDigits = normalizeCNPJ(cnpjInput.value || '');
 
-        // Pega Auth
+        // pega Auth (compat/modular)
         const getAuthCompatOrModular = () => {
-          if (window.firebase?.auth) {
-            try { return firebase.auth(); } catch(_) {}
-          }
-          if (window.getAuth) {
-            try { return window.getAuth(); } catch(_) {}
-          }
+          if (window.firebase?.auth) { try { return firebase.auth(); } catch(_) {} }
+          if (window.getAuth) { try { return window.getAuth(); } catch(_) {} }
           if (window.auth) return window.auth;
           return null;
         };
@@ -396,7 +389,6 @@
 
         async function ensureAuthenticated(email, password){
           if (authInst.currentUser) return { user: authInst.currentUser, created: false };
-
           if (typeof authInst.createUserWithEmailAndPassword === 'function') {
             try {
               const cred = await authInst.createUserWithEmailAndPassword(email, password);
@@ -409,7 +401,6 @@
               throw e;
             }
           }
-
           if (window.createUserWithEmailAndPassword && window.signInWithEmailAndPassword) {
             const inst = window.getAuth ? window.getAuth() : authInst;
             try {
@@ -423,7 +414,6 @@
               throw e;
             }
           }
-
           throw new Error('SDK do Firebase Auth indisponível para criar/entrar.');
         }
 
@@ -431,20 +421,22 @@
         createdNewUser = !!created;
         const idToken = await user.getIdToken();
 
-        // 🚩 Payload JSON — ajustes mínimos: nome + aceitarTermos como string "true"
+        // ✅ Payload sem campos extras proibidos
         const payload = {
-          nome,                       // <— backend espera "nome"
+          nome,                  // requerido pelo backend
+          name: nome,            // compat opcional
           email,
           cnpj: cnpjDigits,
-          aceitarTermos: "true",      // <— string, não boolean
+          aceitarTermos: "true"  // string, não boolean
+          // ❌ NÃO enviar cf_turnstile aqui
         };
-        if (captchaToken) payload.cf_turnstile = captchaToken;
 
         const headers = {
           'Content-Type': 'application/json',
           'Accept': 'application/json',
           'Authorization': 'Bearer ' + idToken
         };
+        // ✅ Captcha apenas no header (padrão esperado)
         if (captchaToken) { headers['cf-turnstile-response'] = captchaToken; }
 
         const res = await fetch(API.cadastro, {
@@ -460,7 +452,9 @@
         if (!res.ok) {
           console.warn('[cadastro][422/debug]', res.status, data || text);
 
-          const msg = (data && (data.message || data.detail || data.error_description || data.error)) || ('HTTP ' + res.status);
+          // Mensagem vinda do backend (detail/message ou lista Pydantic)
+          const serverMsg =
+            (data && (data.message || data.detail || (Array.isArray(data) && data.map(d => d.msg).join('; ')))) || '';
 
           if (res.status === 429 && data && (data.error === 'captcha_required' || data.error === 'captcha_failed')) {
             formMsg.className='error';
@@ -476,11 +470,9 @@
 
           if (res.status === 422) {
             formMsg.className='error';
-            if (data && (data.message || data.detail)) {
-              formMsg.textContent = String(data.message || data.detail);
-            } else {
-              formMsg.textContent = 'Algum campo está inválido. Revise nome, e-mail e CNPJ e tente novamente.';
-            }
+            formMsg.textContent = serverMsg
+              ? String(serverMsg)
+              : 'Algum campo está inválido. Revise nome, e-mail e CNPJ e tente novamente.';
             try { if (window.turnstile) turnstile.reset(cfWidgetId); } catch(_) {}
             turnstileBusy = false;
             submitBtn.classList.remove('btn-disabled'); submitBtn.removeAttribute('aria-disabled');
@@ -488,7 +480,7 @@
             return;
           }
 
-          throw new Error('Falha no cadastro: ' + msg);
+          throw new Error('Falha no cadastro: ' + (serverMsg || ('HTTP ' + res.status)));
         }
 
         if (data.next === 'verifyEmail') {
