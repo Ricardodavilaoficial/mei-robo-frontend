@@ -15,7 +15,6 @@
   <script defer src="/__/firebase/9.22.2/firebase-auth-compat.js"></script>
   <script defer src="/__/firebase/init.js?useEmulator=false"></script>
   <script>
-  // Quando o init.js terminar, firebase.apps[0] já existe.
   window.addEventListener('load', () => {
     try {
       if (window.firebase?.apps?.length) {
@@ -28,7 +27,7 @@
   });
   </script>
 
-  <!-- PRODUÇÃO: reCAPTCHA v2 Invisible (fallback NÃO usado, mas mantido) -->
+  <!-- reCAPTCHA v2 Invisible (fallback NÃO usado, mas mantido) -->
   <meta name="RECAPTCHA_SITE_KEY" content="">
 
   <!-- Cloudflare Turnstile (produção) -->
@@ -38,7 +37,6 @@
   <link rel="stylesheet" href="/assets/styles.css" />
 
   <style>
-    /* Dark sóbrio (sem sobrescrever as cores de link/botão do site) */
     .card-dark {
       background: #101414;
       color: #e9f4f1;
@@ -68,7 +66,6 @@
     <div class="container form-wrap">
       <h1 style="color:var(--wa-dark); margin:0 0 6px">Criar minha conta</h1>
 
-      <!-- Texto explicativo -->
       <div class="note card-dark" style="margin:10px 0 18px; padding:14px">
         <p class="hint" style="margin:0">
           Sua conta é pessoal e intransferível e só será validada quando
@@ -135,7 +132,6 @@
             <input id="senha2" name="confirm-password" class="input" type="password" placeholder="Repita a senha" autocomplete="new-password" required />
           </div>
 
-          <!-- Aviso discreto sobre voz na próxima etapa -->
           <div class="form-row full">
             <div class="hint" style="margin-top:4px">
               <em>O envio de voz será feito na <strong>Configuração da Conta</strong> após confirmar o seu e-mail.</em>
@@ -157,10 +153,6 @@
           <div class="actions" style="margin-top:12px">
             <button id="submitBtn" type="submit" class="cta">Avançar</button>
           </div>
-
-          <p class="hint" style="margin-top:10px">
-            Já tem conta? <a href="/pages/login.html">Entrar</a>
-          </p>
 
           <!-- Turnstile container (render EXPLÍCITO; sem classe cf-turnstile para evitar auto-render) -->
           <div id="cf-turnstile-container"></div>
@@ -239,8 +231,8 @@
 
     /* ====== Turnstile render explícito + state ====== */
     let cfWidgetId = null;
-    let cfToken = null;           // token atual
-    let turnstileBusy = false;    // evita duplo clique/dupla execução
+    let cfToken = null;
+    let turnstileBusy = false;
 
     function ensureTurnstileWidget(){
       try{
@@ -249,14 +241,12 @@
         const meta = document.querySelector('meta[name="TURNSTILE_SITE_KEY"]');
         const SITE_KEY = (meta?.content || '0x4AAAAAAB0t6kBJwJJgmsr3').trim();
 
-        // Render explícito (sem classe cf-turnstile no HTML para evitar auto-render)
         cfWidgetId = turnstile.render('#cf-turnstile-container', {
           sitekey: SITE_KEY,
           callback: onTurnstile,
-          // invisível "correto" no Turnstile:
-          appearance: 'interaction-only', // só aparece se necessário
-          execution: 'execute',           // chamamos execute() via JS
-          size: 'flexible',               // valores válidos: 'normal' | 'compact' | 'flexible'
+          appearance: 'interaction-only',
+          execution: 'execute',
+          size: 'flexible',
           retry: 'auto',
           'retry-interval': 8000
         });
@@ -267,7 +257,7 @@
 
     function onTurnstile(token){
       cfToken = token;
-      turnstileBusy = false; // libera para novo submit
+      turnstileBusy = false;
       if (typeof pendingSubmit === 'function') {
         try { pendingSubmit(token); } catch(_) {}
         pendingSubmit = null;
@@ -339,7 +329,6 @@
     cnpjInput.addEventListener('blur', checkCNPJAvailability);
     cnpjInput.addEventListener('input', debouncedCheck);
 
-    /* Força da senha */
     function calcStrength(s){ let score=0; if(!s) return 0; if(s.length>=8)score++; if(s.length>=12)score++; if(/[a-z]/.test(s))score++; if(/[A-Z]/.test(s))score++; if(/[0-9]/.test(s))score++; if(/[^A-Za-z0-9]/.test(s))score++; return Math.min(5, Math.max(0, Math.floor(score*0.8))); }
     function updatePwdMeter(){ const s=pwd.value||''; const st=calcStrength(s); const pct=[0,20,40,60,80,100][st]; document.getElementById('pwdBar').style.width=pct+'%'; strengthText.textContent=s?(['Muito fraca','Fraca','Razoável','Forte','Muito forte','Excelente'][st]):''; }
     pwd.addEventListener('input', updatePwdMeter);
@@ -351,11 +340,9 @@
         if (!createdNewUser) { try{ await authInst.signOut(); }catch(_){} return; }
         const u = authInst.currentUser;
         if (!u) return;
-        // só removemos se foi criado agora por esta tentativa e ainda não verificou e-mail
         if (!u.emailVerified) { await u.delete(); }
         else { await authInst.signOut(); }
       } catch(e){
-        // em caso de falha (ex: requires recent login), ao menos fazemos signOut
         try{ await authInst.signOut(); }catch(_){}
         console.warn('[cadastro] falha ao deletar usuário recém-criado:', e?.message || e);
       }
@@ -368,14 +355,6 @@
 
       submitBtn.classList.add('btn-disabled');
       submitBtn.setAttribute('aria-disabled','true');
-
-      const fd = new FormData();
-      fd.append('nome',  (document.getElementById('nome').value || '').trim());
-      fd.append('email', (emailInput.value || '').trim());
-      // CNPJ somente dígitos (14)
-      const cnpjDigits = normalizeCNPJ(cnpjInput.value || '');
-      fd.append('cnpj',  cnpjDigits);
-      fd.append('aceitarTermos', 'true');
 
       // Captcha token (Turnstile prioridade; fallback: parametro do callback)
       const captchaToken = cfToken || captchaTokenFromCallback || null;
@@ -390,18 +369,18 @@
         return;
       }
 
-      if (captchaToken) fd.append('cf_turnstile', captchaToken);
-
       // variáveis para cleanup de Auth em caso de falha
       let createdNewUser = false;
       let authInst = null;
 
       try{
         /* ==== Autentica e envia JSON com Bearer (sem cookies) ==== */
+        const name = (document.getElementById('nome').value || '').trim();
         const email = (emailInput.value || '').trim();
         const password = (pwd.value || '');
+        const cnpjDigits = normalizeCNPJ(cnpjInput.value || '');
 
-        // Pega Auth (compat/modular)
+        // Pega Auth
         const getAuthCompatOrModular = () => {
           if (window.firebase?.auth) {
             try { return firebase.auth(); } catch(_) {}
@@ -452,22 +431,14 @@
         createdNewUser = !!created;
         const idToken = await user.getIdToken();
 
-        const toJson = (formData) => {
-          const obj = {};
-          for (const [k, v] of formData.entries()) {
-            const val = (v instanceof File)
-              ? { name: v.name, size: v.size, type: v.type || '', lastModified: v.lastModified || null }
-              : v;
-            if (Object.prototype.hasOwnProperty.call(obj, k)) {
-              if (Array.isArray(obj[k])) obj[k].push(val);
-              else obj[k] = [obj[k], val];
-            } else {
-              obj[k] = val;
-            }
-          }
-          return obj;
+        // 🚩 Payload JSON explícito, tipos corretos
+        const payload = {
+          name,
+          email,
+          cnpj: cnpjDigits,
+          aceitarTermos: true,
         };
-        const payload = toJson(fd);
+        if (captchaToken) payload.cf_turnstile = captchaToken;
 
         const headers = {
           'Content-Type': 'application/json',
@@ -487,12 +458,10 @@
         try { data = text ? JSON.parse(text) : {}; } catch(_) {}
 
         if (!res.ok) {
-          console.warn('[cadastro][422/debug]', res.status, data);
+          console.warn('[cadastro][422/debug]', res.status, data || text);
 
-          // Captura mensagem do backend, se houver
-          const msg = data && (data.message || data.detail || data.error_description || data.error) || ('HTTP ' + res.status);
+          const msg = (data && (data.message || data.detail || data.error_description || data.error)) || ('HTTP ' + res.status);
 
-          // 429: captcha_required/captcha_failed
           if (res.status === 429 && data && (data.error === 'captcha_required' || data.error === 'captcha_failed')) {
             formMsg.className='error';
             formMsg.textContent = (data.error === 'captcha_failed')
@@ -501,36 +470,29 @@
             try { if (window.turnstile) turnstile.reset(cfWidgetId); } catch(_) {}
             turnstileBusy = false;
             submitBtn.classList.remove('btn-disabled'); submitBtn.removeAttribute('aria-disabled');
-
-            // evita e-mail "trancado": se criamos agora, deletamos
             await tryDeleteJustCreatedUser(authInst, createdNewUser);
             return;
           }
 
-          // 422: campo inválido (exibir mensagem específica se vier)
           if (res.status === 422) {
             formMsg.className='error';
             if (data && (data.message || data.detail)) {
               formMsg.textContent = String(data.message || data.detail);
             } else {
-              formMsg.textContent = 'Algum campo está inválido. Revise os dados e tente novamente.';
+              formMsg.textContent = 'Algum campo está inválido. Revise nome, e-mail e CNPJ e tente novamente.';
             }
             try { if (window.turnstile) turnstile.reset(cfWidgetId); } catch(_) {}
             turnstileBusy = false;
             submitBtn.classList.remove('btn-disabled'); submitBtn.removeAttribute('aria-disabled');
-
-            // evita e-mail "trancado": se criamos agora, deletamos
             await tryDeleteJustCreatedUser(authInst, createdNewUser);
             return;
           }
 
-          // outros erros
           throw new Error('Falha no cadastro: ' + msg);
         }
 
-        // sucesso: segue o fluxo
         if (data.next === 'verifyEmail') {
-          const mail = (data.email || (emailInput.value||'')).trim();
+          const mail = (data.email || email).trim();
           location.href = '/verify-email.html?email=' + encodeURIComponent(mail);
           return;
         }
@@ -545,7 +507,6 @@
         try { if (window.turnstile) turnstile.reset(cfWidgetId); } catch(_) {}
         turnstileBusy = false;
 
-        // evita e-mail "trancado": se criamos agora e houve erro geral, deletamos
         if (authInst) { await tryDeleteJustCreatedUser(authInst, createdNewUser); }
       }
     }
@@ -563,10 +524,9 @@
       if (!(rules.every(r=>r.test(pwd.value)) && pwd.value.length>=8)) { formMsg.className='error'; formMsg.textContent='Sua senha precisa ter 8 caracteres, incluindo letras maiúsculas, minúsculas, número e símbolo.'; return; }
       if (!document.getElementById('aceite').checked) { formMsg.className='error'; formMsg.textContent='Confirme que leu e aceitou os Termos e a Política de Privacidade.'; return; }
 
-      // Priorize Turnstile invisível
       if (window.turnstile) {
-        ensureTurnstileWidget();             // garante widgetId
-        if (turnstileBusy) return;           // evita clique duplo
+        ensureTurnstileWidget();
+        if (turnstileBusy) return;
         turnstileBusy = true;
         formMsg.textContent='Validando segurança...';
         pendingSubmit = (token)=> proceedSubmit(token);
@@ -580,7 +540,6 @@
         return;
       }
 
-      // Fallback legacy (reCAPTCHA) — não usado em produção, mas mantido
       if (typeof grecaptcha !== 'undefined' && typeof grecaptcha.execute === 'function' && recaptchaWidgetId !== null) {
         formMsg.textContent='Validando segurança...';
         pendingSubmit = (token)=> proceedSubmit(token);
