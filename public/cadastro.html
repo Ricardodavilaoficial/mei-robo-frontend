@@ -28,7 +28,7 @@
   });
   </script>
 
-  <!-- PRODUÇÃO: defina sua SITE KEY do reCAPTCHA v2 Invisible (mantido como fallback, mas NÃO usado) -->
+  <!-- PRODUÇÃO: reCAPTCHA v2 Invisible (fallback NÃO usado, mas mantido) -->
   <meta name="RECAPTCHA_SITE_KEY" content="">
 
   <!-- Cloudflare Turnstile (produção) -->
@@ -68,7 +68,7 @@
     <div class="container form-wrap">
       <h1 style="color:var(--wa-dark); margin:0 0 6px">Criar minha conta</h1>
 
-      <!-- Texto explicativo completo (restaurado) -->
+      <!-- Texto explicativo -->
       <div class="note card-dark" style="margin:10px 0 18px; padding:14px">
         <p class="hint" style="margin:0">
           Sua conta é pessoal e intransferível e só será validada quando
@@ -167,7 +167,7 @@
                data-sitekey="0x4AAAAAAB0t6kBJwJJgmsr3"
                data-callback="onTurnstile"></div>
 
-          <!-- reCAPTCHA invisível (mantido apenas como fallback NÃO usado) -->
+          <!-- reCAPTCHA invisível (fallback, não usado em produção) -->
           <div id="recaptcha" class="g-recaptcha" data-size="invisible" style="display:none"></div>
         </form>
 
@@ -191,7 +191,7 @@
 
   <script src="/assets/layout.js?v=20250905f" defer></script>
 
-  <!-- reCAPTCHA (invisible v2, explicit render) - mantido como fallback -->
+  <!-- reCAPTCHA (invisible v2, explicit render) - fallback -->
   <script>
     let recaptchaWidgetId = null;
     let pendingSubmit = null;
@@ -239,13 +239,32 @@
     const togglePwd = document.getElementById('togglePwd');
     let cnpjAvailability = 'unknown';
 
-    /* ====== Turnstile state ====== */
+    /* ====== Turnstile render explícito + state ====== */
+    let cfWidgetId = null;
     let cfToken = null;           // token atual
     let turnstileBusy = false;    // evita duplo clique/dupla execução
 
+    function ensureTurnstileWidget(){
+      try{
+        if (!window.turnstile) return;
+        if (cfWidgetId) return;
+        const meta = document.querySelector('meta[name="TURNSTILE_SITE_KEY"]');
+        const SITE_KEY = (meta?.content || '0x4AAAAAAB0t6kBJwJJgmsr3').trim();
+        cfWidgetId = turnstile.render('#cf-turnstile-container', {
+          sitekey: SITE_KEY,
+          callback: onTurnstile,
+          size: 'invisible',
+          'retry': 'auto',
+          'retry-interval': 8000
+        });
+      } catch(e){ console.error('[turnstile] render falhou', e); }
+    }
+    document.addEventListener('DOMContentLoaded', ensureTurnstileWidget);
+    window.addEventListener('load', ensureTurnstileWidget);
+
     function onTurnstile(token){
       cfToken = token;
-      turnstileBusy = false; // libera para um novo submit se necessário
+      turnstileBusy = false; // libera para novo submit
       if (typeof pendingSubmit === 'function') {
         try { pendingSubmit(token); } catch(_) {}
         pendingSubmit = null;
@@ -323,6 +342,22 @@
     pwd.addEventListener('input', updatePwdMeter);
     togglePwd.addEventListener('click', (e)=>{ e.preventDefault(); const visible=pwd.type==='text'; pwd.type=visible?'password':'text'; togglePwd.textContent=visible?'Mostrar':'Ocultar'; togglePwd.setAttribute('aria-pressed', String(!visible)); pwd.focus(); });
 
+    /* ====== Helpers para Auth cleanup ====== */
+    async function tryDeleteJustCreatedUser(authInst, createdNewUser){
+      try{
+        if (!createdNewUser) { try{ await authInst.signOut(); }catch(_){} return; }
+        const u = authInst.currentUser;
+        if (!u) return;
+        // só removemos se foi criado agora por esta tentativa e ainda não verificou e-mail
+        if (!u.emailVerified) { await u.delete(); }
+        else { await authInst.signOut(); }
+      } catch(e){
+        // em caso de falha (ex: requires recent login), ao menos fazemos signOut
+        try{ await authInst.signOut(); }catch(_){}
+        console.warn('[cadastro] falha ao deletar usuário recém-criado:', e?.message || e);
+      }
+    }
+
     /* Submit + Turnstile (prioritário) */
     async function proceedSubmit(captchaTokenFromCallback){
       formMsg.className='hint';
@@ -347,12 +382,16 @@
         formMsg.className='error';
         formMsg.textContent='Valide o desafio de segurança para continuar.';
         submitBtn.classList.remove('btn-disabled'); submitBtn.removeAttribute('aria-disabled');
-        try { turnstile.reset(); } catch(_) {}
+        try { if (window.turnstile) turnstile.reset(cfWidgetId); } catch(_) {}
         turnstileBusy = false;
         return;
       }
 
       if (captchaToken) fd.append('cf_turnstile', captchaToken);
+
+      // variáveis para cleanup de Auth em caso de falha
+      let createdNewUser = false;
+      let authInst = null;
 
       try{
         /* ==== Autentica e envia JSON com Bearer (sem cookies) ==== */
@@ -370,20 +409,20 @@
           if (window.auth) return window.auth;
           return null;
         };
-        const authInst = getAuthCompatOrModular();
+        authInst = getAuthCompatOrModular();
         if (!authInst) throw new Error('Firebase Auth não inicializado nesta página.');
 
         async function ensureAuthenticated(email, password){
-          if (authInst.currentUser) return authInst.currentUser;
+          if (authInst.currentUser) return { user: authInst.currentUser, created: false };
 
           if (typeof authInst.createUserWithEmailAndPassword === 'function') {
             try {
               const cred = await authInst.createUserWithEmailAndPassword(email, password);
-              return cred.user;
+              return { user: cred.user, created: true };
             } catch (e) {
               if (e && (e.code === 'auth/email-already-in-use' || e.code === 'auth/email-already-exists')) {
                 const cred = await authInst.signInWithEmailAndPassword(email, password);
-                return cred.user;
+                return { user: cred.user, created: false };
               }
               throw e;
             }
@@ -393,11 +432,11 @@
             const inst = window.getAuth ? window.getAuth() : authInst;
             try {
               const cred = await window.createUserWithEmailAndPassword(inst, email, password);
-              return cred.user;
+              return { user: cred.user, created: true };
             } catch (e) {
               if (e && (e.code === 'auth/email-already-in-use' || e.code === 'auth/email-already-exists')) {
                 const cred = await window.signInWithEmailAndPassword(inst, email, password);
-                return cred.user;
+                return { user: cred.user, created: false };
               }
               throw e;
             }
@@ -406,7 +445,8 @@
           throw new Error('SDK do Firebase Auth indisponível para criar/entrar.');
         }
 
-        const user = await ensureAuthenticated(email, password);
+        const { user, created } = await ensureAuthenticated(email, password);
+        createdNewUser = !!created;
         const idToken = await user.getIdToken();
 
         const toJson = (formData) => {
@@ -444,7 +484,9 @@
         try { data = text ? JSON.parse(text) : {}; } catch(_) {}
 
         if (!res.ok) {
-          // Captura JSON/texto para mensagens
+          console.warn('[cadastro][422/debug]', res.status, data);
+
+          // Captura mensagem do backend, se houver
           const msg = data && (data.message || data.detail || data.error_description || data.error) || ('HTTP ' + res.status);
 
           // 429: captcha_required/captcha_failed
@@ -453,9 +495,12 @@
             formMsg.textContent = (data.error === 'captcha_failed')
               ? 'Falha na validação de segurança. Tente novamente.'
               : 'Valide o desafio de segurança para continuar.';
-            try { if (window.turnstile) turnstile.reset(); } catch(_) {}
+            try { if (window.turnstile) turnstile.reset(cfWidgetId); } catch(_) {}
             turnstileBusy = false;
             submitBtn.classList.remove('btn-disabled'); submitBtn.removeAttribute('aria-disabled');
+
+            // evita e-mail "trancado": se criamos agora, deletamos
+            await tryDeleteJustCreatedUser(authInst, createdNewUser);
             return;
           }
 
@@ -467,15 +512,20 @@
             } else {
               formMsg.textContent = 'Algum campo está inválido. Revise os dados e tente novamente.';
             }
-            try { if (window.turnstile) turnstile.reset(); } catch(_) {}
+            try { if (window.turnstile) turnstile.reset(cfWidgetId); } catch(_) {}
             turnstileBusy = false;
             submitBtn.classList.remove('btn-disabled'); submitBtn.removeAttribute('aria-disabled');
+
+            // evita e-mail "trancado": se criamos agora, deletamos
+            await tryDeleteJustCreatedUser(authInst, createdNewUser);
             return;
           }
 
+          // outros erros
           throw new Error('Falha no cadastro: ' + msg);
         }
 
+        // sucesso: segue o fluxo
         if (data.next === 'verifyEmail') {
           const mail = (data.email || (emailInput.value||'')).trim();
           location.href = '/verify-email.html?email=' + encodeURIComponent(mail);
@@ -489,8 +539,11 @@
         formMsg.className='error';
         formMsg.textContent='Não foi possível concluir agora. Tente novamente.';
         submitBtn.classList.remove('btn-disabled'); submitBtn.removeAttribute('aria-disabled');
-        try { if (window.turnstile) turnstile.reset(); } catch(_) {}
+        try { if (window.turnstile) turnstile.reset(cfWidgetId); } catch(_) {}
         turnstileBusy = false;
+
+        // evita e-mail "trancado": se criamos agora e houve erro geral, deletamos
+        if (authInst) { await tryDeleteJustCreatedUser(authInst, createdNewUser); }
       }
     }
 
@@ -509,14 +562,14 @@
 
       // Priorize Turnstile invisível
       if (window.turnstile) {
-        if (turnstileBusy) return; // evita clique duplo
+        ensureTurnstileWidget();             // garante widgetId
+        if (turnstileBusy) return;           // evita clique duplo
         turnstileBusy = true;
         formMsg.textContent='Validando segurança...';
         pendingSubmit = (token)=> proceedSubmit(token);
         try {
-          // garante token NOVO a cada envio
-          try { turnstile.reset(); } catch(_) {}
-          turnstile.execute();
+          try { turnstile.reset(cfWidgetId); } catch(_) {}
+          turnstile.execute(cfWidgetId);
         } catch(_) {
           turnstileBusy = false;
           proceedSubmit(null);
