@@ -101,6 +101,15 @@
           </div>
 
           <div class="form-row">
+            <label for="telefone"><strong>Telefone (com DDD)</strong></label>
+            <input id="telefone" name="telefone" class="input" inputmode="tel"
+                   pattern="^\D*(\d\D*){10,11}$"
+                   title="Informe um telefone com DDD (10 ou 11 dígitos)"
+                   placeholder="Ex.: (11) 98765-4321" autocomplete="tel" required />
+            <span class="hint">Use um número seu (celular recomendável). Envie apenas os dígitos.</span>
+          </div>
+
+          <div class="form-row">
             <label for="cnpj"><strong>CNPJ</strong></label>
             <input id="cnpj" name="cnpj" class="input" inputmode="numeric"
               pattern="^\d{14}$|^\d{2}\.\d{3}\.\d{3}/\d{4}-\d{2}$"
@@ -222,6 +231,7 @@
     const cnpjStatus = document.getElementById('cnpjStatus');
     const emailInput = document.getElementById('email');
     const email2Input = document.getElementById('email2');
+    const phoneInput = document.getElementById('telefone');
     const pwd = document.getElementById('senha');
     const pwd2 = document.getElementById('senha2');
     const bar = document.getElementById('pwdBar');
@@ -265,7 +275,8 @@
     }
 
     /* ====== Helpers ====== */
-    function normalizeCNPJ(v){ return (v || '').replace(/\D+/g,''); }
+    function normalizeDigits(v){ return (v || '').replace(/\D+/g,''); }
+    function normalizeCNPJ(v){ return normalizeDigits(v); }
     function validateCNPJ(cnpj){
       cnpj = normalizeCNPJ(cnpj);
       if (cnpj.length !== 14) return false;
@@ -377,7 +388,8 @@
         /* ==== Autentica e envia JSON com Bearer (sem cookies) ==== */
         const nome = (document.getElementById('nome').value || '').trim();
         const email = (emailInput.value || '').trim();
-        const password = (pwd.value || '');
+        const senha = (pwd.value || '');
+        const telefoneDigits = normalizeDigits(phoneInput.value || '');
         const cnpjDigits = normalizeCNPJ(cnpjInput.value || '');
 
         // Pega Auth
@@ -427,26 +439,26 @@
           throw new Error('SDK do Firebase Auth indisponível para criar/entrar.');
         }
 
-        const { user, created } = await ensureAuthenticated(email, password);
+        const { user, created } = await ensureAuthenticated(email, senha);
         createdNewUser = !!created;
         const idToken = await user.getIdToken();
 
-        // ✅ Payload mínimo e compatível com schema estrito
+        // 🚩 Payload JSON conforme backend
         const payload = {
-          nome,                 // requerido (PT-BR)
           email,
-          cnpj: cnpjDigits,     // só dígitos
-          aceitar_termos: "true"// string em snake_case
-          // ❌ NÃO enviar cf_turnstile no body
-          // ❌ NÃO enviar name (evita campos extras)
+          senha,
+          nome,
+          telefone: telefoneDigits,
+          cnpj: cnpjDigits
+          // segmento: opcional (será "servicos" por default no backend)
         };
+        if (captchaToken) payload.cf_token = captchaToken; // backend também aceita no body (além do header)
 
         const headers = {
           'Content-Type': 'application/json',
           'Accept': 'application/json',
           'Authorization': 'Bearer ' + idToken
         };
-        // ✅ Captcha apenas no header
         if (captchaToken) { headers['cf-turnstile-response'] = captchaToken; }
 
         const res = await fetch(API.cadastro, {
@@ -460,14 +472,9 @@
         try { data = text ? JSON.parse(text) : {}; } catch(_) {}
 
         if (!res.ok) {
-          // DEBUG reforçado p/ diagnósticos de schema
-          console.warn('[cadastro][422/debug]', res.status, data || text, {
-            contentType: res.headers.get('content-type') || '(sem content-type)',
-            raw: text
-          });
+          console.warn('[cadastro][422/debug]', res.status, data || text);
 
-          const serverMsg =
-            (data && (data.message || data.detail || (Array.isArray(data) && data.map(d => d.msg).join('; ')))) || '';
+          const msg = (data && (data.message || data.detail || data.error_description || data.error)) || ('HTTP ' + res.status);
 
           if (res.status === 429 && data && (data.error === 'captcha_required' || data.error === 'captcha_failed')) {
             formMsg.className='error';
@@ -483,9 +490,16 @@
 
           if (res.status === 422) {
             formMsg.className='error';
-            formMsg.textContent = serverMsg
-              ? String(serverMsg)
-              : 'Algum campo está inválido. Revise nome, e-mail e CNPJ e tente novamente.';
+            if (data && (data.message || data.detail)) {
+              formMsg.textContent = String(data.message || data.detail);
+            } else if (data && data.field) {
+              // se backend aponta o campo específico
+              const map = { email:'e-mail', senha:'senha', nome:'nome', telefone:'telefone', cnpj:'CNPJ' };
+              const nice = map[data.field] || data.field;
+              formMsg.textContent = `Algum campo está inválido (${nice}). Revise e tente novamente.`;
+            } else {
+              formMsg.textContent = 'Algum campo está inválido. Revise nome, e-mail, telefone e CNPJ e tente novamente.';
+            }
             try { if (window.turnstile) turnstile.reset(cfWidgetId); } catch(_) {}
             turnstileBusy = false;
             submitBtn.classList.remove('btn-disabled'); submitBtn.removeAttribute('aria-disabled');
@@ -493,7 +507,7 @@
             return;
           }
 
-          throw new Error('Falha no cadastro: ' + (serverMsg || ('HTTP ' + res.status)));
+          throw new Error('Falha no cadastro: ' + msg);
         }
 
         if (data.next === 'verifyEmail') {
@@ -527,6 +541,8 @@
       if (pwd.value !== pwd2.value) { formMsg.className='error'; formMsg.textContent='As duas senhas precisam ser iguais.'; return; }
       const rules=[/[a-z]/,/[A-Z]/,/[0-9]/,/[^A-Za-z0-9]/];
       if (!(rules.every(r=>r.test(pwd.value)) && pwd.value.length>=8)) { formMsg.className='error'; formMsg.textContent='Sua senha precisa ter 8 caracteres, incluindo letras maiúsculas, minúsculas, número e símbolo.'; return; }
+      const phoneDigits = normalizeDigits(phoneInput.value || '');
+      if (!phoneDigits || phoneDigits.length < 10 || phoneDigits.length > 11) { formMsg.className='error'; formMsg.textContent='Informe um telefone com DDD (10 ou 11 dígitos).'; phoneInput.focus(); return; }
       if (!document.getElementById('aceite').checked) { formMsg.className='error'; formMsg.textContent='Confirme que leu e aceitou os Termos e a Política de Privacidade.'; return; }
 
       if (window.turnstile) {
