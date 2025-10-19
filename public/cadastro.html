@@ -165,7 +165,6 @@
           <!-- Turnstile (invisible) -->
           <div id="cf-turnstile-container" class="cf-turnstile"
                data-sitekey="0x4AAAAAAB0t6kBJwJJgmsr3"
-               data-size="invisible"
                data-callback="onTurnstile"></div>
 
           <!-- reCAPTCHA invisível (mantido apenas como fallback NÃO usado) -->
@@ -241,9 +240,12 @@
     let cnpjAvailability = 'unknown';
 
     /* ====== Turnstile state ====== */
-    let cfToken = null; // token atual
+    let cfToken = null;           // token atual
+    let turnstileBusy = false;    // evita duplo clique/dupla execução
+
     function onTurnstile(token){
       cfToken = token;
+      turnstileBusy = false; // libera para um novo submit se necessário
       if (typeof pendingSubmit === 'function') {
         try { pendingSubmit(token); } catch(_) {}
         pendingSubmit = null;
@@ -332,11 +334,24 @@
       const fd = new FormData();
       fd.append('nome',  (document.getElementById('nome').value || '').trim());
       fd.append('email', (emailInput.value || '').trim());
-      fd.append('cnpj',  (cnpjInput.value || '').trim());
+      // CNPJ somente dígitos (14)
+      const cnpjDigits = normalizeCNPJ(cnpjInput.value || '');
+      fd.append('cnpj',  cnpjDigits);
       fd.append('aceitarTermos', 'true');
 
       // Captcha token (Turnstile prioridade; fallback: parametro do callback)
       const captchaToken = cfToken || captchaTokenFromCallback || null;
+
+      // Se Turnstile estiver presente mas sem token, não envia
+      if (window.turnstile && !captchaToken) {
+        formMsg.className='error';
+        formMsg.textContent='Valide o desafio de segurança para continuar.';
+        submitBtn.classList.remove('btn-disabled'); submitBtn.removeAttribute('aria-disabled');
+        try { turnstile.reset(); } catch(_) {}
+        turnstileBusy = false;
+        return;
+      }
+
       if (captchaToken) fd.append('cf_turnstile', captchaToken);
 
       try{
@@ -429,18 +444,36 @@
         try { data = text ? JSON.parse(text) : {}; } catch(_) {}
 
         if (!res.ok) {
-          // Tratamento específico para captcha
+          // Captura JSON/texto para mensagens
+          const msg = data && (data.message || data.detail || data.error_description || data.error) || ('HTTP ' + res.status);
+
+          // 429: captcha_required/captcha_failed
           if (res.status === 429 && data && (data.error === 'captcha_required' || data.error === 'captcha_failed')) {
             formMsg.className='error';
-            formMsg.textContent = data.error === 'captcha_failed'
-              ? 'Falha na validação de segurança. Atualize a página e tente novamente.'
+            formMsg.textContent = (data.error === 'captcha_failed')
+              ? 'Falha na validação de segurança. Tente novamente.'
               : 'Valide o desafio de segurança para continuar.';
-            // força novo token
             try { if (window.turnstile) turnstile.reset(); } catch(_) {}
+            turnstileBusy = false;
             submitBtn.classList.remove('btn-disabled'); submitBtn.removeAttribute('aria-disabled');
             return;
           }
-          throw new Error('Falha no cadastro: HTTP ' + res.status);
+
+          // 422: campo inválido (exibir mensagem específica se vier)
+          if (res.status === 422) {
+            formMsg.className='error';
+            if (data && (data.message || data.detail)) {
+              formMsg.textContent = String(data.message || data.detail);
+            } else {
+              formMsg.textContent = 'Algum campo está inválido. Revise os dados e tente novamente.';
+            }
+            try { if (window.turnstile) turnstile.reset(); } catch(_) {}
+            turnstileBusy = false;
+            submitBtn.classList.remove('btn-disabled'); submitBtn.removeAttribute('aria-disabled');
+            return;
+          }
+
+          throw new Error('Falha no cadastro: ' + msg);
         }
 
         if (data.next === 'verifyEmail') {
@@ -456,6 +489,8 @@
         formMsg.className='error';
         formMsg.textContent='Não foi possível concluir agora. Tente novamente.';
         submitBtn.classList.remove('btn-disabled'); submitBtn.removeAttribute('aria-disabled');
+        try { if (window.turnstile) turnstile.reset(); } catch(_) {}
+        turnstileBusy = false;
       }
     }
 
@@ -474,9 +509,18 @@
 
       // Priorize Turnstile invisível
       if (window.turnstile) {
+        if (turnstileBusy) return; // evita clique duplo
+        turnstileBusy = true;
         formMsg.textContent='Validando segurança...';
         pendingSubmit = (token)=> proceedSubmit(token);
-        try { turnstile.execute(); } catch(_) { proceedSubmit(null); }
+        try {
+          // garante token NOVO a cada envio
+          try { turnstile.reset(); } catch(_) {}
+          turnstile.execute();
+        } catch(_) {
+          turnstileBusy = false;
+          proceedSubmit(null);
+        }
         return;
       }
 
