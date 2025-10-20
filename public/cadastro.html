@@ -443,7 +443,7 @@
         createdNewUser = !!created;
         const idToken = await user.getIdToken();
 
-        // 🚩 Payload JSON conforme backend
+        // 🚩 Payload JSON conforme backend (leads-only flag será tratada no servidor)
         const payload = {
           email,
           senha,
