@@ -11,6 +11,9 @@
   <meta name="twitter:url" content="https://www.meirobo.com.br/cadastro.html" />
   <meta name="referrer" content="strict-origin-when-cross-origin" />
 
+  <!-- CSP leve para silenciar o aviso de default-src e liberar Turnstile/Firebase -->
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://challenges.cloudflare.com; connect-src 'self' https://mei-robo-prod.onrender.com; img-src 'self' data: https:; style-src 'self' 'unsafe-inline'; frame-src https://challenges.cloudflare.com;" />
+
   <!-- Firebase Hosting: SDK compat + init automático -->
   <script defer src="/__/firebase/9.22.2/firebase-app-compat.js"></script>
   <script defer src="/__/firebase/9.22.2/firebase-auth-compat.js"></script>
@@ -182,7 +185,7 @@
 
           <div id="formMsg" class="hint"></div>
 
-          <!-- Turnstile (explicito, compacto) -->
+          <!-- Turnstile (explícito, compacto) -->
           <div class="form-row full" style="margin-top:8px">
             <div id="cf-turnstile" aria-label="Validação de segurança"></div>
             <input type="hidden" id="cf_token" name="cf_token" />
@@ -254,9 +257,33 @@
     /* ====== Turnstile (render explícito, compacto) ====== */
     let CF_WIDGET_ID = null;
     let CF_TOKEN = "";
+    let CF_TOKEN_TS = 0; // epoch ms do último token
+
+    function isValidateMode(){
+      try{ return new URLSearchParams(location.search).get('validate') === '1'; }catch(_){ return false; }
+    }
+
+    function enableSubmit(){
+      submitBtn.classList.remove('btn-disabled');
+      submitBtn.removeAttribute('aria-disabled');
+    }
+    function disableSubmit(){
+      submitBtn.classList.add('btn-disabled');
+      submitBtn.setAttribute('aria-disabled','true');
+    }
 
     function renderTurnstile() {
       try {
+        if (isValidateMode()) {
+          // Bypass de validação só no modo de validação de UI
+          CF_TOKEN = 'validate-mode';
+          CF_TOKEN_TS = Date.now();
+          const hidden = document.getElementById('cf_token');
+          if (hidden) hidden.value = CF_TOKEN;
+          enableSubmit();
+          return; // não renderiza o widget em validate=1
+        }
+
         const meta = document.querySelector('meta[name="TURNSTILE_SITE_KEY"]');
         const SITE_KEY = (meta?.content || '').trim();
         if (!window.turnstile || !SITE_KEY || CF_WIDGET_ID) return;
@@ -266,32 +293,46 @@
           size: 'compact',
           callback: function(token) {
             CF_TOKEN = token;
+            CF_TOKEN_TS = Date.now();
             const hidden = document.getElementById('cf_token');
             if (hidden) hidden.value = token;
-            // habilita o botão
-            submitBtn.classList.remove('btn-disabled');
-            submitBtn.removeAttribute('aria-disabled');
+            enableSubmit();
           },
           'error-callback': function() {
-            CF_TOKEN = "";
+            CF_TOKEN = ""; CF_TOKEN_TS = 0;
             const hidden = document.getElementById('cf_token');
             if (hidden) hidden.value = "";
-            // desabilita o botão
-            submitBtn.classList.add('btn-disabled');
-            submitBtn.setAttribute('aria-disabled','true');
+            disableSubmit();
           },
           'expired-callback': function() {
-            CF_TOKEN = "";
+            CF_TOKEN = ""; CF_TOKEN_TS = 0;
             const hidden = document.getElementById('cf_token');
             if (hidden) hidden.value = "";
             try { turnstile.reset(CF_WIDGET_ID); } catch(e) {}
-            submitBtn.classList.add('btn-disabled');
-            submitBtn.setAttribute('aria-disabled','true');
+            disableSubmit();
           }
         });
       } catch (e) { console.error('[turnstile] render falhou', e); }
     }
     window.addEventListener('load', renderTurnstile);
+
+    // Watchdog: expira token após ~115s e força re-render
+    setInterval(() => {
+      try{
+        if (isValidateMode()) return; // sem watchdog no modo de validação
+        if (!CF_TOKEN_TS) return;
+        const age = Date.now() - CF_TOKEN_TS;
+        if (age > 115000) {
+          CF_TOKEN = ""; CF_TOKEN_TS = 0;
+          const hidden = document.getElementById('cf_token');
+          if (hidden) hidden.value = "";
+          if (window.turnstile && CF_WIDGET_ID) {
+            try { turnstile.reset(CF_WIDGET_ID); } catch(_) {}
+          }
+          disableSubmit();
+        }
+      } catch(_){}
+    }, 5000);
 
     /* ====== Helpers ====== */
     function normalizeDigits(v){ return (v || '').replace(/\D+/g,''); }
@@ -329,7 +370,8 @@
       if (!validateCNPJ(digits)) {
         cnpjStatus.textContent = 'Revise o CNPJ: os números não formam um CNPJ válido.';
         cnpjStatus.className = 'error';
-        submitBtn.classList.add('btn-disabled'); submitBtn.setAttribute('aria-disabled','true'); return;
+        disableSubmit();
+        return;
       }
       cnpjStatus.textContent = 'Verificando disponibilidade...';
       cnpjStatus.className = 'hint';
@@ -346,7 +388,7 @@
           cnpjAvailability = 'unavailable';
           cnpjStatus.textContent = 'Este CNPJ já tem conta. Você pode recuperar o acesso ou usar outro.';
           cnpjStatus.className = 'error';
-          submitBtn.classList.add('btn-disabled'); submitBtn.setAttribute('aria-disabled','true');
+          disableSubmit();
         }
       } catch {
         cnpjAvailability = 'unknown';
@@ -373,7 +415,7 @@
         if (!u.emailVerified) { await u.delete(); }
         else { await authInst.signOut(); }
       } catch(e){
-        try{ await authInst.signOut(); }catch(_){}
+        try{ await authInst.signOut(); }catch(_){ }
         console.warn('[cadastro] falha ao deletar usuário recém-criado:', e?.message || e);
       }
     }
@@ -383,7 +425,7 @@
       try {
         var bc = ('BroadcastChannel' in window) ? new BroadcastChannel('auth') : null;
         function onSignal(){
-          try { localStorage.setItem('emailVerified', 'true'); } catch(_){}
+          try { localStorage.setItem('emailVerified', 'true'); } catch(_){ }
           advanceIfVerified(true);
         }
         if (bc) bc.addEventListener('message', function(ev){
@@ -435,7 +477,7 @@
         if (!window.firebase?.auth) return;
         const user = firebase.auth().currentUser || null;
         if (user) {
-          try { await user.reload(); } catch(_){}
+          try { await user.reload(); } catch(_){ }
           if (user.emailVerified === true) {
             location.href = '/pages/configuracao.html';
             return;
@@ -444,7 +486,7 @@
             showVerifyBanner(em);
           }
         }
-      } catch(_){}
+      } catch(_){ }
     });
 
     /* ====== Submit (com Turnstile obrigatório, preservando backend) ====== */
@@ -460,8 +502,7 @@
         return;
       }
 
-      submitBtn.classList.add('btn-disabled');
-      submitBtn.setAttribute('aria-disabled','true');
+      disableSubmit();
 
       let createdNewUser = false;
       let authInst = null;
@@ -521,7 +562,7 @@
         console.log('[cadastro] idToken len:', (idToken||'').length);
 
         // Banner de “aguardando verificação” já com o e-mail do usuário
-        try { showVerifyBanner(user.email || email); } catch(_){}
+        try { showVerifyBanner(user.email || email); } catch(_){ }
 
         // Payload JSON para backend (LEADS_MODE: servidor grava em leads)
         const payload = { email, senha, nome, telefone: telefoneDigits, cnpj: cnpjDigits, cf_token: token };
@@ -537,17 +578,17 @@
         const res = await fetch(API.cadastro, { method: 'POST', headers, body: JSON.stringify(payload) });
         const text = await res.text();
         let data = {};
-        try { data = text ? JSON.parse(text) : {}; } catch(_) {}
+        try { data = text ? JSON.parse(text) : {}; } catch(_) { }
 
         if (!res.ok) {
-          console.warn('[cadastro][422/debug]', res.status, data || text);
+          console.warn('[cadastro][debug]', res.status, data || text);
 
           if (res.status === 429) {
             // sinal típico de captcha faltando/ruim no backend
             formMsg.className='error';
             formMsg.textContent = 'Validação de segurança falhou. Recarregue o desafio e tente novamente.';
-            try { if (window.turnstile && CF_WIDGET_ID) turnstile.reset(CF_WIDGET_ID); } catch(_) {}
-            submitBtn.classList.remove('btn-disabled'); submitBtn.removeAttribute('aria-disabled');
+            try { if (window.turnstile && CF_WIDGET_ID) turnstile.reset(CF_WIDGET_ID); } catch(_) { }
+            enableSubmit();
             await tryDeleteJustCreatedUser(authInst, createdNewUser);
             return;
           }
@@ -563,8 +604,8 @@
             } else {
               formMsg.textContent = 'Algum campo está inválido. Revise nome, e-mail, telefone e CNPJ e tente novamente.';
             }
-            try { if (window.turnstile && CF_WIDGET_ID) turnstile.reset(CF_WIDGET_ID); } catch(_) {}
-            submitBtn.classList.remove('btn-disabled'); submitBtn.removeAttribute('aria-disabled');
+            try { if (window.turnstile && CF_WIDGET_ID) turnstile.reset(CF_WIDGET_ID); } catch(_) { }
+            enableSubmit();
             await tryDeleteJustCreatedUser(authInst, createdNewUser);
             return;
           }
@@ -585,10 +626,10 @@
         console.error(e);
         formMsg.className='error';
         formMsg.textContent='Não foi possível concluir agora. Tente novamente.';
-        submitBtn.classList.remove('btn-disabled'); submitBtn.removeAttribute('aria-disabled');
-        try { if (window.turnstile && CF_WIDGET_ID) turnstile.reset(CF_WIDGET_ID); } catch(_) {}
+        try { if (window.turnstile && CF_WIDGET_ID) turnstile.reset(CF_WIDGET_ID); } catch(_) { }
 
         if (authInst) { await tryDeleteJustCreatedUser(authInst, createdNewUser); }
+        enableSubmit();
       }
     }
 
@@ -600,9 +641,9 @@
       const e2 = (email2Input.value || '').trim().toLowerCase();
       if (!e1 || !e2 || e1 !== e2) { formMsg.className='error'; formMsg.textContent='Os dois e-mails precisam ser iguais.'; email2Input.focus(); return; }
       if (cnpjAvailability === 'unavailable') { formMsg.className='error'; formMsg.textContent='Este CNPJ já tem conta. Você pode recuperar o acesso ou usar outro.'; return; }
-      if (pwd.value !== pwd2.value) { formMsg.className='error'; formMsg.textContent='As duas senhas precisam ser iguais.'; return; }
+      if (pwd.value !== pwd2.value) { formMsg.className='error'; formMsg.textContent='As duas senhas precisam ser iguais.'; pwd2.focus(); return; }
       const rules=[/[a-z]/,/[A-Z]/,/[0-9]/,/[^A-Za-z0-9]/];
-      if (!(rules.every(r=>r.test(pwd.value)) && pwd.value.length>=8)) { formMsg.className='error'; formMsg.textContent='Sua senha precisa ter 8 caracteres, incluindo letras maiúsculas, minúsculas, número e símbolo.'; return; }
+      if (!(rules.every(r=>r.test(pwd.value)) && pwd.value.length>=8)) { formMsg.className='error'; formMsg.textContent='Sua senha precisa ter 8 caracteres, incluindo letras maiúsculas, minúsculas, número e símbolo.'; pwd.focus(); return; }
       const phoneDigits = normalizeDigits(phoneInput.value || '');
       if (!phoneDigits || phoneDigits.length < 10 || phoneDigits.length > 11) { formMsg.className='error'; formMsg.textContent='Informe um telefone com DDD (10 ou 11 dígitos).'; phoneInput.focus(); return; }
       if (!document.getElementById('aceite').checked) { formMsg.className='error'; formMsg.textContent='Confirme que leu e aceitou os Termos e a Política de Privacidade.'; return; }
@@ -620,4 +661,3 @@
   </script>
 </body>
 </html>
-
