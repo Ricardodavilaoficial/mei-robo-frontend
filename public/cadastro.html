@@ -5,11 +5,12 @@
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>MEI Robô — Cadastro</title>
 
-  <!-- Canonical WWW v1.0 placeholders (o layout.js sobrescreve em runtime, se precisar) -->
+  <!-- Canonical WWW (o layout.js sobrescreve em runtime se precisar, mas já deixamos correto) -->
   <link rel="canonical" href="https://www.meirobo.com.br/cadastro.html" />
   <meta property="og:url" content="https://www.meirobo.com.br/cadastro.html" />
   <meta name="twitter:url" content="https://www.meirobo.com.br/cadastro.html" />
-  
+  <meta name="referrer" content="strict-origin-when-cross-origin" />
+
   <!-- Firebase Hosting: SDK compat + init automático -->
   <script defer src="/__/firebase/9.22.2/firebase-app-compat.js"></script>
   <script defer src="/__/firebase/9.22.2/firebase-auth-compat.js"></script>
@@ -27,12 +28,12 @@
   });
   </script>
 
-  <!-- reCAPTCHA v2 Invisible (fallback NÃO usado, mas mantido) -->
-  <meta name="RECAPTCHA_SITE_KEY" content="">
-
-  <!-- Cloudflare Turnstile (produção) -->
+  <!-- Cloudflare Turnstile (produção) - mantido para atender o backend -->
   <meta name="TURNSTILE_SITE_KEY" content="0x4AAAAAAB0t6kBJwJJgmsr3">
-  <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
+  <script src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit" async defer></script>
+
+  <!-- reCAPTCHA v2 Invisible (fallback desativado; mantemos apenas placeholders) -->
+  <meta name="RECAPTCHA_SITE_KEY" content="">
 
   <link rel="stylesheet" href="/assets/styles.css" />
 
@@ -56,6 +57,14 @@
       outline: 0;
     }
     .btn-disabled { opacity: .6; pointer-events: none; }
+
+    /* Banner aguardando verificação */
+    #verifyBanner { display:none; margin:10px 0 18px; padding:14px; align-items:flex-start; gap:12px; }
+    #verifyBanner .badge {
+      display:inline-block; padding:4px 8px; border-radius:999px;
+      background:#0f3b2f; color:#b9f4d8; font-size:.85rem; font-weight:700;
+    }
+    #verifyBanner .cta { margin-left:auto; }
   </style>
 </head>
 <body>
@@ -65,6 +74,20 @@
   <main class="section">
     <div class="container form-wrap">
       <h1 style="color:var(--wa-dark); margin:0 0 6px">Criar minha conta</h1>
+
+      <!-- Banner: aguardando verificação do e-mail -->
+      <div id="verifyBanner" class="note card-dark">
+        <div>
+          <div class="badge">Aguardando verificação</div>
+          <div class="hint" id="verifyBannerText" style="margin-top:8px">
+            Enviamos um link para o seu e-mail. Clique no link na sua caixa de entrada e depois toque em
+            <em>“Já verifiquei — continuar”</em> aqui nesta aba. Se você abriu o link em outra janela/aba,
+            vamos detectar automaticamente e continuar.
+          </div>
+          <div class="hint" id="verifyBannerEmail" style="margin-top:6px; opacity:.9"></div>
+        </div>
+        <a id="btnAlreadyVerified" class="btn-secondary" role="button" href="#">Já verifiquei — continuar</a>
+      </div>
 
       <div class="note card-dark" style="margin:10px 0 18px; padding:14px">
         <p class="hint" style="margin:0">
@@ -159,14 +182,18 @@
 
           <div id="formMsg" class="hint"></div>
 
-          <div class="actions" style="margin-top:12px">
-            <button id="submitBtn" type="submit" class="cta">Avançar</button>
+          <!-- Turnstile (explicito, compacto) -->
+          <div class="form-row full" style="margin-top:8px">
+            <div id="cf-turnstile" aria-label="Validação de segurança"></div>
+            <input type="hidden" id="cf_token" name="cf_token" />
+            <span class="hint">Valide o desafio para liberar o botão Avançar.</span>
           </div>
 
-          <!-- Turnstile container (render EXPLÍCITO; sem classe cf-turnstile para evitar auto-render) -->
-          <div id="cf-turnstile-container"></div>
+          <div class="actions" style="margin-top:12px">
+            <button id="submitBtn" type="submit" class="cta btn-disabled" aria-disabled="true">Avançar</button>
+          </div>
 
-          <!-- reCAPTCHA invisível (fallback, não usado em produção) -->
+          <!-- reCAPTCHA invisível (DESATIVADO: mantido apenas se um dia precisar) -->
           <div id="recaptcha" class="g-recaptcha" data-size="invisible" style="display:none"></div>
         </form>
 
@@ -190,30 +217,7 @@
 
   <script src="/assets/layout.js?v=20250905f" defer></script>
 
-  <!-- reCAPTCHA (invisible v2, explicit render) - fallback -->
-  <script>
-    let recaptchaWidgetId = null;
-    let pendingSubmit = null;
-    function onRecaptchaLoad(){
-      try{
-        const meta = document.querySelector('meta[name="RECAPTCHA_SITE_KEY"]');
-        const RECAPTCHA_SITE_KEY = meta?.content?.trim();
-        if (!window.grecaptcha || !RECAPTCHA_SITE_KEY) return;
-        recaptchaWidgetId = grecaptcha.render('recaptcha', {
-          sitekey: RECAPTCHA_SITE_KEY,
-          size: 'invisible',
-          callback: onRecaptchaSuccess,
-          'error-callback': onRecaptchaError,
-          'expired-callback': onRecaptchaExpired
-        });
-      } catch(e){ console.error(e); }
-    }
-    function onRecaptchaSuccess(token){ if (pendingSubmit) pendingSubmit(token); pendingSubmit = null; try{ grecaptcha.reset(recaptchaWidgetId);}catch(_){} }
-    function onRecaptchaError(){ const msg=document.getElementById('formMsg'); msg.className='error'; msg.textContent='Falha no reCAPTCHA. Atualize a página e tente novamente.'; pendingSubmit=null; }
-    function onRecaptchaExpired(){}
-    window.onRecaptchaLoad = onRecaptchaLoad;
-  </script>
-  <script src="https://www.google.com/recaptcha/api.js?onload=onRecaptchaLoad&render=explicit" async defer></script>
+  <!-- reCAPTCHA (invisible v2) DESATIVADO - não carregamos o script para evitar conflitos -->
 
   <script>
     /* ====== CONFIG do Backend ====== */
@@ -221,6 +225,7 @@
     const API = {
       availability: API_BASE + "/api/cnpj/availability",
       cadastro:     API_BASE + "/api/cadastro",
+      checkVerification: API_BASE + "/api/auth/check-verification",
     };
 
     /* ====== UI refs ====== */
@@ -237,42 +242,56 @@
     const bar = document.getElementById('pwdBar');
     const strengthText = document.getElementById('pwdStrength');
     const togglePwd = document.getElementById('togglePwd');
+
+    // Banner aguardando verificação
+    const verifyBanner = document.getElementById('verifyBanner');
+    const verifyBannerText = document.getElementById('verifyBannerText');
+    const verifyBannerEmail = document.getElementById('verifyBannerEmail');
+    const btnAlreadyVerified = document.getElementById('btnAlreadyVerified');
+
     let cnpjAvailability = 'unknown';
 
-    /* ====== Turnstile render explícito + state ====== */
-    let cfWidgetId = null;
-    let cfToken = null;
-    let turnstileBusy = false;
+    /* ====== Turnstile (render explícito, compacto) ====== */
+    let CF_WIDGET_ID = null;
+    let CF_TOKEN = "";
 
-    function ensureTurnstileWidget(){
-      try{
-        if (!window.turnstile) return;
-        if (cfWidgetId) return;
+    function renderTurnstile() {
+      try {
         const meta = document.querySelector('meta[name="TURNSTILE_SITE_KEY"]');
-        const SITE_KEY = (meta?.content || '0x4AAAAAAB0t6kBJwJJgmsr3').trim();
+        const SITE_KEY = (meta?.content || '').trim();
+        if (!window.turnstile || !SITE_KEY || CF_WIDGET_ID) return;
 
-        cfWidgetId = turnstile.render('#cf-turnstile-container', {
+        CF_WIDGET_ID = turnstile.render('#cf-turnstile', {
           sitekey: SITE_KEY,
-          callback: onTurnstile,
-          appearance: 'interaction-only',
-          execution: 'execute',
-          size: 'flexible',
-          retry: 'auto',
-          'retry-interval': 8000
+          size: 'compact',
+          callback: function(token) {
+            CF_TOKEN = token;
+            const hidden = document.getElementById('cf_token');
+            if (hidden) hidden.value = token;
+            // habilita o botão
+            submitBtn.classList.remove('btn-disabled');
+            submitBtn.removeAttribute('aria-disabled');
+          },
+          'error-callback': function() {
+            CF_TOKEN = "";
+            const hidden = document.getElementById('cf_token');
+            if (hidden) hidden.value = "";
+            // desabilita o botão
+            submitBtn.classList.add('btn-disabled');
+            submitBtn.setAttribute('aria-disabled','true');
+          },
+          'expired-callback': function() {
+            CF_TOKEN = "";
+            const hidden = document.getElementById('cf_token');
+            if (hidden) hidden.value = "";
+            try { turnstile.reset(CF_WIDGET_ID); } catch(e) {}
+            submitBtn.classList.add('btn-disabled');
+            submitBtn.setAttribute('aria-disabled','true');
+          }
         });
-      } catch(e){ console.error('[turnstile] render falhou', e); }
+      } catch (e) { console.error('[turnstile] render falhou', e); }
     }
-    document.addEventListener('DOMContentLoaded', ensureTurnstileWidget);
-    window.addEventListener('load', ensureTurnstileWidget);
-
-    function onTurnstile(token){
-      cfToken = token;
-      turnstileBusy = false;
-      if (typeof pendingSubmit === 'function') {
-        try { pendingSubmit(token); } catch(_) {}
-        pendingSubmit = null;
-      }
-    }
+    window.addEventListener('load', renderTurnstile);
 
     /* ====== Helpers ====== */
     function normalizeDigits(v){ return (v || '').replace(/\D+/g,''); }
@@ -322,7 +341,7 @@
           cnpjAvailability = 'available';
           cnpjStatus.textContent = 'CNPJ disponível para cadastro.';
           cnpjStatus.className = 'ok';
-          submitBtn.classList.remove('btn-disabled'); submitBtn.removeAttribute('aria-disabled');
+          // manter botão condicionado ao Turnstile: só libera no callback
         } else {
           cnpjAvailability = 'unavailable';
           cnpjStatus.textContent = 'Este CNPJ já tem conta. Você pode recuperar o acesso ou usar outro.';
@@ -333,7 +352,7 @@
         cnpjAvailability = 'unknown';
         cnpjStatus.textContent = 'Não foi possível verificar agora. Validaremos no servidor.';
         cnpjStatus.className = 'hint';
-        submitBtn.classList.remove('btn-disabled'); submitBtn.removeAttribute('aria-disabled');
+        // manter regra do botão pelo Turnstile
       }
     }
     const debouncedCheck = debounce(checkCNPJAvailability, 600);
@@ -359,47 +378,104 @@
       }
     }
 
-    /* Submit + Turnstile (prioritário) */
-    async function proceedSubmit(captchaTokenFromCallback){
+    /* ====== Sinalização cross-aba para verificação ====== */
+    (function setupEmailVerifiedListeners(){
+      try {
+        var bc = ('BroadcastChannel' in window) ? new BroadcastChannel('auth') : null;
+        function onSignal(){
+          try { localStorage.setItem('emailVerified', 'true'); } catch(_){}
+          advanceIfVerified(true);
+        }
+        if (bc) bc.addEventListener('message', function(ev){
+          if (ev && ev.data && ev.data.type === 'email-verified') onSignal();
+        });
+        window.addEventListener('message', function(ev){
+          if (ev && ev.data && ev.data.type === 'email-verified') onSignal();
+        });
+        window.addEventListener('email-verified', onSignal);
+
+        // Fallback de polling: se o banner estiver na tela, checa a cada 3s
+        setInterval(function(){
+          try {
+            if (verifyBanner.style.display !== 'none') advanceIfVerified(false);
+          } catch(_) {}
+        }, 3000);
+      } catch(_) {}
+    })();
+
+    async function advanceIfVerified(cameFromSignal){
+      try{
+        if (!window.firebase?.auth) return;
+        const user = firebase.auth().currentUser;
+        if (!user) return;
+        await user.reload();
+        if (user.emailVerified === true) {
+          location.href = '/pages/configuracao.html';
+        } else if (cameFromSignal) {
+          verifyBannerText.textContent = 'Quase lá! Estamos confirmando sua verificação... se não avançar automaticamente em alguns segundos, clique novamente.';
+        }
+      } catch(_) {}
+    }
+
+    function showVerifyBanner(email){
+      verifyBannerEmail.textContent = email ? ('E-mail: ' + email) : '';
+      verifyBanner.style.display = 'flex';
+    }
+    function hideVerifyBanner(){ verifyBanner.style.display = 'none'; }
+
+    btnAlreadyVerified.addEventListener('click', async (e)=>{
+      e.preventDefault();
+      await advanceIfVerified(true);
+    });
+
+    // Se o usuário já estiver logado quando abrir esta página,
+    // exibimos o banner/auto-avanço conforme o estado do e-mail.
+    document.addEventListener('DOMContentLoaded', async () => {
+      try{
+        if (!window.firebase?.auth) return;
+        const user = firebase.auth().currentUser || null;
+        if (user) {
+          try { await user.reload(); } catch(_){}
+          if (user.emailVerified === true) {
+            location.href = '/pages/configuracao.html';
+            return;
+          } else {
+            const em = user.email || '';
+            showVerifyBanner(em);
+          }
+        }
+      } catch(_){}
+    });
+
+    /* ====== Submit (com Turnstile obrigatório, preservando backend) ====== */
+    async function proceedSubmit(){
       formMsg.className='hint';
       formMsg.textContent='Enviando cadastro com segurança...';
+
+      // exige token válido antes de enviar
+      const token = (document.getElementById('cf_token').value || '').trim();
+      if (!token) {
+        formMsg.className='error';
+        formMsg.textContent='Valide o desafio de segurança para continuar.';
+        return;
+      }
 
       submitBtn.classList.add('btn-disabled');
       submitBtn.setAttribute('aria-disabled','true');
 
-      // Captcha token (Turnstile prioridade; fallback: parametro do callback)
-      const captchaToken = cfToken || captchaTokenFromCallback || null;
-
-      // Se Turnstile estiver presente mas sem token, não envia
-      if (window.turnstile && !captchaToken) {
-        formMsg.className='error';
-        formMsg.textContent='Valide o desafio de segurança para continuar.';
-        submitBtn.classList.remove('btn-disabled'); submitBtn.removeAttribute('aria-disabled');
-        try { if (window.turnstile) turnstile.reset(cfWidgetId); } catch(_) {}
-        turnstileBusy = false;
-        return;
-      }
-
-      // variáveis para cleanup de Auth em caso de falha
       let createdNewUser = false;
       let authInst = null;
 
       try{
-        /* ==== Autentica e envia JSON com Bearer (sem cookies) ==== */
         const nome = (document.getElementById('nome').value || '').trim();
         const email = (emailInput.value || '').trim();
         const senha = (pwd.value || '');
         const telefoneDigits = normalizeDigits(phoneInput.value || '');
         const cnpjDigits = normalizeCNPJ(cnpjInput.value || '');
 
-        // Pega Auth
         const getAuthCompatOrModular = () => {
-          if (window.firebase?.auth) {
-            try { return firebase.auth(); } catch(_) {}
-          }
-          if (window.getAuth) {
-            try { return window.getAuth(); } catch(_) {}
-          }
+          if (window.firebase?.auth) { try { return firebase.auth(); } catch(_) {} }
+          if (window.getAuth) { try { return window.getAuth(); } catch(_) {} }
           if (window.auth) return window.auth;
           return null;
         };
@@ -442,31 +518,23 @@
         const { user, created } = await ensureAuthenticated(email, senha);
         createdNewUser = !!created;
         const idToken = await user.getIdToken();
+        console.log('[cadastro] idToken len:', (idToken||'').length);
 
-        // 🚩 Payload JSON conforme backend (leads-only flag será tratada no servidor)
-        const payload = {
-          email,
-          senha,
-          nome,
-          telefone: telefoneDigits,
-          cnpj: cnpjDigits
-          // segmento: opcional (será "servicos" por default no backend)
-        };
-        if (captchaToken) payload.cf_token = captchaToken; // backend também aceita no body (além do header)
+        // Banner de “aguardando verificação” já com o e-mail do usuário
+        try { showVerifyBanner(user.email || email); } catch(_){}
+
+        // Payload JSON para backend (LEADS_MODE: servidor grava em leads)
+        const payload = { email, senha, nome, telefone: telefoneDigits, cnpj: cnpjDigits, cf_token: token };
 
         const headers = {
           'Content-Type': 'application/json',
           'Accept': 'application/json',
-          'Authorization': 'Bearer ' + idToken
+          'Authorization': 'Bearer ' + idToken,
+          'X-Turnstile-Token': token,              // header comum
+          'cf-turnstile-response': token           // alguns backends leem deste nome
         };
-        if (captchaToken) { headers['cf-turnstile-response'] = captchaToken; }
 
-        const res = await fetch(API.cadastro, {
-          method: 'POST',
-          headers,
-          body: JSON.stringify(payload)
-        });
-
+        const res = await fetch(API.cadastro, { method: 'POST', headers, body: JSON.stringify(payload) });
         const text = await res.text();
         let data = {};
         try { data = text ? JSON.parse(text) : {}; } catch(_) {}
@@ -474,15 +542,11 @@
         if (!res.ok) {
           console.warn('[cadastro][422/debug]', res.status, data || text);
 
-          const msg = (data && (data.message || data.detail || data.error_description || data.error)) || ('HTTP ' + res.status);
-
-          if (res.status === 429 && data && (data.error === 'captcha_required' || data.error === 'captcha_failed')) {
+          if (res.status === 429) {
+            // sinal típico de captcha faltando/ruim no backend
             formMsg.className='error';
-            formMsg.textContent = (data.error === 'captcha_failed')
-              ? 'Falha na validação de segurança. Tente novamente.'
-              : 'Valide o desafio de segurança para continuar.';
-            try { if (window.turnstile) turnstile.reset(cfWidgetId); } catch(_) {}
-            turnstileBusy = false;
+            formMsg.textContent = 'Validação de segurança falhou. Recarregue o desafio e tente novamente.';
+            try { if (window.turnstile && CF_WIDGET_ID) turnstile.reset(CF_WIDGET_ID); } catch(_) {}
             submitBtn.classList.remove('btn-disabled'); submitBtn.removeAttribute('aria-disabled');
             await tryDeleteJustCreatedUser(authInst, createdNewUser);
             return;
@@ -493,23 +557,22 @@
             if (data && (data.message || data.detail)) {
               formMsg.textContent = String(data.message || data.detail);
             } else if (data && data.field) {
-              // se backend aponta o campo específico
               const map = { email:'e-mail', senha:'senha', nome:'nome', telefone:'telefone', cnpj:'CNPJ' };
               const nice = map[data.field] || data.field;
               formMsg.textContent = `Algum campo está inválido (${nice}). Revise e tente novamente.`;
             } else {
               formMsg.textContent = 'Algum campo está inválido. Revise nome, e-mail, telefone e CNPJ e tente novamente.';
             }
-            try { if (window.turnstile) turnstile.reset(cfWidgetId); } catch(_) {}
-            turnstileBusy = false;
+            try { if (window.turnstile && CF_WIDGET_ID) turnstile.reset(CF_WIDGET_ID); } catch(_) {}
             submitBtn.classList.remove('btn-disabled'); submitBtn.removeAttribute('aria-disabled');
             await tryDeleteJustCreatedUser(authInst, createdNewUser);
             return;
           }
 
-          throw new Error('Falha no cadastro: ' + msg);
+          throw new Error('Falha no cadastro.');
         }
 
+        // Fluxo após cadastro
         if (data.next === 'verifyEmail') {
           const mail = (data.email || email).trim();
           location.href = '/verify-email.html?email=' + encodeURIComponent(mail);
@@ -523,8 +586,7 @@
         formMsg.className='error';
         formMsg.textContent='Não foi possível concluir agora. Tente novamente.';
         submitBtn.classList.remove('btn-disabled'); submitBtn.removeAttribute('aria-disabled');
-        try { if (window.turnstile) turnstile.reset(cfWidgetId); } catch(_) {}
-        turnstileBusy = false;
+        try { if (window.turnstile && CF_WIDGET_ID) turnstile.reset(CF_WIDGET_ID); } catch(_) {}
 
         if (authInst) { await tryDeleteJustCreatedUser(authInst, createdNewUser); }
       }
@@ -545,32 +607,17 @@
       if (!phoneDigits || phoneDigits.length < 10 || phoneDigits.length > 11) { formMsg.className='error'; formMsg.textContent='Informe um telefone com DDD (10 ou 11 dígitos).'; phoneInput.focus(); return; }
       if (!document.getElementById('aceite').checked) { formMsg.className='error'; formMsg.textContent='Confirme que leu e aceitou os Termos e a Política de Privacidade.'; return; }
 
-      if (window.turnstile) {
-        ensureTurnstileWidget();
-        if (turnstileBusy) return;
-        turnstileBusy = true;
-        formMsg.textContent='Validando segurança...';
-        pendingSubmit = (token)=> proceedSubmit(token);
-        try {
-          try { turnstile.reset(cfWidgetId); } catch(_) {}
-          turnstile.execute(cfWidgetId);
-        } catch(_) {
-          turnstileBusy = false;
-          proceedSubmit(null);
-        }
+      // exige token do Turnstile antes de enviar
+      const token = (document.getElementById('cf_token').value || '').trim();
+      if (!token) {
+        formMsg.className='error';
+        formMsg.textContent='Valide o desafio de segurança para liberar o envio.';
         return;
       }
 
-      if (typeof grecaptcha !== 'undefined' && typeof grecaptcha.execute === 'function' && recaptchaWidgetId !== null) {
-        formMsg.textContent='Validando segurança...';
-        pendingSubmit = (token)=> proceedSubmit(token);
-        grecaptcha.execute(recaptchaWidgetId);
-      } else {
-        proceedSubmit(null);
-      }
+      proceedSubmit();
     });
-
-    document.addEventListener('DOMContentLoaded', () => { /* init */ });
   </script>
 </body>
 </html>
+
