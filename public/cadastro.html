@@ -11,8 +11,7 @@
   <meta name="twitter:url" content="https://www.meirobo.com.br/cadastro.html" />
   <meta name="referrer" content="strict-origin-when-cross-origin" />
 
-  <!-- CSP leve para silenciar o aviso de default-src e liberar Turnstile/Firebase -->
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://challenges.cloudflare.com; connect-src 'self' https://mei-robo-prod.onrender.com; img-src 'self' data: https:; style-src 'self' 'unsafe-inline'; frame-src https://challenges.cloudflare.com;" />
+  <!-- REMOVIDO: meta CSP inline que conflita com a CSP de servidor -->
 
   <!-- Firebase Hosting: SDK compat + init automático -->
   <script defer src="/__/firebase/9.22.2/firebase-app-compat.js"></script>
