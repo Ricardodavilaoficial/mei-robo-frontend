@@ -222,6 +222,7 @@
       availability: API_BASE + "/api/cnpj/availability",
       cadastro:     API_BASE + "/api/cadastro",
       checkVerification: API_BASE + "/api/auth/check-verification",
+      authReclaim:  API_BASE + "/api/auth/reclaim-email" // <— endpoint opcional p/ “destravar” e-mail não verificado
     };
 
     /* ====== UI refs ====== */
@@ -268,13 +269,12 @@
     function renderTurnstile() {
       try {
         if (isValidateMode()) {
-          // Bypass de validação só no modo de validação de UI
           CF_TOKEN = 'validate-mode';
           CF_TOKEN_TS = Date.now();
           const hidden = document.getElementById('cf_token');
           if (hidden) hidden.value = CF_TOKEN;
           enableSubmit();
-          return; // não renderiza o widget em validate=1
+          return;
         }
 
         const meta = document.querySelector('meta[name="TURNSTILE_SITE_KEY"]');
@@ -312,7 +312,7 @@
     // Watchdog: expira token após ~115s e força re-render
     setInterval(() => {
       try{
-        if (isValidateMode()) return; // sem watchdog no modo de validação
+        if (isValidateMode()) return;
         if (!CF_TOKEN_TS) return;
         const age = Date.now() - CF_TOKEN_TS;
         if (age > 115000) {
@@ -376,7 +376,6 @@
           cnpjAvailability = 'available';
           cnpjStatus.textContent = 'CNPJ disponível para cadastro.';
           cnpjStatus.className = 'ok';
-          // manter botão condicionado ao Turnstile: só libera no callback
         } else {
           cnpjAvailability = 'unavailable';
           cnpjStatus.textContent = 'Este CNPJ já tem conta. Você pode recuperar o acesso ou usar outro.';
@@ -387,7 +386,6 @@
         cnpjAvailability = 'unknown';
         cnpjStatus.textContent = 'Não foi possível verificar agora. Validaremos no servidor.';
         cnpjStatus.className = 'hint';
-        // manter regra do botão pelo Turnstile
       }
     }
     const debouncedCheck = debounce(checkCNPJAvailability, 600);
@@ -464,7 +462,6 @@
     });
 
     // Se o usuário já estiver logado quando abrir esta página,
-    // exibimos o banner/auto-avanço conforme o estado do e-mail.
     document.addEventListener('DOMContentLoaded', async () => {
       try{
         if (!window.firebase?.auth) return;
@@ -487,7 +484,6 @@
       formMsg.className='hint';
       formMsg.textContent='Enviando cadastro com segurança...';
 
-      // exige token válido antes de enviar
       const token = (document.getElementById('cf_token').value || '').trim();
       if (!token) {
         formMsg.className='error';
@@ -524,13 +520,14 @@
           try { methods = await authInst.fetchSignInMethodsForEmail(email); } catch(_) {}
 
           if (methods && methods.length > 0) {
-            // Já existe → tenta login (mensagem clara se senha não confere)
+            // Já existe → tenta login
             try {
               const cred = await authInst.signInWithEmailAndPassword(email, password);
               return { user: cred.user, created: false };
             } catch (e) {
               if (e && (e.code === 'auth/wrong-password' || e.code === 'auth/invalid-login-credentials')) {
-                throw Object.assign(new Error('Senha incorreta para este e-mail.'), { code: 'auth/wrong-password' });
+                // Sinaliza erro específico para tratarmos o “reclaim” no catch de proceedSubmit
+                e.__wrongPassword = true;
               }
               throw e;
             }
@@ -552,18 +549,14 @@
         const { user, created } = await ensureAuthenticated(email, senha);
         createdNewUser = !!created;
 
-        // Envia e-mail de verificação se ainda não verificado
         try { if (user && !user.emailVerified) { await user.sendEmailVerification(); } } catch(_){}
 
         const idToken = await user.getIdToken();
         console.log('[cadastro] idToken len:', (idToken||'').length);
 
-        // Banner de “aguardando verificação” já com o e-mail do usuário
         try { showVerifyBanner(user.email || email); } catch(_){ }
 
-        // Payload JSON para backend (LEADS_MODE: servidor grava em leads)
         const payload = { email, senha, nome, telefone: telefoneDigits, cnpj: cnpjDigits, cf_token: token };
-
         const headers = {
           'Content-Type': 'application/json',
           'Accept': 'application/json',
@@ -609,7 +602,6 @@
           throw new Error('Falha no cadastro.');
         }
 
-        // Fluxo após cadastro
         if (data.next === 'verifyEmail') {
           const mail = (data.email || email).trim();
           location.href = '/verify-email.html?email=' + encodeURIComponent(mail);
@@ -621,13 +613,86 @@
       } catch(e){
         console.error(e);
         formMsg.className='error';
-        if (e && e.code === 'auth/wrong-password') {
-          formMsg.textContent='E-mail já cadastrado: a senha informada não confere. Tente recuperar o acesso ou use a senha correta.';
+
+        // === TRATAMENTO “RECLAIM”: e-mail existente + senha incorreta ===
+        const wrong = e && (e.code === 'auth/wrong-password' || e.code === 'auth/invalid-login-credentials' || e.__wrongPassword);
+        const email = (emailInput.value || '').trim();
+        const senha = (pwd.value || '');
+
+        if (wrong && API.authReclaim) {
+          try {
+            // Tenta desbloquear conta NÃO verificada no backend (idempotente)
+            const resp = await fetch(API.authReclaim, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'X-Turnstile-Token': (document.getElementById('cf_token').value || '').trim(),
+                'cf-turnstile-response': (document.getElementById('cf_token').value || '').trim()
+              },
+              body: JSON.stringify({ email })
+            });
+            let ok = false;
+            try {
+              const j = await resp.json();
+              ok = !!j.ok;
+            } catch(_) {}
+
+            if (resp.ok && ok) {
+              // Recria imediatamente com a senha informada e segue fluxo normal
+              const cred = await firebase.auth().createUserWithEmailAndPassword(email, senha);
+              const user = cred.user;
+              try { if (user && !user.emailVerified) await user.sendEmailVerification(); } catch(_){}
+              const idToken = await user.getIdToken();
+              try { showVerifyBanner(user.email || email); } catch(_){ }
+              const telefoneDigits = normalizeDigits(phoneInput.value || '');
+              const cnpjDigits = normalizeCNPJ(cnpjInput.value || '');
+              const nome = (document.getElementById('nome').value || '').trim();
+              const payload = { email, senha, nome, telefone: telefoneDigits, cnpj: cnpjDigits, cf_token: (document.getElementById('cf_token').value || '').trim() };
+
+              const headers = {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+                'Authorization': 'Bearer ' + idToken,
+                'X-Turnstile-Token': (document.getElementById('cf_token').value || '').trim(),
+                'cf-turnstile-response': (document.getElementById('cf_token').value || '').trim()
+              };
+              const res2 = await fetch(API.cadastro, { method: 'POST', headers, body: JSON.stringify(payload) });
+              if (res2.ok) {
+                location.href = '/verify-email.html?email=' + encodeURIComponent(email);
+                return;
+              } else {
+                formMsg.textContent = 'Cadastro criado, mas não conseguimos salvar seus dados agora. Tente novamente.';
+                enableSubmit();
+                return;
+              }
+            }
+          } catch(_err) {
+            // se o reclaim falhar, cai para o fluxo de reset
+          }
+        }
+
+        // Mensagem final se não houve reclaim bem sucedido
+        if (wrong) {
+          formMsg.innerHTML = 'E-mail já cadastrado: a senha informada não confere. ' +
+            '<a href="#" id="linkReset">Redefinir senha por e-mail</a>.';
+          const el = document.getElementById('linkReset');
+          if (el) el.addEventListener('click', async (ev) => {
+            ev.preventDefault();
+            try {
+              await firebase.auth().sendPasswordResetEmail((emailInput.value||'').trim());
+              formMsg.className='hint';
+              formMsg.textContent = 'Enviamos um e-mail de redefinição de senha. Verifique sua caixa de entrada.';
+            } catch (err) {
+              console.error(err);
+              formMsg.className='error';
+              formMsg.textContent = 'Não foi possível enviar o e-mail de redefinição agora. Tente novamente.';
+            }
+          });
         } else {
           formMsg.textContent='Não foi possível concluir agora. Tente novamente.';
         }
-        try { if (window.turnstile && CF_WIDGET_ID) turnstile.reset(CF_WIDGET_ID); } catch(_) { }
 
+        try { if (window.turnstile && CF_WIDGET_ID) turnstile.reset(CF_WIDGET_ID); } catch(_) { }
         if (authInst) { await tryDeleteJustCreatedUser(authInst, createdNewUser); }
         enableSubmit();
       }
@@ -648,7 +713,6 @@
       if (!phoneDigits || phoneDigits.length < 10 || phoneDigits.length > 11) { formMsg.className='error'; formMsg.textContent='Informe um telefone com DDD (10 ou 11 dígitos).'; phoneInput.focus(); return; }
       if (!document.getElementById('aceite').checked) { formMsg.className='error'; formMsg.textContent='Confirme que leu e aceitou os Termos e a Política de Privacidade.'; return; }
 
-      // exige token do Turnstile antes de enviar
       const token = (document.getElementById('cf_token').value || '').trim();
       if (!token) {
         formMsg.className='error';
