@@ -11,12 +11,11 @@
   <meta name="twitter:url" content="https://www.meirobo.com.br/cadastro.html" />
   <meta name="referrer" content="strict-origin-when-cross-origin" />
 
-  <!-- REMOVIDO: meta CSP inline que conflita com a CSP de servidor -->
-
   <!-- Firebase Hosting: SDK compat + init automático -->
   <script defer src="/__/firebase/9.22.2/firebase-app-compat.js"></script>
   <script defer src="/__/firebase/9.22.2/firebase-auth-compat.js"></script>
-  <script defer src="/__/firebase/init.js?useEmulator=false"></script>
+  <!-- IMPORTANT: sem emulador em produção -->
+  <script defer src="/__/firebase/init.js"></script>
   <script>
   window.addEventListener('load', () => {
     try {
@@ -33,9 +32,6 @@
   <!-- Cloudflare Turnstile (produção) - mantido para atender o backend -->
   <meta name="TURNSTILE_SITE_KEY" content="0x4AAAAAAB0t6kBJwJJgmsr3">
   <script src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit" async defer></script>
-
-  <!-- reCAPTCHA v2 Invisible (fallback desativado; mantemos apenas placeholders) -->
-  <meta name="RECAPTCHA_SITE_KEY" content="">
 
   <link rel="stylesheet" href="/assets/styles.css" />
 
@@ -218,8 +214,6 @@
   <div id="footer"></div>
 
   <script src="/assets/layout.js?v=20250905f" defer></script>
-
-  <!-- reCAPTCHA (invisible v2) DESATIVADO - não carregamos o script para evitar conflitos -->
 
   <script>
     /* ====== CONFIG do Backend ====== */
@@ -522,41 +516,37 @@
         authInst = getAuthCompatOrModular();
         if (!authInst) throw new Error('Firebase Auth não inicializado nesta página.');
 
+        // === NOVO fluxo robusto: descobre métodos antes de decidir login/criação ===
         async function ensureAuthenticated(email, password){
           if (authInst.currentUser) return { user: authInst.currentUser, created: false };
 
-          if (typeof authInst.createUserWithEmailAndPassword === 'function') {
+          let methods = [];
+          try { methods = await authInst.fetchSignInMethodsForEmail(email); } catch(_) {}
+
+          if (methods && methods.length > 0) {
+            // Já existe → tenta login
             try {
-              const cred = await authInst.createUserWithEmailAndPassword(email, password);
-              return { user: cred.user, created: true };
+              const cred = await authInst.signInWithEmailAndPassword(email, password);
+              return { user: cred.user, created: false };
             } catch (e) {
-              if (e && (e.code === 'auth/email-already-in-use' || e.code === 'auth/email-already-exists')) {
-                const cred = await authInst.signInWithEmailAndPassword(email, password);
-                return { user: cred.user, created: false };
+              if (e && (e.code === 'auth/wrong-password' || e.code === 'auth/invalid-login-credentials')) {
+                throw Object.assign(new Error('Senha incorreta para este e-mail.'), { code: 'auth/wrong-password' });
               }
               throw e;
             }
+          } else {
+            // Não existe → criar
+            const cred = await authInst.createUserWithEmailAndPassword(email, password);
+            return { user: cred.user, created: true };
           }
-
-          if (window.createUserWithEmailAndPassword && window.signInWithEmailAndPassword) {
-            const inst = window.getAuth ? window.getAuth() : authInst;
-            try {
-              const cred = await window.createUserWithEmailAndPassword(inst, email, password);
-              return { user: cred.user, created: true };
-            } catch (e) {
-              if (e && (e.code === 'auth/email-already-in-use' || e.code === 'auth/email-already-exists')) {
-                const cred = await window.signInWithEmailAndPassword(inst, email, password);
-                return { user: cred.user, created: false };
-              }
-              throw e;
-            }
-          }
-
-          throw new Error('SDK do Firebase Auth indisponível para criar/entrar.');
         }
 
         const { user, created } = await ensureAuthenticated(email, senha);
         createdNewUser = !!created;
+
+        // Envia e-mail de verificação se ainda não verificado
+        try { if (user && !user.emailVerified) { await user.sendEmailVerification(); } } catch(_){}
+
         const idToken = await user.getIdToken();
         console.log('[cadastro] idToken len:', (idToken||'').length);
 
@@ -570,8 +560,8 @@
           'Content-Type': 'application/json',
           'Accept': 'application/json',
           'Authorization': 'Bearer ' + idToken,
-          'X-Turnstile-Token': token,              // header comum
-          'cf-turnstile-response': token           // alguns backends leem deste nome
+          'X-Turnstile-Token': token,
+          'cf-turnstile-response': token
         };
 
         const res = await fetch(API.cadastro, { method: 'POST', headers, body: JSON.stringify(payload) });
@@ -583,7 +573,6 @@
           console.warn('[cadastro][debug]', res.status, data || text);
 
           if (res.status === 429) {
-            // sinal típico de captcha faltando/ruim no backend
             formMsg.className='error';
             formMsg.textContent = 'Validação de segurança falhou. Recarregue o desafio e tente novamente.';
             try { if (window.turnstile && CF_WIDGET_ID) turnstile.reset(CF_WIDGET_ID); } catch(_) { }
@@ -624,7 +613,11 @@
       } catch(e){
         console.error(e);
         formMsg.className='error';
-        formMsg.textContent='Não foi possível concluir agora. Tente novamente.';
+        if (e && e.code === 'auth/wrong-password') {
+          formMsg.textContent='E-mail já cadastrado: a senha informada não confere. Tente recuperar o acesso ou use a senha correta.';
+        } else {
+          formMsg.textContent='Não foi possível concluir agora. Tente novamente.';
+        }
         try { if (window.turnstile && CF_WIDGET_ID) turnstile.reset(CF_WIDGET_ID); } catch(_) { }
 
         if (authInst) { await tryDeleteJustCreatedUser(authInst, createdNewUser); }
@@ -660,3 +653,4 @@
   </script>
 </body>
 </html>
+
