@@ -40,7 +40,7 @@
     .display-value{display:block;padding:10px 0 2px;font-weight:600;color:var(--fg-display);letter-spacing:.2px}
     .btn{padding:10px 14px;border:0;border-radius:8px;cursor:pointer}
     .btn.primary{background:#25D366;color:#fff}
-    .btn.outline{background:transparent;border:1px solid var(--bd-input);color:var(--fg-input)}
+    .btn.outline{background:transparent;border:1px solid var(--bd-input);color:#fff}
     .btn[disabled]{opacity:.6;cursor:not-allowed}
     .card + .card{margin-top:16px}
     .pill{display:inline-block;font-size:.76rem;line-height:1;padding:5px 8px;border-radius:999px;vertical-align:middle;margin-left:8px}
@@ -68,16 +68,15 @@
     .progress-wrap{ margin-top:8px }
     .progress{ width:100%; height:8px; background:rgba(255,255,255,0.08); border-radius:999px; overflow:hidden }
     .progress > span{ display:block; height:100%; width:0% }
+
+    /* status topo (auth/loading) */
+    #authStatus { margin:8px 0 0; font-size:.9rem; opacity:.85 }
   </style>
   
-  <!-- opcional: só use se a API estiver em outro domínio/host -->
   <script>
+    /* API base */
     window.API_BASE = "https://mei-robo-prod.onrender.com";
   </script>
-
-  <!-- script de autofill do CNPJ -->
-  <script src="/assets/js/configuracao.cnpj.js" defer></script>
-
 </head>
 <body>
   <div id="app-header"></div>
@@ -85,8 +84,21 @@
   <main class="container">
     <div class="card">
       <h2>Configuração de comunicação</h2>
+      <p id="authStatus" class="hint"></p>
       <p class="hint">Como você fala com as pessoas no WhatsApp. Capriche aqui: isso aumenta respostas, orçamentos e fechamentos.</p>
       <p class="hint mt-8">Este é o <strong>padrão geral</strong>. Depois dá pra ajustar por contato.</p>
+
+      <!-- Bloco opcional: aparece apenas se faltar CNPJ -->
+      <section id="cnpjInlineForm" class="card-dark" style="display:none; padding:12px; margin:12px 0;">
+        <h3 style="margin:0 0 6px;">Informe seu CNPJ</h3>
+        <div class="hint" style="margin:4px 0 10px;">Usamos o CNPJ para preencher seus dados automaticamente.</div>
+        <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
+          <input id="cnpjInput" class="input" type="text" inputmode="numeric" maxlength="18"
+                 placeholder="00.000.000/0000-00" style="min-width:220px;">
+          <button id="btnSalvarCnpj" class="cta">Salvar CNPJ</button>
+          <span id="cnpjMsg" class="hint"></span>
+        </div>
+      </section>
 
       <form id="config-form" class="mt-16" novalidate>
         <section id="sec-waba">
@@ -243,7 +255,7 @@
           </div>
         </section>
 
-        <!-- ====== NOVA SEÇÃO: Voz (upload/gravação + progresso + polling) ====== -->
+        <!-- ====== Voz (upload/gravação + progresso + polling) ====== -->
         <section class="mt-24" id="sec-voz">
           <h3>Sua voz (obrigatório)</h3>
           <p class="hint">Envie até <strong>5 áudios</strong> (WAV/MP3/M4A/OGG/WEBM). A soma deve ter pelo menos <strong>1 minuto</strong> (ideal 10–30min). Grave em local silencioso.</p>
@@ -280,7 +292,7 @@
         </section>
 
         <div class="mt-24">
-          <button id="btn-salvar" type="submit" class="btn primary">Salvar e continuar</button>
+          <button id="btn-salvar" type="submit" class="btn primary" disabled>Salvar e continuar</button>
           <span id="config-feedback" class="hint mt-8" style="margin-left:8px;"></span>
         </div>
       </form>
@@ -289,45 +301,94 @@
 
   <div id="app-footer"></div>
 
-  <!-- CNPJ: auto-preenchimento via /api/configuracao -> /api/cnpj/<cnpj> -->
-  <script src="/assets/js/configuracao.cnpj.js?v=1"></script>
-
+  <!-- CNPJ: auto-preenchimento via /api/conta/status e /api/configuracao -->
   <script>
     const API_BASE = (localStorage.getItem('apiBase') || 'https://mei-robo-prod.onrender.com').replace(/\/+$/, '');
 
-    async function waitForFirebaseAuth(timeoutMs = 10000) {
-      return new Promise((resolve) => {
-        const start = Date.now();
-        (function check() {
-          const ready = !!(window.firebase && firebase.apps && firebase.apps.length && firebase.auth);
-          if (ready) return resolve(true);
-          if (Date.now() - start > timeoutMs) return resolve(false);
-          setTimeout(check, 50);
+    /* ===== Gatekeeper robusto ===== */
+    const authStatus = document.getElementById('authStatus');
+
+    function setAuthMsg(t){ authStatus.textContent = t || ''; }
+
+    function waitForFirebaseAuthReady(timeoutMs=12000){
+      return new Promise(res=>{
+        const start=Date.now();
+        (function loop(){
+          const ok = !!(window.firebase && firebase.apps && firebase.apps.length && firebase.auth);
+          if (ok) return res(true);
+          if (Date.now()-start > timeoutMs) return res(false);
+          setTimeout(loop, 60);
         })();
       });
     }
 
-    (async function gatekeeper() {
-      await waitForFirebaseAuth();
-      let user = null;
-      if (window.firebase && firebase.auth) {
-        user = firebase.auth().currentUser;
-        try { await user?.reload(); } catch(_) {}
-      }
-      if (!user) {
-        location.href = '/pages/login.html';
-        return;
-      }
-      if (!user.emailVerified) {
-        location.href = '/verify-email.html';
-        return;
-      }
-      init(); // só segue após login + email verificado
-    })();
+    function waitForUser(timeoutMs=12000){
+      return new Promise(res=>{
+        const auth = firebase.auth();
+        const u = auth.currentUser;
+        if (u) return res(u);
+        let done=false;
+        const t = setTimeout(()=>{ if(!done){ done=true; unsub(); res(null); } }, timeoutMs);
+        const unsub = auth.onAuthStateChanged(async user=>{
+          if (done) return;
+          done=true; clearTimeout(t); unsub();
+          res(user||null);
+        });
+      });
+    }
 
+    async function refreshTokenSafe(user){
+      try { await user.getIdToken(true); } catch(_) {}
+    }
+
+    async function ensureVerifiedOrSendBack(){
+      const okSdk = await waitForFirebaseAuthReady();
+      if (!okSdk){ setAuthMsg('Serviço de autenticação indisponível. Recarregue a página.'); return false; }
+
+      let user = firebase.auth().currentUser;
+      if (!user){
+        setAuthMsg('Conectando…');
+        user = await waitForUser(8000);
+      }
+
+      if (!user){
+        setAuthMsg('Sessão não encontrada. Redirecionando ao login…');
+        location.href = '/pages/login.html?next=' + encodeURIComponent('/pages/configuracao.html');
+        return false;
+      }
+
+      try { await user.reload(); } catch(_) {}
+      await refreshTokenSafe(user);
+
+      if (!user.emailVerified){
+        location.href = '/verify-email.html?cont=' + encodeURIComponent('/pages/configuracao.html');
+        return false;
+      }
+
+      setAuthMsg('');
+      return true;
+    }
+
+    /* ===== Utilitários ===== */
     function escapeHtml(str){ return String(str).replace(/[&<>"']/g, s => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[s])); }
     function formatDateBR(iso){ try { const d=new Date(iso); return `${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}/${d.getFullYear()}` } catch(_){ return iso; } }
     function onlyDigits(s){ return String(s||'').replace(/\D+/g,''); }
+
+    // === Validação simples de CNPJ (dígitos + DV)
+    function isValidCNPJ(cnpj){
+      cnpj = onlyDigits(cnpj||'');
+      if (cnpj.length !== 14) return false;
+      if (/^(\d){13}$/.test(cnpj)) return false;
+      let t = 12, d1 = 0, d2 = 0, p1 = 5, p2 = 6;
+      for (let i = 0; i < t; i++) {
+        const n = parseInt(cnpj[i],10);
+        d1 += n * p1; d2 += n * p2;
+        p1 = (p1===2)?9:p1-1; p2 = (p2===2)?9:p2-1;
+      }
+      d1 = 11 - (d1 % 11); if (d1 > 9) d1 = 0;
+      d2 += d1 * 2; d2 = 11 - (d2 % 11); if (d2 > 9) d2 = 0;
+      return (parseInt(cnpj[12],10) === d1) && (parseInt(cnpj[13],10) === d2);
+    }
 
     const form = document.getElementById('config-form');
     const cfgFeedback = document.getElementById('config-feedback');
@@ -368,6 +429,12 @@
 
     const cnpjVinculoHint = document.getElementById('cnpj-vinculo-hint');
 
+    // Inline CNPJ elements
+    const cnpjForm = document.getElementById('cnpjInlineForm');
+    const cnpjInput = document.getElementById('cnpjInput');
+    const btnSalvarCnpj = document.getElementById('btnSalvarCnpj');
+    const cnpjMsg = document.getElementById('cnpjMsg');
+
     fJanela.addEventListener('change', () => {
       wrapCustom.style.display = (fJanela.value === 'custom') ? 'block' : 'none';
     });
@@ -402,43 +469,269 @@
       return { uid, idToken };
     }
 
+    /* ===== Voz: estado “pronta” para habilitar salvar ===== */
+    const voiceEls = {
+      area: document.getElementById('uploadArea'),
+      input: document.getElementById('voiceFiles'),
+      btnChoose: document.getElementById('btnChooseFiles'),
+      btnClear: document.getElementById('btnClearFiles'),
+      btnEnviar: document.getElementById('btnEnviar'),
+      list: document.getElementById('fileList'),
+      msg: document.getElementById('vozMsg'),
+      bar: document.getElementById('uploadBar'),
+      aceite: document.getElementById('aceiteVoz'),
+      recStart: document.getElementById('btnStartRec'),
+      recStop: document.getElementById('btnStopRec'),
+    };
+    const voiceState = { files: [], uploading:false, polling:null, media:{rec:null, chunks:[]}, ready:false };
+
+    function setVoiceMsg(text, isError=false){ voiceEls.msg.textContent = text || ''; voiceEls.msg.className = isError ? 'hint error' : 'hint'; }
+    function setUploadPct(pct){ voiceEls.bar.style.width = Math.max(0, Math.min(100, pct)) + '%'; }
+    function enableVoiceControls(on){
+      const d = !on;
+      voiceEls.btnChoose.disabled = d;
+      voiceEls.btnClear.disabled = d;
+      voiceEls.btnEnviar.disabled = d;
+      voiceEls.recStart.disabled = d;
+      voiceEls.recStop.disabled = d || !voiceState.media.rec;
+      voiceEls.input.disabled = d;
+    }
+    function renderFileList(){
+      voiceEls.list.innerHTML='';
+      voiceState.files.forEach((f,idx)=>{
+        const li=document.createElement('li'); li.className='file-item';
+        const meta=document.createElement('div'); meta.className='file-meta'; meta.textContent=`${f.name} (${Math.round(f.size/1024)} KB)`;
+        const rm=document.createElement('button'); rm.className='remove-btn'; rm.textContent='Remover';
+        rm.addEventListener('click',()=>{ voiceState.files.splice(idx,1); renderFileList(); validateVoiceReady(); });
+        li.appendChild(meta); li.appendChild(rm); voiceEls.list.appendChild(li);
+      });
+    }
+    function addFiles(list){
+      const extsOK = ['.wav','.mp3','.m4a','.ogg','.webm'];
+      const isAudio = f => (f.type||'').toLowerCase().startsWith('audio/') || extsOK.some(ext => (f.name||'').toLowerCase().endsWith(ext));
+      for(const f of list){
+        if(voiceState.files.length>=5){ setVoiceMsg('Limite de 5 arquivos atingido.', true); break; }
+        if(!isAudio(f)){ setVoiceMsg('Arquivo rejeitado: extensão não reconhecida como áudio.', true); continue; }
+        voiceState.files.push(f);
+      }
+      renderFileList(); validateVoiceReady();
+    }
+    function validateVoiceReady(){
+      setVoiceMsg('');
+      if (voiceState.files.length===0){ setVoiceMsg('Nenhum arquivo selecionado. Envie pelo menos 1 áudio, com duração mínima de 1 minuto.'); voiceEls.btnEnviar.disabled = true; return; }
+      voiceEls.btnEnviar.disabled = !voiceEls.aceite.checked;
+    }
+    async function startRec(){
+      try{
+        const stream = await navigator.mediaDevices.getUserMedia({ audio:true });
+        const rec = new MediaRecorder(stream);
+        voiceState.media.rec = rec;
+        voiceState.media.chunks = [];
+        rec.ondataavailable = (e)=>{ if(e.data && e.data.size) voiceState.media.chunks.push(e.data); };
+        rec.onstop = ()=>{
+          try{ stream.getTracks().forEach(t=>t.stop()); }catch(_){}
+          const blob = new Blob(voiceState.media.chunks, { type: 'audio/webm' });
+          const file = new File([blob], `gravacao_${Date.now()}.webm`, { type: 'audio/webm' });
+          addFiles([file]);
+          voiceEls.recStop.disabled = true;
+          voiceEls.recStart.disabled = false;
+        };
+        rec.start();
+        voiceEls.recStart.disabled = true;
+        voiceEls.recStop.disabled = false;
+        setVoiceMsg('Gravando… clique em Parar para finalizar.');
+      } catch(e){
+        setVoiceMsg('Não foi possível acessar o microfone.', true);
+      }
+    }
+    function stopRec(){ try{ voiceState.media.rec?.stop(); }catch(_){ } setVoiceMsg('Gravação finalizada. Arquivo adicionado.'); }
+    async function uploadAndProcess(uid, idToken){
+      if (!voiceEls.aceite.checked){ setVoiceMsg('Confirme a autorização de uso da voz para continuar.', true); return; }
+      if (voiceState.files.length===0){ setVoiceMsg('Selecione/grave pelo menos 1 áudio.', true); return; }
+      voiceState.uploading = true; enableVoiceControls(false); setUploadPct(0); setVoiceMsg('Enviando áudio com segurança…');
+      const fd = new FormData(); voiceState.files.forEach((f)=> fd.append('voice', f, f.name));
+      const url = `${API_BASE}/api/voz/process?uid=${encodeURIComponent(uid)}`;
+      try{
+        const xhr = new XMLHttpRequest();
+        xhr.open('POST', url, true);
+        if (idToken) xhr.setRequestHeader('Authorization','Bearer ' + idToken);
+        xhr.upload.onprogress = (e)=>{ if(e.lengthComputable){ setUploadPct(Math.round(e.loaded/e.total*100)); } };
+        xhr.onreadystatechange = function(){
+          if (xhr.readyState === 4){
+            if (xhr.status >=200 && xhr.status <300){
+              setVoiceMsg('Upload concluído. Processando a voz…'); setUploadPct(100); startPolling(uid, idToken);
+            } else {
+              setVoiceMsg('Falha no envio. Tente novamente.', true); voiceState.uploading = false; enableVoiceControls(true);
+            }
+          }
+        };
+        xhr.send(fd);
+      } catch(e){
+        setVoiceMsg('Erro inesperado no envio.', true); voiceState.uploading = false; enableVoiceControls(true);
+      }
+    }
+    async function fetchLast(uid, idToken){
+      const headers = {}; if (idToken) headers['Authorization'] = 'Bearer ' + idToken;
+      const r = await fetch(`${API_BASE}/api/voz/last?uid=${encodeURIComponent(uid)}`, { headers, cache:'no-store' });
+      if (!r.ok) throw new Error('HTTP '+r.status);
+      return r.json();
+    }
+    function startPolling(uid, idToken){
+      clearInterval(voiceState.polling);
+      voiceState.polling = setInterval(async ()=>{
+        try{
+          const data = await fetchLast(uid, idToken);
+          const st = (data && data.status || '').toLowerCase();
+          if (st === 'ready'){
+            clearInterval(voiceState.polling);
+            setVoiceMsg('✅ Voz pronta para uso.');
+            voiceState.ready = true;
+            enableVoiceControls(true);
+            voiceState.uploading = false;
+            btnSalvar.disabled = false;
+          } else if (st === 'failed'){
+            clearInterval(voiceState.polling);
+            setVoiceMsg('❌ O processamento falhou. Tente reenviar os áudios.', true);
+            voiceState.ready = false;
+            enableVoiceControls(true);
+            voiceState.uploading = false;
+          } else {
+            setVoiceMsg('Processando… aguarde mais um pouco.');
+          }
+        } catch(_){}
+      }, 4000);
+    }
+    function setupVoice(uid, idToken){
+      voiceEls.btnChoose.addEventListener('click',()=> voiceEls.input.click());
+      voiceEls.input.addEventListener('change',(e)=>{ const files=e.target?.files; if(files) addFiles(files); voiceEls.input.value=''; });
+      voiceEls.btnClear.addEventListener('click',()=>{ voiceState.files=[]; renderFileList(); validateVoiceReady(); setUploadPct(0); setVoiceMsg(''); });
+      voiceEls.recStart.addEventListener('click', startRec);
+      voiceEls.recStop.addEventListener('click', stopRec);
+      voiceEls.aceite.addEventListener('change', validateVoiceReady);
+      voiceEls.btnEnviar.addEventListener('click', ()=> uploadAndProcess(uid, idToken));
+      renderFileList(); validateVoiceReady();
+      (async ()=>{
+        try{
+          const data = await fetchLast(uid, idToken);
+          if (data && data.status){
+            const st = String(data.status).toLowerCase();
+            if (st === 'ready'){ setVoiceMsg('✅ Sua voz já está pronta para uso.'); voiceState.ready = true; btnSalvar.disabled = false; }
+            else if (st === 'processing'){ setVoiceMsg('Processando voz anterior…'); startPolling(uid, idToken); }
+          }
+        }catch(_){}
+      })();
+    }
+
+    /* ======== NOVO: utilitários CNPJ/empresa (conta/status) ======== */
+    async function fetchJson(url, headers) {
+      const r = await fetch(url, { headers: headers || {}, cache: 'no-store' });
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      return r.json();
+    }
+
+    function populateFromEmpresa(empresa) {
+      if (!empresa) return;
+      const cnpjDig = onlyDigits(empresa.cnpj || '');
+      if (cnpjDig) { dCnpj.textContent = cnpjDig; hCnpj.value = cnpjDig; }
+      const legal = empresa.razaoSocial || '';
+      const trade = empresa.nomeFantasia || '';
+      if (legal) { dLegal.textContent = legal; hLegal.value = legal; }
+      if (trade) { dTrade.textContent = trade; hTrade.value = trade; }
+      const cnae = empresa.cnaePrincipal || {};
+      const seg = [cnae.codigo, cnae.descricao].filter(Boolean).join(' — ');
+      if (seg) { dSeg.textContent = seg; hSeg.value = seg; }
+    }
+
+    async function loadEmpresaFromContaStatus(uid, idToken) {
+      try {
+        if (!uid) return null;
+        const headers = {}; 
+        if (idToken) headers['Authorization'] = 'Bearer ' + idToken;
+        const j = await fetchJson(`${API_BASE}/api/conta/status?uid=${encodeURIComponent(uid)}`, headers);
+        if (j && j.empresa) {
+          populateFromEmpresa(j.empresa);
+          const municipio = j.empresa?.endereco?.municipio || '';
+          const uf = j.empresa?.endereco?.uf || '';
+          if (cnpjVinculoHint && (municipio || uf)) {
+            cnpjVinculoHint.textContent = `✅ CNPJ OK: ${municipio}${uf ? ' / ' + uf : ''}.`;
+          }
+        }
+        return j;
+      } catch (_) {
+        return null;
+      }
+    }
+
+    // ======= NOVO: helpers de configuração para CNPJ inline =======
+    async function fetchConfig(tok){
+      const r = await fetch(`${API_BASE}/api/configuracao`, { headers: { "Authorization": tok ? ("Bearer " + tok) : "", "Accept":"application/json" } });
+      if (!r.ok) throw new Error("config_fetch_failed");
+      return r.json();
+    }
+    async function postConfigCNPJ(tok, cnpj){
+      const r = await fetch(`${API_BASE}/api/configuracao`, {
+        method: "POST",
+        headers: { "Authorization": tok ? ("Bearer " + tok) : "", "Content-Type":"application/json", "Accept":"application/json" },
+        body: JSON.stringify({ cnpj })
+      });
+      return r;
+    }
+    async function checkCnpjAvailability(cnpj){
+      const r = await fetch(`${API_BASE}/api/cnpj/availability?cnpj=` + onlyDigits(cnpj));
+      return r.ok;
+    }
+
+    /* ===== Inicialização ===== */
+    (async function gatekeeper(){
+      const ok = await ensureVerifiedOrSendBack();
+      if (!ok) return;
+      init(); // só segue após login + email verificado
+    })();
+
     async function init() {
       const { uid, idToken } = await getAuthContext();
-      if (!uid) { location.href = '/pages/login.html'; return; }
+      if (!uid) { location.href = '/pages/login.html?next=' + encodeURIComponent('/pages/configuracao.html'); return; }
 
-      // GET /api/configuracao — exige CNPJ já salvo; sem CNPJ → redireciona ao cadastro
+      // 1) Preenche a UI a partir de /api/conta/status (dados do CNPJ)
+      await loadEmpresaFromContaStatus(uid, idToken);
+
       try {
-        const headers = {};
-        if (idToken) headers['Authorization'] = 'Bearer ' + idToken;
-
+        // 2) Depois, tenta /api/configuracao (pode dar 404 no primeiro acesso)
+        const headers = {}; if (idToken) headers['Authorization'] = 'Bearer ' + idToken;
         const resp = await fetch(`${API_BASE}/api/configuracao`, { method: 'GET', headers });
-        if (!resp.ok) {
-          if (resp.status === 401) { location.href = '/pages/login.html'; return; }
-          if (resp.status === 403 || resp.status === 428) { location.href = '/verify-email.html'; return; }
-          // Em qualquer outra falha, voltar para o início do onboarding
-          location.href = '/pages/ativar-cliente.html';
-          return;
+        let payload = null;
+
+        if (resp.status === 404) {
+          payload = {}; // primeiro acesso: segue com o que já temos da conta/status
+        } else if (resp.status === 401) {
+          location.href = '/pages/login.html?next=' + encodeURIComponent('/pages/configuracao.html'); return;
+        } else if (resp.status === 403 || resp.status === 428) {
+          location.href = '/verify-email.html?cont=' + encodeURIComponent('/pages/configuracao.html'); return;
+        } else if (!resp.ok) {
+          payload = {};
+        } else {
+          payload = await resp.json();
         }
 
-        const payload = await resp.json();
         const data = (payload && payload.data) ? payload.data : (payload || {});
 
-        const cnpjDigits = onlyDigits(data?.cnpj || '');
-        if (cnpjDigits.length !== 14) {
-          // Estado inválido para esta tela: exigir retorno ao passo de CNPJ
-          location.href = '/pages/ativar-cliente.html?step=cnpj_required';
-          return;
-        }
+        // Preenche mínimos a partir do Auth se precisar
+        let user = firebase.auth().currentUser;
+        try { await user?.reload(); } catch(_){}
+        const authEmail = user?.email || '';
+        const authName = user?.displayName || (data.nome || '');
 
-        // Preencher UI (somente leitura para CNPJ e dados oficiais)
-        if (data.nome)  { dNome.textContent = data.nome; hNome.value = data.nome; }
-        if (data.email) { dEmail.textContent = data.email; hEmail.value = data.email; }
-        dCnpj.textContent = cnpjDigits; hCnpj.value = cnpjDigits;
+        if (authName)  { dNome.textContent = authName; hNome.value = authName; }
+        if (authEmail) { dEmail.textContent = authEmail; hEmail.value = authEmail; }
 
+        // CNPJ/Segmento/Legal/Trade vindos de config (se existirem) sobrescrevem o que veio de conta/status
+        const cnpjDigits = onlyDigits(data?.cnpj || hCnpj.value || '');
+        if (cnpjDigits) { dCnpj.textContent = cnpjDigits; hCnpj.value = cnpjDigits; }
         if (data.segmento)   { dSeg.textContent = data.segmento; hSeg.value = data.segmento; }
         if (data.legal_name) { dLegal.textContent = data.legal_name; hLegal.value = data.legal_name; }
         if (data.trade_name) { dTrade.textContent = data.trade_name; hTrade.value = data.trade_name; }
 
+        // Preferências já existentes
         if (data.telefone) fTel.value = data.telefone;
         if (data.esp1) fEsp1.value = data.esp1;
         if (data.esp2) fEsp2.value = data.esp2;
@@ -455,22 +748,68 @@
 
         initBranding(data);
 
-        // (Opcional) checagem de vínculo exibe apenas um ok visual
-        tryCheckCnpjVinculo(cnpjDigits, data.nome || '');
+        // (Opcional) reforça a checagem de vínculo com o CNPJ final que ficou na UI
+        tryCheckCnpjVinculo(hCnpj.value || '', authName || '');
 
-        // tentar mostrar status atual da voz
+        // Voz / WABA
         setupVoice(uid, idToken);
-      } catch(e) {
-        // Qualquer erro inesperado: volta ao início do onboarding
-        location.href = '/pages/ativar-cliente.html';
-      }
+        await loadWabaStatus(uid, idToken);
 
-      const { uid: u2, idToken: t2 } = await getAuthContext();
-      await loadWabaStatus(u2, t2);
+        // ===== NOVO: se ainda não há CNPJ, exibir bloco inline seguro =====
+        if (!hCnpj.value) {
+          if (cnpjForm && cnpjInput && btnSalvarCnpj && cnpjMsg) {
+            cnpjForm.style.display = 'block';
+            btnSalvarCnpj.addEventListener('click', async (e)=>{
+              e.preventDefault();
+              cnpjMsg.textContent = 'Validando CNPJ...';
+              const raw = cnpjInput.value.trim();
+              const digits = onlyDigits(raw);
+              if (!isValidCNPJ(digits)) { cnpjMsg.textContent = 'CNPJ inválido. Confira e tente novamente.'; return; }
+
+              // sanity ping (não obrigatório)
+              try {
+                const okAvail = await checkCnpjAvailability(digits);
+                if (!okAvail) { cnpjMsg.textContent = 'Não foi possível validar agora. Tente de novo em instantes.'; return; }
+              } catch(_){ /* segue mesmo que falhe */ }
+
+              cnpjMsg.textContent = 'Salvando...';
+              try{
+                const tok = idToken || (await firebase.auth().currentUser?.getIdToken(true));
+                const r = await postConfigCNPJ(tok, digits);
+                if (r.ok){
+                  cnpjMsg.textContent = 'CNPJ salvo. Atualizando...';
+                  // refetch config
+                  try{
+                    const j2 = await fetchConfig(tok);
+                    const d2 = j2.data || j2 || {};
+                    const c2 = onlyDigits(d2.cnpj||digits);
+                    if (c2){ dCnpj.textContent = c2; hCnpj.value = c2; }
+                    if (d2.razaoSocial || d2.legal_name){ const v=(d2.razaoSocial||d2.legal_name); dLegal.textContent=v; hLegal.value=v; }
+                    if (d2.nomeFantasia || d2.trade_name){ const v=(d2.nomeFantasia||d2.trade_name); dTrade.textContent=v; hTrade.value=v; }
+                  }catch(_){}
+                  cnpjForm.style.display = 'none';
+                  cnpjMsg.textContent = '';
+                  tryCheckCnpjVinculo(hCnpj.value || '', authName || '');
+                } else if (r.status === 404 || r.status === 405){
+                  cnpjMsg.textContent = 'Servidor ainda não aceita salvar aqui. Você pode continuar e tentaremos preencher depois.';
+                } else {
+                  cnpjMsg.textContent = 'Falha ao salvar. Tente novamente.';
+                }
+              }catch(_){
+                cnpjMsg.textContent = 'Erro ao salvar. Tente novamente.';
+              }
+            });
+          }
+        }
+
+      } catch(e) {
+        // Permanece na tela; usuário pode tentar novamente
+      }
     }
 
     async function tryCheckCnpjVinculo(cnpj14, nomeBusca){
       try {
+        if (!cnpj14) return;
         const u = `${API_BASE}/integracoes/cnpj/${encodeURIComponent(cnpj14)}?nome=${encodeURIComponent(nomeBusca||'')}`;
         const r = await fetch(u, { credentials: "include" });
         if (!r.ok) return;
@@ -527,207 +866,20 @@
       }
     }
 
-    /* ==========================
-       Seção de VOZ: upload/rec/poll
-       ========================== */
-    const voiceEls = {
-      area: document.getElementById('uploadArea'),
-      input: document.getElementById('voiceFiles'),
-      btnChoose: document.getElementById('btnChooseFiles'),
-      btnClear: document.getElementById('btnClearFiles'),
-      btnEnviar: document.getElementById('btnEnviar'),
-      list: document.getElementById('fileList'),
-      msg: document.getElementById('vozMsg'),
-      bar: document.getElementById('uploadBar'),
-      aceite: document.getElementById('aceiteVoz'),
-      recStart: document.getElementById('btnStartRec'),
-      recStop: document.getElementById('btnStopRec'),
-    };
-    const voiceState = { files: [], totalSec: 0, uploading: false, polling: null, media: {rec:null, chunks:[]} };
-
-    function setVoiceMsg(text, isError=false){ voiceEls.msg.textContent = text || ''; voiceEls.msg.className = isError ? 'hint error' : 'hint'; }
-    function setUploadPct(pct){ voiceEls.bar.style.width = Math.max(0, Math.min(100, pct)) + '%'; }
-    function enableVoiceControls(on){
-      const d = !on;
-      voiceEls.btnChoose.disabled = d;
-      voiceEls.btnClear.disabled = d;
-      voiceEls.btnEnviar.disabled = d;
-      voiceEls.recStart.disabled = d;
-      voiceEls.recStop.disabled = d || !voiceState.media.rec;
-      voiceEls.input.disabled = d;
-    }
-
-    function renderFileList(){
-      voiceEls.list.innerHTML='';
-      voiceState.files.forEach((f,idx)=>{
-        const li=document.createElement('li'); li.className='file-item';
-        const meta=document.createElement('div'); meta.className='file-meta'; meta.textContent=`${f.name} (${Math.round(f.size/1024)} KB)`;
-        const rm=document.createElement('button'); rm.className='remove-btn'; rm.textContent='Remover';
-        rm.addEventListener('click',()=>{ voiceState.files.splice(idx,1); renderFileList(); validateVoiceReady(); });
-        li.appendChild(meta); li.appendChild(rm); voiceEls.list.appendChild(li);
-      });
-    }
-
-    function addFiles(list){
-      const extsOK = ['.wav','.mp3','.m4a','.ogg','.webm'];
-      const isAudio = f => {
-        const t = (f.type||'').toLowerCase();
-        if (t.startsWith('audio/')) return true;
-        const n = (f.name||'').toLowerCase();
-        return extsOK.some(ext => n.endsWith(ext));
-      };
-      for(const f of list){
-        if(voiceState.files.length>=5){ setVoiceMsg('Limite de 5 arquivos atingido.', true); break; }
-        if(!isAudio(f)){ setVoiceMsg('Arquivo rejeitado: extensão não reconhecida como áudio.', true); continue; }
-        voiceState.files.push(f);
-      }
-      renderFileList(); validateVoiceReady();
-    }
-
-    function validateVoiceReady(){
-      setVoiceMsg('');
-      if (voiceState.files.length===0){ setVoiceMsg('Nenhum arquivo selecionado. Envie pelo menos 1 áudio, com duração mínima de 1 minuto.'); voiceEls.btnEnviar.disabled = true; return; }
-      voiceEls.btnEnviar.disabled = !voiceEls.aceite.checked;
-    }
-
-    // Gravação (MediaRecorder)
-    async function startRec(){
-      try{
-        const stream = await navigator.mediaDevices.getUserMedia({ audio:true });
-        const rec = new MediaRecorder(stream);
-        voiceState.media.rec = rec;
-        voiceState.media.chunks = [];
-        rec.ondataavailable = (e)=>{ if(e.data && e.data.size) voiceState.media.chunks.push(e.data); };
-        rec.onstop = ()=>{
-          try{ stream.getTracks().forEach(t=>t.stop()); }catch(_){}
-          const blob = new Blob(voiceState.media.chunks, { type: 'audio/webm' });
-          const file = new File([blob], `gravacao_${Date.now()}.webm`, { type: 'audio/webm' });
-          addFiles([file]);
-          voiceEls.recStop.disabled = true;
-          voiceEls.recStart.disabled = false;
-        };
-        rec.start();
-        voiceEls.recStart.disabled = true;
-        voiceEls.recStop.disabled = false;
-        setVoiceMsg('Gravando… clique em Parar para finalizar.');
-      } catch(e){
-        setVoiceMsg('Não foi possível acessar o microfone.', true);
-      }
-    }
-    function stopRec(){
-      try{ voiceState.media.rec?.stop(); }catch(_){}
-      setVoiceMsg('Gravação finalizada. Arquivo adicionado.');
-    }
-
-    async function uploadAndProcess(uid, idToken){
-      if (!voiceEls.aceite.checked){ setVoiceMsg('Confirme a autorização de uso da voz para continuar.', true); return; }
-      if (voiceState.files.length===0){ setVoiceMsg('Selecione/grave pelo menos 1 áudio.', true); return; }
-
-      voiceState.uploading = true;
-      enableVoiceControls(false);
-      setUploadPct(0);
-      setVoiceMsg('Enviando áudio com segurança…');
-
-      // Monta FormData
-      const fd = new FormData();
-      voiceState.files.forEach((f)=> fd.append('voice', f, f.name));
-
-      const url = `${API_BASE}/api/voz/process?uid=${encodeURIComponent(uid)}`;
-      try{
-        // XHR para acompanhar progresso
-        const xhr = new XMLHttpRequest();
-        xhr.open('POST', url, true);
-        if (idToken) xhr.setRequestHeader('Authorization','Bearer ' + idToken);
-        xhr.upload.onprogress = (e)=>{ if(e.lengthComputable){ setUploadPct(Math.round(e.loaded/e.total*100)); } };
-        xhr.onreadystatechange = function(){
-          if (xhr.readyState === 4){
-            if (xhr.status >=200 && xhr.status <300){
-              setVoiceMsg('Upload concluído. Processando a voz…');
-              setUploadPct(100);
-              startPolling(uid, idToken);
-            } else {
-              setVoiceMsg('Falha no envio. Tente novamente.', true);
-              voiceState.uploading = false;
-              enableVoiceControls(true);
-            }
-          }
-        };
-        xhr.send(fd);
-      } catch(e){
-        setVoiceMsg('Erro inesperado no envio.', true);
-        voiceState.uploading = false;
-        enableVoiceControls(true);
-      }
-    }
-
-    async function fetchLast(uid, idToken){
-      const headers = {}; if (idToken) headers['Authorization'] = 'Bearer ' + idToken;
-      const r = await fetch(`${API_BASE}/api/voz/last?uid=${encodeURIComponent(uid)}`, { headers, cache:'no-store' });
-      if (!r.ok) throw new Error('HTTP '+r.status);
-      return r.json();
-    }
-
-    function startPolling(uid, idToken){
-      clearInterval(voiceState.polling);
-      voiceState.polling = setInterval(async ()=>{
-        try{
-          const data = await fetchLast(uid, idToken);
-          const st = (data && data.status || '').toLowerCase();
-          if (st === 'ready'){
-            clearInterval(voiceState.polling);
-            setVoiceMsg('✅ Voz pronta para uso.');
-            enableVoiceControls(true);
-            voiceState.uploading = false;
-          } else if (st === 'failed'){
-            clearInterval(voiceState.polling);
-            setVoiceMsg('❌ O processamento falhou. Tente reenviar os áudios.', true);
-            enableVoiceControls(true);
-            voiceState.uploading = false;
-          } else {
-            setVoiceMsg('Processando… aguarde mais um pouco.');
-          }
-        } catch(e){
-          // mantém polling silencioso por alguns ciclos
-        }
-      }, 4000);
-    }
-
-    function setupVoice(uid, idToken){
-      // eventos UI
-      voiceEls.btnChoose.addEventListener('click',()=> voiceEls.input.click());
-      voiceEls.input.addEventListener('change',(e)=>{ const files=e.target?.files; if(files) addFiles(files); voiceEls.input.value=''; });
-      voiceEls.btnClear.addEventListener('click',()=>{ voiceState.files=[]; renderFileList(); validateVoiceReady(); setUploadPct(0); setVoiceMsg(''); });
-      voiceEls.recStart.addEventListener('click', startRec);
-      voiceEls.recStop.addEventListener('click', stopRec);
-      voiceEls.aceite.addEventListener('change', validateVoiceReady);
-      voiceEls.btnEnviar.addEventListener('click', ()=> uploadAndProcess(uid, idToken));
-
-      // estado inicial
-      renderFileList(); validateVoiceReady();
-
-      // tentar obter status atual (se já existir voz processada)
-      (async ()=>{
-        try{
-          const data = await fetchLast(uid, idToken);
-          if (data && data.status){
-            const st = String(data.status).toLowerCase();
-            if (st === 'ready') setVoiceMsg('✅ Sua voz já está pronta para uso.');
-            else if (st === 'processing'){ setVoiceMsg('Processando voz anterior…'); startPolling(uid, idToken); }
-          }
-        }catch(_){}
-      })();
-    }
-
+    /* ===== Submit da configuração ===== */
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
-      const cfgFeedback = document.getElementById('config-feedback');
-      const btnSalvar = document.getElementById('btn-salvar');
-
       cfgFeedback.textContent = '';
+
+      // Gate: exige voz pronta
+      if (!voiceState.ready){
+        cfgFeedback.textContent = '⚠️ Envie e processe a sua voz primeiro. O botão será liberado quando ficar “✅ pronta”.';
+        return;
+      }
+
       btnSalvar.disabled = true;
       btnSalvar.textContent = 'Enviando…';
 
-      // CNPJ é somente leitura aqui; apenas envia o que já está nos hiddens
       try {
         let idToken = null;
         if (window.firebase && firebase.auth && firebase.auth().currentUser) {
@@ -735,9 +887,7 @@
         }
 
         const fd = new FormData(form);
-
         if (fd.get('janela_resposta') !== 'custom') fd.delete('janela_resposta_custom');
-
         fd.set('cnpj', document.getElementById('hid-cnpj').value || '');
         fd.set('segmento', document.getElementById('hid-segmento').value || '');
         fd.set('legal_name', document.getElementById('hid-legalname').value || '');
@@ -779,3 +929,4 @@
   </script>
 </body>
 </html>
+
