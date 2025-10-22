@@ -516,7 +516,7 @@
         authInst = getAuthCompatOrModular();
         if (!authInst) throw new Error('Firebase Auth não inicializado nesta página.');
 
-        // === NOVO fluxo robusto: descobre métodos antes de decidir login/criação ===
+        // === FLUXO ROBUSTO: descobre métodos e tem fallback para EMAIL_ALREADY_IN_USE ===
         async function ensureAuthenticated(email, password){
           if (authInst.currentUser) return { user: authInst.currentUser, created: false };
 
@@ -524,7 +524,7 @@
           try { methods = await authInst.fetchSignInMethodsForEmail(email); } catch(_) {}
 
           if (methods && methods.length > 0) {
-            // Já existe → tenta login
+            // Já existe → tenta login (mensagem clara se senha não confere)
             try {
               const cred = await authInst.signInWithEmailAndPassword(email, password);
               return { user: cred.user, created: false };
@@ -535,9 +535,17 @@
               throw e;
             }
           } else {
-            // Não existe → criar
-            const cred = await authInst.createUserWithEmailAndPassword(email, password);
-            return { user: cred.user, created: true };
+            // Não existe → tenta criar; se acusar already-in-use, faz login
+            try {
+              const cred = await authInst.createUserWithEmailAndPassword(email, password);
+              return { user: cred.user, created: true };
+            } catch (e) {
+              if (e && (e.code === 'auth/email-already-in-use' || e.code === 'auth/email-already-exists')) {
+                const cred = await authInst.signInWithEmailAndPassword(email, password);
+                return { user: cred.user, created: false };
+              }
+              throw e;
+            }
           }
         }
 
@@ -653,4 +661,3 @@
   </script>
 </body>
 </html>
-
