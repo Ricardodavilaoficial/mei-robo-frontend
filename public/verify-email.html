@@ -14,7 +14,7 @@
 
   <link rel="stylesheet" href="/assets/styles.css" />
 
-  <!-- Canonical WWW v1.0 placeholders (layout.js sobrescreve em runtime) -->
+  <!-- Canonical agora aponta para WWW -->
   <link rel="canonical" href="https://www.meirobo.com.br/verify-email.html" />
   <meta property="og:url" content="https://www.meirobo.com.br/verify-email.html" />
   <meta name="twitter:url" content="https://www.meirobo.com.br/verify-email.html" />
@@ -28,6 +28,7 @@
       try {
         if (window.firebase?.apps?.length) {
           window.auth = firebase.auth();
+          try { firebase.auth().languageCode = 'pt_BR'; } catch {}
           console.log('[verify] Firebase pronto');
         } else {
           console.error('[verify] Firebase não inicializou via Hosting.');
@@ -46,10 +47,6 @@
     .value-soft{ color: rgba(233,237,239,.80) !important; }
     .readonly{ opacity:.9; }
     #email.input::placeholder{ color: rgba(233,237,239,.55) !important; opacity:1; }
-    #email.input::-webkit-input-placeholder{ color: rgba(233,237,239,.55) !important; opacity:1; }
-    #email.input::-moz-placeholder{ color: rgba(233,237,239,.55) !important; opacity:1; }
-    #email.input:-ms-input-placeholder{ color: rgba(233,237,239,.55) !important; opacity:1; }
-    #email.input::-ms-input-placeholder{ color: rgba(233,237,239,.55) !important; opacity:1; }
     #msg.hint{ color: rgba(255,255,255,0.85); }
     #msg.ok{ color: #86f7c2; }
     #msg.error{ color: #ff9c9c; }
@@ -57,7 +54,7 @@
     .actions .btn-link{ text-decoration:underline; padding:0 4px; }
     noscript{display:block; background:#2b2f33; color:#fff; padding:10px; border-radius:8px; margin:10px 0}
 
-    /* ===== Minimal Success/Error Mode ===== */
+    /* ===== Modo Minimal fixo (sem auto-redirect) ===== */
     .minimal-stage { text-align:center; padding:28px 20px; border-radius:14px; border:1px solid #23302e; background:#101414; }
     .minimal-title { margin:0 0 6px; font-size:1.6rem; color:var(--wa-dark); }
     .minimal-sub { margin:0 0 14px; color:#b6c9c3; }
@@ -104,21 +101,38 @@
 
           <div id="msg" class="hint" style="margin-top:8px"></div>
           <div class="note-compact">
-            Dica: use o <strong>mesmo navegador</strong> onde você iniciou o cadastro. Se abrir o link do e-mail em outro dispositivo, tudo bem:
-            a verificação será concluída aqui e você pode <em>voltar à janela original</em> e clicar em “Já verifiquei — continuar”.
+            Dica: use o <strong>mesmo navegador</strong> onde você iniciou o cadastro. Se abrir o link do e-mail em outra janela/aba,
+            volte para a janela original e clique em <em>“Já verifiquei — continuar”</em>.
           </div>
         </form>
       </div>
 
+      <!-- Banner com logo + CTAs padronizados em WWW -->
+      <section id="verifyBox" class="card-dark" style="padding:16px;margin:12px 0;">
+        <img src="/assets/logo-robot.svg" alt="MEI Robô" width="48" height="48" style="vertical-align:middle;margin-right:8px;">
+        <strong>E-mail enviado!</strong>
+        <div class="hint" id="userEmail" style="margin:6px 0 10px;"></div>
+        <div style="display:flex; gap:8px; flex-wrap:wrap;">
+          <button id="btnAlreadyVerified" class="btn-secondary">Já verifiquei — continuar</button>
+          <button id="btnOpenConfig" class="cta">Abrir configuração aqui</button>
+        </div>
+        <div class="hint" id="msg2" style="margin-top:8px;"></div>
+      </section>
+
       <noscript>Ative o JavaScript para verificar seu e-mail corretamente.</noscript>
     </div>
 
-    <!-- Área que será usada no modo minimal -->
+    <!-- Área do modo minimal fixo -->
     <div class="container minimal-wrap" id="minimalMount" style="display:none">
       <div class="minimal-stage">
         <h1 class="minimal-title" id="minTitle">Pronto! Seu e-mail foi verificado.</h1>
-        <p class="minimal-sub" id="minSub">Você será redirecionado em instantes.</p>
-        <a class="cta" id="minCta" href="/pages/configuracao.html">Ir para minha configuração</a>
+        <p class="minimal-sub" id="minSub">
+          Volte para a aba onde você estava fazendo seu cadastro e clique em <strong>“Já verifiquei — continuar”</strong>.
+        </p>
+        <div style="display:flex; gap:10px; justify-content:center; flex-wrap:wrap">
+          <a class="btn outline" id="minClose" href="javascript:void(0)">Fechar esta aba</a>
+          <a class="cta" id="minGoConfig" href="/pages/configuracao.html">Abrir configuração aqui</a>
+        </div>
       </div>
     </div>
   </main>
@@ -135,6 +149,7 @@
       checkStatus: BACKEND + '/api/auth/check-verification' // protegido por Bearer
     };
 
+    // ===== helpers de DOM =====
     const $ = (s)=>document.querySelector(s);
     const msg = $('#msg');
     const emailInput = $('#email');
@@ -147,12 +162,39 @@
     const minimalMount = $('#minimalMount');
     const minTitle = $('#minTitle');
     const minSub = $('#minSub');
-    const minCta = $('#minCta');
+    const minClose = $('#minClose');
+    const minGoConfig = $('#minGoConfig');
+
+    // Banner novo
+    const userEmail = $('#userEmail');
+    const btnAlreadyVerified = $('#btnAlreadyVerified');
+    const btnOpenConfig = $('#btnOpenConfig');
+    const msg2 = $('#msg2');
 
     let authEmail = null;
-    let idToken   = null;
     let initHasRunVerification = false;
 
+    // ===== comunicação com a aba original =====
+    const bc = ('BroadcastChannel' in window) ? new BroadcastChannel('auth') : null;
+    function notifyVerified() {
+      try { localStorage.setItem('emailVerified','true'); } catch(_){}
+      try { bc && bc.postMessage({type:'email-verified'}); } catch(_){}
+      try { window.opener && window.opener.postMessage({type:'email-verified'}, '*'); } catch(_){}
+    }
+
+    // >>> NOVO: ouvir sinal vindo de outra aba/janela e prosseguir
+    function onSignal(){
+      try { localStorage.setItem('emailVerified','true'); } catch(_){}
+      proceedToConfig();
+    }
+    if (bc) bc.addEventListener('message', ev => {
+      if (ev && ev.data && ev.data.type === 'email-verified') onSignal();
+    });
+    window.addEventListener('message', ev => {
+      if (ev && ev.data && ev.data.type === 'email-verified') onSignal();
+    });
+
+    // ===== util =====
     function setMsg(text, cls){ msg.className = cls || 'hint'; msg.textContent = text || ''; }
     function sanitizeEmail(s){ if(!s||typeof s!=='string')return''; s=s.trim().replace(/\s+/g,''); return s.replace(/[\u200B-\u200D\uFEFF]/g,''); }
     function isValidEmail(s){ return /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(s); }
@@ -162,10 +204,12 @@
         emailInput.value = email;
         emailLabel.textContent = email;
         emailLabel.setAttribute('title', email);
+        if (userEmail) userEmail.textContent = "E-mail: " + email;
       }else{
         emailInput.value = '';
         emailLabel.textContent = 'seu_email@exemplo.com';
         emailLabel.removeAttribute('title');
+        if (userEmail) userEmail.textContent = "";
       }
     }
     function emailsMatch(intended, actual){
@@ -198,40 +242,39 @@
       }catch(e){}
     }
 
-    // ====== Modo Minimal (sucesso/erro) ======
-    function showMinimal({ title, sub, ctaHref, ctaText, autoRedirectMs }){
+    // ====== Modo Minimal (fixo, sem auto-redirect) ======
+    function showMinimalSuccess(){
       document.body.classList.add('is-minimal');
       pageContainer.style.display = 'none';
       minimalMount.style.display = 'block';
-      minTitle.textContent = title || 'Pronto! Seu e-mail foi verificado.';
-      minSub.textContent = sub || 'Você será redirecionado em instantes.';
-      minCta.textContent = ctaText || 'Ir para minha configuração';
-      minCta.setAttribute('href', ctaHref || '/pages/configuracao.html');
-      if (autoRedirectMs && autoRedirectMs > 0) {
-        setTimeout(()=> { location.href = ctaHref || '/pages/configuracao.html'; }, autoRedirectMs);
-      }
+      minTitle.textContent = '✅ E-mail verificado com sucesso';
+      minSub.innerHTML = 'Volte para a aba onde você estava fazendo seu cadastro e clique em <strong>“Já verifiquei — continuar”</strong>.';
+    }
+    function showMinimalError(text, ctaText, ctaHref){
+      document.body.classList.add('is-minimal');
+      pageContainer.style.display = 'none';
+      minimalMount.style.display = 'block';
+      minTitle.textContent = '❌ Não foi possível concluir agora';
+      minSub.textContent = text || 'Tente reenviar o e-mail e tentar novamente.';
+      minGoConfig.textContent = ctaText || 'Tentar novamente';
+      minGoConfig.setAttribute('href', ctaHref || '/verify-email.html');
     }
 
-    // ====== Tratamento central de link expirado/inválido ======
+    // botões minimal
+    minClose?.addEventListener('click', ()=> {
+      try { window.close(); } catch(_){}
+    });
+
+    // ====== Tratamento de erro do applyActionCode ======
     function handleApplyActionCodeError(err){
       const code = (err && err.code) || '';
       if (code === 'auth/expired-action-code' || code === 'auth/invalid-action-code' || code === 'auth/invalid-oob-code') {
-        // Mostra modo minimal de erro com CTA único "Reenviar agora"
-        showMinimal({
-          title: 'Link de verificação inválido ou expirado.',
-          sub: 'Envie um novo link e tente novamente.',
-          ctaHref: '#',
-          ctaText: 'Reenviar agora',
-          autoRedirectMs: 0
-        });
-
-        // Ao clicar no CTA, dispara o reenvio
+        showMinimalError('Link de verificação inválido ou expirado.', 'Reenviar agora', '#');
         const onReenviar = async (e)=>{
           e.preventDefault();
           try{
             const user = firebase?.auth?.currentUser || null;
             if(!user){
-              // Se não há sessão, encaminha para login
               location.href = '/pages/login.html?next=/verify-email.html';
               return;
             }
@@ -245,10 +288,10 @@
             minSub.textContent = 'Não foi possível reenviar agora. Tente novamente em instantes.';
           }
         };
-        document.getElementById('minCta')?.addEventListener('click', onReenviar, { once: true });
-        return true; // já lidamos com esse erro
+        document.getElementById('minGoConfig')?.addEventListener('click', onReenviar, { once: true });
+        return true;
       }
-      return false; // deixe o fluxo normal seguir
+      return false;
     }
 
     // ====== Reenviar (via Firebase) ======
@@ -265,16 +308,12 @@
         const hasFirebase = typeof window.firebase !== 'undefined' && firebase?.auth;
         if (!hasFirebase) throw new Error('firebase_unavailable');
 
-        try { firebase.auth().languageCode = 'pt_BR'; } catch {}
-
         const user = firebase.auth().currentUser || null;
         if (!user || !user.email) {
           setMsg('Faça login novamente para reenviar a verificação.', 'error');
         } else {
           await user.reload();
-          if (user.email !== email) {
-            applyEmailToUI(user.email);
-          }
+          if (user.email !== email) { applyEmailToUI(user.email); }
           await user.sendEmailVerification({
             url: 'https://www.meirobo.com.br/verify-email.html',
             handleCodeInApp: false
@@ -302,34 +341,21 @@
       }catch{ return { mode:'', oobCode:'', apiKey:'', cont:'', lang:'' }; }
     }
 
-    // ====== Núcleo: checar/aplicar verificação com sessão e Bearer ======
+    // ====== Núcleo: checar/aplicar verificação ======
     async function postCheckVerification(intendedEmail){
       const hasFirebase = typeof window.firebase !== 'undefined' && firebase?.auth;
       const act = readActionParams();
 
-      // Caso especial: veio do e-mail em outro navegador (sem sessão)
+      // Caso: usuário abriu o link em outra janela sem sessão
       if (!firebase?.auth?.currentUser && act.mode === 'verifyEmail' && act.oobCode) {
         try {
           await firebase.auth().applyActionCode(act.oobCode);
-          // Minimal direto em sucesso sem sessão
-          showMinimal({
-            title: 'Pronto! Seu e-mail foi verificado.',
-            sub: 'Você pode continuar por aqui.',
-            ctaHref: '/pages/configuracao.html',
-            ctaText: 'Ir para minha configuração',
-            autoRedirectMs: 1200
-          });
+          notifyVerified();
+          showMinimalSuccess(); // **sem redirecionar automaticamente**
           return;
         } catch (err) {
-          // Trata erro de link expirado/inválido de forma minimal
           if (!handleApplyActionCodeError(err)) {
-            showMinimal({
-              title: 'Não foi possível concluir agora.',
-              sub: 'Tente novamente em instantes.',
-              ctaHref: '/verify-email.html',
-              ctaText: 'Tentar novamente',
-              autoRedirectMs: 0
-            });
+            showMinimalError('Não foi possível verificar agora.');
           }
           return;
         }
@@ -354,22 +380,20 @@
       try{
         await user.reload();
 
-        // Se e-mail pretendido não for o da sessão, bloqueia
+        // Checa mismatch de e-mail
         if (!emailsMatch(intendedEmail, user.email || '')) {
           blockForMismatch(intendedEmail, user.email || '(sem e-mail)');
           return;
         }
 
-        // Se veio do link do e-mail, aplicar antes (com sessão)
+        // Se veio com oobCode e ainda não marcado como verificado, aplica
         const act2 = readActionParams();
         if (act2.mode === 'verifyEmail' && act2.oobCode && user.emailVerified !== true){
           try{
             await firebase.auth().applyActionCode(act2.oobCode);
             await user.reload();
           }catch(err){
-            // Se for erro de link (expirado/inválido), mostramos minimal e paramos
             if (handleApplyActionCodeError(err)) return;
-            // Senão, segue para validação no backend
           }
         }
 
@@ -378,46 +402,30 @@
           applyEmailToUI(user.email);
         }
 
-        // Força refresh do token para garantir Bearer válido
-        const tok = await user.getIdToken(true);
-
-        // Backend confirma (fonte de verdade)
-        const res = await fetch(API.checkStatus, {
-          method: 'POST',
-          headers: { 'Authorization': 'Bearer ' + tok, 'Accept':'application/json' }
-        });
-
-        if (res.ok){
-          // Mostrar modo minimal de sucesso
-          showMinimal({
-            title: 'Pronto! Seu e-mail foi verificado.',
-            sub: 'Você será redirecionado em instantes.',
-            ctaHref: '/pages/configuracao.html',
-            ctaText: 'Ir para minha configuração',
-            autoRedirectMs: 1200
+        // Bearer → backend confirma e sincroniza
+        let okBackend = false;
+        try{
+          const tok = await user.getIdToken(true);
+          const res = await fetch(API.checkStatus, {
+            method: 'POST',
+            headers: { 'Authorization': 'Bearer ' + tok, 'Accept':'application/json' }
           });
+          okBackend = res.ok;
+        }catch(_){}
+
+        if (user.emailVerified || okBackend) {
+          notifyVerified();
+          showMinimalSuccess(); // **sem auto-redirect**
           return;
         }
 
-        const body = await res.json().catch(()=> ({}));
-        if (res.status === 401){
-          setMsg('Sessão inválida ou expirada. Faça login novamente.', 'error');
-        } else if (body?.verified === false){
-          setMsg('Ainda não detectamos a verificação. Aguarde alguns segundos e tente de novo.', 'hint');
-        } else {
-          setMsg('Não foi possível confirmar agora. Tente novamente em instantes.', 'error');
-        }
+        setMsg('Ainda não detectamos a verificação. Aguarde alguns segundos e tente de novo.', 'hint');
       }catch(err){
         setMsg('Erro ao checar verificação. Tente novamente em instantes.', 'error');
       }
     }
 
-    // ====== Auto-poll (mantido OFF sem oobCode) ======
-    async function autoPollVerification(intendedEmail, { tries = 10, intervalMs = 2000 } = {}) {
-      return false;
-    }
-
-    // ====== Já verifiquei ======
+    // ====== “Já verifiquei” (botão do bloco antigo)
     btnCheck.addEventListener('click', async (e)=>{
       e.preventDefault();
       setMsg('', 'hint');
@@ -433,19 +441,48 @@
         e.preventDefault();
         try{ localStorage.removeItem('uid'); localStorage.removeItem('idToken'); localStorage.removeItem('isAdmin'); }catch{}
         if(typeof window.firebase!=='undefined' && firebase?.auth){
-          try{ await firebase.auth().signOut(); }catch(err){}
+          try{ await firebase.auth().signOut(); }catch{}
         }
       }finally{
         location.href = '/cadastro.html';
       }
     });
 
+    // >>> NOVO: função de avanço que recarrega usuário e redireciona (WWW)
+    async function proceedToConfig(){
+      const el = msg2 || msg;
+      if (el) el.textContent = 'Confirmando verificação...';
+      try {
+        const auth = firebase.auth();
+        const u = auth.currentUser;
+        if (!u) { if (el) el.textContent = 'Faça login novamente e tente de novo.'; return; }
+        await u.reload();
+        if (u.emailVerified) {
+          location.href = "https://www.meirobo.com.br/pages/configuracao.html";
+        } else {
+          if (el) el.textContent = 'Ainda não confirmou. Clique no link do e-mail e volte aqui.';
+        }
+      } catch(e){
+        if (el) el.textContent = 'Não foi possível confirmar agora. Tente novamente.';
+      }
+    }
+
+    // >>> NOVO: botões do banner novo
+    if (btnAlreadyVerified) btnAlreadyVerified.addEventListener('click', (e)=>{ e.preventDefault(); proceedToConfig(); });
+    if (btnOpenConfig) btnOpenConfig.addEventListener('click', (e)=>{ e.preventDefault(); location.href = "https://www.meirobo.com.br/pages/configuracao.html"; });
+
     // ====== Init ======
     (async function init(){
       await ensureHeaderFooter();
 
-      const intended = sanitizeEmail(readQueryEmail()); // e-mail do cadastro (se informado)
+      const intended = sanitizeEmail(readQueryEmail());
       if(intended) applyEmailToUI(intended);
+
+      // Preencher e-mail no banner com usuário atual (se houver)
+      try {
+        const u = firebase?.auth?.currentUser || null;
+        if (u && u.email && userEmail) userEmail.textContent = "E-mail: " + (u.email || "");
+      } catch(_){}
 
       try{
         const hasFirebase = typeof window.firebase !== 'undefined' && firebase?.auth;
@@ -466,6 +503,14 @@
                 return;
               }
               setMsg('Abra o e-mail e clique no link. Depois, toque em “Já verifiquei — continuar”.', 'hint');
+            }
+          } else {
+            // usuário não logado — mesmo assim permita aplicar o código e exibir sucesso fixo
+            const act = readActionParams();
+            if (act.mode === 'verifyEmail' && act.oobCode){
+              initHasRunVerification = true;
+              await postCheckVerification(intended);
+              return;
             }
           }
         }
