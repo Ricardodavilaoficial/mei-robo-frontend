@@ -63,6 +63,13 @@
       background:#0f3b2f; color:#b9f4d8; font-size:.85rem; font-weight:700;
     }
     #verifyBanner .cta { margin-left:auto; }
+
+    /* Sucesso inline */
+    #successBox { display:none; margin:10px 0 18px; padding:14px; }
+    #successBox .title { font-weight:700; margin-bottom:6px; }
+    #successBox .actions { display:flex; gap:8px; margin-top:10px; flex-wrap:wrap; }
+    #successBox .actions a { text-decoration:none; }
+    .footer-note { margin-top:14px; opacity:.9 }
   </style>
 </head>
 <body>
@@ -71,7 +78,10 @@
 
   <main class="section">
     <div class="container form-wrap">
-      <h1 style="color:var(--wa-dark); margin:0 0 6px">Criar minha conta</h1>
+      <h1 style="color:var(--wa-dark); margin:0 0 2px">Crie sua conta <small style="font-weight:400; opacity:.9">(etapa 1 de 3)</small></h1>
+      <p class="hint" style="margin:0 0 12px">
+        Você cria sua conta agora. Depois confirmamos seu e-mail e, já logado, você completa a configuração (CNPJ e voz).
+      </p>
 
       <!-- Banner: aguardando verificação do e-mail -->
       <div id="verifyBanner" class="note card-dark">
@@ -111,7 +121,7 @@
             <label for="email"><strong>E-mail</strong></label>
             <input id="email" name="email" class="input" type="email" placeholder="voce@email.com"
                    autocomplete="email" required aria-describedby="emailHelp" />
-            <span id="emailHelp" class="hint">Enviaremos um link de verificação para este endereço.</span>
+            <span id="emailHelp" class="hint">Usaremos este e-mail para entrar e enviar a confirmação.</span>
           </div>
 
           <div class="form-row">
@@ -122,12 +132,12 @@
           </div>
 
           <div class="form-row">
-            <label for="telefone"><strong>Telefone (com DDD)</strong></label>
+            <label for="telefone"><strong>WhatsApp (com DDD)</strong></label>
             <input id="telefone" name="telefone" class="input" inputmode="tel"
                    pattern="^\D*(\d\D*){10,11}$"
                    title="Informe um telefone com DDD (10 ou 11 dígitos)"
                    placeholder="Ex.: (11) 98765-4321" autocomplete="tel" required />
-            <span class="hint">Use um número seu (celular recomendável). Envie apenas os dígitos.</span>
+            <span class="hint">Coloque um número que você usa.</span>
           </div>
 
           <div class="form-row">
@@ -137,7 +147,7 @@
               title="Informe um CNPJ válido (14 dígitos ou 00.000.000/0000-00)"
               placeholder="Somente números ou 00.000.000/0000-00" autocomplete="on" required />
             <span class="hint">
-              Checamos se já existe conta com este CNPJ. Você precisa estar vinculado ao CNPJ ou autorizado pela empresa.
+              Podemos checar disponibilidade agora, mas a validação final é na próxima etapa.
             </span>
             <div id="cnpjStatus" class="hint" aria-live="polite" style="margin-top:6px"></div>
             <div id="microVinculo" class="hint" style="margin-top:8px">
@@ -152,7 +162,7 @@
                      minlength="8" autocomplete="new-password" required aria-describedby="pwdRules pwdStrength" style="flex:1" />
               <a role="button" id="togglePwd" class="btn-secondary" aria-pressed="false" aria-controls="senha">Mostrar</a>
             </div>
-            <div id="pwdRules" class="hint">Mínimo de 8 caracteres com: maiúscula, minúscula, número e símbolo.</div>
+            <div id="pwdRules" class="hint">Mínimo 8 caracteres com letras e números (recomendamos incluir maiúscula e símbolo).</div>
             <div class="meter meter-voice" aria-hidden="true"><span id="pwdBar" class="strength-1"></span></div>
             <div id="pwdStrength" class="hint" aria-live="polite"></div>
           </div>
@@ -172,28 +182,44 @@
             <label class="inline" style="gap:8px">
               <input type="checkbox" id="aceite" required />
               <span class="hint">
-                Li e aceito os <a href="/termos.html" target="_blank" rel="noopener noreferrer">Termos</a> e a
+                Li e concordo com os <a href="/termos.html" target="_blank" rel="noopener noreferrer">Termos</a> e a
                 <a href="/privacidade.html" target="_blank" rel="noopener noreferrer">Política de Privacidade</a>.
               </span>
             </label>
           </div>
 
-          <div id="formMsg" class="hint"></div>
+          <div id="formMsg" class="hint" aria-live="polite"></div>
 
           <!-- Turnstile (explícito, compacto) -->
           <div class="form-row full" style="margin-top:8px">
             <div id="cf-turnstile" aria-label="Validação de segurança"></div>
             <input type="hidden" id="cf_token" name="cf_token" />
-            <span class="hint">Valide o desafio para liberar o botão Avançar.</span>
+            <span class="hint">Clique na caixinha para liberar o envio.</span>
           </div>
 
           <div class="actions" style="margin-top:12px">
             <button id="submitBtn" type="submit" class="cta btn-disabled" aria-disabled="true">Avançar</button>
           </div>
 
+          <!-- Rodapé de orientação -->
+          <div class="footer-note hint">
+            Você pode sair e voltar depois. Ao fazer login com seu e-mail e senha, nós o levaremos direto para
+            <strong>Configuração da conta</strong> para concluir o CNPJ e a voz (<code>/pages/configuracao.html</code>).
+          </div>
+
           <!-- reCAPTCHA invisível (DESATIVADO: mantido apenas se um dia precisar) -->
           <div id="recaptcha" class="g-recaptcha" data-size="invisible" style="display:none"></div>
         </form>
+
+        <!-- Sucesso inline -->
+        <aside id="successBox" class="note card-dark">
+          <div class="title">Conta criada!</div>
+          <div id="successMsg" class="hint"></div>
+          <div class="actions">
+            <a class="btn-primary" href="/pages/verify-email.html" id="goVerify">Ir para verificação de e-mail</a>
+            <a class="btn-secondary" href="/pages/login.html" id="goLogin">Entrar depois</a>
+          </div>
+        </aside>
 
         <aside class="side">
           <h3>O que está incluído no plano</h3>
@@ -222,7 +248,7 @@
       availability: API_BASE + "/api/cnpj/availability",
       cadastro:     API_BASE + "/api/cadastro",
       checkVerification: API_BASE + "/api/auth/check-verification",
-      authReclaim:  API_BASE + "/api/auth/reclaim-email" // <— endpoint opcional p/ “destravar” e-mail não verificado
+      authReclaim:  API_BASE + "/api/auth/reclaim-email"
     };
 
     /* ====== UI refs ====== */
@@ -239,6 +265,11 @@
     const bar = document.getElementById('pwdBar');
     const strengthText = document.getElementById('pwdStrength');
     const togglePwd = document.getElementById('togglePwd');
+    const aceite = document.getElementById('aceite');
+
+    // Sucesso inline
+    const successBox = document.getElementById('successBox');
+    const successMsg = document.getElementById('successMsg');
 
     // Banner aguardando verificação
     const verifyBanner = document.getElementById('verifyBanner');
@@ -252,6 +283,19 @@
     let CF_WIDGET_ID = null;
     let CF_TOKEN = "";
     let CF_TOKEN_TS = 0; // epoch ms do último token
+
+    // MINÍMO para robustez do Turnstile: backoff simples no erro (corrige 106010)
+    let CF_RETRY = 0;
+    function reRenderTurnstileWithBackoff(){
+      try { if (window.turnstile && CF_WIDGET_ID) turnstile.reset(CF_WIDGET_ID); } catch(_){}
+      CF_RETRY = Math.min(CF_RETRY + 1, 5);
+      const wait = 500 * CF_RETRY; // 0.5s, 1s, 1.5s, ...
+      setTimeout(() => {
+        try {
+          if (window.turnstile && !CF_WIDGET_ID) { renderTurnstile(); }
+        } catch(_) {}
+      }, wait);
+    }
 
     function isValidateMode(){
       try{ return new URLSearchParams(location.search).get('validate') === '1'; }catch(_){ return false; }
@@ -273,7 +317,7 @@
           CF_TOKEN_TS = Date.now();
           const hidden = document.getElementById('cf_token');
           if (hidden) hidden.value = CF_TOKEN;
-          enableSubmit();
+          updateButtonState();
           return;
         }
 
@@ -289,20 +333,22 @@
             CF_TOKEN_TS = Date.now();
             const hidden = document.getElementById('cf_token');
             if (hidden) hidden.value = token;
-            enableSubmit();
+            CF_RETRY = 0; // sucesso → zera backoff
+            updateButtonState();
           },
           'error-callback': function() {
             CF_TOKEN = ""; CF_TOKEN_TS = 0;
             const hidden = document.getElementById('cf_token');
             if (hidden) hidden.value = "";
-            disableSubmit();
+            reRenderTurnstileWithBackoff();
+            updateButtonState();
           },
           'expired-callback': function() {
             CF_TOKEN = ""; CF_TOKEN_TS = 0;
             const hidden = document.getElementById('cf_token');
             if (hidden) hidden.value = "";
             try { turnstile.reset(CF_WIDGET_ID); } catch(e) {}
-            disableSubmit();
+            updateButtonState();
           }
         });
       } catch (e) { console.error('[turnstile] render falhou', e); }
@@ -322,7 +368,7 @@
           if (window.turnstile && CF_WIDGET_ID) {
             try { turnstile.reset(CF_WIDGET_ID); } catch(_) {}
           }
-          disableSubmit();
+          updateButtonState();
         }
       } catch(_){}
     }, 5000);
@@ -354,6 +400,45 @@
     }
     function debounce(fn,ms){ let t; return (...args)=>{ clearTimeout(t); t=setTimeout(()=>fn(...args),ms); }; }
 
+    // ====== Gate do botão com todos critérios (campos + termos + Turnstile ✓) ======
+    function passwordRulesOk(s){
+      if (!s || s.length < 8) return false;
+      return /[A-Za-z]/.test(s) && /[0-9]/.test(s); // mínimo pedido (letras e números)
+    }
+    function updateButtonState(){
+      const e1 = (emailInput.value || '').trim().toLowerCase();
+      const e2 = (email2Input.value || '').trim().toLowerCase();
+      const phoneDigits = normalizeDigits(phoneInput.value || '');
+      const cnpjRaw = cnpjInput.value || '';
+      const cnpjOk = validateCNPJ(cnpjRaw);
+      const senhaOk = passwordRulesOk(pwd.value || '');
+      const confirmOk = (pwd.value || '') === (pwd2.value || '');
+      const termsOk = !!aceite.checked;
+      const turnstileOk = !!CF_TOKEN;
+
+      // se disponibilidade marcada como 'unavailable', trava
+      const cnpjNotBlocked = cnpjAvailability !== 'unavailable';
+
+      const allOk = !!(e1 && e2 && e1 === e2 &&
+                       phoneDigits.length >= 10 && phoneDigits.length <= 11 &&
+                       cnpjOk && cnpjNotBlocked &&
+                       senhaOk && confirmOk &&
+                       termsOk && turnstileOk);
+
+      if (allOk) enableSubmit(); else disableSubmit();
+    }
+
+    // Eventos para revalidar o botão
+    ['input','blur','change'].forEach(evt => {
+      emailInput.addEventListener(evt, updateButtonState);
+      email2Input.addEventListener(evt, updateButtonState);
+      phoneInput.addEventListener(evt, updateButtonState);
+      cnpjInput.addEventListener(evt, updateButtonState);
+      pwd.addEventListener(evt, updateButtonState);
+      pwd2.addEventListener(evt, updateButtonState);
+      aceite.addEventListener(evt, updateButtonState);
+    });
+
     async function checkCNPJAvailability(){
       const raw = cnpjInput.value;
       const digits = normalizeCNPJ(raw);
@@ -363,7 +448,7 @@
       if (!validateCNPJ(digits)) {
         cnpjStatus.textContent = 'Revise o CNPJ: os números não formam um CNPJ válido.';
         cnpjStatus.className = 'error';
-        disableSubmit();
+        updateButtonState();
         return;
       }
       cnpjStatus.textContent = 'Verificando disponibilidade...';
@@ -380,12 +465,13 @@
           cnpjAvailability = 'unavailable';
           cnpjStatus.textContent = 'Este CNPJ já tem conta. Você pode recuperar o acesso ou usar outro.';
           cnpjStatus.className = 'error';
-          disableSubmit();
         }
       } catch {
         cnpjAvailability = 'unknown';
         cnpjStatus.textContent = 'Não foi possível verificar agora. Validaremos no servidor.';
         cnpjStatus.className = 'hint';
+      } finally {
+        updateButtonState();
       }
     }
     const debouncedCheck = debounce(checkCNPJAvailability, 600);
@@ -394,7 +480,7 @@
 
     function calcStrength(s){ let score=0; if(!s) return 0; if(s.length>=8)score++; if(s.length>=12)score++; if(/[a-z]/.test(s))score++; if(/[A-Z]/.test(s))score++; if(/[0-9]/.test(s))score++; if(/[^A-Za-z0-9]/.test(s))score++; return Math.min(5, Math.max(0, Math.floor(score*0.8))); }
     function updatePwdMeter(){ const s=pwd.value||''; const st=calcStrength(s); const pct=[0,20,40,60,80,100][st]; document.getElementById('pwdBar').style.width=pct+'%'; strengthText.textContent=s?(['Muito fraca','Fraca','Razoável','Forte','Muito forte','Excelente'][st]):''; }
-    pwd.addEventListener('input', updatePwdMeter);
+    pwd.addEventListener('input', ()=>{ updatePwdMeter(); updateButtonState(); });
     togglePwd.addEventListener('click', (e)=>{ e.preventDefault(); const visible=pwd.type==='text'; pwd.type=visible?'password':'text'; togglePwd.textContent=visible?'Mostrar':'Ocultar'; togglePwd.setAttribute('aria-pressed', String(!visible)); pwd.focus(); });
 
     /* ====== Helpers para Auth cleanup ====== */
@@ -487,7 +573,7 @@
       const token = (document.getElementById('cf_token').value || '').trim();
       if (!token) {
         formMsg.className='error';
-        formMsg.textContent='Valide o desafio de segurança para continuar.';
+        formMsg.textContent='Clique na caixinha para liberar o envio.';
         return;
       }
 
@@ -526,7 +612,6 @@
               return { user: cred.user, created: false };
             } catch (e) {
               if (e && (e.code === 'auth/wrong-password' || e.code === 'auth/invalid-login-credentials')) {
-                // Sinaliza erro específico para tratarmos o “reclaim” no catch de proceedSubmit
                 e.__wrongPassword = true;
               }
               throw e;
@@ -556,7 +641,17 @@
 
         try { showVerifyBanner(user.email || email); } catch(_){ }
 
-        const payload = { email, senha, nome, telefone: telefoneDigits, cnpj: cnpjDigits, cf_token: token };
+        /* Enviar também aliases de token aceitos no back */
+        const payload = {
+          email,
+          senha,
+          nome,
+          telefone: telefoneDigits,
+          cnpj: cnpjDigits,
+          cf_token: token,
+          'cf-turnstile-response': token,
+          turnstile_token: token
+        };
         const headers = {
           'Content-Type': 'application/json',
           'Accept': 'application/json',
@@ -575,7 +670,7 @@
 
           if (res.status === 429) {
             formMsg.className='error';
-            formMsg.textContent = 'Validação de segurança falhou. Recarregue o desafio e tente novamente.';
+            formMsg.textContent = 'Desafio de segurança expirou. Clique novamente na caixinha e envie em seguida.';
             try { if (window.turnstile && CF_WIDGET_ID) turnstile.reset(CF_WIDGET_ID); } catch(_) { }
             enableSubmit();
             await tryDeleteJustCreatedUser(authInst, createdNewUser);
@@ -602,13 +697,15 @@
           throw new Error('Falha no cadastro.');
         }
 
-        if (data.next === 'verifyEmail') {
-          const mail = (data.email || email).trim();
-          location.href = '/verify-email.html?email=' + encodeURIComponent(mail);
-          return;
-        }
-        if (data.checkoutUrl) { location.href = data.checkoutUrl; return; }
-        location.href = '/verify-email.html';
+        // ===== Sucesso inline (sem redirecionar à força) =====
+        const mail = (data.email || email).trim();
+        form.style.display = 'none';
+        successMsg.innerHTML = `Enviamos um e-mail para <strong>${mail}</strong>.<br/>
+          <span class="hint">Importante: depois de confirmar o e-mail, entre normalmente e você será levado à <em>Configuração da conta</em> para validar seu CNPJ e gravar sua voz. Você pode continuar hoje ou amanhã — nada será perdido.</span>`;
+        successBox.style.display = 'block';
+        // também mantém o banner de "aguardando verificação"
+        showVerifyBanner(mail);
+        // nada de redireciono automático
 
       } catch(e){
         console.error(e);
@@ -617,11 +714,9 @@
         // === TRATAMENTO “RECLAIM”: e-mail existente + senha incorreta ===
         const wrong = e && (e.code === 'auth/wrong-password' || e.code === 'auth/invalid-login-credentials' || e.__wrongPassword);
         const email = (emailInput.value || '').trim();
-        const senha = (pwd.value || '');
 
         if (wrong && API.authReclaim) {
           try {
-            // Tenta desbloquear conta NÃO verificada no backend (idempotente)
             const resp = await fetch(API.authReclaim, {
               method: 'POST',
               headers: {
@@ -632,14 +727,11 @@
               body: JSON.stringify({ email })
             });
             let ok = false;
-            try {
-              const j = await resp.json();
-              ok = !!j.ok;
-            } catch(_) {}
+            try { const j = await resp.json(); ok = !!j.ok; } catch(_) {}
 
             if (resp.ok && ok) {
-              // Recria imediatamente com a senha informada e segue fluxo normal
-              const cred = await firebase.auth().createUserWithEmailAndPassword(email, senha);
+              // Tenta criar de novo (conta foi “liberada”)
+              const cred = await firebase.auth().createUserWithEmailAndPassword(email, (pwd.value || ''));
               const user = cred.user;
               try { if (user && !user.emailVerified) await user.sendEmailVerification(); } catch(_){}
               const idToken = await user.getIdToken();
@@ -647,18 +739,33 @@
               const telefoneDigits = normalizeDigits(phoneInput.value || '');
               const cnpjDigits = normalizeCNPJ(cnpjInput.value || '');
               const nome = (document.getElementById('nome').value || '').trim();
-              const payload = { email, senha, nome, telefone: telefoneDigits, cnpj: cnpjDigits, cf_token: (document.getElementById('cf_token').value || '').trim() };
+
+              const tk = (document.getElementById('cf_token').value || '').trim();
+              const payload = {
+                email,
+                senha: (pwd.value || ''),
+                nome,
+                telefone: telefoneDigits,
+                cnpj: cnpjDigits,
+                cf_token: tk,
+                'cf-turnstile-response': tk,
+                turnstile_token: tk
+              };
 
               const headers = {
                 'Content-Type': 'application/json',
                 'Accept': 'application/json',
                 'Authorization': 'Bearer ' + idToken,
-                'X-Turnstile-Token': (document.getElementById('cf_token').value || '').trim(),
-                'cf-turnstile-response': (document.getElementById('cf_token').value || '').trim()
+                'X-Turnstile-Token': tk,
+                'cf-turnstile-response': tk
               };
               const res2 = await fetch(API.cadastro, { method: 'POST', headers, body: JSON.stringify(payload) });
               if (res2.ok) {
-                location.href = '/verify-email.html?email=' + encodeURIComponent(email);
+                form.style.display = 'none';
+                successMsg.innerHTML = `Enviamos um e-mail para <strong>${email}</strong>.<br/>
+                  <span class="hint">Importante: depois de confirmar o e-mail, entre normalmente e você será levado à <em>Configuração da conta</em> para validar seu CNPJ e gravar sua voz. Você pode continuar hoje ou amanhã — nada será perdido.</span>`;
+                successBox.style.display = 'block';
+                showVerifyBanner(email);
                 return;
               } else {
                 formMsg.textContent = 'Cadastro criado, mas não conseguimos salvar seus dados agora. Tente novamente.';
@@ -666,30 +773,13 @@
                 return;
               }
             }
-          } catch(_err) {
-            // se o reclaim falhar, cai para o fluxo de reset
-          }
+          } catch(_err) { /* segue para a mensagem padrão */ }
         }
 
-        // Mensagem final se não houve reclaim bem sucedido
         if (wrong) {
-          formMsg.innerHTML = 'E-mail já cadastrado: a senha informada não confere. ' +
-            '<a href="#" id="linkReset">Redefinir senha por e-mail</a>.';
-          const el = document.getElementById('linkReset');
-          if (el) el.addEventListener('click', async (ev) => {
-            ev.preventDefault();
-            try {
-              await firebase.auth().sendPasswordResetEmail((emailInput.value||'').trim());
-              formMsg.className='hint';
-              formMsg.textContent = 'Enviamos um e-mail de redefinição de senha. Verifique sua caixa de entrada.';
-            } catch (err) {
-              console.error(err);
-              formMsg.className='error';
-              formMsg.textContent = 'Não foi possível enviar o e-mail de redefinição agora. Tente novamente.';
-            }
-          });
+          formMsg.innerHTML = 'Este e-mail já tem cadastro. Você pode entrar e continuar de onde parou. <a href="/pages/login.html" class="link">Ir para login</a>';
         } else {
-          formMsg.textContent='Não foi possível concluir agora. Tente novamente.';
+          formMsg.textContent='Falha de conexão. Tente novamente.';
         }
 
         try { if (window.turnstile && CF_WIDGET_ID) turnstile.reset(CF_WIDGET_ID); } catch(_) { }
@@ -698,6 +788,7 @@
       }
     }
 
+    // Handler de submit SEM onClick inline
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
       formMsg.className='hint'; formMsg.textContent='';
@@ -707,20 +798,19 @@
       if (!e1 || !e2 || e1 !== e2) { formMsg.className='error'; formMsg.textContent='Os dois e-mails precisam ser iguais.'; email2Input.focus(); return; }
       if (cnpjAvailability === 'unavailable') { formMsg.className='error'; formMsg.textContent='Este CNPJ já tem conta. Você pode recuperar o acesso ou usar outro.'; return; }
       if (pwd.value !== pwd2.value) { formMsg.className='error'; formMsg.textContent='As duas senhas precisam ser iguais.'; pwd2.focus(); return; }
-      const rules=[/[a-z]/,/[A-Z]/,/[0-9]/,/[^A-Za-z0-9]/];
-      if (!(rules.every(r=>r.test(pwd.value)) && pwd.value.length>=8)) { formMsg.className='error'; formMsg.textContent='Sua senha precisa ter 8 caracteres, incluindo letras maiúsculas, minúsculas, número e símbolo.'; pwd.focus(); return; }
+      if (!passwordRulesOk(pwd.value)) { formMsg.className='error'; formMsg.textContent='Senha precisa ter no mínimo 8 caracteres com letras e números.'; pwd.focus(); return; }
       const phoneDigits = normalizeDigits(phoneInput.value || '');
       if (!phoneDigits || phoneDigits.length < 10 || phoneDigits.length > 11) { formMsg.className='error'; formMsg.textContent='Informe um telefone com DDD (10 ou 11 dígitos).'; phoneInput.focus(); return; }
-      if (!document.getElementById('aceite').checked) { formMsg.className='error'; formMsg.textContent='Confirme que leu e aceitou os Termos e a Política de Privacidade.'; return; }
+      if (!aceite.checked) { formMsg.className='error'; formMsg.textContent='Confirme que leu e concorda com os Termos e a Política de Privacidade.'; return; }
 
       const token = (document.getElementById('cf_token').value || '').trim();
       if (!token) {
         formMsg.className='error';
-        formMsg.textContent='Valide o desafio de segurança para liberar o envio.';
+        formMsg.textContent='Clique na caixinha para liberar o envio.';
         return;
       }
 
-      proceedSubmit();
+      await proceedSubmit();
     });
   </script>
 </body>
