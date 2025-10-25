@@ -478,7 +478,7 @@
     cnpjInput.addEventListener('blur', checkCNPJAvailability);
     cnpjInput.addEventListener('input', debouncedCheck);
 
-    function calcStrength(s){ let score=0; if(!s) return 0; if(s.length>=8)score++; if(s.length>=12)score++; if(/[a-z]/.test(s))score++; if(/[A-Z]/.test(s))score++; if(/[0-9]/.test(s))score++; if(/[^A-Za-z0-9]/.test(s))score++; return Math.min(5, Math.max(0, Math.floor(score*0.8))); }
+    function calcStrength(s){ let score=0; if(!s) return 0; if(s.length>=8)score++; if(s.length>=12)score++; if(/[a-z]/.test(s))score++; if(/[A-Z]/.test(s))score++; if/[0-9]/.test(s))score++; if(/[^A-Za-z0-9]/.test(s))score++; return Math.min(5, Math.max(0, Math.floor(score*0.8))); }
     function updatePwdMeter(){ const s=pwd.value||''; const st=calcStrength(s); const pct=[0,20,40,60,80,100][st]; document.getElementById('pwdBar').style.width=pct+'%'; strengthText.textContent=s?(['Muito fraca','Fraca','Razoável','Forte','Muito forte','Excelente'][st]):''; }
     pwd.addEventListener('input', ()=>{ updatePwdMeter(); updateButtonState(); });
     togglePwd.addEventListener('click', (e)=>{ e.preventDefault(); const visible=pwd.type==='text'; pwd.type=visible?'password':'text'; togglePwd.textContent=visible?'Mostrar':'Ocultar'; togglePwd.setAttribute('aria-pressed', String(!visible)); pwd.focus(); });
@@ -570,10 +570,22 @@
       formMsg.className='hint';
       formMsg.textContent='Enviando cadastro com segurança...';
 
-      const token = (document.getElementById('cf_token').value || '').trim();
+      // === 1. Token direto do widget Turnstile ===
+      let token = "";
+      try {
+        if (window.turnstile && CF_WIDGET_ID) {
+          token = turnstile.getResponse(CF_WIDGET_ID) || "";
+        }
+      } catch(_) {}
+      if (!token) {
+        // fallback: tenta hidden (último bom valor)
+        token = (document.getElementById('cf_token')?.value || '').trim();
+      }
+
       if (!token) {
         formMsg.className='error';
-        formMsg.textContent='Clique na caixinha para liberar o envio.';
+        formMsg.textContent='Desafio de segurança expirou. Clique novamente na caixinha e envie em seguida.';
+        try { if (window.turnstile && CF_WIDGET_ID) turnstile.reset(CF_WIDGET_ID); } catch(_) {}
         return;
       }
 
@@ -582,7 +594,7 @@
       let createdNewUser = false;
       let authInst = null;
 
-      try{
+      try {
         const nome = (document.getElementById('nome').value || '').trim();
         const email = (emailInput.value || '').trim();
         const senha = (pwd.value || '');
@@ -598,26 +610,14 @@
         authInst = getAuthCompatOrModular();
         if (!authInst) throw new Error('Firebase Auth não inicializado nesta página.');
 
-        // === FLUXO ROBUSTO: descobre métodos e tem fallback para EMAIL_ALREADY_IN_USE ===
         async function ensureAuthenticated(email, password){
           if (authInst.currentUser) return { user: authInst.currentUser, created: false };
-
           let methods = [];
           try { methods = await authInst.fetchSignInMethodsForEmail(email); } catch(_) {}
-
           if (methods && methods.length > 0) {
-            // Já existe → tenta login
-            try {
-              const cred = await authInst.signInWithEmailAndPassword(email, password);
-              return { user: cred.user, created: false };
-            } catch (e) {
-              if (e && (e.code === 'auth/wrong-password' || e.code === 'auth/invalid-login-credentials')) {
-                e.__wrongPassword = true;
-              }
-              throw e;
-            }
+            const cred = await authInst.signInWithEmailAndPassword(email, password);
+            return { user: cred.user, created: false };
           } else {
-            // Não existe → tenta criar; se acusar already-in-use, faz login
             try {
               const cred = await authInst.createUserWithEmailAndPassword(email, password);
               return { user: cred.user, created: true };
@@ -638,8 +638,7 @@
 
         const idToken = await user.getIdToken();
         console.log('[cadastro] idToken len:', (idToken||'').length);
-
-        try { showVerifyBanner(user.email || email); } catch(_){ }
+        try { showVerifyBanner(user.email || email); } catch(_){}
 
         /* Enviar também aliases de token aceitos no back */
         const payload = {
@@ -663,15 +662,15 @@
         const res = await fetch(API.cadastro, { method: 'POST', headers, body: JSON.stringify(payload) });
         const text = await res.text();
         let data = {};
-        try { data = text ? JSON.parse(text) : {}; } catch(_) { }
+        try { data = text ? JSON.parse(text) : {}; } catch(_) {}
 
         if (!res.ok) {
           console.warn('[cadastro][debug]', res.status, data || text);
 
           if (res.status === 429) {
             formMsg.className='error';
-            formMsg.textContent = 'Desafio de segurança expirou. Clique novamente na caixinha e envie em seguida.';
-            try { if (window.turnstile && CF_WIDGET_ID) turnstile.reset(CF_WIDGET_ID); } catch(_) { }
+            formMsg.textContent='Desafio de segurança expirou. Clique novamente na caixinha e envie em seguida.';
+            try { if (window.turnstile && CF_WIDGET_ID) turnstile.reset(CF_WIDGET_ID); } catch(_) {}
             enableSubmit();
             await tryDeleteJustCreatedUser(authInst, createdNewUser);
             return;
@@ -679,16 +678,9 @@
 
           if (res.status === 422) {
             formMsg.className='error';
-            if (data && (data.message || data.detail)) {
-              formMsg.textContent = String(data.message || data.detail);
-            } else if (data && data.field) {
-              const map = { email:'e-mail', senha:'senha', nome:'nome', telefone:'telefone', cnpj:'CNPJ' };
-              const nice = map[data.field] || data.field;
-              formMsg.textContent = `Algum campo está inválido (${nice}). Revise e tente novamente.`;
-            } else {
-              formMsg.textContent = 'Algum campo está inválido. Revise nome, e-mail, telefone e CNPJ e tente novamente.';
-            }
-            try { if (window.turnstile && CF_WIDGET_ID) turnstile.reset(CF_WIDGET_ID); } catch(_) { }
+            formMsg.textContent = (data && (data.message || data.detail)) ||
+              'Algum campo está inválido. Revise nome, e-mail, telefone e CNPJ.';
+            try { if (window.turnstile && CF_WIDGET_ID) turnstile.reset(CF_WIDGET_ID); } catch(_) {}
             enableSubmit();
             await tryDeleteJustCreatedUser(authInst, createdNewUser);
             return;
@@ -701,17 +693,13 @@
         const mail = (data.email || email).trim();
         form.style.display = 'none';
         successMsg.innerHTML = `Enviamos um e-mail para <strong>${mail}</strong>.<br/>
-          <span class="hint">Importante: depois de confirmar o e-mail, entre normalmente e você será levado à <em>Configuração da conta</em> para validar seu CNPJ e gravar sua voz. Você pode continuar hoje ou amanhã — nada será perdido.</span>`;
+          <span class="hint">Importante: depois de confirmar o e-mail, entre normalmente e você será levado à <em>Configuração da conta</em> para validar seu CNPJ e gravar sua voz.</span>`;
         successBox.style.display = 'block';
-        // também mantém o banner de "aguardando verificação"
         showVerifyBanner(mail);
-        // nada de redireciono automático
 
       } catch(e){
         console.error(e);
         formMsg.className='error';
-
-        // === TRATAMENTO “RECLAIM”: e-mail existente + senha incorreta ===
         const wrong = e && (e.code === 'auth/wrong-password' || e.code === 'auth/invalid-login-credentials' || e.__wrongPassword);
         const email = (emailInput.value || '').trim();
 
@@ -721,69 +709,53 @@
               method: 'POST',
               headers: {
                 'Content-Type': 'application/json',
-                'X-Turnstile-Token': (document.getElementById('cf_token').value || '').trim(),
-                'cf-turnstile-response': (document.getElementById('cf_token').value || '').trim()
+                'X-Turnstile-Token': token,
+                'cf-turnstile-response': token
               },
               body: JSON.stringify({ email })
             });
-            let ok = false;
-            try { const j = await resp.json(); ok = !!j.ok; } catch(_) {}
-
-            if (resp.ok && ok) {
-              // Tenta criar de novo (conta foi “liberada”)
+            const j = await resp.json().catch(()=>({}));
+            if (resp.ok && j.ok) {
               const cred = await firebase.auth().createUserWithEmailAndPassword(email, (pwd.value || ''));
               const user = cred.user;
               try { if (user && !user.emailVerified) await user.sendEmailVerification(); } catch(_){}
               const idToken = await user.getIdToken();
-              try { showVerifyBanner(user.email || email); } catch(_){ }
+              showVerifyBanner(user.email || email);
               const telefoneDigits = normalizeDigits(phoneInput.value || '');
               const cnpjDigits = normalizeCNPJ(cnpjInput.value || '');
               const nome = (document.getElementById('nome').value || '').trim();
-
-              const tk = (document.getElementById('cf_token').value || '').trim();
+              const tk = turnstile.getResponse(CF_WIDGET_ID) || token;
               const payload = {
-                email,
-                senha: (pwd.value || ''),
-                nome,
-                telefone: telefoneDigits,
-                cnpj: cnpjDigits,
-                cf_token: tk,
-                'cf-turnstile-response': tk,
-                turnstile_token: tk
+                email, senha:(pwd.value||''), nome,
+                telefone: telefoneDigits, cnpj: cnpjDigits,
+                cf_token: tk, 'cf-turnstile-response': tk, turnstile_token: tk
               };
-
               const headers = {
-                'Content-Type': 'application/json',
-                'Accept': 'application/json',
-                'Authorization': 'Bearer ' + idToken,
-                'X-Turnstile-Token': tk,
-                'cf-turnstile-response': tk
+                'Content-Type':'application/json','Accept':'application/json',
+                'Authorization':'Bearer '+idToken,
+                'X-Turnstile-Token':tk,'cf-turnstile-response':tk
               };
-              const res2 = await fetch(API.cadastro, { method: 'POST', headers, body: JSON.stringify(payload) });
+              const res2 = await fetch(API.cadastro, { method:'POST', headers, body: JSON.stringify(payload) });
               if (res2.ok) {
-                form.style.display = 'none';
+                form.style.display='none';
                 successMsg.innerHTML = `Enviamos um e-mail para <strong>${email}</strong>.<br/>
-                  <span class="hint">Importante: depois de confirmar o e-mail, entre normalmente e você será levado à <em>Configuração da conta</em> para validar seu CNPJ e gravar sua voz. Você pode continuar hoje ou amanhã — nada será perdido.</span>`;
-                successBox.style.display = 'block';
+                  <span class="hint">Depois de confirmar, continue em <em>Configuração da conta</em>.</span>`;
+                successBox.style.display='block';
                 showVerifyBanner(email);
-                return;
-              } else {
-                formMsg.textContent = 'Cadastro criado, mas não conseguimos salvar seus dados agora. Tente novamente.';
-                enableSubmit();
                 return;
               }
             }
-          } catch(_err) { /* segue para a mensagem padrão */ }
+          } catch(_) {}
         }
 
         if (wrong) {
-          formMsg.innerHTML = 'Este e-mail já tem cadastro. Você pode entrar e continuar de onde parou. <a href="/pages/login.html" class="link">Ir para login</a>';
+          formMsg.innerHTML = 'Este e-mail já tem cadastro. <a href="/pages/login.html" class="link">Ir para login</a>';
         } else {
           formMsg.textContent='Falha de conexão. Tente novamente.';
         }
 
-        try { if (window.turnstile && CF_WIDGET_ID) turnstile.reset(CF_WIDGET_ID); } catch(_) { }
-        if (authInst) { await tryDeleteJustCreatedUser(authInst, createdNewUser); }
+        try { if (window.turnstile && CF_WIDGET_ID) turnstile.reset(CF_WIDGET_ID); } catch(_) {}
+        if (authInst) await tryDeleteJustCreatedUser(authInst, createdNewUser);
         enableSubmit();
       }
     }
