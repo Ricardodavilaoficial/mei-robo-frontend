@@ -285,12 +285,12 @@
     let CF_TOKEN_TS = 0; // epoch ms do último token
 
     // NOVO: semáforo global contra duplo submit
-    let SUBMITTING = false; // evita POST duplo e reuso do mesmo token
+    let SUBMITTING = false; // trava para impedir 2 POSTs na mesma tentativa
 
     // MINÍMO para robustez do Turnstile: backoff simples no erro (corrige 106010)
     let CF_RETRY = 0;
     function reRenderTurnstileWithBackoff(){
-      try { if (window.turnstile && CF_WIDGET_ID) turnstile.reset(CF_WIDGET_ID); } catch(_){}
+      try { if (window.turnstile && CF_WIDGET_ID) turnstile.reset(CF_WIDGET_ID); } catch(_){}}
       CF_RETRY = Math.min(CF_RETRY + 1, 5);
       const wait = 500 * CF_RETRY; // 0.5s, 1s, 1.5s, ...
       setTimeout(() => {
@@ -481,7 +481,7 @@
     cnpjInput.addEventListener('blur', checkCNPJAvailability);
     cnpjInput.addEventListener('input', debouncedCheck);
 
-    function calcStrength(s){ let score=0; if(!s) return 0; if(s.length>=8)score++; if(s.length>=12)score++; if(/[a-z]/.test(s))score++; if(/[A-Z]/.test(s))score++; if(/[0-9]/.test(s))score++; if(/[^A-Za-z0-9]/.test(s))score++; return Math.min(5, Math.max(0, Math.floor(score*0.8))); }
+    function calcStrength(s){ let score=0; if(!s) return 0; if(s.length>=8)score++; if(s.length>=12)score++; if(/[a-z]/.test(s))score++; if(/[A-Z]/.test(s))score++; if/[0-9]/.test(s))score++; if(/[^A-Za-z0-9]/.test(s))score++; return Math.min(5, Math.max(0, Math.floor(score*0.8))); }
     function updatePwdMeter(){ const s=pwd.value||''; const st=calcStrength(s); const pct=[0,20,40,60,80,100][st]; document.getElementById('pwdBar').style.width=pct+'%'; strengthText.textContent=s?(['Muito fraca','Fraca','Razoável','Forte','Muito forte','Excelente'][st]):''; }
     pwd.addEventListener('input', ()=>{ updatePwdMeter(); updateButtonState(); });
     togglePwd.addEventListener('click', (e)=>{ e.preventDefault(); const visible=pwd.type==='text'; pwd.type=visible?'password':'text'; togglePwd.textContent=visible?'Mostrar':'Ocultar'; togglePwd.setAttribute('aria-pressed', String(!visible)); pwd.focus(); });
@@ -581,7 +581,7 @@
         }
       } catch(_) {}
       if (!token) {
-        // fallback: tenta hidden (último bom valor)
+        // fallback opcional: tentar o hidden
         token = (document.getElementById('cf_token')?.value || '').trim();
       }
 
@@ -589,9 +589,8 @@
         formMsg.className='error';
         formMsg.textContent='Desafio de segurança expirou. Clique novamente na caixinha e envie em seguida.';
         try { if (window.turnstile && CF_WIDGET_ID) turnstile.reset(CF_WIDGET_ID); } catch(_) {}
-        // NOVO: libera para nova tentativa
         try { enableSubmit(); } catch(_) {}
-        SUBMITTING = false;
+        SUBMITTING = false; // ✅ libera para nova tentativa
         return;
       }
 
@@ -640,7 +639,7 @@
         const { user, created } = await ensureAuthenticated(email, senha);
         createdNewUser = !!created;
 
-        try { if (user && !user.emailVerified) { await user.sendEmailVerification(); } } catch(_){}
+        try { if (user && !user.emailVerified) { await user.sendEmailVerification(); } } catch(_){}}
 
         const idToken = await user.getIdToken();
         console.log('[cadastro] idToken len:', (idToken||'').length);
@@ -664,6 +663,10 @@
           'X-Turnstile-Token': token,
           'cf-turnstile-response': token
         };
+        // [OPCIONAL/DIAGNÓSTICO] Nonce para rastrear tentativa única no backend
+        const submitNonce = Date.now() + '-' + Math.random().toString(36).slice(2);
+        headers['X-Submit-Nonce'] = submitNonce;
+        console.log('[cadastro] nonce=', submitNonce);
 
         const res = await fetch(API.cadastro, { method: 'POST', headers, body: JSON.stringify(payload) });
         const text = await res.text();
@@ -673,24 +676,26 @@
         if (!res.ok) {
           console.warn('[cadastro][debug]', res.status, data || text);
 
+          // 429 (token expirado/duplicado)
           if (res.status === 429) {
             formMsg.className='error';
             formMsg.textContent='Desafio de segurança expirou. Clique novamente na caixinha e envie em seguida.';
             try { if (window.turnstile && CF_WIDGET_ID) turnstile.reset(CF_WIDGET_ID); } catch(_) {}
             enableSubmit();
-            SUBMITTING = false; // NOVO
             await tryDeleteJustCreatedUser(authInst, createdNewUser);
+            SUBMITTING = false; // ✅ NOVO
             return;
           }
 
+          // 422 (validação)
           if (res.status === 422) {
             formMsg.className='error';
             formMsg.textContent = (data && (data.message || data.detail)) ||
               'Algum campo está inválido. Revise nome, e-mail, telefone e CNPJ.';
             try { if (window.turnstile && CF_WIDGET_ID) turnstile.reset(CF_WIDGET_ID); } catch(_) {}
             enableSubmit();
-            SUBMITTING = false; // NOVO
             await tryDeleteJustCreatedUser(authInst, createdNewUser);
+            SUBMITTING = false; // ✅ NOVO
             return;
           }
 
@@ -743,6 +748,11 @@
                 'Authorization':'Bearer '+idToken,
                 'X-Turnstile-Token':tk,'cf-turnstile-response':tk
               };
+              // [OPCIONAL/DIAGNÓSTICO] repetir o nonce no segundo POST
+              const submitNonce2 = Date.now() + '-' + Math.random().toString(36).slice(2);
+              headers['X-Submit-Nonce'] = submitNonce2;
+              console.log('[cadastro] nonce(reclaim)=', submitNonce2);
+
               const res2 = await fetch(API.cadastro, { method:'POST', headers, body: JSON.stringify(payload) });
               if (res2.ok) {
                 form.style.display='none';
@@ -754,7 +764,7 @@
               } else {
                 formMsg.textContent = 'Cadastro criado, mas não conseguimos salvar seus dados agora. Tente novamente.';
                 enableSubmit();
-                SUBMITTING = false; // NOVO
+                SUBMITTING = false; // ✅ NOVO
                 return;
               }
             }
@@ -770,17 +780,19 @@
         try { if (window.turnstile && CF_WIDGET_ID) turnstile.reset(CF_WIDGET_ID); } catch(_) {}
         if (authInst) await tryDeleteJustCreatedUser(authInst, createdNewUser);
         enableSubmit();
-        SUBMITTING = false; // NOVO
+        SUBMITTING = false; // ✅ NOVO
       }
     }
 
-    // Handler de submit SEM onClick inline
+    // [OBRIGATÓRIO] Guard no listener de submit do formulário — NÃO coletar token aqui
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
-      if (SUBMITTING) return;          // NOVO
-      SUBMITTING = true;               // NOVO
 
-      formMsg.className='hint'; formMsg.textContent='';
+      if (SUBMITTING) return;        // 🔒 impede re-entrada (Enter+clique, clique duplo, etc.)
+      SUBMITTING = true;             // 🔒 trava até finalizar
+
+      formMsg.className='hint';
+      formMsg.textContent='';
 
       const e1 = (emailInput.value || '').trim().toLowerCase();
       const e2 = (email2Input.value || '').trim().toLowerCase();
@@ -790,16 +802,10 @@
       if (!passwordRulesOk(pwd.value)) { formMsg.className='error'; formMsg.textContent='Senha precisa ter no mínimo 8 caracteres com letras e números.'; pwd.focus(); SUBMITTING=false; return; }
       const phoneDigits = normalizeDigits(phoneInput.value || '');
       if (!phoneDigits || phoneDigits.length < 10 || phoneDigits.length > 11) { formMsg.className='error'; formMsg.textContent='Informe um telefone com DDD (10 ou 11 dígitos).'; phoneInput.focus(); SUBMITTING=false; return; }
+      if (!aceite.checked) { formMsg.className='error'; formMsg.textContent='Confirme que leu e concorda com os Termos e a Política de Privacidade.'; SUBMITTING=false; return; }
 
-      const token = (document.getElementById('cf_token').value || '').trim();
-      if (!token) {
-        formMsg.className='error';
-        formMsg.textContent='Clique na caixinha para liberar o envio.';
-        SUBMITTING=false;             // NOVO
-        return;
-      }
-
-      await proceedSubmit().finally(()=>{ SUBMITTING=false; }); // NOVO
+      // NÃO colete token aqui. A proceedSubmit() pega do widget no último segundo.
+      await proceedSubmit().finally(()=>{ SUBMITTING=false; });
     });
   </script>
 </body>
