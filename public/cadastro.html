@@ -22,6 +22,7 @@
       if (window.firebase?.apps?.length) {
         window.auth = firebase.auth();
         console.log('[cadastro] Firebase pronto (Hosting init).');
+        try { firebase.auth().languageCode = 'pt_BR'; } catch(_) {} // ★ garantir e-mail em pt-BR
       } else {
         console.error('[cadastro] Firebase não inicializou via Hosting.');
       }
@@ -270,6 +271,7 @@
     // Sucesso inline
     const successBox = document.getElementById('successBox');
     const successMsg = document.getElementById('successMsg');
+    const goVerify = document.getElementById('goVerify'); // ★ usar para setar ?email=
 
     // Banner aguardando verificação
     const verifyBanner = document.getElementById('verifyBanner');
@@ -658,11 +660,26 @@
         const { user, created } = await ensureAuthenticated(email, senha);
         createdNewUser = !!created;
 
-        try { if (user && !user.emailVerified) { await user.sendEmailVerification(); } } catch(_) {}
+        // ★ Enviar verificação com ActionCodeSettings (logo/botão dependem do template de e-mail no Console)
+        try {
+          if (user && !user.emailVerified) {
+            await user.sendEmailVerification({
+              url: 'https://www.meirobo.com.br/verify-email.html?email=' + encodeURIComponent(email),
+              handleCodeInApp: false
+            });
+          }
+        } catch(_) {}
 
         const idToken = await user.getIdToken();
         console.log('[cadastro] idToken len:', (idToken||'').length);
         try { showVerifyBanner(user.email || email); } catch(_){}
+
+        // ★ Ajustar CTA local para já incluir ?email=
+        try {
+          if (goVerify) {
+            goVerify.href = '/verify-email.html?email=' + encodeURIComponent(user?.email || email);
+          }
+        } catch(_) {}
 
         /* Enviar também aliases de token aceitos no back */
         const payload = {
@@ -728,6 +745,8 @@
           <span class="hint">Importante: depois de confirmar o e-mail, entre normalmente e você será levado à <em>Configuração da conta</em> para validar seu CNPJ e gravar sua voz.</span>`;
         successBox.style.display = 'block';
         showVerifyBanner(mail);
+        // ★ garantir CTA com query:
+        try { if (goVerify) goVerify.href = '/verify-email.html?email=' + encodeURIComponent(mail); } catch(_) {}
 
       } catch(e){
         console.error(e);
@@ -750,9 +769,21 @@
             if (resp.ok && j.ok) {
               const cred = await firebase.auth().createUserWithEmailAndPassword(email, (pwd.value || ''));
               const user = cred.user;
-              try { if (user && !user.emailVerified) await user.sendEmailVerification(); } catch(_){}
+              // ★ verificação também no reclaim
+              try {
+                if (user && !user.emailVerified) {
+                  await user.sendEmailVerification({
+                    url: 'https://www.meirobo.com.br/verify-email.html?email=' + encodeURIComponent(email),
+                    handleCodeInApp: false
+                  });
+                }
+              } catch(_){}
+
               const idToken = await user.getIdToken();
               showVerifyBanner(user.email || email);
+              // ★ CTA com query
+              try { if (goVerify) goVerify.href = '/verify-email.html?email=' + encodeURIComponent(user?.email || email); } catch(_) {}
+
               const telefoneDigits = normalizeDigits(phoneInput.value || '');
               const cnpjDigits = normalizeCNPJ(cnpjInput.value || '');
               const nome = (document.getElementById('nome').value || '').trim();
@@ -779,6 +810,7 @@
                   <span class="hint">Depois de confirmar, continue em <em>Configuração da conta</em>.</span>`;
                 successBox.style.display='block';
                 showVerifyBanner(email);
+                try { if (goVerify) goVerify.href = '/verify-email.html?email=' + encodeURIComponent(email); } catch(_) {} // ★
                 return;
               } else {
                 formMsg.textContent = 'Cadastro criado, mas não conseguimos salvar seus dados agora. Tente novamente.';
