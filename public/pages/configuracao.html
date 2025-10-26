@@ -374,11 +374,11 @@
     function formatDateBR(iso){ try { const d=new Date(iso); return `${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}/${d.getFullYear()}` } catch(_){ return iso; } }
     function onlyDigits(s){ return String(s||'').replace(/\D+/g,''); }
 
-    // === Validação simples de CNPJ (dígitos + DV)
+    // === Validação simples de CNPJ (dígitos + DV) — regex corrigida ===
     function isValidCNPJ(cnpj){
       cnpj = onlyDigits(cnpj||'');
       if (cnpj.length !== 14) return false;
-      if (/^(\d){13}$/.test(cnpj)) return false;
+      if (/^(\d)\1{13}$/.test(cnpj)) return false; // <- fix backreference
       let t = 12, d1 = 0, d2 = 0, p1 = 5, p2 = 6;
       for (let i = 0; i < t; i++) {
         const n = parseInt(cnpj[i],10);
@@ -622,7 +622,21 @@
       })();
     }
 
-    /* ======== NOVO: utilitários CNPJ/empresa (conta/status) ======== */
+    /* ======== Fallbacks de chaves para dados da empresa ======== */
+    function getField(obj, keys){
+      for (const k of keys){
+        if (obj && obj[k] != null && obj[k] !== '') return obj[k];
+      }
+      return '';
+    }
+
+    function pickCNAE(empresa){
+      const c1 = empresa.cnaePrincipal || empresa.cnae_principal || null;
+      if (c1 && (c1.codigo || c1.descricao)) return c1;
+      const arr = empresa.cnaes || empresa.cnaesPrincipais || [];
+      return Array.isArray(arr) && arr.length ? arr[0] : {};
+    }
+
     async function fetchJson(url, headers) {
       const r = await fetch(url, { headers: headers || {}, cache: 'no-store' });
       if (!r.ok) throw new Error('HTTP ' + r.status);
@@ -631,13 +645,19 @@
 
     function populateFromEmpresa(empresa) {
       if (!empresa) return;
-      const cnpjDig = onlyDigits(empresa.cnpj || '');
+      // CNPJ (várias formas)
+      const cnpjRaw = getField(empresa, ['cnpj','cnpjSemMascara','cnpj_sem_mascara','cnpj_basico','id']);
+      const cnpjDig = onlyDigits(cnpjRaw || '');
       if (cnpjDig) { dCnpj.textContent = cnpjDig; hCnpj.value = cnpjDig; }
-      const legal = empresa.razaoSocial || '';
-      const trade = empresa.nomeFantasia || '';
+
+      // Nomes
+      const legal = getField(empresa, ['razaoSocial','razao_social','nomeEmpresarial','legal_name']);
+      const trade = getField(empresa, ['nomeFantasia','nome_fantasia','trade_name']);
       if (legal) { dLegal.textContent = legal; hLegal.value = legal; }
       if (trade) { dTrade.textContent = trade; hTrade.value = trade; }
-      const cnae = empresa.cnaePrincipal || {};
+
+      // CNAE
+      const cnae = pickCNAE(empresa);
       const seg = [cnae.codigo, cnae.descricao].filter(Boolean).join(' — ');
       if (seg) { dSeg.textContent = seg; hSeg.value = seg; }
     }
@@ -648,10 +668,19 @@
         const headers = {}; 
         if (idToken) headers['Authorization'] = 'Bearer ' + idToken;
         const j = await fetchJson(`${API_BASE}/api/conta/status?uid=${encodeURIComponent(uid)}`, headers);
+
+        // aceita { empresa: {...} } ou os campos diretamente na raiz
         if (j && j.empresa) {
           populateFromEmpresa(j.empresa);
-          const municipio = j.empresa?.endereco?.municipio || '';
-          const uf = j.empresa?.endereco?.uf || '';
+          const municipio = j.empresa?.endereco?.municipio || j.empresa?.municipio || '';
+          const uf = j.empresa?.endereco?.uf || j.empresa?.uf || '';
+          if (cnpjVinculoHint && (municipio || uf)) {
+            cnpjVinculoHint.textContent = `✅ CNPJ OK: ${municipio}${uf ? ' / ' + uf : ''}.`;
+          }
+        } else if (j && typeof j === 'object') {
+          populateFromEmpresa(j);
+          const municipio = j?.endereco?.municipio || j?.municipio || '';
+          const uf = j?.endereco?.uf || j?.uf || '';
           if (cnpjVinculoHint && (municipio || uf)) {
             cnpjVinculoHint.textContent = `✅ CNPJ OK: ${municipio}${uf ? ' / ' + uf : ''}.`;
           }
@@ -662,7 +691,7 @@
       }
     }
 
-    // ======= NOVO: helpers de configuração para CNPJ inline =======
+    // ======= helpers de configuração para CNPJ inline =======
     async function fetchConfig(tok){
       const r = await fetch(`${API_BASE}/api/configuracao`, { headers: { "Authorization": tok ? ("Bearer " + tok) : "", "Accept":"application/json" } });
       if (!r.ok) throw new Error("config_fetch_failed");
@@ -725,11 +754,14 @@
         if (authEmail) { dEmail.textContent = authEmail; hEmail.value = authEmail; }
 
         // CNPJ/Segmento/Legal/Trade vindos de config (se existirem) sobrescrevem o que veio de conta/status
-        const cnpjDigits = onlyDigits(data?.cnpj || hCnpj.value || '');
+        const cnpjDigits = onlyDigits(data?.cnpj || data?.cnpjSemMascara || data?.cnpj_basico || hCnpj.value || '');
         if (cnpjDigits) { dCnpj.textContent = cnpjDigits; hCnpj.value = cnpjDigits; }
+
         if (data.segmento)   { dSeg.textContent = data.segmento; hSeg.value = data.segmento; }
-        if (data.legal_name) { dLegal.textContent = data.legal_name; hLegal.value = data.legal_name; }
-        if (data.trade_name) { dTrade.textContent = data.trade_name; hTrade.value = data.trade_name; }
+        const legalCfg = data.legal_name || data.razaoSocial || data.razao_social || data.nomeEmpresarial || '';
+        const tradeCfg = data.trade_name || data.nomeFantasia || data.nome_fantasia || '';
+        if (legalCfg) { dLegal.textContent = legalCfg; hLegal.value = legalCfg; }
+        if (tradeCfg) { dTrade.textContent = tradeCfg; hTrade.value = tradeCfg; }
 
         // Preferências já existentes
         if (data.telefone) fTel.value = data.telefone;
@@ -748,14 +780,14 @@
 
         initBranding(data);
 
-        // (Opcional) reforça a checagem de vínculo com o CNPJ final que ficou na UI
+        // (Opcional/leve) reforça a checagem de vínculo com o CNPJ final que ficou na UI
         tryCheckCnpjVinculo(hCnpj.value || '', authName || '');
 
         // Voz / WABA
         setupVoice(uid, idToken);
         await loadWabaStatus(uid, idToken);
 
-        // ===== NOVO: se ainda não há CNPJ, exibir bloco inline seguro =====
+        // ===== Se ainda não há CNPJ, exibir bloco inline seguro =====
         if (!hCnpj.value) {
           if (cnpjForm && cnpjInput && btnSalvarCnpj && cnpjMsg) {
             cnpjForm.style.display = 'block';
@@ -769,7 +801,7 @@
               // sanity ping (não obrigatório)
               try {
                 const okAvail = await checkCnpjAvailability(digits);
-                if (!okAvail) { cnpjMsg.textContent = 'Não foi possível validar agora. Tente de novo em instantes.'; return; }
+                if (!okAvail) { /* não bloquear; só informar */ }
               } catch(_){ /* segue mesmo que falhe */ }
 
               cnpjMsg.textContent = 'Salvando...';
@@ -778,14 +810,16 @@
                 const r = await postConfigCNPJ(tok, digits);
                 if (r.ok){
                   cnpjMsg.textContent = 'CNPJ salvo. Atualizando...';
-                  // refetch config
+                  // refetch config com fallbacks
                   try{
                     const j2 = await fetchConfig(tok);
                     const d2 = j2.data || j2 || {};
-                    const c2 = onlyDigits(d2.cnpj||digits);
+                    const c2 = onlyDigits(d2.cnpj || d2.cnpjSemMascara || d2.cnpj_basico || digits);
                     if (c2){ dCnpj.textContent = c2; hCnpj.value = c2; }
-                    if (d2.razaoSocial || d2.legal_name){ const v=(d2.razaoSocial||d2.legal_name); dLegal.textContent=v; hLegal.value=v; }
-                    if (d2.nomeFantasia || d2.trade_name){ const v=(d2.nomeFantasia||d2.trade_name); dTrade.textContent=v; hTrade.value=v; }
+                    const legal2 = d2.legal_name || d2.razaoSocial || d2.razao_social || d2.nomeEmpresarial;
+                    const trade2 = d2.trade_name || d2.nomeFantasia || d2.nome_fantasia;
+                    if (legal2){ dLegal.textContent = legal2; hLegal.value = legal2; }
+                    if (trade2){ dTrade.textContent = trade2; hTrade.value = trade2; }
                   }catch(_){}
                   cnpjForm.style.display = 'none';
                   cnpjMsg.textContent = '';
@@ -929,4 +963,3 @@
   </script>
 </body>
 </html>
-
