@@ -594,8 +594,8 @@
         return;
       }
 
-      /* NOVO: logar a “idade” do token antes de qualquer fetch */
-      try { console.log('[cadastro] token_age_ms=', Date.now() - CF_TOKEN_TS); } catch(_) {}
+      // >>> Inserido conforme solicitado: logar a idade do token antes de qualquer fetch
+      console.log('[cadastro] token_age_ms=', Date.now() - CF_TOKEN_TS);
 
       disableSubmit();
 
