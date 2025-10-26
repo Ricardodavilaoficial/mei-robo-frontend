@@ -174,27 +174,38 @@
     let authEmail = null;
     let initHasRunVerification = false;
 
-    // ===== comunicação com a aba original =====
-    const bc = ('BroadcastChannel' in window) ? new BroadcastChannel('auth') : null;
-    function notifyVerified() {
-      try { localStorage.setItem('emailVerified','true'); } catch(_){}
-      try { bc && bc.postMessage({type:'email-verified'}); } catch(_){}
-      try { window.opener && window.opener.postMessage({type:'email-verified'}, '*'); } catch(_){}
+    // ===== util (cont/continueUrl) =====
+    const DEFAULT_CONT = '/pages/configuracao.html';
+    function readActionParams(){
+      try{
+        const p = new URLSearchParams(location.search);
+        return {
+          mode:     p.get('mode') || '',
+          oobCode:  p.get('oobCode') || '',
+          apiKey:   p.get('apiKey') || '',
+          cont:     p.get('continueUrl') || p.get('cont') || '',
+          email:    p.get('email') || '',
+          lang:     p.get('lang') || ''
+        };
+      }catch{ return { mode:'', oobCode:'', apiKey:'', cont:'', email:'', lang:'' }; }
+    }
+    function safeContUrl(raw){
+      try{
+        if(!raw) return DEFAULT_CONT;
+        // Permite apenas caminhos locais (evita open redirect)
+        if (/^https?:\/\//i.test(raw)) {
+          const u = new URL(raw);
+          if (u.origin === location.origin) return u.pathname + u.search + u.hash;
+          return DEFAULT_CONT;
+        }
+        if (raw.startsWith('/')) return raw;
+        return DEFAULT_CONT;
+      }catch{ return DEFAULT_CONT; }
     }
 
-    // >>> NOVO: ouvir sinal vindo de outra aba/janela e prosseguir
-    function onSignal(){
-      try { localStorage.setItem('emailVerified','true'); } catch(_){}
-      proceedToConfig();
-    }
-    if (bc) bc.addEventListener('message', ev => {
-      if (ev && ev.data && ev.data.type === 'email-verified') onSignal();
-    });
-    window.addEventListener('message', ev => {
-      if (ev && ev.data && ev.data.type === 'email-verified') onSignal();
-    });
+    const ACT = readActionParams();
+    const CONT_URL = safeContUrl(ACT.cont);
 
-    // ===== util =====
     function setMsg(text, cls){ msg.className = cls || 'hint'; msg.textContent = text || ''; }
     function sanitizeEmail(s){ if(!s||typeof s!=='string')return''; s=s.trim().replace(/\s+/g,''); return s.replace(/[\u200B-\u200D\uFEFF]/g,''); }
     function isValidEmail(s){ return /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(s); }
@@ -226,6 +237,26 @@
       btnCheck.setAttribute('aria-disabled','true');
     }
 
+    // ===== comunicação com a aba original =====
+    const bc = ('BroadcastChannel' in window) ? new BroadcastChannel('auth') : null;
+    function notifyVerified() {
+      try { localStorage.setItem('emailVerified','true'); } catch(_){}
+      try { bc && bc.postMessage({type:'email-verified'}); } catch(_){}
+      try { window.opener && window.opener.postMessage({type:'email-verified'}, '*'); } catch(_){}
+    }
+
+    // >>> Ouvir sinal vindo de outra aba/janela e prosseguir
+    function onSignal(){
+      try { localStorage.setItem('emailVerified','true'); } catch(_){}
+      proceedToConfig();
+    }
+    if (bc) bc.addEventListener('message', ev => {
+      if (ev && ev.data && ev.data.type === 'email-verified') onSignal();
+    });
+    window.addEventListener('message', ev => {
+      if (ev && ev.data && ev.data.type === 'email-verified') onSignal();
+    });
+
     async function ensureHeaderFooter(){
       try{
         await new Promise(r=>setTimeout(r, 250));
@@ -249,6 +280,7 @@
       minimalMount.style.display = 'block';
       minTitle.textContent = '✅ E-mail verificado com sucesso';
       minSub.innerHTML = 'Volte para a aba onde você estava fazendo seu cadastro e clique em <strong>“Já verifiquei — continuar”</strong>.';
+      try { minGoConfig.setAttribute('href', CONT_URL || DEFAULT_CONT); } catch(_){}
     }
     function showMinimalError(text, ctaText, ctaHref){
       document.body.classList.add('is-minimal');
@@ -280,7 +312,7 @@
             }
             await user.reload();
             await user.sendEmailVerification({
-              url: 'https://www.meirobo.com.br/verify-email.html',
+              url: new URL('/verify-email.html?cont=' + encodeURIComponent(CONT_URL || DEFAULT_CONT), location.origin).toString(),
               handleCodeInApp: false
             });
             minSub.textContent = 'Pronto! Verifique sua caixa de entrada (e Spam).';
@@ -299,6 +331,7 @@
       e.preventDefault();
       setMsg('Enviando...', 'hint');
 
+      const intendedFromUrl = sanitizeEmail(readQueryEmail());
       const email = authEmail ? authEmail : sanitizeEmail(emailInput.value || '');
       if(!isValidEmail(email)){ setMsg('Informe um e-mail válido.', 'error'); emailInput.focus(); return; }
 
@@ -313,9 +346,13 @@
           setMsg('Faça login novamente para reenviar a verificação.', 'error');
         } else {
           await user.reload();
+          if (!emailsMatch(intendedFromUrl, user.email || '')) {
+            blockForMismatch(intendedFromUrl, user.email || '(sem e-mail)');
+            return;
+          }
           if (user.email !== email) { applyEmailToUI(user.email); }
           await user.sendEmailVerification({
-            url: 'https://www.meirobo.com.br/verify-email.html',
+            url: new URL('/verify-email.html?cont=' + encodeURIComponent(CONT_URL || DEFAULT_CONT), location.origin).toString(),
             handleCodeInApp: false
           });
           setMsg('Pronto! Verifique sua caixa de entrada (e Spam).', 'ok');
@@ -326,20 +363,6 @@
         btnResend.disabled = false; btnCheck.removeAttribute('aria-disabled');
       }
     });
-
-    // ====== E-mail actions (oobCode) na URL ======
-    function readActionParams(){
-      try{
-        const p = new URLSearchParams(location.search);
-        return {
-          mode:     p.get('mode') || '',
-          oobCode:  p.get('oobCode') || '',
-          apiKey:   p.get('apiKey') || '',
-          cont:     p.get('continueUrl') || p.get('cont') || '',
-          lang:     p.get('lang') || ''
-        };
-      }catch{ return { mode:'', oobCode:'', apiKey:'', cont:'', lang:'' }; }
-    }
 
     // ====== Núcleo: checar/aplicar verificação ======
     async function postCheckVerification(intendedEmail){
@@ -448,7 +471,7 @@
       }
     });
 
-    // >>> NOVO: função de avanço que recarrega usuário e redireciona (WWW)
+    // >>> Avanço: recarrega usuário e vai para configuração
     async function proceedToConfig(){
       const el = msg2 || msg;
       if (el) el.textContent = 'Confirmando verificação...';
@@ -458,7 +481,7 @@
         if (!u) { if (el) el.textContent = 'Faça login novamente e tente de novo.'; return; }
         await u.reload();
         if (u.emailVerified) {
-          location.href = "https://www.meirobo.com.br/pages/configuracao.html";
+          location.href = CONT_URL || DEFAULT_CONT;
         } else {
           if (el) el.textContent = 'Ainda não confirmou. Clique no link do e-mail e volte aqui.';
         }
@@ -467,21 +490,26 @@
       }
     }
 
-    // >>> NOVO: botões do banner novo
+    // >>> Botões do banner novo
     if (btnAlreadyVerified) btnAlreadyVerified.addEventListener('click', (e)=>{ e.preventDefault(); proceedToConfig(); });
-    if (btnOpenConfig) btnOpenConfig.addEventListener('click', (e)=>{ e.preventDefault(); location.href = "https://www.meirobo.com.br/pages/configuracao.html"; });
+    if (btnOpenConfig) btnOpenConfig.addEventListener('click', (e)=>{ e.preventDefault(); location.href = CONT_URL || DEFAULT_CONT; });
 
     // ====== Init ======
     (async function init(){
       await ensureHeaderFooter();
 
-      const intended = sanitizeEmail(readQueryEmail());
+      const intended = sanitizeEmail(readQueryEmail() || ACT.email || '');
       if(intended) applyEmailToUI(intended);
 
       // Preencher e-mail no banner com usuário atual (se houver)
       try {
         const u = firebase?.auth?.currentUser || null;
         if (u && u.email && userEmail) userEmail.textContent = "E-mail: " + (u.email || "");
+      } catch(_){}
+
+      // Ajusta CTA do minimal / banner para CONT_URL
+      try {
+        if (minGoConfig) minGoConfig.setAttribute('href', CONT_URL || DEFAULT_CONT);
       } catch(_){}
 
       try{
