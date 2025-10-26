@@ -290,7 +290,7 @@
     // MINÍMO para robustez do Turnstile: backoff simples no erro (corrige 106010)
     let CF_RETRY = 0;
     function reRenderTurnstileWithBackoff(){
-      try { if (window.turnstile && CF_WIDGET_ID) turnstile.reset(CF_WIDGET_ID); } catch(_){}}
+      try { if (window.turnstile && CF_WIDGET_ID) turnstile.reset(CF_WIDGET_ID); } catch(_) {}
       CF_RETRY = Math.min(CF_RETRY + 1, 5);
       const wait = 500 * CF_RETRY; // 0.5s, 1s, 1.5s, ...
       setTimeout(() => {
@@ -481,8 +481,24 @@
     cnpjInput.addEventListener('blur', checkCNPJAvailability);
     cnpjInput.addEventListener('input', debouncedCheck);
 
-    function calcStrength(s){ let score=0; if(!s) return 0; if(s.length>=8)score++; if(s.length>=12)score++; if(/[a-z]/.test(s))score++; if(/[A-Z]/.test(s))score++; if/[0-9]/.test(s))score++; if(/[^A-Za-z0-9]/.test(s))score++; return Math.min(5, Math.max(0, Math.floor(score*0.8))); }
-    function updatePwdMeter(){ const s=pwd.value||''; const st=calcStrength(s); const pct=[0,20,40,60,80,100][st]; document.getElementById('pwdBar').style.width=pct+'%'; strengthText.textContent=s?(['Muito fraca','Fraca','Razoável','Forte','Muito forte','Excelente'][st]):''; }
+    function calcStrength(s){
+      let score = 0;
+      if (!s) return 0;
+      if (s.length >= 8) score++;
+      if (s.length >= 12) score++;
+      if (/[a-z]/.test(s)) score++;
+      if (/[A-Z]/.test(s)) score++;
+      if (/[0-9]/.test(s)) score++;               /* ← corrigido */
+      if (/[^A-Za-z0-9]/.test(s)) score++;
+      return Math.min(5, Math.max(0, Math.floor(score * 0.8)));
+    }
+    function updatePwdMeter(){
+      const s = pwd.value || '';
+      const st = calcStrength(s);
+      const pct = [0,20,40,60,80,100][st];
+      document.getElementById('pwdBar').style.width = pct + '%';
+      strengthText.textContent = s ? (['Muito fraca','Fraca','Razoável','Forte','Muito forte','Excelente'][st]) : '';
+    }
     pwd.addEventListener('input', ()=>{ updatePwdMeter(); updateButtonState(); });
     togglePwd.addEventListener('click', (e)=>{ e.preventDefault(); const visible=pwd.type==='text'; pwd.type=visible?'password':'text'; togglePwd.textContent=visible?'Mostrar':'Ocultar'; togglePwd.setAttribute('aria-pressed', String(!visible)); pwd.focus(); });
 
@@ -594,7 +610,7 @@
         return;
       }
 
-      // >>> Inserido conforme solicitado: logar a idade do token antes de qualquer fetch
+      // log da idade do token (pedido original)
       console.log('[cadastro] token_age_ms=', Date.now() - CF_TOKEN_TS);
 
       disableSubmit();
@@ -642,7 +658,7 @@
         const { user, created } = await ensureAuthenticated(email, senha);
         createdNewUser = !!created;
 
-        try { if (user && !user.emailVerified) { await user.sendEmailVerification(); } } catch(_){}}
+        try { if (user && !user.emailVerified) { await user.sendEmailVerification(); } } catch(_) {}
 
         const idToken = await user.getIdToken();
         console.log('[cadastro] idToken len:', (idToken||'').length);
@@ -666,7 +682,7 @@
           'X-Turnstile-Token': token,
           'cf-turnstile-response': token
         };
-        // [OPCIONAL/DIAGNÓSTICO] Nonce para rastrear tentativa única no backend
+        // Nonce no header (já estava/permanece)
         const submitNonce = Date.now() + '-' + Math.random().toString(36).slice(2);
         headers['X-Submit-Nonce'] = submitNonce;
         console.log('[cadastro] nonce=', submitNonce);
@@ -751,7 +767,7 @@
                 'Authorization':'Bearer '+idToken,
                 'X-Turnstile-Token':tk,'cf-turnstile-response':tk
               };
-              // [OPCIONAL/DIAGNÓSTICO] repetir o nonce no segundo POST
+              // repetir nonce no segundo POST
               const submitNonce2 = Date.now() + '-' + Math.random().toString(36).slice(2);
               headers['X-Submit-Nonce'] = submitNonce2;
               console.log('[cadastro] nonce(reclaim)=', submitNonce2);
