@@ -53,7 +53,6 @@
     .branding-option small { opacity:.8 }
     .soft{opacity:.8}
 
-    /* UI de voz (apenas nesta página) */
     .upload-area{
       border:1px dashed var(--bd-input);
       border-radius:12px;
@@ -69,12 +68,10 @@
     .progress{ width:100%; height:8px; background:rgba(255,255,255,0.08); border-radius:999px; overflow:hidden }
     .progress > span{ display:block; height:100%; width:0% }
 
-    /* status topo (auth/loading) */
     #authStatus { margin:8px 0 0; font-size:.9rem; opacity:.85 }
   </style>
   
   <script>
-    /* API base */
     window.API_BASE = "https://mei-robo-prod.onrender.com";
   </script>
 </head>
@@ -151,6 +148,26 @@
               <span id="disp-tradename" class="display-value">—</span>
               <input type="hidden" name="trade_name" id="hid-tradename" />
             </div>
+          </div>
+
+          <!-- Campos adicionados para exibição somente-leitura (mínimo necessário) -->
+          <div class="grid-2 mt-12">
+            <div>
+              <label>Situação</label>
+              <span id="disp-situacao" class="display-value">—</span>
+              <input type="hidden" id="hid-situacao" />
+            </div>
+            <div>
+              <label>Abertura</label>
+              <span id="disp-abertura" class="display-value">—</span>
+              <input type="hidden" id="hid-abertura" />
+            </div>
+          </div>
+
+          <div class="mt-12">
+            <label>Endereço</label>
+            <span id="disp-endereco" class="display-value">—</span>
+            <input type="hidden" id="hid-endereco" />
           </div>
 
           <p id="cnpj-vinculo-hint" class="hint mt-8"></p>
@@ -301,13 +318,11 @@
 
   <div id="app-footer"></div>
 
-  <!-- CNPJ: auto-preenchimento via /api/conta/status e /api/configuracao -->
   <script>
     const API_BASE = (localStorage.getItem('apiBase') || 'https://mei-robo-prod.onrender.com').replace(/\/+$/, '');
 
     /* ===== Gatekeeper robusto ===== */
     const authStatus = document.getElementById('authStatus');
-
     function setAuthMsg(t){ authStatus.textContent = t || ''; }
 
     function waitForFirebaseAuthReady(timeoutMs=12000){
@@ -374,11 +389,11 @@
     function formatDateBR(iso){ try { const d=new Date(iso); return `${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}/${d.getFullYear()}` } catch(_){ return iso; } }
     function onlyDigits(s){ return String(s||'').replace(/\D+/g,''); }
 
-    // === Validação simples de CNPJ (dígitos + DV) — regex corrigida ===
+    // === Validação simples de CNPJ ===
     function isValidCNPJ(cnpj){
       cnpj = onlyDigits(cnpj||'');
       if (cnpj.length !== 14) return false;
-      if (/^(\d)\1{13}$/.test(cnpj)) return false; // <- fix backreference
+      if (/^(\d)\1{13}$/.test(cnpj)) return false;
       let t = 12, d1 = 0, d2 = 0, p1 = 5, p2 = 6;
       for (let i = 0; i < t; i++) {
         const n = parseInt(cnpj[i],10);
@@ -400,6 +415,9 @@
     const dSeg   = document.getElementById('disp-segmento');
     const dLegal = document.getElementById('disp-legalname');
     const dTrade = document.getElementById('disp-tradename');
+    const dSitu  = document.getElementById('disp-situacao');
+    const dAber  = document.getElementById('disp-abertura');
+    const dEnd   = document.getElementById('disp-endereco');
 
     const hNome  = document.getElementById('hid-nome');
     const hEmail = document.getElementById('hid-email');
@@ -407,6 +425,9 @@
     const hSeg   = document.getElementById('hid-segmento');
     const hLegal = document.getElementById('hid-legalname');
     const hTrade = document.getElementById('hid-tradename');
+    const hSitu  = document.getElementById('hid-situacao');
+    const hAber  = document.getElementById('hid-abertura');
+    const hEnd   = document.getElementById('hid-endereco');
 
     const fTel   = form.querySelector('input[name="telefone"]');
     const fEsp1  = form.querySelector('input[name="esp1"]');
@@ -429,7 +450,6 @@
 
     const cnpjVinculoHint = document.getElementById('cnpj-vinculo-hint');
 
-    // Inline CNPJ elements
     const cnpjForm = document.getElementById('cnpjInlineForm');
     const cnpjInput = document.getElementById('cnpjInput');
     const btnSalvarCnpj = document.getElementById('btnSalvarCnpj');
@@ -469,7 +489,7 @@
       return { uid, idToken };
     }
 
-    /* ===== Voz: estado “pronta” para habilitar salvar ===== */
+    /* ===== Voz ===== */
     const voiceEls = {
       area: document.getElementById('uploadArea'),
       input: document.getElementById('voiceFiles'),
@@ -622,44 +642,52 @@
       })();
     }
 
-    /* ======== Fallbacks de chaves para dados da empresa ======== */
+    /* ===== Helpers empresa/CNPJ ===== */
     function getField(obj, keys){
       for (const k of keys){
         if (obj && obj[k] != null && obj[k] !== '') return obj[k];
       }
       return '';
     }
-
     function pickCNAE(empresa){
       const c1 = empresa.cnaePrincipal || empresa.cnae_principal || null;
       if (c1 && (c1.codigo || c1.descricao)) return c1;
       const arr = empresa.cnaes || empresa.cnaesPrincipais || [];
       return Array.isArray(arr) && arr.length ? arr[0] : {};
     }
-
     async function fetchJson(url, headers) {
       const r = await fetch(url, { headers: headers || {}, cache: 'no-store' });
       if (!r.ok) throw new Error('HTTP ' + r.status);
       return r.json();
     }
+    function formatEnderecoFrom(empresa){
+      const e = empresa?.endereco || {};
+      const parts = [e.logradouro, e.numero, e.bairro, e.municipio, e.uf, e.cep].filter(Boolean);
+      return parts.join(', ');
+    }
 
     function populateFromEmpresa(empresa) {
       if (!empresa) return;
-      // CNPJ (várias formas)
       const cnpjRaw = getField(empresa, ['cnpj','cnpjSemMascara','cnpj_sem_mascara','cnpj_basico','id']);
       const cnpjDig = onlyDigits(cnpjRaw || '');
       if (cnpjDig) { dCnpj.textContent = cnpjDig; hCnpj.value = cnpjDig; }
 
-      // Nomes
       const legal = getField(empresa, ['razaoSocial','razao_social','nomeEmpresarial','legal_name']);
       const trade = getField(empresa, ['nomeFantasia','nome_fantasia','trade_name']);
       if (legal) { dLegal.textContent = legal; hLegal.value = legal; }
       if (trade) { dTrade.textContent = trade; hTrade.value = trade; }
 
-      // CNAE
       const cnae = pickCNAE(empresa);
       const seg = [cnae.codigo, cnae.descricao].filter(Boolean).join(' — ');
       if (seg) { dSeg.textContent = seg; hSeg.value = seg; }
+
+      // ===== NOVO: situação, abertura e endereço (somente leitura)
+      const situ = getField(empresa, ['situacao']);
+      const abrt = getField(empresa, ['dataAbertura','abertura','data_inicio_atividade']);
+      const end  = formatEnderecoFrom(empresa);
+      if (situ){ dSitu.textContent = situ; hSitu.value = situ; }
+      if (abrt){ dAber.textContent = abrt.includes('-') ? formatDateBR(abrt) : abrt; hAber.value = abrt; }
+      if (end){  dEnd.textContent = end; hEnd.value = end; }
     }
 
     async function loadEmpresaFromContaStatus(uid, idToken) {
@@ -669,7 +697,6 @@
         if (idToken) headers['Authorization'] = 'Bearer ' + idToken;
         const j = await fetchJson(`${API_BASE}/api/conta/status?uid=${encodeURIComponent(uid)}`, headers);
 
-        // aceita { empresa: {...} } ou os campos diretamente na raiz
         if (j && j.empresa) {
           populateFromEmpresa(j.empresa);
           const municipio = j.empresa?.endereco?.municipio || j.empresa?.municipio || '';
@@ -691,7 +718,7 @@
       }
     }
 
-    // ======= helpers de configuração para CNPJ inline =======
+    // ======= configuração/CNPJ inline (como estava) =======
     async function fetchConfig(tok){
       const r = await fetch(`${API_BASE}/api/configuracao`, { headers: { "Authorization": tok ? ("Bearer " + tok) : "", "Accept":"application/json" } });
       if (!r.ok) throw new Error("config_fetch_failed");
@@ -710,28 +737,45 @@
       return r.ok;
     }
 
+    /* ===== NOVO: buscar DETALHES do CNPJ (público) ===== */
+    async function fetchEmpresaDetalhes(cnpj14){
+      const c = onlyDigits(cnpj14||'');
+      if (!c || c.length !== 14) return null;
+      const urls = [
+        `${API_BASE}/api/cnpj/${c}`,
+        `${API_BASE}/integracoes/cnpj/${c}`, // fallback legado
+      ];
+      for (const u of urls){
+        try {
+          const j = await fetchJson(u);
+          if (j && typeof j === 'object') return j;
+        } catch(_) {}
+      }
+      return null;
+    }
+
     /* ===== Inicialização ===== */
     (async function gatekeeper(){
       const ok = await ensureVerifiedOrSendBack();
       if (!ok) return;
-      init(); // só segue após login + email verificado
+      init();
     })();
 
     async function init() {
       const { uid, idToken } = await getAuthContext();
       if (!uid) { location.href = '/pages/login.html?next=' + encodeURIComponent('/pages/configuracao.html'); return; }
 
-      // 1) Preenche a UI a partir de /api/conta/status (dados do CNPJ)
+      // 1) Preenche via /api/conta/status
       await loadEmpresaFromContaStatus(uid, idToken);
 
       try {
-        // 2) Depois, tenta /api/configuracao (pode dar 404 no primeiro acesso)
+        // 2) /api/configuracao (pode dar 404 no primeiro acesso)
         const headers = {}; if (idToken) headers['Authorization'] = 'Bearer ' + idToken;
         const resp = await fetch(`${API_BASE}/api/configuracao`, { method: 'GET', headers });
         let payload = null;
 
         if (resp.status === 404) {
-          payload = {}; // primeiro acesso: segue com o que já temos da conta/status
+          payload = {};
         } else if (resp.status === 401) {
           location.href = '/pages/login.html?next=' + encodeURIComponent('/pages/configuracao.html'); return;
         } else if (resp.status === 403 || resp.status === 428) {
@@ -743,8 +787,6 @@
         }
 
         const data = (payload && payload.data) ? payload.data : (payload || {});
-
-        // Preenche mínimos a partir do Auth se precisar
         let user = firebase.auth().currentUser;
         try { await user?.reload(); } catch(_){}
         const authEmail = user?.email || '';
@@ -753,7 +795,6 @@
         if (authName)  { dNome.textContent = authName; hNome.value = authName; }
         if (authEmail) { dEmail.textContent = authEmail; hEmail.value = authEmail; }
 
-        // CNPJ/Segmento/Legal/Trade vindos de config (se existirem) sobrescrevem o que veio de conta/status
         const cnpjDigits = onlyDigits(data?.cnpj || data?.cnpjSemMascara || data?.cnpj_basico || hCnpj.value || '');
         if (cnpjDigits) { dCnpj.textContent = cnpjDigits; hCnpj.value = cnpjDigits; }
 
@@ -763,7 +804,6 @@
         if (legalCfg) { dLegal.textContent = legalCfg; hLegal.value = legalCfg; }
         if (tradeCfg) { dTrade.textContent = tradeCfg; hTrade.value = tradeCfg; }
 
-        // Preferências já existentes
         if (data.telefone) fTel.value = data.telefone;
         if (data.esp1) fEsp1.value = data.esp1;
         if (data.esp2) fEsp2.value = data.esp2;
@@ -780,14 +820,22 @@
 
         initBranding(data);
 
-        // (Opcional/leve) reforça a checagem de vínculo com o CNPJ final que ficou na UI
+        // (Opcional) reforço de vínculo por nome
         tryCheckCnpjVinculo(hCnpj.value || '', authName || '');
 
-        // Voz / WABA
+        // ===== NOVO: se já temos CNPJ, buscar DETALHES públicos e sobrepor exibição
+        if (hCnpj.value){
+          try {
+            const emp = await fetchEmpresaDetalhes(hCnpj.value);
+            if (emp) populateFromEmpresa(emp);
+          } catch(_){}
+        }
+
+        // Voz/WABA como já estava
         setupVoice(uid, idToken);
         await loadWabaStatus(uid, idToken);
 
-        // ===== Se ainda não há CNPJ, exibir bloco inline seguro =====
+        // ===== Se ainda não há CNPJ, exibir bloco inline =====
         if (!hCnpj.value) {
           if (cnpjForm && cnpjInput && btnSalvarCnpj && cnpjMsg) {
             cnpjForm.style.display = 'block';
@@ -798,19 +846,17 @@
               const digits = onlyDigits(raw);
               if (!isValidCNPJ(digits)) { cnpjMsg.textContent = 'CNPJ inválido. Confira e tente novamente.'; return; }
 
-              // sanity ping (não obrigatório)
               try {
                 const okAvail = await checkCnpjAvailability(digits);
-                if (!okAvail) { /* não bloquear; só informar */ }
-              } catch(_){ /* segue mesmo que falhe */ }
+                if (!okAvail) { /* apenas informativo */ }
+              } catch(_){}
 
               cnpjMsg.textContent = 'Salvando...';
               try{
-                const tok = idToken || (await firebase.auth().currentUser?.getIdToken(true));
+                const tok = (await firebase.auth().currentUser?.getIdToken(true)) || null;
                 const r = await postConfigCNPJ(tok, digits);
                 if (r.ok){
                   cnpjMsg.textContent = 'CNPJ salvo. Atualizando...';
-                  // refetch config com fallbacks
                   try{
                     const j2 = await fetchConfig(tok);
                     const d2 = j2.data || j2 || {};
@@ -820,6 +866,11 @@
                     const trade2 = d2.trade_name || d2.nomeFantasia || d2.nome_fantasia;
                     if (legal2){ dLegal.textContent = legal2; hLegal.value = legal2; }
                     if (trade2){ dTrade.textContent = trade2; hTrade.value = trade2; }
+                    // NOVO: buscar detalhes logo após salvar
+                    try {
+                      const emp2 = await fetchEmpresaDetalhes(c2);
+                      if (emp2) populateFromEmpresa(emp2);
+                    } catch(_){}
                   }catch(_){}
                   cnpjForm.style.display = 'none';
                   cnpjMsg.textContent = '';
@@ -837,7 +888,7 @@
         }
 
       } catch(e) {
-        // Permanece na tela; usuário pode tentar novamente
+        // permanece na tela
       }
     }
 
@@ -900,12 +951,11 @@
       }
     }
 
-    /* ===== Submit da configuração ===== */
+    /* ===== Submit (inalterado) ===== */
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
       cfgFeedback.textContent = '';
 
-      // Gate: exige voz pronta
       if (!voiceState.ready){
         cfgFeedback.textContent = '⚠️ Envie e processe a sua voz primeiro. O botão será liberado quando ficar “✅ pronta”.';
         return;
