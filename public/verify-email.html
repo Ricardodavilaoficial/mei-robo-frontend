@@ -95,7 +95,8 @@
 
           <div class="actions" style="margin-top:10px; display:flex; gap:8px; flex-wrap:wrap">
             <button id="btnResend" class="cta" type="submit">Reenviar e-mail</button>
-            <a id="btnCheck" class="btn-secondary" href="#" role="button">Já verifiquei — continuar</a>
+            <!-- ÚNICA MUDANÇA AQUI: <a> virou <button type="button"> mantendo o mesmo id e classe -->
+            <button id="btnCheck" class="btn-secondary" type="button">Já verifiquei — continuar</button>
             <a id="btnChange" class="btn-secondary" href="/cadastro.html" role="button" title="Voltar ao cadastro e refazer o e-mail">Trocar e-mail</a>
           </div>
 
