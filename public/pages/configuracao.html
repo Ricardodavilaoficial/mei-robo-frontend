@@ -662,7 +662,9 @@
     }
     function formatEnderecoFrom(empresa){
       const e = empresa?.endereco || {};
-      const parts = [e.logradouro, e.numero, e.bairro, e.municipio, e.uf, e.cep].filter(Boolean);
+      const municipio = (typeof e.municipio === 'object') ? (e.municipio.nome || e.municipio.sigla || '') : (e.municipio || '');
+      const uf        = (typeof e.uf === 'object')        ? (e.uf.sigla || e.uf.nome || '')        : (e.uf || '');
+      const parts = [e.logradouro, e.numero, e.bairro, municipio, uf, e.cep].filter(Boolean);
       return parts.join(', ');
     }
 
