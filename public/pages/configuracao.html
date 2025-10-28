@@ -12,6 +12,26 @@
   <link rel="stylesheet" href="/assets/styles.css" />
   <script defer src="/assets/layout.js?v=2025-09-06-07"></script>
 
+  <!-- ✅ Firebase Hosting SDKs (necessário para auth/token nesta página) -->
+  <script defer src="/__/firebase/9.22.2/firebase-app-compat.js"></script>
+  <script defer src="/__/firebase/9.22.2/firebase-auth-compat.js"></script>
+  <script defer src="/__/firebase/init.js"></script>
+  <script>
+    // Ajuste de idioma do e-mail/verificações, e log defensivo de inicialização
+    window.addEventListener('load', () => {
+      try {
+        if (window.firebase?.apps?.length) {
+          try { firebase.auth().languageCode = 'pt_BR'; } catch(_){}
+          console.log('[configuracao] Firebase pronto (Hosting init).');
+        } else {
+          console.error('[configuracao] Firebase não inicializou via Hosting.');
+        }
+      } catch (e) {
+        console.error('[configuracao] Erro ao inicializar Firebase:', e);
+      }
+    });
+  </script>
+
   <style>
     :root { --input-h: 48px; --input-br: 10px; --hint: .92rem; }
     .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
@@ -319,7 +339,8 @@
   <div id="app-footer"></div>
 
   <script>
-    const API_BASE = (localStorage.getItem('apiBase') || 'https://mei-robo-prod.onrender.com').replace(/\/+$/, '');
+    // 🔧 Ajuste: prioriza window.API_BASE (se já definido) e mantém fallback para localStorage/config padrão
+    const API_BASE = (window.API_BASE || localStorage.getItem('apiBase') || 'https://mei-robo-prod.onrender.com').replace(/\/+$/, '');
 
     /* ===== Gatekeeper robusto ===== */
     const authStatus = document.getElementById('authStatus');
@@ -683,7 +704,7 @@
       const seg = [cnae.codigo, cnae.descricao].filter(Boolean).join(' — ');
       if (seg) { dSeg.textContent = seg; hSeg.value = seg; }
 
-      // ===== NOVO: situação, abertura e endereço (somente leitura)
+      // ===== situação, abertura e endereço (somente leitura)
       const situ = getField(empresa, ['situacao']);
       const abrt = getField(empresa, ['dataAbertura','abertura','data_inicio_atividade']);
       const end  = formatEnderecoFrom(empresa);
@@ -739,7 +760,7 @@
       return r.ok;
     }
 
-    /* ===== NOVO: buscar DETALHES do CNPJ (público) ===== */
+    /* ===== Buscar DETALHES do CNPJ (público) ===== */
     async function fetchEmpresaDetalhes(cnpj14){
       const c = onlyDigits(cnpj14||'');
       if (!c || c.length !== 14) return null;
@@ -825,7 +846,7 @@
         // (Opcional) reforço de vínculo por nome
         tryCheckCnpjVinculo(hCnpj.value || '', authName || '');
 
-        // ===== NOVO: se já temos CNPJ, buscar DETALHES públicos e sobrepor exibição
+        // ===== Se já temos CNPJ, buscar DETALHES públicos e sobrepor exibição
         if (hCnpj.value){
           try {
             const emp = await fetchEmpresaDetalhes(hCnpj.value);
@@ -868,7 +889,7 @@
                     const trade2 = d2.trade_name || d2.nomeFantasia || d2.nome_fantasia;
                     if (legal2){ dLegal.textContent = legal2; hLegal.value = legal2; }
                     if (trade2){ dTrade.textContent = trade2; hTrade.value = trade2; }
-                    // NOVO: buscar detalhes logo após salvar
+                    // buscar detalhes logo após salvar
                     try {
                       const emp2 = await fetchEmpresaDetalhes(c2);
                       if (emp2) populateFromEmpresa(emp2);
@@ -1015,3 +1036,4 @@
   </script>
 </body>
 </html>
+
