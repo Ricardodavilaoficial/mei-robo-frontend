@@ -316,6 +316,9 @@
               <div id="vozMsg" class="hint mt-6"></div>
             </div>
 
+            <!-- Preview da voz (assinado na hora pelo /api/voz/last) -->
+            <audio id="vozPlayer" controls style="display:none; margin-top:10px; width:100%"></audio>
+
             <label class="inline mt-8" style="gap:8px">
               <input type="checkbox" id="aceiteVoz" />
               <span class="hint">
@@ -523,16 +526,21 @@
       aceite: document.getElementById('aceiteVoz'),
       recStart: document.getElementById('btnStartRec'),
       recStop: document.getElementById('btnStopRec'),
+      player: document.getElementById('vozPlayer'),
     };
-    const voiceState = { files: [], uploading:false, polling:null, media:{rec:null, chunks:[]}, ready:false };
 
-    function setVoiceMsg(text, isError=false){ voiceEls.msg.textContent = text || ''; voiceEls.msg.className = isError ? 'hint error' : 'hint'; }
+    const voiceState = { files: [], uploading:false, ready:false, media:{rec:null, chunks:[]} };
+
+    function setVoiceMsg(text, isError=false){
+      voiceEls.msg.textContent = text || '';
+      voiceEls.msg.className = isError ? 'hint error' : 'hint';
+    }
     function setUploadPct(pct){ voiceEls.bar.style.width = Math.max(0, Math.min(100, pct)) + '%'; }
     function enableVoiceControls(on){
       const d = !on;
       voiceEls.btnChoose.disabled = d;
       voiceEls.btnClear.disabled = d;
-      voiceEls.btnEnviar.disabled = d;
+      voiceEls.btnEnviar.disabled = d || !voiceEls.aceite.checked;
       voiceEls.recStart.disabled = d;
       voiceEls.recStop.disabled = d || !voiceState.media.rec;
       voiceEls.input.disabled = d;
@@ -541,7 +549,8 @@
       voiceEls.list.innerHTML='';
       voiceState.files.forEach((f,idx)=>{
         const li=document.createElement('li'); li.className='file-item';
-        const meta=document.createElement('div'); meta.className='file-meta'; meta.textContent=`${f.name} (${Math.round(f.size/1024)} KB)`;
+        const meta=document.createElement('div'); meta.className='file-meta';
+        meta.textContent=`${f.name} (${Math.round(f.size/1024)} KB)`;
         const rm=document.createElement('button'); rm.className='remove-btn'; rm.textContent='Remover';
         rm.addEventListener('click',()=>{ voiceState.files.splice(idx,1); renderFileList(); validateVoiceReady(); });
         li.appendChild(meta); li.appendChild(rm); voiceEls.list.appendChild(li);
@@ -559,9 +568,15 @@
     }
     function validateVoiceReady(){
       setVoiceMsg('');
-      if (voiceState.files.length===0){ setVoiceMsg('Nenhum arquivo selecionado. Envie pelo menos 1 áudio, com duração mínima de 1 minuto.'); voiceEls.btnEnviar.disabled = true; return; }
+      if (voiceState.files.length===0){
+        setVoiceMsg('Nenhum arquivo selecionado. Envie pelo menos 1 áudio (≥1 min no total).');
+        voiceEls.btnEnviar.disabled = true;
+        return;
+      }
       voiceEls.btnEnviar.disabled = !voiceEls.aceite.checked;
     }
+
+    /* === Gravação opcional (mantida) === */
     async function startRec(){
       try{
         const stream = await navigator.mediaDevices.getUserMedia({ audio:true });
@@ -586,62 +601,84 @@
       }
     }
     function stopRec(){ try{ voiceState.media.rec?.stop(); }catch(_){ } setVoiceMsg('Gravação finalizada. Arquivo adicionado.'); }
-    async function uploadAndProcess(uid, idToken){
+
+    /* === Player: pega URL assinada na hora e exibe === */
+    async function refreshPlayer(uid, idToken){
+      try{
+        const headers = {}; if (idToken) headers['Authorization'] = 'Bearer ' + idToken;
+        const r = await fetch(`${API_BASE}/api/voz/last?uid=${encodeURIComponent(uid)}`, { headers, cache:'no-store' });
+        if (!r.ok) return false;
+        const j = await r.json();
+        const url = j?.vozClonada?.arquivoUrl || '';
+        if (url){
+          voiceEls.player.src = url;
+          voiceEls.player.style.display='block';
+          return true;
+        }
+      }catch(_){}
+      return false;
+    }
+
+    /* === Upload simples: /api/voz/upload (campo 'voz' + uid) === */
+    async function uploadSingle(uid, idToken){
       if (!voiceEls.aceite.checked){ setVoiceMsg('Confirme a autorização de uso da voz para continuar.', true); return; }
       if (voiceState.files.length===0){ setVoiceMsg('Selecione/grave pelo menos 1 áudio.', true); return; }
-      voiceState.uploading = true; enableVoiceControls(false); setUploadPct(0); setVoiceMsg('Enviando áudio com segurança…');
-      const fd = new FormData(); voiceState.files.forEach((f)=> fd.append('voice', f, f.name));
-      const url = `${API_BASE}/api/voz/process?uid=${encodeURIComponent(uid)}`;
-      try{
-        const xhr = new XMLHttpRequest();
-        xhr.open('POST', url, true);
-        if (idToken) xhr.setRequestHeader('Authorization','Bearer ' + idToken);
-        xhr.upload.onprogress = (e)=>{ if(e.lengthComputable){ setUploadPct(Math.round(e.loaded/e.total*100)); } };
-        xhr.onreadystatechange = function(){
-          if (xhr.readyState === 4){
-            if (xhr.status >=200 && xhr.status <300){
-              setVoiceMsg('Upload concluído. Processando a voz…'); setUploadPct(100); startPolling(uid, idToken);
-            } else {
-              setVoiceMsg('Falha no envio. Tente novamente.', true); voiceState.uploading = false; enableVoiceControls(true);
-            }
-          }
-        };
-        xhr.send(fd);
-      } catch(e){
-        setVoiceMsg('Erro inesperado no envio.', true); voiceState.uploading = false; enableVoiceControls(true);
-      }
-    }
-    async function fetchLast(uid, idToken){
-      const headers = {}; if (idToken) headers['Authorization'] = 'Bearer ' + idToken;
-      const r = await fetch(`${API_BASE}/api/voz/last?uid=${encodeURIComponent(uid)}`, { headers, cache:'no-store' });
-      if (!r.ok) throw new Error('HTTP '+r.status);
-      return r.json();
-    }
-    function startPolling(uid, idToken){
-      clearInterval(voiceState.polling);
-      voiceState.polling = setInterval(async ()=>{
+
+      const file = voiceState.files[0]; // usa o primeiro (fluxo simples/robusto)
+      voiceState.uploading = true; enableVoiceControls(false); setUploadPct(0);
+      setVoiceMsg('Enviando o seu áudio… aguarde (não feche a página).');
+
+      const fd = new FormData();
+      fd.append('voz', file, file.name);
+      fd.append('uid', uid);
+
+      const xhr = new XMLHttpRequest();
+      xhr.open('POST', `${API_BASE}/api/voz/upload`, true);
+      if (idToken) xhr.setRequestHeader('Authorization','Bearer ' + idToken);
+
+      xhr.upload.onprogress = (e)=>{ if(e.lengthComputable){ setUploadPct(Math.round(e.loaded/e.total*100)); } };
+      xhr.onerror = ()=>{ setVoiceMsg('❌ Não deu para salvar agora. Tente novamente.', true); voiceState.uploading=false; enableVoiceControls(true); };
+
+      xhr.onload = async ()=> {
+        voiceState.uploading = false; enableVoiceControls(true); setUploadPct(100);
+        let ok = false, tooShort=false;
         try{
-          const data = await fetchLast(uid, idToken);
-          const st = (data && data.status || '').toLowerCase();
-          if (st === 'ready'){
-            clearInterval(voiceState.polling);
-            setVoiceMsg('✅ Voz pronta para uso.');
-            voiceState.ready = true;
-            enableVoiceControls(true);
-            voiceState.uploading = false;
-            btnSalvar.disabled = false;
-          } else if (st === 'failed'){
-            clearInterval(voiceState.polling);
-            setVoiceMsg('❌ O processamento falhou. Tente reenviar os áudios.', true);
-            voiceState.ready = false;
-            enableVoiceControls(true);
-            voiceState.uploading = false;
-          } else {
-            setVoiceMsg('Processando… aguarde mais um pouco.');
-          }
-        } catch(_){}
-      }, 4000);
+          const j = JSON.parse(xhr.responseText||'{}');
+          ok = (xhr.status===200 && j?.ok);
+          tooShort = (xhr.status===422 && j?.error==='too_short');
+        }catch(_){}
+
+        if (tooShort){ setVoiceMsg('⚠️ Áudio muito curto. Grave ao menos 30 segundos e tente novamente.', true); return; }
+        if (!ok){ setVoiceMsg('❌ Falha no upload. Tente novamente.', true); return; }
+
+        setVoiceMsg('✅ Áudio salvo! Preparando o player…');
+        const refreshed = await refreshPlayer(uid, idToken);
+        if (refreshed){
+          try { await voiceEls.player.play(); } catch(_){}
+          voiceState.ready = true;
+          btnSalvar.disabled = false;
+          setVoiceMsg('✅ Áudio pronto para ouvir.');
+        } else {
+          setVoiceMsg('Arquivo salvo. Clique em “Ouvir” ou recarregue a página para o preview.', false);
+        }
+      };
+
+      xhr.send(fd);
     }
+
+    /* === Anti-expiração: renova o link e tenta retomar a posição === */
+    voiceEls.player.addEventListener('error', async () => {
+      const { uid, idToken } = await getAuthContext();
+      const t = voiceEls.player.currentTime || 0;
+      setVoiceMsg('⏱️ Link expirou. Atualizando o player…');
+      const ok = await refreshPlayer(uid, idToken);
+      if (ok){
+        try { voiceEls.player.currentTime = t; await voiceEls.player.play(); } catch(_){}
+        setVoiceMsg('🔁 Link renovado.');
+      }
+    });
+
+    /* === Setup de UI === */
     function setupVoice(uid, idToken){
       voiceEls.btnChoose.addEventListener('click',()=> voiceEls.input.click());
       voiceEls.input.addEventListener('change',(e)=>{ const files=e.target?.files; if(files) addFiles(files); voiceEls.input.value=''; });
@@ -649,17 +686,17 @@
       voiceEls.recStart.addEventListener('click', startRec);
       voiceEls.recStop.addEventListener('click', stopRec);
       voiceEls.aceite.addEventListener('change', validateVoiceReady);
-      voiceEls.btnEnviar.addEventListener('click', ()=> uploadAndProcess(uid, idToken));
+      voiceEls.btnEnviar.addEventListener('click', ()=> uploadSingle(uid, idToken));
       renderFileList(); validateVoiceReady();
+
+      // Se já houver voz pronta no backend, habilita o botão salvar e mostra player
       (async ()=>{
-        try{
-          const data = await fetchLast(uid, idToken);
-          if (data && data.status){
-            const st = String(data.status).toLowerCase();
-            if (st === 'ready'){ setVoiceMsg('✅ Sua voz já está pronta para uso.'); voiceState.ready = true; btnSalvar.disabled = false; }
-            else if (st === 'processing'){ setVoiceMsg('Processando voz anterior…'); startPolling(uid, idToken); }
-          }
-        }catch(_){}
+        const ok = await refreshPlayer(uid, idToken);
+        if (ok){
+          voiceState.ready = true;
+          btnSalvar.disabled = false;
+          setVoiceMsg('✅ Sua voz já está pronta para uso.');
+        }
       })();
     }
 
@@ -854,7 +891,7 @@
           } catch(_){}
         }
 
-        // Voz/WABA como já estava
+        // Voz/WABA como já estava (com novo setupVoice)
         setupVoice(uid, idToken);
         await loadWabaStatus(uid, idToken);
 
@@ -1036,4 +1073,3 @@
   </script>
 </body>
 </html>
-
