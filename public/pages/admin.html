@@ -143,8 +143,7 @@
 
   <script type="module">
     /*
-      Diretriz (comentário): Não mexer no que já funciona; passinhos de formiga; produção real (Hosting, Render, Firestore);
-      segurança por padrão; observabilidade; HTML no-store; mobile-first.
+      Diretriz: manter o que funciona; segurança por padrão; validar admin no backend; no-store.
     */
     const qs = new URLSearchParams(location.search);
     const isValidateMode = qs.get('validate') === '1';
@@ -189,9 +188,7 @@
         }
       }
     }
-    // Espera 1200ms para dar chance ao layout.js, depois injeta fallback se necessário
     setTimeout(injectFallbacks, 1200);
-    // E observa o DOM para esconder fallbacks caso os reais cheguem depois
     const mo = new MutationObserver(() => {
       const h = findAny(headerSelectors);
       const f = findAny(footerSelectors);
@@ -200,7 +197,7 @@
     });
     mo.observe(document.documentElement, { childList:true, subtree:true });
 
-    // --- Admin shell toggle ---
+    // --- Admin shell toggle (UI) ---
     function applyAdminShellToggle() {
       const isAdmin = (localStorage.getItem('isAdmin') === '1');
       const inAdminPage = location.pathname.includes('/pages/admin');
@@ -210,27 +207,23 @@
       }
     }
 
-    // --- Cliente Zero: auto-elevação a admin via Firestore admins/{uid} (se existir) ---
+    // --- Elevação automática visual (se admins/{uid} existir) ---
     function elevateAdminFromFirestore() {
       const FNS = window.firebase && window.firebase.firestore;
       const auth = window.firebase && window.firebase.auth && window.firebase.auth();
-      if(!FNS || !window.db || !auth) return; // Sem compat v8, não faz nada (evita erro no console)
+      if(!FNS || !window.db || !auth) return;
 
       auth.onAuthStateChanged(async (user) => {
         if(!user) return;
         const uid = user.uid;
         try {
-          const docRef = FNS.collection(window.db, 'admins');
-          // getCountFromServer em doc não é aplicado; buscamos via get() defensivo
-          const snap = await FNS.getDoc ? FNS.getDoc(FNS.doc(window.db, 'admins', uid)) : null;
+          const snap = FNS.getDoc ? await FNS.getDoc(FNS.doc(window.db, 'admins', uid)) : null;
           if(snap && (snap.exists ? snap.exists() : snap.exists)) {
             localStorage.setItem('isAdmin','1');
             localStorage.setItem('uid', uid);
-            applyAdminShellToggle(); // re-aplica se entrou depois
+            applyAdminShellToggle();
           }
-        } catch (e) {
-          // Silencioso; página segue normal
-        }
+        } catch {}
       });
     }
 
@@ -242,6 +235,23 @@
         if(!isAdmin || !uid) { location.href = '/pages/login.html'; return false; }
         return true;
       } catch(e) { location.href = '/pages/login.html'; return false; }
+    }
+
+    // --- NOVO: Validação forte no backend (/admin/ping) ---
+    async function verifyAdminWithBackend(){
+      if(isValidateMode) return true; // modo demo
+      const backend = (window.BACKEND_BASE_URL || 'https://mei-robo-prod.onrender.com').replace(/\/+$/,'');
+      try {
+        // backend-patch.js já anexa Authorization: Bearer <idToken>
+        const r = await fetch(`${backend}/admin/ping`, { method:'GET', credentials:'include' });
+        if (r.ok) return true;
+        // 401/403 → login
+        location.href = '/pages/login.html';
+        return false;
+      } catch {
+        // Falha de rede: mantém requireAdminOrRedirect como salvaguarda
+        return requireAdminOrRedirect();
+      }
     }
 
     // --- Validate demo data ---
@@ -273,7 +283,7 @@
           const t0 = performance.now();
           let label='Em validação', css=null;
           try {
-            const cRef = F.collection(window.db,'profissionais');
+            const cRef = F.collection(window.db, 'profissionais');
             await F.getCountFromServer(cRef);
             const dt = performance.now()-t0;
             if(dt<1500) { label='OK'; css='ok'; }
@@ -329,13 +339,14 @@
     }
 
     (async function start(){
-      // Elevação automática (se compat v8 estiver presente)
+      // UI: elevação visual e toggle (não é segurança)
       elevateAdminFromFirestore();
-      // Toggle imediato (também cobre ?validate=1)
       applyAdminShellToggle();
 
-      // Gate leve
+      // Gate leve de storage + validação forte no backend
       if(!requireAdminOrRedirect()) return;
+      const ok = await verifyAdminWithBackend();
+      if(!ok) return; // já redirecionou
 
       try {
         if(isValidateMode) { await loadValidateData(); }
@@ -345,4 +356,3 @@
   </script>
 </body>
 </html>
-

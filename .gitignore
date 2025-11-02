@@ -15,3 +15,17 @@ yarn-error.log*
 
 # Misc
 *.local
+idtoken.json
+idtoken.txt
+signin.json
+signin_resp.json
+token.json
+refresh.txt
+uid.txt
+public/cadastro.html.bak
+cfg.html
+cfg.js
+cfg.json
+tts_ok.mp3
+tts_quick.mp3
+tts_real.mp3

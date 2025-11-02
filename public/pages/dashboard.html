@@ -3,14 +3,26 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta http-equiv="Cache-Control" content="no-store, max-age=0, must-revalidate" />
+  <meta name="robots" content="noindex, nofollow" />
   <title>Dashboard — MEI Robô (v1.0)</title>
+
+  <!-- Canonical WWW v1.0 placeholders (coerência interna; mantém noindex) -->
+  <link rel="canonical" href="https://www.meirobo.com.br/pages/dashboard.html" />
+  <meta property="og:url" content="https://www.meirobo.com.br/pages/dashboard.html" />
+  <meta name="twitter:url" content="https://www.meirobo.com.br/pages/dashboard.html" />
 
   <!-- Firebase v8 SDK (precisa vir ANTES do seu init) -->
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+
   <!-- seu init (garanta storageBucket=mei-robo-prod.appspot.com lá dentro) -->
   <script src="/assets/firebase-init.js"></script>
+
+  <!-- Sequência canônica no HEAD (defer): firebase-init.js → backend-patch.js → layout.js -->
+  <script src="/assets/backend-patch.js" defer></script>
+  <script src="/assets/layout.js" defer></script>
 
   <!-- Assets canônicos -->
   <link rel="stylesheet" href="/assets/styles.css" />
@@ -65,9 +77,13 @@
     .muted{color:var(--text-soft)}
     .statline{display:flex;gap:8px;flex-wrap:wrap;margin-top:6px}
     .statline .badge{background:rgba(255,255,255,.03)}
+    .banner{border:1px dashed #2a3a3f;background:rgba(255,255,255,.03);padding:10px;border-radius:10px;margin:10px 0}
+    .sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
   </style>
 </head>
 <body class="app-shell">
+  <noscript><div class="banner" role="alert">Ative o JavaScript para usar o Dashboard.</div></noscript>
+
   <div id="app-header"></div>
 
   <main class="app-main">
@@ -78,8 +94,11 @@
         <span id="envChip" class="chip info" style="margin-left:6px;display:none;"></span>
       </p>
 
+      <!-- Banner pós-checkout / pós-cupom -->
+      <div id="arrivalBanner" class="banner" style="display:none;" role="status" aria-live="polite"></div>
+
       <!-- KPIs -->
-      <section class="grid-4">
+      <section class="grid-4" aria-label="Indicadores principais">
         <div class="kpi">
           <small>Novas conversas (24h)</small>
           <b id="kpiNovas">—</b>
@@ -114,7 +133,7 @@
           <a class="btn" href="/pages/precos.html">Abrir Catálogo</a>
           <a class="btn" href="/pages/orcamentos.html">Orçamentos</a>
         </div>
-        <div class="note" style="margin-top:8px;">
+        <div class="note" style="margin-top:8px;" aria-live="polite">
           <b>IMPORTANTE:</b> para <b>INICIAR A CONVERSA</b> com alguém, peça que a pessoa mande um <b>“Oi”</b> para o seu número comercial.
           Depois use o botão: <b>Autorização (WhatsApp)</b> na lista de contatos.
         </div>
@@ -126,13 +145,13 @@
         <div class="note" style="margin:6px 0 10px;">
           Seus próximos 3 compromissos de hoje.
         </div>
-        <ul id="agendaList" class="list muted"></ul>
+        <ul id="agendaList" class="list muted" aria-live="polite"></ul>
       </section>
 
       <!-- Catálogo (Preços e Serviços) -->
       <section class="card" style="margin-top:14px;">
         <strong>Catálogo (Preços e Serviços)</strong>
-        <div id="catalogoStats" class="statline">
+        <div id="catalogoStats" class="statline" aria-live="polite">
           <span class="badge">Carregando…</span>
         </div>
         <div class="actions" style="margin-top:10px;">
@@ -175,14 +194,35 @@
           <a class="btn ghost" href="/pages/precos.html">Planos</a>
         </div>
       </div>
+
+      <!-- Área para mensagens (mantida por compatibilidade, não usada no gate rígido) -->
+      <div id="loginNotice" class="banner" style="display:none;" role="alert" aria-live="assertive"></div>
     </div>
   </main>
 
   <div id="app-footer"></div>
 
-  <!-- Loader/header/footer + patch canônico -->
-  <script src="/assets/layout.js" defer></script>
-  <script src="/assets/backend-patch.js" defer></script>
+  <!-- Fallback leve para header/footer, coerente com outras páginas -->
+  <script>
+    (function(){
+      function inject(elId, url){
+        const host = document.getElementById(elId);
+        if(!host) return;
+        fetch(url, {cache: "no-store"})
+          .then(r => r.ok ? r.text() : Promise.reject())
+          .then(html => { if(!host.children.length) host.innerHTML = html; })
+          .catch(()=>{});
+      }
+      window.addEventListener('load', function(){
+        setTimeout(function(){
+          const headerOK = document.getElementById('app-header')?.children?.length > 0;
+          const footerOK = document.getElementById('app-footer')?.children?.length > 0;
+          if(!headerOK) inject('app-header','/assets/partials/header.html');
+          if(!footerOK) inject('app-footer','/assets/partials/footer.html');
+        }, 600);
+      });
+    })();
+  </script>
 
   <script>
   (function(){
@@ -194,6 +234,8 @@
     const btnGenLink=$("#btnGenLink"), waLink=$("#waLink"), btnCopyLink=$("#btnCopyLink");
     const agendaList=$("#agendaList");
     const catalogoStats=$("#catalogoStats");
+    const arrivalBanner=$("#arrivalBanner");
+    const loginNotice=$("#loginNotice");
 
     function isValidateMode(){ try{ return new URLSearchParams(location.search).has('validate'); }catch{ return false; } }
     function fs(){ return (window.firebase?.firestore) ? firebase.firestore(): null; }
@@ -212,16 +254,31 @@
       const text = encodeURIComponent("Oi");
       return `${base}?text=${text}`;
     }
+    function showArrivalBanner(){
+      try{
+        const qp = new URLSearchParams(location.search);
+        const hasFree = qp.has('free');
+        const sessionId = qp.get('session_id');
+        if(hasFree || sessionId){
+          arrivalBanner.style.display='block';
+          arrivalBanner.textContent = hasFree
+            ? 'Ativação concluída via cupom. Bem-vindo!'
+            : 'Pagamento confirmado. Sua conta foi atualizada.';
+          try{ if(typeof window.setArrivalHeader==='function'){ window.setArrivalHeader({free:hasFree, session_id:sessionId}); } }catch{}
+          const url = new URL(location.href);
+          url.searchParams.delete('free'); url.searchParams.delete('session_id');
+          history.replaceState({}, '', url.toString());
+        }
+      }catch{}
+    }
 
     function demo(){
       envChip.style.display='inline-block';
       envChip.textContent='Modo demonstração';
-      // KPIs exemplo
       kpiNovas.textContent='3';
       kpiEnviadas.textContent='12';
       kpiPendencias.textContent='2';
       kpiContatos.textContent='18';
-      // Fila exemplo
       const rows = [
         {when: Date.now()+15*60*1000, to:'Maria da Silva', kind:'Lembrete', state:'agendado'},
         {when: Date.now()+60*60*1000, to:'Seu João', kind:'Follow-up', state:'agendado'},
@@ -239,36 +296,40 @@
           <td><button class="btn small" disabled title="Em breve">Ver</button></td>`;
         queueBody.appendChild(tr);
       }
-      // Passos
       setChip(chkEmail,'warn');
       setChip(chkPhone, businessPhone()? 'ok':'warn');
       setChip(chkContato,'ok');
       setChip(chkConsent,'warn');
-
-      // Agenda demo
       agendaList.innerHTML = '';
       ['09:30 · Corte masculino — Pedro','14:00 · Manutenção — Carla','17:15 · Barba rápida — João'].forEach(t=>{
         const li=document.createElement('li'); li.textContent=t; agendaList.appendChild(li);
       });
-
-      // Catálogo demo
       catalogoStats.innerHTML = '';
       ['Total: 12','Sem preço: 3','Sem duração: 2','Sem código: 1'].forEach(t=>{
         const b=document.createElement('span'); b.className='badge'; b.textContent=t; catalogoStats.appendChild(b);
       });
+      showArrivalBanner();
     }
 
     async function loadReal(){
-      // mostra chip de ambiente
       envChip.style.display='inline-block';
       envChip.textContent='Conectado';
       try{
-        // Auth
         if(!window.firebase || !firebase?.auth){ demo(); return; }
+
         const user = await new Promise(r=>{
           const off=firebase.auth().onAuthStateChanged(u=>{off(); r(u||null);});
         });
-        if(!user){ location.href='/pages/login.html'; return; }
+
+        // GATE RÍGIDO: exige login antes de carregar o dashboard
+        if(!user){
+          const next = encodeURIComponent(location.pathname + location.search);
+          location.href = '/pages/login.html?next=' + next;
+          return;
+        }
+
+        // Pós-checkout/cupom
+        showArrivalBanner();
 
         // KPIs básicos (defensivo)
         const db = fs();
@@ -309,10 +370,10 @@
             .catch(()=>{});
         }
 
-        kpiNovas.textContent = novas24h || '0';
-        kpiEnviadas.textContent = enviadasHoje || '0';
-        kpiPendencias.textContent = pendencias || '0';
-        kpiContatos.textContent = totalContatos || '0';
+        kpiNovas.textContent = String(novas24h || 0);
+        kpiEnviadas.textContent = String(enviadasHoje || 0);
+        kpiPendencias.textContent = String(pendencias || 0);
+        kpiContatos.textContent = String(totalContatos || 0);
 
         // Fila básica (mostra últimas do outbox se existir)
         queueBody.innerHTML='';
@@ -338,7 +399,6 @@
               });
             })
             .catch(()=>{
-              // Sem outbox -> exemplo discreto
               const tr=document.createElement('tr');
               tr.innerHTML = `<td colspan="5" class="note">Sem itens por enquanto.</td>`;
               queueBody.appendChild(tr);
@@ -351,7 +411,7 @@
         setChip(chkContato, (parseInt(kpiContatos.textContent)||0)>0 ? 'ok':'warn');
         setChip(chkConsent, consentOk>0 ? 'ok':'warn');
 
-        // Agenda (top 3 de hoje) — coleção "agenda" se existir
+        // Agenda (top 3 de hoje)
         if(fs()){
           const yyyymmdd = new Date().toISOString().slice(0,10);
           await db.collection('agenda')
@@ -407,7 +467,7 @@
         }
       }catch(e){
         console.error('[dashboard] loadReal', e);
-        demo(); // fallback visual
+        if (isValidateMode()) demo();
       }
     }
 
@@ -422,7 +482,16 @@
       }
     });
     btnCopyLink?.addEventListener('click', async ()=>{
-      try{ await navigator.clipboard.writeText(waLink.href); alert('Link copiado.'); }catch{ alert('Não foi possível copiar.'); }
+      try{
+        const oldText = btnCopyLink.textContent;
+        btnCopyLink.disabled = true; btnCopyLink.textContent = 'Copiando...';
+        await navigator.clipboard.writeText(waLink.href);
+        btnCopyLink.textContent = 'Copiado!';
+        setTimeout(()=>{ btnCopyLink.textContent = oldText; btnCopyLink.disabled = false; }, 900);
+      }catch{
+        btnCopyLink.disabled = false;
+        alert('Não foi possível copiar.');
+      }
     });
 
     window.addEventListener('load', ()=>{

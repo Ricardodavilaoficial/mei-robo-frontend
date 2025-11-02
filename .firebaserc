@@ -1,5 +1,18 @@
 {
   "projects": {
     "default": "mei-robo-prod"
-  }
+  },
+  "targets": {
+    "mei-robo-prod": {
+      "hosting": {
+        "app-www": [
+          "mei-robo-prod"
+        ],
+        "app-apex-redirect": [
+          "meirobo-com-br-apex"
+        ]
+      }
+    }
+  },
+  "etags": {}
 }
