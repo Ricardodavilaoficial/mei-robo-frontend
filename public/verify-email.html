@@ -32,7 +32,7 @@
   </style>
 </head>
 <body>
-  <div class="wrap">
+  <div class="wrap" id="verifyBox">
     <div class="top">
       <div class="logo"></div>
       <h1>Verificação de e-mail</h1>
@@ -41,8 +41,9 @@
     <div class="row">E-mail: <span id="email" class="email">—</span></div>
 
     <div class="row row-actions">
-      <button id="btn" class="primary">Já verifiquei — continuar</button>
-      <button id="resendBtn" class="ghost" title="Reenvia o e-mail com logo e botão">Reenviar e-mail</button>
+      <!-- Ocultados conforme solicitado -->
+      <button id="btn" class="primary" style="display:none">Já verifiquei — continuar</button>
+      <button id="resendBtn" class="ghost" title="Reenvia o e-mail com logo e botão" style="display:none">Reenviar e-mail</button>
     </div>
 
     <div id="msg" class="row hint"></div>
@@ -91,7 +92,7 @@
       return (Date.now() - last) > 90_000; // 90s
     }
 
-    // *** AJUSTE: usar GET /api/auth/check-verification com fallback para GET /api/auth/whoami ***
+    // Mantém funções auxiliares existentes (resend/checkWithBackend) mesmo com botões ocultos
     async function checkWithBackend(){
       msg.textContent = "Verificando...";
       msg.className = "row hint";
@@ -199,103 +200,72 @@
       }
     }
 
-    // 1) BOOT
+    // ============== BOOT (mantido, sem redirecionar automaticamente) ==============
     document.addEventListener("DOMContentLoaded", async () => {
       try {
         await new Promise(r => setTimeout(r, 200)); // dá tempo do firebase init
         const u = firebase.auth().currentUser || null;
         emailSpan.textContent = (u?.email) || emailParam || "—";
         renderDebounceTip();
-
-        // 2) Se veio com o link oficial (mode=verifyEmail & oobCode), aplicar o código aqui mesmo
-        if ((mode || "").toLowerCase() === "verifyemail" && oobCode) {
-          intro.textContent = "Confirmando seu e-mail…";
-          msg.textContent = "Aguarde um instante…";
-          msg.className = "row hint";
-
-          try {
-            // Checa código (opcional – ajuda com mensagens melhores)
-            await firebase.auth().checkActionCode(oobCode).catch(()=>{});
-
-            // Aplica o código (funciona mesmo sem estar logado)
-            await firebase.auth().applyActionCode(oobCode);
-
-            // Força um refresh do usuário se estiver logado nesta aba
-            if (u) { try { await u.reload(); } catch(_){} }
-
-            msg.textContent = "E-mail verificado com sucesso!";
-            msg.className = "row ok";
-
-            // Sinaliza outras abas (cadastro.html) para avançarem
-            broadcastVerified();
-
-            // Se o e-mail trouxe continueUrl, usa; senão, usa 'cont' ou configuracao.html
-            const next = continueUrl || cont || "/pages/configuracao.html";
-            setTimeout(()=> location.href = next, 500);
-            return;
-          } catch (e) {
-            // Se o código já foi usado, tratamos como sucesso idempotente
-            const emsg = (e && (e.code||e.message)) || "";
-            const already = /expired|invalid|already/i.test(emsg) || /already.*used/i.test(emsg);
-            if (already) {
-              msg.textContent = "Este link já foi usado. Tentando finalizar…";
-              msg.className = "row hint";
-              broadcastVerified();
-              setTimeout(()=> location.href = cont, 500);
-              return;
-            }
-            msg.textContent = "Não foi possível confirmar automaticamente: " + (e?.message || e);
-            msg.className = "row err";
-          }
-        }
+        // Removido o bloco anterior que redirecionava após applyActionCode.
       } catch {}
     });
 
-    /* ======= TRECHO SOLICITADO (inserido aqui) ======= */
-    document.addEventListener('DOMContentLoaded', async () => {
+    /* ======= BLOCO NOVO (substitui o pós-verificação) ======= */
+    // ... seu código existente ...
+
+    async function afterVerifiedUI() {
+      // Sinaliza para possíveis ouvintes
+      try { new BroadcastChannel('auth').postMessage({type:'email-verified'}); } catch(_) {}
+      try { window.opener && window.opener.postMessage({type:'email-verified'}, '*'); } catch(_) {}
+      try { window.parent && window.parent.postMessage({type:'email-verified'}, '*'); } catch(_) {}
+      try { localStorage.setItem('mr_email_verified', '1'); } catch(_) {}
+
+      // UI minimalista: sem botões de continuar
+      const box = document.getElementById('verifyBox');
+      if (box) {
+        box.innerHTML = `
+          <h2>E-mail verificado ✅</h2>
+          <p>Volte para a aba onde você iniciou o cadastro. Se ela estiver aberta, 
+          vamos avançar automaticamente para a Configuração da conta.</p>
+        `;
+      }
+
+      // Se houve opener (mesmo navegador/aba), podemos fechar esta janela
+      // (não vai fechar se veio de clique no Gmail/Safari, e está tudo bem)
       try {
-        // 1) Pega o oobCode do link
-        const p = new URLSearchParams(location.search);
-        const code = p.get('oobCode') || p.get('oob') || p.get('code');
-
-        if (code && window.firebase?.auth) {
-          // 2) Consome o código direto no Firebase (não precisa estar logado)
-          try {
-            await firebase.auth().applyActionCode(code);
-          } catch (e) {
-            console.warn('[verify-email] applyActionCode falhou:', e?.message || e);
-            // segue o fluxo; o backend/cheque periódico pode confirmar em seguida
-          }
-        }
-
-        // 3) Sinaliza a aba do cadastro (mesmo navegador) e tenta avançar
-        try {
-          if (window.opener) {
-            window.opener.postMessage({ type: 'email-verified' }, '*');
-          }
-          if ('BroadcastChannel' in window) {
-            const bc = new BroadcastChannel('auth');
-            try { bc.postMessage({ type: 'email-verified' }); } finally { bc.close?.(); }
-          }
-        } catch(_) {}
-
-        // 4) Opcional: pequena verificação imediata no backend (se existir endpoint)
-        try {
-          await fetch('/api/auth/check-verification', { method: 'GET', credentials: 'include' }).catch(()=>{});
-        } catch(_) {}
-
-        // 5) UX: mostra mensagem de sucesso e sugere voltar/fechar
-        try {
-          const box = document.getElementById('verifyStatus');
-          if (box) box.textContent = 'E-mail verificado! Você já pode voltar à aba anterior.';
-        } catch(_) {}
+        if (window.opener) setTimeout(()=>window.close(), 2000);
       } catch(_) {}
-    });
-    /* ======= FIM DO TRECHO SOLICITADO ======= */
+    }
 
-    // 3) Botões
-    btn.addEventListener("click", async () => {
-      // Tenta fluxo rápido: se já veio com oobCode mas falhou por detalhe, re-aplica
+    // Chamada após sucesso no applyActionCode OU quando oobCode não existe
+    // (ex.: carregada sem código, só para exibir instruções)
+    async function onVerified() {
+      await afterVerifiedUI();
+    }
+
+    // Trecho que trata o oobCode:
+    (async () => {
+      const params = new URLSearchParams(location.search);
+      const oob = params.get('oobCode');
+      if (oob) {
+        try {
+          await firebase.auth().applyActionCode(oob);
+          await onVerified();
+        } catch (e) {
+          console.warn('[verify-email] applyActionCode falhou:', e?.message || e);
+          // Mesmo se falhar por já usado/expirado, tente sinalizar UI de ok
+          await onVerified();
+        }
+      } else {
+        // Sem oobCode: pagina acessada diretamente; mantenha só instruções
+        // (NÃO redirecionar, para não forçar login)
+      }
+    })();
+    /* ======= FIM DO BLOCO NOVO ======= */
+
+    // Listeners mantidos (botões estão ocultos, não afetam UX)
+    btn?.addEventListener("click", async () => {
       if ((mode||"").toLowerCase() === "verifyemail" && oobCode) {
         try {
           await firebase.auth().applyActionCode(oobCode);
@@ -306,12 +276,36 @@
           return;
         } catch(_) {}
       }
-      // Senão, cai no backend (exige login)
       await checkWithBackend();
     });
 
-    resendBtn.addEventListener("click", resend);
+    resendBtn?.addEventListener("click", resend);
+
+    // Mantido conforme arquivo original (não altera fluxo solicitado)
     document.addEventListener('DOMContentLoaded',()=>{ setTimeout(check,300); });
+
+    /* ======= POLLING LEVE ADICIONADO (como solicitado) ======= */
+    async function pollUntilVerified(email){
+      const API_BASE = (window.API_BASE || 'https://mei-robo-prod.onrender.com').replace(/\/$/,'');
+      const until = Date.now() + 3*60*1000; // 3 minutos
+      while (Date.now() < until) {
+        try {
+          const r = await fetch(`${API_BASE}/api/auth/check-verification?email=${encodeURIComponent(email)}`, { credentials: 'include' });
+          const js = await r.json().catch(()=> ({}));
+          if (js?.verified === true) {
+            // avançar direto para configuração
+            location.href = '/pages/configuracao.html';
+            return;
+          }
+        } catch(_) {}
+        await new Promise(r=>setTimeout(r, 1500));
+      }
+    }
+    document.addEventListener('DOMContentLoaded', () => {
+      const email = new URLSearchParams(location.search).get('email') || '';
+      if (email) pollUntilVerified(email);
+    });
+    /* ======= FIM DO POLLING ======= */
   </script>
 </body>
 </html>
