@@ -251,6 +251,48 @@
       } catch {}
     });
 
+    /* ======= TRECHO SOLICITADO (inserido aqui) ======= */
+    document.addEventListener('DOMContentLoaded', async () => {
+      try {
+        // 1) Pega o oobCode do link
+        const p = new URLSearchParams(location.search);
+        const code = p.get('oobCode') || p.get('oob') || p.get('code');
+
+        if (code && window.firebase?.auth) {
+          // 2) Consome o código direto no Firebase (não precisa estar logado)
+          try {
+            await firebase.auth().applyActionCode(code);
+          } catch (e) {
+            console.warn('[verify-email] applyActionCode falhou:', e?.message || e);
+            // segue o fluxo; o backend/cheque periódico pode confirmar em seguida
+          }
+        }
+
+        // 3) Sinaliza a aba do cadastro (mesmo navegador) e tenta avançar
+        try {
+          if (window.opener) {
+            window.opener.postMessage({ type: 'email-verified' }, '*');
+          }
+          if ('BroadcastChannel' in window) {
+            const bc = new BroadcastChannel('auth');
+            try { bc.postMessage({ type: 'email-verified' }); } finally { bc.close?.(); }
+          }
+        } catch(_) {}
+
+        // 4) Opcional: pequena verificação imediata no backend (se existir endpoint)
+        try {
+          await fetch('/api/auth/check-verification', { method: 'GET', credentials: 'include' }).catch(()=>{});
+        } catch(_) {}
+
+        // 5) UX: mostra mensagem de sucesso e sugere voltar/fechar
+        try {
+          const box = document.getElementById('verifyStatus');
+          if (box) box.textContent = 'E-mail verificado! Você já pode voltar à aba anterior.';
+        } catch(_) {}
+      } catch(_) {}
+    });
+    /* ======= FIM DO TRECHO SOLICITADO ======= */
+
     // 3) Botões
     btn.addEventListener("click", async () => {
       // Tenta fluxo rápido: se já veio com oobCode mas falhou por detalhe, re-aplica
@@ -273,4 +315,3 @@
   </script>
 </body>
 </html>
-
