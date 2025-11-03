@@ -965,6 +965,67 @@
     });
   </script>
 
+  <!-- === PATCH SOLICITADO: sinais e polling para avançar automaticamente === -->
+  <script>
+    (function () {
+      const API_BASE = (window.API_BASE || 'https://mei-robo-prod.onrender.com').replace(/\/$/,'');
+      let _advancing = false;
+
+      async function tryAdvance(reason){
+        if (_advancing) return;
+        _advancing = true;
+        try {
+          // pequena espera para o backend já ter marcado verificado
+          await new Promise(r=>setTimeout(r, 300));
+          await checkVerifiedViaBackendAndAdvance();
+        } finally {
+          _advancing = false;
+        }
+      }
+
+      // 1) Sinal por window.postMessage (de verify-email)
+      window.addEventListener('message', (ev) => {
+        try {
+          if (ev?.data?.type === 'email-verified') tryAdvance('postMessage');
+        } catch(_) {}
+      });
+
+      // 2) Sinal por BroadcastChannel (de verify-email)
+      try {
+        const bc = new BroadcastChannel('auth');
+        bc.onmessage = (ev) => {
+          if (ev?.data?.type === 'email-verified') tryAdvance('broadcast');
+        };
+      } catch(_) {}
+
+      // 3) Flag via localStorage (setada pela verify-email)
+      try {
+        if (localStorage.getItem('mr_email_verified') === '1') {
+          tryAdvance('localStorage-initial');
+        }
+        window.addEventListener('storage', (e) => {
+          if (e.key === 'mr_email_verified' && e.newValue === '1') {
+            tryAdvance('localStorage-event');
+          }
+        });
+      } catch(_) {}
+
+      // 4) Foco/visibilidade: ao voltar para esta aba, checar
+      ['visibilitychange','focus'].forEach(evt=>{
+        window.addEventListener(evt, () => {
+          if (!document.hidden) tryAdvance('focus/visible');
+        });
+      });
+
+      // 5) Polling de segurança (curto) — caso nenhum sinal pegue
+      let t0 = Date.now();
+      const interval = setInterval(() => {
+        if (Date.now() - t0 > 180000) return clearInterval(interval); // 3 min
+        tryAdvance('poll');
+      }, 2000);
+    })();
+  </script>
+
   <!-- Guard anti Firebase nativo (robustez) -->
   <script>
   (function(){
