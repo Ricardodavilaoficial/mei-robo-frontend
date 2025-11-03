@@ -846,12 +846,15 @@
 
         // ===== Sucesso inline =====
         const mail = (data.email || email).trim();
-        form.style.display = 'none';
-        successMsg.innerHTML = `Enviamos um e-mail para <strong>${mail}</strong>.<br/>
-          <span class="hint">Importante: depois de confirmar o e-mail, entre normalmente e você será levado à <em>Configuração da conta</em> para validar seu CNPJ e gravar sua voz.</span>`;
-        successBox.style.display = 'block';
-        showVerifyBanner(mail);
-        try { if (goVerify) goVerify.href = '/verify-email.html?email=' + encodeURIComponent(mail); } catch(_) {}
+
+        // guarda o e-mail para a tela seguinte (opcional)
+        try { localStorage.setItem('pendingEmail', mail); } catch (_){}
+
+        // redireciona imediatamente para a tela de verificação
+        location.href = '/verify-email.html?email=' + encodeURIComponent(mail);
+
+        // (não precisamos mais mostrar successBox/verifyBanner aqui)
+        return;
 
       } catch(e){
         console.error(e);
@@ -984,4 +987,3 @@
   </script>
 </body>
 </html>
-
