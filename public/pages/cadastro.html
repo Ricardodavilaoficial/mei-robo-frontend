@@ -403,7 +403,7 @@
     }
     function debounce(fn,ms){ let t; return (...args)=>{ clearTimeout(t); t=setTimeout(()=>fn(...args),ms); }; }
 
-    // ====== Gate do botão com todos critérios ======
+    // ====== Gate do botão com todos critérios ====== 
     function passwordRulesOk(s){
       if (!s || s.length < 8) return false;
       return /[A-Za-z]/.test(s) && /[0-9]/.test(s);
@@ -537,16 +537,46 @@
       } catch(_) {}
     })();
 
+    /* ====== (A) Utilitária: checar via backend e avançar ====== */
+    async function checkVerifiedViaBackendAndAdvance(){
+      try{
+        if (!window.firebase?.auth) return false;
+        const user = firebase.auth().currentUser;
+        if (!user) return false;
+        const idToken = await user.getIdToken(true);
+        const r = await fetch("https://mei-robo-prod.onrender.com/api/auth/check-verification", {
+          method: "POST",
+          headers: { "Authorization": "Bearer " + idToken }
+        });
+        const j = await r.json().catch(()=>({}));
+        if (r.ok && j.verified) {
+          location.href = "/pages/configuracao.html";
+          return true;
+        }
+      } catch(_) {}
+      return false;
+    }
+
+    /* ====== (B) advanceIfVerified com reload + backend ====== */
     async function advanceIfVerified(cameFromSignal){
       try{
         if (!window.firebase?.auth) return;
         const user = firebase.auth().currentUser;
         if (!user) return;
-        await user.reload();
+
+        // 1) Tenta só o reload (barato)
+        try { await user.reload(); } catch(_){}
+
         if (user.emailVerified === true) {
-          location.href = '/pages/configuracao.html';
-        } else if (cameFromSignal) {
-          verifyBannerText.textContent = 'Quase lá! Estamos confirmando sua verificação... se não avançar automaticamente em alguns segundos, clique novamente.';
+          location.href = "/pages/configuracao.html";
+          return;
+        }
+
+        // 2) Plano B: pergunta pro backend (cobre caso de outro navegador)
+        const ok = await checkVerifiedViaBackendAndAdvance();
+        if (!ok && cameFromSignal) {
+          verifyBannerText.textContent =
+            'Quase lá! Se não avançar em alguns segundos, clique de novo no botão.';
         }
       } catch(_) {}
     }
@@ -557,9 +587,22 @@
     }
     function hideVerifyBanner(){ verifyBanner.style.display = 'none'; }
 
+    /* ====== (C) Handler do botão com backend + fallback ====== */
     btnAlreadyVerified.addEventListener('click', async (e)=>{
       e.preventDefault();
+      // tenta avançar (reload + backend)
       await advanceIfVerified(true);
+
+      // fallback final: manda para verify-email com cont=/pages/configuracao.html
+      try{
+        const u = firebase.auth().currentUser || null;
+        const mail = (u?.email || (emailInput?.value||'')).trim();
+        if (verifyBanner.style.display !== 'none') {
+          // se ainda está preso no banner, oferece rota manual
+          window.location.href = '/verify-email.html?cont=/pages/configuracao.html'
+            + (mail ? ('&email=' + encodeURIComponent(mail)) : '');
+        }
+      }catch(_){}
     });
 
     // Se o usuário já estiver logado quando abrir esta página,
