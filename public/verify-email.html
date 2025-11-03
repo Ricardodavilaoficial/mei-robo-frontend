@@ -91,25 +91,72 @@
       return (Date.now() - last) > 90_000; // 90s
     }
 
+    // *** AJUSTE: usar GET /api/auth/check-verification com fallback para GET /api/auth/whoami ***
     async function checkWithBackend(){
+      msg.textContent = "Verificando...";
+      msg.className = "row hint";
       try{
         const u = firebase.auth().currentUser;
         if (!u) { msg.textContent = "Entre com seu e-mail e senha e tente de novo."; msg.className = "row err"; return false; }
         const idToken = await u.getIdToken(true);
-        const r = await fetch("/api/auth/check-verification", { method:"POST", headers:{ "Authorization":"Bearer "+idToken }});
-        const j = await r.json().catch(()=>({}));
-        if (r.ok && j.verified) {
-          msg.textContent = "E-mail verificado! Redirecionando…";
+
+        // 1) Tenta GET /api/auth/check-verification
+        let res = await fetch("/api/auth/check-verification", {
+          method: "GET",
+          headers: { "Authorization": "Bearer " + idToken, "Accept": "application/json" }
+        });
+
+        if (res.status === 405) {
+          // 2) Fallback: GET /api/auth/whoami
+          const r2 = await fetch("/api/auth/whoami", {
+            method: "GET",
+            headers: { "Authorization": "Bearer " + idToken, "Accept": "application/json" }
+          });
+          if (r2.ok) {
+            const j2 = await r2.json().catch(()=>({}));
+            const verified = !!(j2 && (j2.email_verified === true || j2.emailVerified === true));
+            if (verified) {
+              msg.textContent = "E-mail verificado! Redirecionando...";
+              msg.className = "row ok";
+              broadcastVerified();
+              setTimeout(()=> location.href = cont, 300);
+              return true;
+            } else {
+              msg.textContent = "Ainda não verificou. Abra o link do e-mail e tente novamente.";
+              msg.className = "row err";
+              return false;
+            }
+          } else {
+            msg.textContent = "Falha no fallback de verificação (" + r2.status + ").";
+            msg.className = "row err";
+            return false;
+          }
+        } else {
+          const data = await res.json().catch(()=>({}));
+          if (res.ok && data && data.verified === true) {
+            msg.textContent = "E-mail verificado! Redirecionando...";
+            msg.className = "row ok";
+            broadcastVerified();
+            setTimeout(()=> location.href = cont, 300);
+            return true;
+          }
+        }
+
+        // 3) Último recurso: recarrega usuário do Firebase e confere flag local
+        try { await u.reload(); } catch(_){}
+        if (u.emailVerified === true) {
+          msg.textContent = "E-mail verificado! Redirecionando...";
           msg.className = "row ok";
           broadcastVerified();
           setTimeout(()=> location.href = cont, 300);
           return true;
+        } else {
+          msg.textContent = "Ainda não verificou. Abra o link do e-mail e tente novamente.";
+          msg.className = "row err";
+          return false;
         }
-        msg.textContent = "Ainda não verificou. Abra o link do e-mail e tente novamente.";
-        msg.className = "row err";
-        return false;
       } catch(e){
-        msg.textContent = "Erro ao verificar: " + (e?.message || e);
+        msg.textContent = "Erro ao verificar: " + (e && e.message ? e.message : e);
         msg.className = "row err";
         return false;
       }
@@ -225,3 +272,4 @@
   </script>
 </body>
 </html>
+

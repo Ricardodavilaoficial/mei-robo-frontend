@@ -539,22 +539,68 @@
 
     /* ====== (A) Utilitária: checar via backend e avançar ====== */
     async function checkVerifiedViaBackendAndAdvance(){
-      try{
+      try {
         if (!window.firebase?.auth) return false;
         const user = firebase.auth().currentUser;
         if (!user) return false;
-        const idToken = await user.getIdToken(true);
-        const r = await fetch("https://mei-robo-prod.onrender.com/api/auth/check-verification", {
-          method: "POST",
-          headers: { "Authorization": "Bearer " + idToken }
+
+        // força refresh do token para evitar 401 por expiração
+        let idToken = await user.getIdToken(true);
+
+        // 1) Tenta GET /api/auth/check-verification (sem body)
+        let res = await fetch(API.checkVerification, {
+          method: 'GET',
+          headers: {
+            'Authorization': 'Bearer ' + idToken,
+            'Accept': 'application/json'
+          }
         });
-        const j = await r.json().catch(()=>({}));
-        if (r.ok && j.verified) {
-          location.href = "/pages/configuracao.html";
+
+        // 2) Se o backend não aceitar o método (405), tenta /api/auth/whoami
+        if (res.status === 405) {
+          const r2 = await fetch(API_BASE + '/api/auth/whoami', {
+            method: 'GET',
+            headers: {
+              'Authorization': 'Bearer ' + idToken,
+              'Accept': 'application/json'
+            }
+          });
+          if (r2.ok) {
+            const j2 = await r2.json().catch(()=>({}));
+            const verified = !!(j2 && (j2.email_verified === true || j2.emailVerified === true));
+            if (verified) {
+              location.href = '/pages/configuracao.html';
+              return true;
+            }
+            return false;
+          }
+          // se whoami falhar, dá uma última chance reatualizando user
+          try { await user.reload(); } catch(_){}
+          if (user.emailVerified === true) {
+            location.href = '/pages/configuracao.html';
+            return true;
+          }
+          return false;
+        }
+
+        // 3) Fluxo normal do check-verification (GET)
+        const data = await res.json().catch(()=>({}));
+        if (res.ok && data && data.verified === true) {
+          location.href = '/pages/configuracao.html';
           return true;
         }
-      } catch(_) {}
-      return false;
+
+        // 4) Última tentativa: Firebase local
+        try { await user.reload(); } catch(_){}
+        if (user.emailVerified === true) {
+          location.href = '/pages/configuracao.html';
+          return true;
+        }
+        return false;
+      } catch(e){
+        console.warn('[verify-check] erro:', e?.message || e);
+        return false;
+      }
     }
 
     /* ====== (B) advanceIfVerified com reload + backend ====== */
@@ -626,7 +672,7 @@
     /* ====== ENVIO DA VERIFICAÇÃO PELO BACKEND (SendGrid) ====== */
     async function sendVerificationViaBackend(user) {
       if (!user) throw new Error('Usuário não autenticado.');
-      // força refresh do token (à prova de expiração)
+      // força refresh do token ('à prova de expiração')
       let idToken = await user.getIdToken(true);
       let resp = await fetch(API.sendVerificationEmail, {
         method: 'POST',
@@ -938,3 +984,4 @@
   </script>
 </body>
 </html>
+
