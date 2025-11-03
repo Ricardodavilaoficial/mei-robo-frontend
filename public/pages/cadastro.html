@@ -135,7 +135,7 @@
           <div class="form-row">
             <label for="telefone"><strong>WhatsApp (com DDD)</strong></label>
             <input id="telefone" name="telefone" class="input" inputmode="tel"
-                   pattern="^\D*(\d\D*){10,11}$"
+                   pattern="^\\D*(\\d\\D*){10,11}$"
                    title="Informe um telefone com DDD (10 ou 11 dígitos)"
                    placeholder="Ex.: (11) 98765-4321" autocomplete="tel" required />
             <span class="hint">Coloque um número que você usa.</span>
@@ -144,7 +144,7 @@
           <div class="form-row">
             <label for="cnpj"><strong>CNPJ</strong></label>
             <input id="cnpj" name="cnpj" class="input" inputmode="numeric"
-              pattern="^\d{14}$|^\d{2}\.\d{3}\.\d{3}/\d{4}-\d{2}$"
+              pattern="^\\d{14}$|^\\d{2}\\.\\d{3}\\.\\d{3}/\\d{4}-\\d{2}$"
               title="Informe um CNPJ válido (14 dígitos ou 00.000.000/0000-00)"
               placeholder="Somente números ou 00.000.000/0000-00" autocomplete="on" required />
             <span class="hint">
@@ -377,12 +377,12 @@
     }, 5000);
 
     /* ====== Helpers ====== */
-    function normalizeDigits(v){ return (v || '').replace(/\D+/g,''); }
+    function normalizeDigits(v){ return (v || '').replace(/\\D+/g,''); }
     function normalizeCNPJ(v){ return normalizeDigits(v); }
     function validateCNPJ(cnpj){
       cnpj = normalizeCNPJ(cnpj);
       if (cnpj.length !== 14) return false;
-      if (/^(\d)\1{13}$/.test(cnpj)) return false;
+      if (/^(\\d)\\1{13}$/.test(cnpj)) return false;
       let length = cnpj.length - 2;
       let numbers = cnpj.substring(0, length);
       const digits = cnpj.substring(length);
@@ -538,67 +538,50 @@
     })();
 
     /* ====== (A) Utilitária: checar via backend e avançar ====== */
-    async function checkVerifiedViaBackendAndAdvance(){
+    async function checkVerifiedViaBackendAndAdvance() {
       try {
-        if (!window.firebase?.auth) return false;
-        const user = firebase.auth().currentUser;
-        if (!user) return false;
+        const auth = firebase.auth();
+        const user = auth.currentUser;
 
-        // força refresh do token para evitar 401 por expiração
-        let idToken = await user.getIdToken(true);
+        // 1) Se houver usuário local, force refresh de estado e do ID token
+        if (user) {
+          try { await user.reload(); } catch (_) {}
+          // força emitir novo token com email_verified atualizado
+          await user.getIdToken(true);
+        }
 
-        // 1) Tenta GET /api/auth/check-verification (sem body)
-        let res = await fetch(API.checkVerification, {
+        const token = user ? (await user.getIdToken(/* forceRefresh=false */)) : null;
+
+        // 2) Consulta o backend (fonte da verdade)
+        const API_BASE = (window.API_BASE || 'https://mei-robo-prod.onrender.com').replace(/\\/$/,'');
+        const r = await fetch(`${API_BASE}/api/auth/check-verification`, {
           method: 'GET',
           headers: {
-            'Authorization': 'Bearer ' + idToken,
-            'Accept': 'application/json'
-          }
+            'Accept': 'application/json',
+            ...(token ? { 'Authorization': \`Bearer \${token}\` } : {})
+          },
+          credentials: 'omit',
         });
 
-        // 2) Se o backend não aceitar o método (405), tenta /api/auth/whoami
-        if (res.status === 405) {
-          const r2 = await fetch(API_BASE + '/api/auth/whoami', {
-            method: 'GET',
-            headers: {
-              'Authorization': 'Bearer ' + idToken,
-              'Accept': 'application/json'
-            }
-          });
-          if (r2.ok) {
-            const j2 = await r2.json().catch(()=>({}));
-            const verified = !!(j2 && (j2.email_verified === true || j2.emailVerified === true));
-            if (verified) {
-              location.href = '/pages/configuracao.html';
-              return true;
-            }
-            return false;
-          }
-          // se whoami falhar, dá uma última chance reatualizando user
-          try { await user.reload(); } catch(_){}
-          if (user.emailVerified === true) {
-            location.href = '/pages/configuracao.html';
-            return true;
-          }
-          return false;
+        let ok = false;
+        if (r.ok) {
+          const j = await r.json().catch(()=>({}));
+          ok = !!(j && (j.verified === true || j.ok === true && j.emailVerified === true));
         }
 
-        // 3) Fluxo normal do check-verification (GET)
-        const data = await res.json().catch(()=>({}));
-        if (res.ok && data && data.verified === true) {
-          location.href = '/pages/configuracao.html';
-          return true;
-        }
+        // 3) Fallback: se o cliente já marcar emailVerified, também aceitamos
+        if (!ok && user && user.emailVerified === true) ok = true;
 
-        // 4) Última tentativa: Firebase local
-        try { await user.reload(); } catch(_){}
-        if (user.emailVerified === true) {
+        if (ok) {
+          // limpeza de sinalizações locais (opcional)
+          try { localStorage.removeItem('mr_email_verified'); } catch(_) {}
+          // segue para Configuração
           location.href = '/pages/configuracao.html';
           return true;
         }
         return false;
-      } catch(e){
-        console.warn('[verify-check] erro:', e?.message || e);
+      } catch (e) {
+        console.warn('[cadastro] checkVerifiedViaBackendAndAdvance error:', e);
         return false;
       }
     }
@@ -1048,3 +1031,4 @@
   </script>
 </body>
 </html>
+
