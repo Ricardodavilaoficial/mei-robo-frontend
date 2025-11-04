@@ -118,7 +118,7 @@
         if (!u) { msg.textContent = "Entre com seu e-mail e senha e tente de novo."; msg.className = "row err"; return false; }
         const idToken = await u.getIdToken(true);
 
-        // 1) Tenta GET /api/auth/check-verification
+        // 1) Tenta GET /api/auth/check-verification (com Bearer)
         let res = await fetch(API_BASE + "/api/auth/check-verification", {
           method: "GET",
           headers: { "Authorization": "Bearer " + idToken, "Accept": "application/json" }
@@ -242,20 +242,23 @@
       // 1) marca sinal local (ajuda no mesmo navegador)
       try { localStorage.setItem('mr_email_verified', '1'); } catch(_) {}
 
-      // 2) garante token atualizado e esquenta o backend
+      // 2) garante token atualizado e esquenta o backend (com Bearer)
       try {
         const user = firebase.auth().currentUser;
         if (user) {
           try { await user.reload(); } catch(_){}
           await user.getIdToken(true);
           const token = await user.getIdToken();
-          await fetch(API_BASE + '/api/auth/check-verification', {
+          fetch(API_BASE + '/api/auth/check-verification', {
             method: 'GET',
             headers: { 'Authorization': `Bearer ${token}`, 'Accept':'application/json' },
             credentials: 'omit'
           }).catch(()=>{});
         }
       } catch(_) {}
+
+      // 2.1) opcional: beacon silencioso para aquecer infra, sem depender de retorno
+      try { if (navigator.sendBeacon) navigator.sendBeacon(API_BASE + '/health'); } catch(_) {}
 
       // 3) avisa todas as abas/janelas
       try { window.opener && window.opener.postMessage({type:'email-verified'}, "*"); } catch(_) {}
@@ -328,28 +331,7 @@
       try { if (typeof check === 'function') setTimeout(check,300); } catch(_) {}
     });
 
-    /* ======= POLLING LEVE ======= */
-    async function pollUntilVerified(email){
-      const until = Date.now() + 3*60*1000; // 3 minutos
-      while (Date.now() < until) {
-        try {
-          const r = await fetch(API_BASE + `/api/auth/check-verification?email=${encodeURIComponent(email)}`, { credentials: 'include' });
-          const js = await r.json().catch(()=> ({}));
-          if (js?.verified === true) {
-            try { broadcastVerified(); } catch(_) {}
-            showReturnMessage();  // <- não redireciona nesta aba
-            return;
-          }
-        } catch(_) {}
-        await new Promise(r=>setTimeout(r, 1500));
-      }
-    }
-    document.addEventListener('DOMContentLoaded', () => {
-      const email = new URLSearchParams(location.search).get('email') || '';
-      if (email) pollUntilVerified(email);
-    });
-    /* ======= FIM DO POLLING ======= */
+    /* ======= REMOVIDO: POLLING SEM BEARER /api/auth/check-verification?email=... ======= */
   </script>
 </body>
 </html>
-
