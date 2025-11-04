@@ -79,6 +79,21 @@
       filter:saturate(0.6);
     }
   </style>
+
+  <!-- PATCH 1 — CSS do overlay minimalista -->
+  <style>
+    /* Overlay minimalista para aviso de verificação */
+    .vrfy-overlay{position:fixed;inset:0;background:rgba(0,0,0,.6);display:none;z-index:9999}
+    .vrfy-card{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
+      width:min(560px,92vw);background:#151618;color:#e8e8e8;border-radius:16px;
+      box-shadow:0 12px 28px rgba(0,0,0,.45);padding:22px}
+    .vrfy-card h2{margin:0 0 8px;font-size:1.25rem}
+    .vrfy-card p{margin:8px 0;line-height:1.5;opacity:.95}
+    .vrfy-card .hint{opacity:.75;font-size:.95rem}
+    .vrfy-actions{display:flex;gap:10px;margin-top:12px;flex-wrap:wrap}
+    .btn-primary{background:#25d366;color:#0b141a;border:0;border-radius:12px;padding:12px 14px;font-weight:600;cursor:pointer}
+    .btn-ghost{background:#2a2d31;color:#e8e8e8;border:0;border-radius:12px;padding:12px 14px;cursor:pointer}
+  </style>
 </head>
 <body>
   <div id="app-header"></div>
@@ -246,6 +261,21 @@
 
   <div id="app-footer"></div>
   <div id="footer"></div>
+
+  <!-- Overlay de Verificação de E-mail (PATCH 1 - HTML) -->
+  <div id="vrfyOverlay" class="vrfy-overlay" aria-hidden="true">
+    <div class="vrfy-card" role="dialog" aria-modal="true" aria-labelledby="vrfyTitle">
+      <h2 id="vrfyTitle">Verifique seu e-mail ✅</h2>
+      <p>Enviamos um e-mail com o botão de confirmação. Abra o e-mail em qualquer dispositivo,
+        toque em <strong>Confirmar e-mail</strong> e depois <strong>volte para esta aba</strong>.
+      </p>
+      <p class="hint">Assim que você voltar, seguiremos automaticamente para a Configuração da conta.</p>
+      <div class="vrfy-actions">
+        <button id="vrfyOpenMail" class="btn-primary" type="button">Abrir e-mail</button>
+        <button id="vrfyFechar" class="btn-ghost" type="button">Ok, vou verificar</button>
+      </div>
+    </div>
+  </div>
 
   <script src="/assets/layout.js?v=20250905f" defer></script>
 
@@ -916,9 +946,10 @@
         try { /* enterWaitingEmailVerification(); */ } catch(_){}
         try { if (goVerify) goVerify.href = '/verify-email.html?email=' + encodeURIComponent(mail); } catch(_){}
 
-        // mensagem discreta (sem bloquear UX)
-        formMsg.className = 'ok';
-        formMsg.textContent = 'Verificação enviada. Abra o e-mail, confirme e volte para esta aba; seguiremos automaticamente.';
+        // mensagem discreta → SUBSTITUÍDA PELO MODAL (PATCH 2.2)
+        // formMsg.className = 'ok';
+        // formMsg.textContent = 'Verificação enviada. Abra o e-mail, confirme e volte para esta aba; seguiremos automaticamente.';
+        showVerifyModal();
         try { enterWaitingEmailVerification(); } catch(_){}
         return;
         /* ==== Fim Patch 1 ==== */
@@ -984,9 +1015,10 @@
                 /* enterWaitingEmailVerification(); */
                 try { if (goVerify) goVerify.href = '/verify-email.html?email=' + encodeURIComponent(email); } catch(_){}
 
-                // Mensagem discreta na própria página
-                formMsg.className = 'ok';
-                formMsg.textContent = 'Verificação enviada. Confirme o e-mail e volte para esta aba; seguiremos automaticamente.';
+                // Mensagem discreta → SUBSTITUÍDA PELO MODAL (PATCH 2.2)
+                // formMsg.className = 'ok';
+                // formMsg.textContent = 'Verificação enviada. Confirme o e-mail e volte para esta aba; seguiremos automaticamente.';
+                showVerifyModal();
                 try { enterWaitingEmailVerification(); } catch(_){}
                 return;
                 /* ==== Fim Patch 2 ==== */
@@ -1253,6 +1285,91 @@
       setTimeout(tryAdvance, 800);
     }
   }
+  </script>
+
+  <!-- PATCH 2 — JS utilitários do overlay + guardas de auto-avanço -->
+  <script>
+  // ——— Caixa minimalista ———
+  function showVerifyModal(){
+    const ov = document.getElementById('vrfyOverlay');
+    if (!ov) return;
+    ov.style.display = 'block';
+    try { ov.setAttribute('aria-hidden','false'); } catch(_){}
+  }
+  function hideVerifyModal(){
+    const ov = document.getElementById('vrfyOverlay');
+    if (!ov) return;
+    ov.style.display = 'none';
+    try { ov.setAttribute('aria-hidden','true'); } catch(_){}
+  }
+  document.addEventListener('DOMContentLoaded', () => {
+    const btnMail = document.getElementById('vrfyOpenMail');
+    const btnOk   = document.getElementById('vrfyFechar');
+    btnMail?.addEventListener('click', () => {
+      // Tenta abrir webmail mais comum do usuário (fallback: apenas fecha)
+      window.open('https://mail.google.com', '_blank', 'noopener,noreferrer');
+    });
+    btnOk?.addEventListener('click', hideVerifyModal);
+  });
+
+  // ——— Checagem e redirecionamento ———
+  const DEST_CONFIG = '/pages/configuracao.html';
+  async function checkAndAdvance() {
+    try {
+      const u = firebase.auth().currentUser;
+      if (!u) return false;
+      try { await u.reload(); } catch(_){}
+      if (u.emailVerified === true) {
+        location.href = DEST_CONFIG + '?src=cadastro';
+        return true;
+      }
+      // Fallback: ping no backend com Bearer
+      const tok = await u.getIdToken(true);
+      const r = await fetch((window.API_BASE||'https://mei-robo-prod.onrender.com').replace(/\/$/,'') + '/api/auth/whoami', {
+        headers: { 'Authorization':'Bearer '+tok, 'Accept':'application/json' }
+      });
+      if (r.ok) {
+        const j = await r.json().catch(()=> ({}));
+        if (j?.email_verified === true || j?.emailVerified === true) {
+          location.href = DEST_CONFIG + '?src=cadastro';
+          return true;
+        }
+      }
+    } catch(_) {}
+    return false;
+  }
+
+  // ——— Guardas: quando a aba volta ao foco/visível, storage ou broadcast ———
+  function attachRedirectGuards(){
+    // 1) Sinal local setado pelo verify-email.html
+    try {
+      window.addEventListener('storage', (e) => {
+        if (e.key === 'mr_email_verified' && e.newValue === '1') checkAndAdvance();
+      });
+    } catch(){}
+
+    // 2) Broadcast de outras janelas
+    try {
+      const bc = new BroadcastChannel('auth');
+      bc.addEventListener('message', (ev) => {
+        if (ev?.data?.type === 'email-verified') checkAndAdvance();
+      });
+    } catch(){}
+
+    // 3) Voltar ao foco / ficar visível
+    window.addEventListener('focus', checkAndAdvance);
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible') checkAndAdvance();
+    });
+
+    // 4) Mutação de token (Firebase atualiza após applyActionCode)
+    try {
+      firebase.auth().onIdTokenChanged(() => { checkAndAdvance(); });
+    } catch(){}
+  }
+
+  // Chama na carga da página
+  document.addEventListener('DOMContentLoaded', attachRedirectGuards);
   </script>
 </body>
 </html>
