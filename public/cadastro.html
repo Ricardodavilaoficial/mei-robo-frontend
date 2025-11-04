@@ -335,7 +335,7 @@
           return;
         }
 
-        const meta = document.querySelector('meta[name="TURNSTILE_SITE_KEY"]');
+        const meta = document.querySelector('meta[name=\"TURNSTILE_SITE_KEY\"]');
         const SITE_KEY = (meta?.content || '').trim();
         if (!window.turnstile || !SITE_KEY || CF_WIDGET_ID) return;
 
@@ -351,16 +351,16 @@
             updateButtonState();
           },
           'error-callback': function() {
-            CF_TOKEN = ""; CF_TOKEN_TS = 0;
+            CF_TOKEN = \"\"; CF_TOKEN_TS = 0;
             const hidden = document.getElementById('cf_token');
-            if (hidden) hidden.value = "";
+            if (hidden) hidden.value = \"\";
             reRenderTurnstileWithBackoff();
             updateButtonState();
           },
           'expired-callback': function() {
-            CF_TOKEN = ""; CF_TOKEN_TS = 0;
+            CF_TOKEN = \"\"; CF_TOKEN_TS = 0;
             const hidden = document.getElementById('cf_token');
-            if (hidden) hidden.value = "";
+            if (hidden) hidden.value = \"\";
             try { turnstile.reset(CF_WIDGET_ID); } catch(e) {}
             updateButtonState();
           }
@@ -375,9 +375,9 @@
         if (!CF_TOKEN_TS) return;
         const age = Date.now() - CF_TOKEN_TS;
         if (age > 115000) {
-          CF_TOKEN = ""; CF_TOKEN_TS = 0;
+          CF_TOKEN = \"\"; CF_TOKEN_TS = 0;
           const hidden = document.getElementById('cf_token');
-          if (hidden) hidden.value = "";
+          if (hidden) hidden.value = \"\";
           if (window.turnstile && CF_WIDGET_ID) {
             try { turnstile.reset(CF_WIDGET_ID); } catch(_) {}
           }
@@ -1021,115 +1021,70 @@
   })();
   </script>
 
-  <!-- ======== AUTO-AVANÇO ROBUSTO (com token) ======== -->
+  <!-- ======== AUTO-AVANÇO MINIMAL (substituição solicitada) ======== -->
   <script>
   (function(){
-    const API_BASE = (window.API_BASE || 'https://mei-robo-prod.onrender.com').replace(/\\/$/,'');
+    const API_BASE = (window.API_BASE || 'https://mei-robo-prod.onrender.com').replace(/\/$/,'');
     const DEST = '/pages/configuracao.html';
-    let _watching = false;
-    let _stop = false;
 
-    async function checkOnce(){
-      try{
-        const u = firebase?.auth?.().currentUser || null;
-        if (!u) return false;
-        try { await u.reload(); } catch(_){}
-        if (u.emailVerified === true) return true;
-
-        const idt = await u.getIdToken(true);
-        const r = await fetch(API_BASE + '/api/auth/whoami', {
-          headers: { 'Authorization':'Bearer '+idt, 'Accept':'application/json' }
-        });
-        if (r.ok){
-          const j = await r.json().catch(()=> ({}));
-          if (j?.emailVerified === true || j?.email_verified === true) return true;
-        }
-      }catch(_){}
-      return false;
-    }
-
-    async function watcher(){
-      if (_watching) return;
-      _watching = true;
-      const until = Date.now() + 3*60*1000; // 3 minutos
-      while(!_stop && Date.now()<until){
-        if (await checkOnce()){
-          try { new BroadcastChannel('auth').postMessage({type:'email-verified'}); } catch(_){}
-          location.href = DEST;
-          return;
-        }
-        await new Promise(r=>setTimeout(r, 1500));
-      }
-      _watching = false;
-    }
-
-    window.addEventListener('focus', watcher);
-    document.addEventListener('visibilitychange', ()=> {
-      if (document.visibilityState === 'visible') watcher();
-    });
-
-    if (document.readyState === 'complete' || document.readyState === 'interactive') {
-      watcher();
-    } else {
-      document.addEventListener('DOMContentLoaded', watcher);
-    }
-  })();
-  </script>
-
-  <!-- ========== foco/visibilidade: reload + whoami + gatilho localStorage ========== -->
-  <script>
-  (function(){
-    const API_BASE = (window.API_BASE || 'https://mei-robo-prod.onrender.com').replace(/\\/$/,'');
-    const CONT = '/pages/configuracao.html';
-
-    async function hardCheckAndAdvance(){
+    async function tryAdvance(){
       try {
         const u = firebase?.auth?.().currentUser || null;
+        if (!u) return false;
 
-        try {
-          if (localStorage.getItem('mr_email_verified') === '1') {
-            if (u) { try { await u.reload(); } catch(_) {} }
-            if (u?.emailVerified === true) { location.href = CONT; return; }
-            setTimeout(()=> location.href = CONT, 150);
-            return;
-          }
-        } catch(_) {}
+        // 1) força atualizar o usuário e checa local
+        try { await u.reload(); } catch(_){}
+        if (u.emailVerified === true) { location.href = DEST; return true; }
 
-        if (u) {
-          try { await u.reload(); } catch(_){}
-          if (u.emailVerified === true) { location.href = CONT; return; }
-
-          try {
-            const idt = await u.getIdToken(true);
-            const r = await fetch(API_BASE + '/api/auth/whoami', {
-              headers: { 'Authorization': 'Bearer '+idt, 'Accept':'application/json' }
-            });
-            if (r.ok) {
-              const j = await r.json().catch(()=>({}));
-              if (j && (j.email_verified === true || j.emailVerified === true)) {
-                location.href = CONT; return;
-              }
-            }
-          } catch(_) {}
+        // 2) força refresh do token e consulta check-verification
+        const idt1 = await u.getIdToken(true);
+        const r1 = await fetch(API_BASE + '/api/auth/check-verification', {
+          method: 'GET',
+          headers: { 'Authorization': 'Bearer ' + idt1, 'Accept': 'application/json' }
+        });
+        if (r1.ok) {
+          const j1 = await r1.json().catch(()=> ({}));
+          if (j1?.verified === true) { location.href = DEST; return true; }
         }
-      } catch(_) {}
+
+        // 3) fallback robusto: pergunta ao whoami (server confere direto)
+        const idt2 = await u.getIdToken(true);
+        const r2 = await fetch(API_BASE + '/api/auth/whoami', {
+          method: 'GET',
+          headers: { 'Authorization': 'Bearer ' + idt2, 'Accept': 'application/json' }
+        });
+        if (r2.ok) {
+          const j2 = await r2.json().catch(()=> ({}));
+          if (j2?.emailVerified === true || j2?.email_verified === true) {
+            location.href = DEST; return true;
+          }
+        }
+
+        return false;
+      } catch { return false; }
     }
 
-    window.addEventListener('focus', hardCheckAndAdvance, {passive:true});
+    // Dispara quando a aba volta
+    function onBackToTab(){
+      // tenta por até ~3 minutos, com pequenos intervalos
+      const until = Date.now() + 3*60*1000;
+      (async function loop(){
+        if (await tryAdvance()) return;
+        if (Date.now() < until) setTimeout(loop, 1500);
+      })();
+    }
+
+    window.addEventListener('focus', onBackToTab, {passive:true});
     document.addEventListener('visibilitychange', () => {
-      if (document.visibilityState === 'visible') hardCheckAndAdvance();
+      if (document.visibilityState === 'visible') onBackToTab();
     }, {passive:true});
 
-    (function heartbeat(){
-      const until = Date.now() + 3*60*1000;
-      const tick = async () => {
-        if (document.visibilityState === 'visible') await hardCheckAndAdvance();
-        if (Date.now() < until) setTimeout(tick, 2000);
-      };
-      setTimeout(tick, 1000);
-    })();
-
-    document.addEventListener('DOMContentLoaded', () => setTimeout(hardCheckAndAdvance, 350));
+    // primeira tentativa logo após carregar
+    if (document.readyState === 'complete' || document.readyState === 'interactive') {
+      onBackToTab();
+    } else {
+      document.addEventListener('DOMContentLoaded', onBackToTab);
+    }
   })();
   </script>
 </body>
