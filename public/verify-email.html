@@ -81,6 +81,21 @@
       try { localStorage.setItem('mr_email_verified','1'); } catch(_) {}
     }
 
+    function showReturnMessage() {
+      // UI minimalista: sem botões de continuar, instrução explícita de voltar à aba original.
+      const box = document.getElementById('verifyBox');
+      if (box) {
+        box.innerHTML = `
+          <h2>E-mail verificado ✅</h2>
+          <p>Agora <strong>volte para a ABA onde você iniciou o cadastro</strong>. 
+          Lá vamos avançar automaticamente para a Configuração da conta.</p>
+          <p class="hint">Se esta janela tiver sido aberta só para confirmar, você pode fechá-la com segurança.</p>
+        `;
+      }
+      // Tenta fechar se houver opener (não quebra se falhar)
+      try { if (window.opener) setTimeout(()=>window.close(), 2000); } catch(_) {}
+    }
+
     function renderDebounceTip(){
       const last = Number(localStorage.getItem(LS_KEY) || "0");
       if (!last) { tip.textContent = ""; return; }
@@ -119,10 +134,10 @@
             const j2 = await r2.json().catch(()=>({}));
             const verified = !!(j2 && (j2.email_verified === true || j2.emailVerified === true));
             if (verified) {
-              msg.textContent = "E-mail verificado! Redirecionando...";
+              msg.textContent = "E-mail verificado!";
               msg.className = "row ok";
               broadcastVerified();
-              setTimeout(()=> location.href = cont, 300);
+              showReturnMessage();   // <- não redireciona nesta aba
               return true;
             } else {
               msg.textContent = "Ainda não verificou. Abra o link do e-mail e tente novamente.";
@@ -137,10 +152,10 @@
         } else {
           const data = await res.json().catch(()=>({}));
           if (res.ok && data && data.verified === true) {
-            msg.textContent = "E-mail verificado! Redirecionando...";
+            msg.textContent = "E-mail verificado!";
             msg.className = "row ok";
             broadcastVerified();
-            setTimeout(()=> location.href = cont, 300);
+            showReturnMessage();     // <- não redireciona nesta aba
             return true;
           }
         }
@@ -148,10 +163,10 @@
         // 3) Último recurso: recarrega usuário do Firebase e confere flag local
         try { await u.reload(); } catch(_){}
         if (u.emailVerified === true) {
-          msg.textContent = "E-mail verificado! Redirecionando...";
+          msg.textContent = "E-mail verificado!";
           msg.className = "row ok";
           broadcastVerified();
-          setTimeout(()=> location.href = cont, 300);
+          showReturnMessage();       // <- não redireciona nesta aba
           return true;
         } else {
           msg.textContent = "Ainda não verificou. Abra o link do e-mail e tente novamente.";
@@ -210,19 +225,19 @@
         emailSpan.textContent = (u?.email) || emailParam || "—";
         renderDebounceTip();
 
-        // NOVO: se já estiver verificado, segue direto (UX minimalista)
+        // Se já estiver verificado, não redireciona: só sinaliza e instrui a voltar
         if (u) {
           try { await u.reload(); } catch(_){}
           if (u.emailVerified === true) {
             broadcastVerified();
-            location.href = cont;
+            showReturnMessage(); // <- orientação clara de voltar à aba original
             return;
           }
         }
       } catch {}
     });
 
-    /* ======= BLOCO NOVO (função pedida pós-applyActionCode) ======= */
+    /* ======= PÓS-applyActionCode ======= */
     async function afterApplyActionCodeSuccess() {
       // 1) marca sinal local (ajuda no mesmo navegador)
       try { localStorage.setItem('mr_email_verified', '1'); } catch(_) {}
@@ -250,7 +265,6 @@
         try { bc.postMessage({type:'email-verified'}); } finally { bc.close?.(); }
       } catch(_) {}
     }
-    /* ======= FIM DO BLOCO NOVO ======= */
 
     async function afterVerifiedUI() {
       // Sinaliza para possíveis ouvintes (UI)
@@ -259,21 +273,8 @@
       try { window.parent && window.parent.postMessage({type:'email-verified'}, '*'); } catch(_) {}
       try { localStorage.setItem('mr_email_verified', '1'); } catch(_) {}
 
-      // UI minimalista: sem botões de continuar
-      const box = document.getElementById('verifyBox');
-      if (box) {
-        box.innerHTML = `
-          <h2>E-mail verificado ✅</h2>
-          <p>Volte para a aba onde você iniciou o cadastro. Se ela estiver aberta,
-          vamos avançar automaticamente para a Configuração da conta.</p>
-        `;
-      }
-
-      // NOVO: garante redirecionamento também nesta aba
-      setTimeout(()=> { try { location.href = cont; } catch(_) {} }, 300);
-
-      // Se houve opener (mesmo navegador/aba), podemos fechar esta janela
-      try { if (window.opener) setTimeout(()=>window.close(), 2000); } catch(_) {}
+      // Em vez de redirecionar nesta aba, mostramos instrução única.
+      showReturnMessage();
     }
 
     // Chamada após sucesso no applyActionCode OU quando oobCode não existe
@@ -288,12 +289,12 @@
       if (oob) {
         try {
           await firebase.auth().applyActionCode(oob);
-          // >>> reforço: refresh + ping backend + broadcasts
+          // reforço: refresh + ping backend + broadcasts
           await afterApplyActionCodeSuccess();
           await onVerified();
         } catch (e) {
           console.warn('[verify-email] applyActionCode falhou:', e?.message || e);
-          // Mesmo se falhar por já usado/expirado, tente sinalizar UI de ok
+          // Mesmo se falhar por já usado/expirado, ainda sinalizamos UI de ok
           await onVerified();
         }
       } else {
@@ -308,9 +309,9 @@
           await firebase.auth().applyActionCode(oobCode);
           await afterApplyActionCodeSuccess();
           broadcastVerified();
-          msg.textContent = "Confirmado! Redirecionando…";
+          msg.textContent = "Confirmado!";
           msg.className = "row ok";
-          setTimeout(()=> location.href = cont, 300);
+          showReturnMessage(); // <- orientação clara
           return;
         } catch(_) {}
       }
@@ -332,8 +333,8 @@
           const r = await fetch(API_BASE + `/api/auth/check-verification?email=${encodeURIComponent(email)}`, { credentials: 'include' });
           const js = await r.json().catch(()=> ({}));
           if (js?.verified === true) {
-            try { broadcastVerified(); } catch(_) {}   // NOVO: sinaliza antes
-            location.href = cont;                      // mantém avanço nesta aba
+            try { broadcastVerified(); } catch(_) {}
+            showReturnMessage();  // <- não redireciona nesta aba
             return;
           }
         } catch(_) {}
