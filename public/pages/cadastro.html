@@ -79,21 +79,6 @@
       filter:saturate(0.6);
     }
   </style>
-
-  <!-- PATCH 1 — CSS do overlay minimalista -->
-  <style>
-    /* Overlay minimalista para aviso de verificação */
-    .vrfy-overlay{position:fixed;inset:0;background:rgba(0,0,0,.6);display:none;z-index:9999}
-    .vrfy-card{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
-      width:min(560px,92vw);background:#151618;color:#e8e8e8;border-radius:16px;
-      box-shadow:0 12px 28px rgba(0,0,0,.45);padding:22px}
-    .vrfy-card h2{margin:0 0 8px;font-size:1.25rem}
-    .vrfy-card p{margin:8px 0;line-height:1.5;opacity:.95}
-    .vrfy-card .hint{opacity:.75;font-size:.95rem}
-    .vrfy-actions{display:flex;gap:10px;margin-top:12px;flex-wrap:wrap}
-    .btn-primary{background:#25d366;color:#0b141a;border:0;border-radius:12px;padding:12px 14px;font-weight:600;cursor:pointer}
-    .btn-ghost{background:#2a2d31;color:#e8e8e8;border:0;border-radius:12px;padding:12px 14px;cursor:pointer}
-  </style>
 </head>
 <body>
   <div id="app-header"></div>
@@ -157,7 +142,7 @@
           <div class="form-row">
             <label for="telefone"><strong>WhatsApp (com DDD)</strong></label>
             <input id="telefone" name="telefone" class="input" inputmode="tel"
-                   pattern="^\\D*(\\d\\D*){10,11}$"
+                   pattern="^\D*(\d\D*){10,11}$"
                    title="Informe um telefone com DDD (10 ou 11 dígitos)"
                    placeholder="Ex.: (11) 98765-4321" autocomplete="tel" required />
             <span class="hint">Coloque um número que você usa.</span>
@@ -166,7 +151,7 @@
           <div class="form-row">
             <label for="cnpj"><strong>CNPJ</strong></label>
             <input id="cnpj" name="cnpj" class="input" inputmode="numeric"
-              pattern="^\\d{14}$|^\\d{2}\\.\\d{3}\\.\\d{3}/\\d{4}-\\d{2}$"
+              pattern="^\d{14}$|^\d{2}\.\d{3}\.\d{3}/\d{4}-\d{2}$"
               title="Informe um CNPJ válido (14 dígitos ou 00.000.000/0000-00)"
               placeholder="Somente números ou 00.000.000/0000-00" autocomplete="on" required />
             <span class="hint">
@@ -221,7 +206,7 @@
           </div>
 
           <div class="actions" style="margin-top:12px">
-            <button id="submitBtn" type="submit" class="cta btn-disabled" aria-disabled="true" disabled>Avançar</button>
+            <button id="submitBtn" type="submit" class="cta btn-disabled" aria-disabled="true">Avançar</button>
           </div>
 
           <!-- Rodapé de orientação -->
@@ -261,21 +246,6 @@
 
   <div id="app-footer"></div>
   <div id="footer"></div>
-
-  <!-- Overlay de Verificação de E-mail (PATCH 1 - HTML) -->
-  <div id="vrfyOverlay" class="vrfy-overlay" aria-hidden="true">
-    <div class="vrfy-card" role="dialog" aria-modal="true" aria-labelledby="vrfyTitle">
-      <h2 id="vrfyTitle">Verifique seu e-mail ✅</h2>
-      <p>Enviamos um e-mail com o botão de confirmação. Abra o e-mail em qualquer dispositivo,
-        toque em <strong>Confirmar e-mail</strong> e depois <strong>volte para esta aba</strong>.
-      </p>
-      <p class="hint">Assim que você voltar, seguiremos automaticamente para a Configuração da conta.</p>
-      <div class="vrfy-actions">
-        <button id="vrfyOpenMail" class="btn-primary" type="button">Abrir e-mail</button>
-        <button id="vrfyFechar" class="btn-ghost" type="button">Ok, vou verificar</button>
-      </div>
-    </div>
-  </div>
 
   <script src="/assets/layout.js?v=20250905f" defer></script>
 
@@ -342,24 +312,17 @@
       try{ return new URLSearchParams(location.search).get('validate') === '1'; }catch(_){ return false; }
     }
 
-    /* ==== (1) PATCH: enableSubmit com blindagem de aceite + DOMContentLoaded ==== */
+    /* ==== (1) PATCH leve: enableSubmit respeitando aceite ==== */
     function enableSubmit(){
-      try {
-        if (!aceite?.checked) { disableSubmit(); return; }
-      } catch(_) {}
+      try { if (!aceite?.checked) { disableSubmit(); return; } } catch(_) {}
       submitBtn.classList.remove('btn-disabled');
       submitBtn.removeAttribute('aria-disabled');
-      submitBtn.removeAttribute('disabled');           /* << NOVO */
     }
     function disableSubmit(){
       submitBtn.classList.add('btn-disabled');
       submitBtn.setAttribute('aria-disabled','true');
-      submitBtn.setAttribute('disabled','disabled');   /* << NOVO */
     }
-    document.addEventListener('DOMContentLoaded', () => {
-      try { updateButtonState(); } catch(_){}
-    });
-    /* ==== FIM PATCH 1 ==== */
+    document.addEventListener('DOMContentLoaded', () => { try { updateButtonState(); } catch(_){ } });
 
     function renderTurnstile() {
       try {
@@ -424,12 +387,12 @@
     }, 5000);
 
     /* ====== Helpers ====== */
-    function normalizeDigits(v){ return (v || '').replace(/\\D+/g,''); }
+    function normalizeDigits(v){ return (v || '').replace(/\D+/g,''); }
     function normalizeCNPJ(v){ return normalizeDigits(v); }
     function validateCNPJ(cnpj){
       cnpj = normalizeCNPJ(cnpj);
       if (cnpj.length !== 14) return false;
-      if (/^(\\d)\\1{13}$/.test(cnpj)) return false;
+      if (/^(\d)\1{13}$/.test(cnpj)) return false;
       let length = cnpj.length - 2;
       let numbers = cnpj.substring(0, length);
       const digits = cnpj.substring(length);
@@ -576,7 +539,6 @@
         });
         window.addEventListener('email-verified', onSignal);
 
-        // >>> NOVO: também reage a alterações no localStorage vindas de outra aba
         window.addEventListener('storage', function(e){
           try{
             if (!e) return;
@@ -600,29 +562,23 @@
         const user = firebase.auth().currentUser;
         if (!user) return false;
 
-        // força refresh do token para evitar 401 por expiração
         let idToken = await user.getIdToken(true);
 
-        // 1) Tenta GET /api/auth/check-verification (sem body)
         let res = await fetch(API.checkVerification, {
           method: 'GET',
           headers: {
             'Authorization': 'Bearer ' + idToken,
             'Accept': 'application/json'
-          },
-          mode: 'cors',                 /* PATCH: reforça CORS */
-          credentials: 'include'        /* PATCH: envia cookies se houver */
+          }
         });
 
-        // 2) Se o backend não aceitar o método (405), tenta /api/auth/whoami
         if (res.status === 405) {
           const r2 = await fetch(API_BASE + '/api/auth/whoami', {
             method: 'GET',
             headers: {
               'Authorization': 'Bearer ' + idToken,
               'Accept': 'application/json'
-            },
-            mode: 'cors', credentials: 'include'  /* PATCH */
+            }
           });
           if (r2.ok) {
             const j2 = await r2.json().catch(()=>({}));
@@ -633,7 +589,6 @@
             }
             return false;
           }
-          // se whoami falhar, dá uma última chance reatualizando user
           try { await user.reload(); } catch(_){}
           if (user.emailVerified === true) {
             location.href = '/pages/configuracao.html';
@@ -642,14 +597,12 @@
           return false;
         }
 
-        // 3) Fluxo normal do check-verification (GET)
         const data = await res.json().catch(()=>({}));
         if (res.ok && data && data.verified === true) {
           location.href = '/pages/configuracao.html';
           return true;
         }
 
-        // 4) Última tentativa: Firebase local
         try { await user.reload(); } catch(_){}
         if (user.emailVerified === true) {
           location.href = '/pages/configuracao.html';
@@ -668,16 +621,11 @@
         if (!window.firebase?.auth) return;
         const user = firebase.auth().currentUser;
         if (!user) return;
-
-        // 1) Tenta só o reload (barato)
         try { await user.reload(); } catch(_){}
-
         if (user.emailVerified === true) {
           location.href = "/pages/configuracao.html";
           return;
         }
-
-        // 2) Plano B: pergunta pro backend (cobre caso de outro navegador)
         const ok = await checkVerifiedViaBackendAndAdvance();
         if (!ok && cameFromSignal) {
           verifyBannerText.textContent =
@@ -693,22 +641,19 @@
     function hideVerifyBanner(){ verifyBanner.style.display = 'none'; }
 
     /* ====== (C) Handler do botão com backend + fallback ====== */
-    if (btnAlreadyVerified) {                   /* << NOVO: protege o addEventListener */
-      btnAlreadyVerified.addEventListener('click', async (e)=>{
-        e.preventDefault();
-        await advanceIfVerified(true);
-        try{
-          const u = firebase.auth().currentUser || null;
-          const mail = (u?.email || (emailInput?.value||'')).trim();
-          if (verifyBanner.style.display !== 'none') {
-            window.location.href = '/verify-email.html?cont=/pages/configuracao.html'
-              + (mail ? ('&email=' + encodeURIComponent(mail)) : '');
-          }
-        }catch(_){}
-      });
-    }
+    btnAlreadyVerified.addEventListener('click', async (e)=>{
+      e.preventDefault();
+      await advanceIfVerified(true);
+      try{
+        const u = firebase.auth().currentUser || null;
+        const mail = (u?.email || (emailInput?.value||'')).trim();
+        if (verifyBanner.style.display !== 'none') {
+          window.location.href = '/verify-email.html?cont=/pages/configuracao.html'
+            + (mail ? ('&email=' + encodeURIComponent(mail)) : '');
+        }
+      }catch(_){}
+    });
 
-    // Se o usuário já estiver logado quando abrir esta página,
     document.addEventListener('DOMContentLoaded', async () => {
       try{
         if (!window.firebase?.auth) return;
@@ -720,18 +665,16 @@
             return;
           } else {
             const em = user.email || '';
-            enterWaitingEmailVerification();
+            showVerifyBanner(em);
           }
         }
       } catch(_){ }
     });
 
-    /* ====== Patch solicitado: função robusta de envio (backend bonito → fallback SDK) ====== */
+    /* ====== Envio verificação: backend → fallback SDK ====== */
     async function enviarEmailVerificacaoRobusto() {
       const u = firebase.auth().currentUser;
       if (!u) throw new Error("Usuário não autenticado");
-
-      // 1) Tenta o e-mail "bonitinho" via backend
       try {
         const idToken = await u.getIdToken(true);
         const r = await fetch("https://mei-robo-prod.onrender.com/api/auth/send-verification-email", {
@@ -741,9 +684,7 @@
             "Content-Type": "application/json",
             "Accept": "application/json"
           },
-          body: JSON.stringify({}),
-          mode: "cors",                        /* PATCH: reforça CORS */
-          credentials: "include"               /* PATCH */
+          body: JSON.stringify({})
         });
         if (r.ok) {
           return { ok:true, via:"backend_pretty" };
@@ -752,8 +693,6 @@
       } catch (e) {
         console.warn("[cadastro] backend send-verification exception:", e?.message || e);
       }
-
-      // 2) Fallback: SDK Firebase (template padrão, mas sempre entrega)
       const actionCodeSettings = {
         url: "https://www.meirobo.com.br/verify-email.html?cont=/pages/configuracao.html",
         handleCodeInApp: false
@@ -767,35 +706,18 @@
       }
     }
 
-    // Handler utilitário (se for necessário)
-    async function onEnviarVerificacao() {
-      const btn = document.getElementById("enviarVerificacaoBtn");
-      try {
-        btn && (btn.disabled = true);
-        const res = await enviarEmailVerificacaoRobusto();
-        console.log("[cadastro] verificação enviada via:", res.via);
-      } catch (e) {
-        console.error("[cadastro] falha ao enviar verificação:", e?.message || e);
-      } finally {
-        btn && (btn.disabled = false);
-      }
-    }
-
-    /* ====== Submit (com Turnstile obrigatório, preservando backend) ====== */
+    /* ====== Submit ====== */
     async function proceedSubmit(){
       formMsg.className='hint';
       formMsg.textContent='Enviando cadastro com segurança...';
 
-      // === 1. Token direto do widget Turnstile ===
       let token = "";
       try {
         if (window.turnstile && CF_WIDGET_ID) {
           token = turnstile.getResponse(CF_WIDGET_ID) || "";
         }
       } catch(_) {}
-      if (!token) {
-        token = (document.getElementById('cf_token')?.value || '').trim();
-      }
+      if (!token) token = (document.getElementById('cf_token')?.value || '').trim();
       if (!token) {
         formMsg.className='error';
         formMsg.textContent='Desafio de segurança expirou. Clique novamente na caixinha e envie em seguida.';
@@ -810,21 +732,6 @@
 
       let createdNewUser = false;
       let authInst = null;
-
-      // PATCH: helper de fetch com retry curto (cobre falhas transitórias/preflight)
-      async function fetchWithRetry(url, opts, tries=2){
-        let lastErr=null;
-        for (let i=0;i<tries;i++){
-          try{
-            const res = await fetch(url, opts);
-            return res;
-          }catch(e){
-            lastErr = e;
-            await new Promise(r=>setTimeout(r, 400*(i+1)));
-          }
-        }
-        throw lastErr || new Error('fetch_failed');
-      }
 
       try {
         const nome = (document.getElementById('nome').value || '').trim();
@@ -866,7 +773,6 @@
         const { user, created } = await ensureAuthenticated(email, senha);
         createdNewUser = !!created;
 
-        // ★★★ ENVIO DE VERIFICAÇÃO — Tenta backend bonito → fallback SDK
         try {
           if (user && !user.emailVerified) {
             await enviarEmailVerificacaoRobusto();
@@ -877,9 +783,8 @@
 
         const idToken = await user.getIdToken();
         console.log('[cadastro] idToken len:', (idToken||'').length);
-        try { /* enterWaitingEmailVerification(); */ } catch(_){}
+        try { showVerifyBanner(user.email || email); } catch(_){}
 
-        // ★ Ajustar CTA local para já incluir ?email=
         try {
           if (goVerify) {
             goVerify.href = '/verify-email.html?email=' + encodeURIComponent(user?.email || email);
@@ -907,15 +812,7 @@
         headers['X-Submit-Nonce'] = submitNonce;
         console.log('[cadastro] nonce=', submitNonce);
 
-        /* PATCH MINIMALISTA: reforça CORS + credenciais e retry curto */
-        const res = await fetchWithRetry(API.cadastro, {
-          method: 'POST',
-          headers,
-          body: JSON.stringify(payload),
-          mode: 'cors',
-          credentials: 'include'
-        });
-
+        const res = await fetch(API.cadastro, { method: 'POST', headers, body: JSON.stringify(payload) });
         const text = await res.text();
         let data = {};
         try { data = text ? JSON.parse(text) : {}; } catch(_) {}
@@ -944,39 +841,22 @@
             return;
           }
 
-          // PATCH: mensagens melhores em 401/403/5xx sem cair no genérico de "conexão"
-          if (res.status === 401 || res.status === 403) {
-            formMsg.className='error';
-            formMsg.textContent='Sessão expirada. Faça login novamente e tente enviar.';
-            enableSubmit();
-            await tryDeleteJustCreatedUser(authInst, createdNewUser);
-            SUBMITTING = false;
-            return;
-          }
-
-          formMsg.className='error';
-          formMsg.textContent='Não foi possível concluir agora. Tente novamente em instantes.';
-          enableSubmit();
-          await tryDeleteJustCreatedUser(authInst, createdNewUser);
-          SUBMITTING = false;
-          return;
+          throw new Error('Falha no cadastro.');
         }
 
-        /* ==== (3) PATCH: reforço para garantir envio do e-mail de verificação ==== */
         try {
           const usr = firebase?.auth?.().currentUser;
           if (usr && !usr.emailVerified) {
-            await enviarEmailVerificacaoRobusto().catch(()=>{ /* não bloqueia a navegação */ });
+            await enviarEmailVerificacaoRobusto().catch(()=>{});
           }
         } catch(_) {}
-        /* ==== FIM PATCH 3 ==== */
 
-        /* ==== Sucesso inline → MODAL minimalista + estado aguardando ==== */
         const mail = (data.email || email).trim();
         try { localStorage.setItem('pendingEmail', mail); } catch (_){}
         try { if (goVerify) goVerify.href = '/verify-email.html?email=' + encodeURIComponent(mail); } catch(_){}
-        showVerifyModal();
-        try { enterWaitingEmailVerification(); } catch(_){}
+        try { showVerifyBanner(mail); } catch(_){}
+        formMsg.className = 'ok';
+        formMsg.textContent = 'Verificação enviada. Abra o e-mail, confirme e volte para esta aba; seguiremos automaticamente.';
         return;
 
       } catch(e){
@@ -994,8 +874,7 @@
                 'X-Turnstile-Token': token,
                 'cf-turnstile-response': token
               },
-              body: JSON.stringify({ email }),
-              mode: 'cors', credentials: 'include'      /* PATCH */
+              body: JSON.stringify({ email })
             });
             const j = await resp.json().catch(()=>({}));
             if (resp.ok && j.ok) {
@@ -1011,6 +890,7 @@
               }
 
               const idToken = await user.getIdToken();
+              showVerifyBanner(user.email || email);
               try { if (goVerify) goVerify.href = '/verify-email.html?email=' + encodeURIComponent(user?.email || email); } catch(_){}
 
               const telefoneDigits = normalizeDigits(phoneInput.value || '');
@@ -1031,14 +911,13 @@
               headers['X-Submit-Nonce'] = submitNonce2;
               console.log('[cadastro] nonce(reclaim)=', submitNonce2);
 
-              const res2 = await fetch(API.cadastro, { 
-                method:'POST', headers, body: JSON.stringify(payload),
-                mode: 'cors', credentials: 'include'     /* PATCH */
-              });
+              const res2 = await fetch(API.cadastro, { method:'POST', headers, body: JSON.stringify(payload) });
               if (res2.ok) {
                 form.style.display = 'none';
-                showVerifyModal();
-                try { enterWaitingEmailVerification(); } catch(_){}
+                showVerifyBanner(email);
+                try { if (goVerify) goVerify.href = '/verify-email.html?email=' + encodeURIComponent(email); } catch(_){}
+                formMsg.className = 'ok';
+                formMsg.textContent = 'Verificação enviada. Confirme o e-mail e volte para esta aba; seguiremos automaticamente.';
                 return;
               } else {
                 formMsg.textContent = 'Cadastro criado, mas não conseguimos salvar seus dados agora. Tente novamente.';
@@ -1053,8 +932,7 @@
         if (wrong) {
           formMsg.innerHTML = 'Este e-mail já tem cadastro. <a href="/pages/login.html" class="link">Ir para login</a>';
         } else {
-          /* PATCH: troca a mensagem genérica por instrução mais útil */
-          formMsg.textContent='Não conseguimos falar com o servidor agora. Tente novamente em instantes.';
+          formMsg.textContent='Falha de conexão. Tente novamente.';
         }
 
         try { if (window.turnstile && CF_WIDGET_ID) turnstile.reset(CF_WIDGET_ID); } catch(_) {}
@@ -1064,7 +942,6 @@
       }
     }
 
-    // Guard no submit
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
       if (SUBMITTING) return;
@@ -1115,7 +992,7 @@
   <!-- ======== AUTO-AVANÇO ROBUSTO (com token) ======== -->
   <script>
   (function(){
-    const API_BASE = (window.API_BASE || 'https://mei-robo-prod.onrender.com').replace(/\\/$/,'');
+    const API_BASE = (window.API_BASE || 'https://mei-robo-prod.onrender.com').replace(/\/$/,'');
     const DEST = '/pages/configuracao.html';
     let _watching = false;
     let _stop = false;
@@ -1127,11 +1004,9 @@
         try { await u.reload(); } catch(_){}
         if (u.emailVerified === true) return true;
 
-        // fallback via backend com Bearer
         const idt = await u.getIdToken(true);
         const r = await fetch(API_BASE + '/api/auth/whoami', {
-          headers: { 'Authorization':'Bearer '+idt, 'Accept':'application/json' },
-          mode: 'cors', credentials: 'include'     /* PATCH */
+          headers: { 'Authorization':'Bearer '+idt, 'Accept':'application/json' }
         });
         if (r.ok){
           const j = await r.json().catch(()=> ({}));
@@ -1169,10 +1044,10 @@
   })();
   </script>
 
-  <!-- ========== Patch 1 — foco/visibilidade: reload + whoami + gatilho localStorage ========== -->
+  <!-- ========== foco/visibilidade: reload + whoami + gatilho localStorage ========== -->
   <script>
   (function(){
-    const API_BASE = (window.API_BASE || 'https://mei-robo-prod.onrender.com').replace(/\\/$/,'');
+    const API_BASE = (window.API_BASE || 'https://mei-robo-prod.onrender.com').replace(/\/$/,'');
     const CONT = '/pages/configuracao.html';
 
     async function hardCheckAndAdvance(){
@@ -1195,8 +1070,7 @@
           try {
             const idt = await u.getIdToken(true);
             const r = await fetch(API_BASE + '/api/auth/whoami', {
-              headers: { 'Authorization':'Bearer '+idt, 'Accept':'application/json' },
-              mode: 'cors', credentials: 'include'       /* PATCH */
+              headers: { 'Authorization':'Bearer '+idt, 'Accept':'application/json' }
             });
             if (r.ok) {
               const j = await r.json().catch(()=>({}));
@@ -1225,140 +1099,6 @@
 
     document.addEventListener('DOMContentLoaded', () => setTimeout(hardCheckAndAdvance, 350));
   })();
-  </script>
-
-  <!-- ========== PATCHES SOLICITADOS (UI minimalista + entrar estado aguardando) ========== -->
-  <script>
-  function renderVerifyDialog(containerEl) {
-    try {
-      const el = containerEl || document.getElementById('step-verify') || document.getElementById('verify') || document.getElementById('cadastroStep');
-      if (!el) return;
-
-      el.innerHTML = `
-        <div class="card-dark" style="padding:20px;border-radius:12px">
-          <h2 style="margin:0 0 8px;">Verifique seu e-mail ✅</h2>
-          <p style="opacity:.9;margin:0 0 8px">
-            Abra o e-mail que enviamos e confirme sua conta. 
-            <strong>Depois, volte para <u>esta</u> aba</strong>. Ao retornar, seguimos automaticamente para a Configuração da conta.
-          </p>
-          <p class="hint" style="opacity:.75;margin:0">
-            Dica: confira a caixa de spam/lixo. Não há mais nada para fazer aqui — é só voltar a esta aba após confirmar.
-          </p>
-        </div>
-      `;
-
-      const kill = el.querySelectorAll('button, a.btn, .actions, .row-actions');
-      kill.forEach(n => n.remove());
-    } catch(_) {}
-  }
-
-  let __mr_verify_bound = false;
-
-  async function enterWaitingEmailVerification() {
-    try { renderVerifyDialog(); } catch(_) {}
-
-    try {
-      if (window.__verifyInterval) { clearInterval(window.__verifyInterval); window.__verifyInterval = null; }
-      if (window.__verifyTimeout)  { clearTimeout(window.__verifyTimeout);   window.__verifyTimeout  = null; }
-      try { document.getElementById('verifyBanner').style.display = 'none'; } catch(_){}
-    } catch(_) {}
-
-    async function tryAdvance() {
-      try {
-        const u = firebase.auth().currentUser;
-        if (!u) return;
-        try { await u.reload(); } catch(_) {}
-        if (u.emailVerified === true) {
-          window.location.href = '/pages/configuracao.html';
-        }
-      } catch(_) {}
-    }
-
-    if (!__mr_verify_bound) {
-      __mr_verify_bound = true;
-      window.addEventListener('focus', tryAdvance, { passive:true });
-      document.addEventListener('visibilitychange', () => {
-        if (document.visibilityState === 'visible') tryAdvance();
-      }, { passive:true });
-      setTimeout(tryAdvance, 800);
-    }
-  }
-  </script>
-
-  <!-- PATCH 2 — JS utilitários do overlay + guardas de auto-avanço -->
-  <script>
-  function showVerifyModal(){
-    const ov = document.getElementById('vrfyOverlay');
-    if (!ov) return;
-    ov.style.display = 'block';
-    try { ov.setAttribute('aria-hidden','false'); } catch(_){}
-  }
-  function hideVerifyModal(){
-    const ov = document.getElementById('vrfyOverlay');
-    if (!ov) return;
-    ov.style.display = 'none';
-    try { ov.setAttribute('aria-hidden','true'); } catch(_){}
-  }
-  document.addEventListener('DOMContentLoaded', () => {
-    const btnMail = document.getElementById('vrfyOpenMail');
-    const btnOk   = document.getElementById('vrfyFechar');
-    btnMail?.addEventListener('click', () => {
-      window.open('https://mail.google.com', '_blank', 'noopener,noreferrer');
-    });
-    btnOk?.addEventListener('click', hideVerifyModal);
-  });
-
-  const DEST_CONFIG = '/pages/configuracao.html';
-  async function checkAndAdvance() {
-    try {
-      const u = firebase.auth().currentUser;
-      if (!u) return false;
-      try { await u.reload(); } catch(_){}
-      if (u.emailVerified === true) {
-        location.href = DEST_CONFIG + '?src=cadastro';
-        return true;
-      }
-      const tok = await u.getIdToken(true);
-      const r = await fetch((window.API_BASE||'https://mei-robo-prod.onrender.com').replace(/\\/$/,'') + '/api/auth/whoami', {
-        headers: { 'Authorization':'Bearer '+tok, 'Accept':'application/json' },
-        mode: 'cors', credentials: 'include'         /* PATCH */
-      });
-      if (r.ok) {
-        const j = await r.json().catch(()=> ({}));
-        if (j?.email_verified === true || j?.emailVerified === true) {
-          location.href = DEST_CONFIG + '?src=cadastro';
-          return true;
-        }
-      }
-    } catch(_) {}
-    return false;
-  }
-
-  function attachRedirectGuards(){
-    try {
-      window.addEventListener('storage', (e) => {
-        if (e.key === 'mr_email_verified' && e.newValue === '1') checkAndAdvance();
-      });
-    } catch(){}
-
-    try {
-      const bc = new BroadcastChannel('auth');
-      bc.addEventListener('message', (ev) => {
-        if (ev?.data?.type === 'email-verified') checkAndAdvance();
-      });
-    } catch(){}
-
-    window.addEventListener('focus', checkAndAdvance);
-    document.addEventListener('visibilitychange', () => {
-      if (document.visibilityState === 'visible') checkAndAdvance();
-    });
-
-    try {
-      firebase.auth().onIdTokenChanged(() => { checkAndAdvance(); });
-    } catch(){}
-  }
-
-  document.addEventListener('DOMContentLoaded', attachRedirectGuards);
   </script>
 </body>
 </html>
