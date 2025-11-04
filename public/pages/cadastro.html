@@ -872,17 +872,22 @@
         } catch(_) {}
         /* ==== FIM PATCH 3 ==== */
 
+        /* ==== Patch 1 — Sucesso inline: NÃO redireciona automaticamente ==== */
         // ===== Sucesso inline =====
         const mail = (data.email || email).trim();
 
         // guarda o e-mail para a tela seguinte (opcional)
         try { localStorage.setItem('pendingEmail', mail); } catch (_){}
 
-        // redireciona imediatamente para a tela de verificação
-        location.href = '/verify-email.html?email=' + encodeURIComponent(mail);
+        // NÃO redireciona: mostra banner e mantém o usuário nesta ABA
+        try { showVerifyBanner(mail); } catch(_){}
+        try { if (goVerify) goVerify.href = '/verify-email.html?email=' + encodeURIComponent(mail); } catch(_){}
 
-        // (não precisamos mais mostrar successBox/verifyBanner aqui)
+        // mensagem discreta (sem bloquear UX)
+        formMsg.className = 'ok';
+        formMsg.textContent = 'Verificação enviada. Abra o e-mail, confirme e volte para esta aba; seguiremos automaticamente.';
         return;
+        /* ==== Fim Patch 1 ==== */
 
       } catch(e){
         console.error(e);
@@ -939,11 +944,17 @@
 
               const res2 = await fetch(API.cadastro, { method:'POST', headers, body: JSON.stringify(payload) });
               if (res2.ok) {
-                /* ==== (2) PATCH: remover caixa antiga e redirecionar direto ==== */
-                // Redireciona SEM mostrar caixa antiga
-                location.href = '/verify-email.html?email=' + encodeURIComponent(email);
+                /* ==== Patch 2 — Reclaim sem “caixa antiga” e sem redirect ==== */
+                // Não exibimos mais a “caixa antiga”; mantemos o fluxo minimalista
+                form.style.display = 'none';
+                showVerifyBanner(email);
+                try { if (goVerify) goVerify.href = '/verify-email.html?email=' + encodeURIComponent(email); } catch(_){}
+
+                // Mensagem discreta na própria página
+                formMsg.className = 'ok';
+                formMsg.textContent = 'Verificação enviada. Confirme o e-mail e volte para esta aba; seguiremos automaticamente.';
                 return;
-                /* ==== FIM PATCH 2 ==== */
+                /* ==== Fim Patch 2 ==== */
               } else {
                 formMsg.textContent = 'Cadastro criado, mas não conseguimos salvar seus dados agora. Tente novamente.';
                 enableSubmit();
