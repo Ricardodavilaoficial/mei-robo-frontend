@@ -142,7 +142,7 @@
           <div class="form-row">
             <label for="telefone"><strong>WhatsApp (com DDD)</strong></label>
             <input id="telefone" name="telefone" class="input" inputmode="tel"
-                   pattern="^\D*(\d\D*){10,11}$"
+                   pattern="^\\D*(\\d\\D*){10,11}$"
                    title="Informe um telefone com DDD (10 ou 11 dígitos)"
                    placeholder="Ex.: (11) 98765-4321" autocomplete="tel" required />
             <span class="hint">Coloque um número que você usa.</span>
@@ -151,7 +151,7 @@
           <div class="form-row">
             <label for="cnpj"><strong>CNPJ</strong></label>
             <input id="cnpj" name="cnpj" class="input" inputmode="numeric"
-              pattern="^\d{14}$|^\d{2}\.\d{3}\.\d{3}/\d{4}-\d{2}$"
+              pattern="^\\d{14}$|^\\d{2}\\.\\d{3}\\.\\d{3}/\\d{4}-\\d{2}$"
               title="Informe um CNPJ válido (14 dígitos ou 00.000.000/0000-00)"
               placeholder="Somente números ou 00.000.000/0000-00" autocomplete="on" required />
             <span class="hint">
@@ -387,12 +387,12 @@
     }, 5000);
 
     /* ====== Helpers ====== */
-    function normalizeDigits(v){ return (v || '').replace(/\D+/g,''); }
+    function normalizeDigits(v){ return (v || '').replace(/\\D+/g,''); }
     function normalizeCNPJ(v){ return normalizeDigits(v); }
     function validateCNPJ(cnpj){
       cnpj = normalizeCNPJ(cnpj);
       if (cnpj.length !== 14) return false;
-      if (/^(\d)\1{13}$/.test(cnpj)) return false;
+      if (/^(\\d)\\1{13}$/.test(cnpj)) return false;
       let length = cnpj.length - 2;
       let numbers = cnpj.substring(0, length);
       const digits = cnpj.substring(length);
@@ -781,6 +781,14 @@
           console.warn('[cadastro] falha no envio de verificação (robusto):', e?.message || e);
         }
 
+        /* ==== Patch 2 — Redireciono imediato para verify-email minimal ==== */
+        {
+          const mailToShow = (user?.email || email).trim();
+          location.href = '/verify-email.html?email=' + encodeURIComponent(mailToShow) + '&cont=/pages/configuracao.html';
+          return;
+        }
+        /* ==== Fim Patch 2 ==== */
+
         const idToken = await user.getIdToken();
         console.log('[cadastro] idToken len:', (idToken||'').length);
         try { showVerifyBanner(user.email || email); } catch(_){}
@@ -825,7 +833,14 @@
             formMsg.textContent='Desafio de segurança expirou. Clique novamente na caixinha e envie em seguida.';
             try { if (window.turnstile && CF_WIDGET_ID) turnstile.reset(CF_WIDGET_ID); } catch(_) {}
             enableSubmit();
-            await tryDeleteJustCreatedUser(authInst, createdNewUser);
+            /* ==== Patch 1 — limpeza CONDICIONAL (não limpar em 429/preflight) ==== */
+            try {
+              const is422 = (res && res.status === 422);
+              const wrongPwd = false;
+              const shouldClean = is422 || wrongPwd;
+              if (shouldClean) { await tryDeleteJustCreatedUser(authInst, createdNewUser); }
+            } catch(_) {}
+            /* ==== Fim Patch 1 ==== */
             SUBMITTING = false;
             return;
           }
@@ -836,7 +851,14 @@
               'Algum campo está inválido. Revise nome, e-mail, telefone e CNPJ.';
             try { if (window.turnstile && CF_WIDGET_ID) turnstile.reset(CF_WIDGET_ID); } catch(_) {}
             enableSubmit();
-            await tryDeleteJustCreatedUser(authInst, createdNewUser);
+            /* ==== Patch 1 — limpeza CONDICIONAL (limpa só em 422/credencial inválida) ==== */
+            try {
+              const is422 = (res && res.status === 422);
+              const wrongPwd = false;
+              const shouldClean = is422 || wrongPwd;
+              if (shouldClean) { await tryDeleteJustCreatedUser(authInst, createdNewUser); }
+            } catch(_) {}
+            /* ==== Fim Patch 1 ==== */
             SUBMITTING = false;
             return;
           }
@@ -936,7 +958,17 @@
         }
 
         try { if (window.turnstile && CF_WIDGET_ID) turnstile.reset(CF_WIDGET_ID); } catch(_) {}
-        if (authInst) await tryDeleteJustCreatedUser(authInst, createdNewUser);
+        /* ==== Patch 1 — limpeza CONDICIONAL no catch (apenas senha errada/credenciais inválidas) ==== */
+        try {
+          if (authInst) {
+            const is422 = false;
+            const wrongPwd = (e && (e.code === 'auth/wrong-password' || e.code === 'auth/invalid-login-credentials' || e.__wrongPassword));
+            const shouldClean = is422 || wrongPwd;
+            if (shouldClean) { await tryDeleteJustCreatedUser(authInst, createdNewUser); }
+          }
+        } catch(_) {}
+        /* ==== Fim Patch 1 ==== */
+
         enableSubmit();
         SUBMITTING = false;
       }
@@ -992,7 +1024,7 @@
   <!-- ======== AUTO-AVANÇO ROBUSTO (com token) ======== -->
   <script>
   (function(){
-    const API_BASE = (window.API_BASE || 'https://mei-robo-prod.onrender.com').replace(/\/$/,'');
+    const API_BASE = (window.API_BASE || 'https://mei-robo-prod.onrender.com').replace(/\\/$/,'');
     const DEST = '/pages/configuracao.html';
     let _watching = false;
     let _stop = false;
@@ -1047,7 +1079,7 @@
   <!-- ========== foco/visibilidade: reload + whoami + gatilho localStorage ========== -->
   <script>
   (function(){
-    const API_BASE = (window.API_BASE || 'https://mei-robo-prod.onrender.com').replace(/\/$/,'');
+    const API_BASE = (window.API_BASE || 'https://mei-robo-prod.onrender.com').replace(/\\/$/,'');
     const CONT = '/pages/configuracao.html';
 
     async function hardCheckAndAdvance(){
@@ -1070,7 +1102,7 @@
           try {
             const idt = await u.getIdToken(true);
             const r = await fetch(API_BASE + '/api/auth/whoami', {
-              headers: { 'Authorization':'Bearer '+idt, 'Accept':'application/json' }
+              headers: { 'Authorization': 'Bearer '+idt, 'Accept':'application/json' }
             });
             if (r.ok) {
               const j = await r.json().catch(()=>({}));
