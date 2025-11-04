@@ -305,7 +305,12 @@
       try{ return new URLSearchParams(location.search).get('validate') === '1'; }catch(_){ return false; }
     }
 
+    /* ==== (1) PATCH: enableSubmit com blindagem de aceite + DOMContentLoaded ==== */
     function enableSubmit(){
+      // Blindagem extra: NUNCA habilita se os Termos não estiverem marcados
+      try {
+        if (!aceite?.checked) { disableSubmit(); return; }
+      } catch(_) {}
       submitBtn.classList.remove('btn-disabled');
       submitBtn.removeAttribute('aria-disabled');
     }
@@ -313,6 +318,11 @@
       submitBtn.classList.add('btn-disabled');
       submitBtn.setAttribute('aria-disabled','true');
     }
+    // Garante estado inicial correto ao carregar a página
+    document.addEventListener('DOMContentLoaded', () => {
+      try { updateButtonState(); } catch(_){}
+    });
+    /* ==== FIM PATCH 1 ==== */
 
     function renderTurnstile() {
       try {
@@ -528,6 +538,15 @@
           if (ev && ev.data && ev.data.type === 'email-verified') onSignal();
         });
         window.addEventListener('email-verified', onSignal);
+
+        // >>> NOVO: também reage a alterações no localStorage vindas de outra aba
+        window.addEventListener('storage', function(e){
+          try{
+            if (!e) return;
+            const k = e.key || '';
+            if (k === 'mr_email_verified' || k === 'emailVerified') onSignal();
+          }catch(_){}
+        });
 
         setInterval(function(){
           try {
@@ -844,6 +863,15 @@
           throw new Error('Falha no cadastro.');
         }
 
+        /* ==== (3) PATCH: reforço para garantir envio do e-mail de verificação ==== */
+        try {
+          const usr = firebase?.auth?.().currentUser;
+          if (usr && !usr.emailVerified) {
+            await sendVerificationViaBackend(usr).catch(()=>{ /* não bloqueia a navegação */ });
+          }
+        } catch(_) {}
+        /* ==== FIM PATCH 3 ==== */
+
         // ===== Sucesso inline =====
         const mail = (data.email || email).trim();
 
@@ -911,13 +939,11 @@
 
               const res2 = await fetch(API.cadastro, { method:'POST', headers, body: JSON.stringify(payload) });
               if (res2.ok) {
-                form.style.display='none';
-                successMsg.innerHTML = `Enviamos um e-mail para <strong>${email}</strong>.<br/>
-                  <span class="hint">Depois de confirmar, continue em <em>Configuração da conta</em>.</span>`;
-                successBox.style.display='block';
-                showVerifyBanner(email);
-                try { if (goVerify) goVerify.href = '/verify-email.html?email=' + encodeURIComponent(email); } catch(_) {}
+                /* ==== (2) PATCH: remover caixa antiga e redirecionar direto ==== */
+                // Redireciona SEM mostrar caixa antiga
+                location.href = '/verify-email.html?email=' + encodeURIComponent(email);
                 return;
+                /* ==== FIM PATCH 2 ==== */
               } else {
                 formMsg.textContent = 'Cadastro criado, mas não conseguimos salvar seus dados agora. Tente novamente.';
                 enableSubmit();
