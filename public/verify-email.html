@@ -51,6 +51,9 @@
   </div>
 
   <script>
+    // Base do backend (segue padrão usado em outros pontos deste arquivo)
+    const API_BASE = (window.API_BASE || 'https://mei-robo-prod.onrender.com').replace(/\/$/,'');
+
     // Utils
     function qs(k){try{return new URLSearchParams(location.search).get(k)||""}catch(_){return ""}}
     const cont = qs("cont") || "/pages/configuracao.html";
@@ -74,9 +77,8 @@
       } catch(_) {}
       try { window.opener && window.opener.postMessage({type:'email-verified'}, "*"); } catch(_) {}
       try { window.parent && window.parent.postMessage({type:'email-verified'}, "*"); } catch(_) {}
-      try {
-        const ev = new Event('email-verified'); window.dispatchEvent(ev);
-      } catch(_) {}
+      try { const ev = new Event('email-verified'); window.dispatchEvent(ev); } catch(_) {}
+      try { localStorage.setItem('mr_email_verified','1'); } catch(_) {}
     }
 
     function renderDebounceTip(){
@@ -102,14 +104,14 @@
         const idToken = await u.getIdToken(true);
 
         // 1) Tenta GET /api/auth/check-verification
-        let res = await fetch("/api/auth/check-verification", {
+        let res = await fetch(API_BASE + "/api/auth/check-verification", {
           method: "GET",
           headers: { "Authorization": "Bearer " + idToken, "Accept": "application/json" }
         });
 
         if (res.status === 405) {
           // 2) Fallback: GET /api/auth/whoami
-          const r2 = await fetch("/api/auth/whoami", {
+          const r2 = await fetch(API_BASE + "/api/auth/whoami", {
             method: "GET",
             headers: { "Authorization": "Bearer " + idToken, "Accept": "application/json" }
           });
@@ -177,7 +179,7 @@
         }
         resendBtn.disabled = true; resendBtn.textContent = "Reenviando…";
         const idToken = await u.getIdToken(true);
-        const r = await fetch("/api/auth/send-verification-email", {
+        const r = await fetch(API_BASE + "/api/auth/send-verification-email", {
           method: "POST",
           headers: { "Authorization": "Bearer " + idToken, "Content-Type": "application/json" },
           body: JSON.stringify({})
@@ -200,14 +202,23 @@
       }
     }
 
-    // ============== BOOT (mantido, sem redirecionar automaticamente) ==============
+    // ============== BOOT ==============
     document.addEventListener("DOMContentLoaded", async () => {
       try {
         await new Promise(r => setTimeout(r, 200)); // dá tempo do firebase init
         const u = firebase.auth().currentUser || null;
         emailSpan.textContent = (u?.email) || emailParam || "—";
         renderDebounceTip();
-        // Removido o bloco anterior que redirecionava após applyActionCode.
+
+        // NOVO: se já estiver verificado, segue direto (UX minimalista)
+        if (u) {
+          try { await u.reload(); } catch(_){}
+          if (u.emailVerified === true) {
+            broadcastVerified();
+            location.href = cont;
+            return;
+          }
+        }
       } catch {}
     });
 
@@ -223,8 +234,7 @@
           try { await user.reload(); } catch(_) {}
           await user.getIdToken(true);
           const token = await user.getIdToken();
-          const API_BASE = (window.API_BASE || 'https://mei-robo-prod.onrender.com').replace(/\/$/,'');
-          await fetch(`${API_BASE}/api/auth/check-verification`, {
+          await fetch(API_BASE + '/api/auth/check-verification', {
             method: 'GET',
             headers: { 'Authorization': `Bearer ${token}`, 'Accept':'application/json' },
             credentials: 'omit'
@@ -254,7 +264,7 @@
       if (box) {
         box.innerHTML = `
           <h2>E-mail verificado ✅</h2>
-          <p>Volte para a aba onde você iniciou o cadastro. Se ela estiver aberta, 
+          <p>Volte para a aba onde você iniciou o cadastro. Se ela estiver aberta,
           vamos avançar automaticamente para a Configuração da conta.</p>
         `;
       }
@@ -277,7 +287,7 @@
       if (oob) {
         try {
           await firebase.auth().applyActionCode(oob);
-          // >>> NOVO: força refresh de token e pinga backend antes dos broadcasts principais
+          // >>> reforço: refresh + ping backend + broadcasts
           await afterApplyActionCodeSuccess();
           await onVerified();
         } catch (e) {
@@ -286,12 +296,11 @@
           await onVerified();
         }
       } else {
-        // Sem oobCode: pagina acessada diretamente; mantenha só instruções
-        // (NÃO redirecionar, para não forçar login)
+        // Sem oobCode: pagina acessada diretamente; mantemos apenas instruções
       }
     })();
 
-    // Listeners mantidos (botões estão ocultos, não afetam UX)
+    // Listeners mantidos (botões ocultos, não afetam UX)
     btn?.addEventListener("click", async () => {
       if ((mode||"").toLowerCase() === "verifyemail" && oobCode) {
         try {
@@ -309,20 +318,21 @@
 
     resendBtn?.addEventListener("click", resend);
 
-    // Mantido conforme arquivo original (não altera fluxo solicitado)
-    document.addEventListener('DOMContentLoaded',()=>{ setTimeout(check,300); });
+    // (corrigido: só chama 'check' se existir, para não quebrar o JS)
+    document.addEventListener('DOMContentLoaded',()=>{ 
+      try { if (typeof check === 'function') setTimeout(check,300); } catch(_) {}
+    });
 
-    /* ======= POLLING LEVE ADICIONADO (como solicitado) ======= */
+    /* ======= POLLING LEVE ======= */
     async function pollUntilVerified(email){
-      const API_BASE = (window.API_BASE || 'https://mei-robo-prod.onrender.com').replace(/\/$/,'');
       const until = Date.now() + 3*60*1000; // 3 minutos
       while (Date.now() < until) {
         try {
-          const r = await fetch(`${API_BASE}/api/auth/check-verification?email=${encodeURIComponent(email)}`, { credentials: 'include' });
+          const r = await fetch(API_BASE + `/api/auth/check-verification?email=${encodeURIComponent(email)}`, { credentials: 'include' });
           const js = await r.json().catch(()=> ({}));
           if (js?.verified === true) {
             // avançar direto para configuração
-            location.href = '/pages/configuracao.html';
+            location.href = cont;
             return;
           }
         } catch(_) {}
@@ -337,4 +347,3 @@
   </script>
 </body>
 </html>
-
