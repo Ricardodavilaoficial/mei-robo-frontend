@@ -71,6 +71,13 @@
     #successBox .actions { display:flex; gap:8px; margin-top:10px; flex-wrap:wrap; }
     #successBox .actions a { text-decoration:none; }
     .footer-note { margin-top:14px; opacity:.9 }
+
+    /* Patch solicitado: visual de botão desabilitado (nativo) */
+    button[disabled] {
+      opacity:.45 !important;
+      cursor:not-allowed !important;
+      filter:saturate(0.6);
+    }
   </style>
 </head>
 <body>
@@ -135,7 +142,7 @@
           <div class="form-row">
             <label for="telefone"><strong>WhatsApp (com DDD)</strong></label>
             <input id="telefone" name="telefone" class="input" inputmode="tel"
-                   pattern="^\D*(\d\D*){10,11}$"
+                   pattern="^\\D*(\\d\\D*){10,11}$"
                    title="Informe um telefone com DDD (10 ou 11 dígitos)"
                    placeholder="Ex.: (11) 98765-4321" autocomplete="tel" required />
             <span class="hint">Coloque um número que você usa.</span>
@@ -144,7 +151,7 @@
           <div class="form-row">
             <label for="cnpj"><strong>CNPJ</strong></label>
             <input id="cnpj" name="cnpj" class="input" inputmode="numeric"
-              pattern="^\d{14}$|^\d{2}\.\d{3}\.\d{3}/\d{4}-\d{2}$"
+              pattern="^\\d{14}$|^\\d{2}\\.\\d{3}\\.\\d{3}/\\d{4}-\\d{2}$"
               title="Informe um CNPJ válido (14 dígitos ou 00.000.000/0000-00)"
               placeholder="Somente números ou 00.000.000/0000-00" autocomplete="on" required />
             <span class="hint">
@@ -387,12 +394,12 @@
     }, 5000);
 
     /* ====== Helpers ====== */
-    function normalizeDigits(v){ return (v || '').replace(/\D+/g,''); }
+    function normalizeDigits(v){ return (v || '').replace(/\\D+/g,''); }
     function normalizeCNPJ(v){ return normalizeDigits(v); }
     function validateCNPJ(cnpj){
       cnpj = normalizeCNPJ(cnpj);
       if (cnpj.length !== 14) return false;
-      if (/^(\d)\1{13}$/.test(cnpj)) return false;
+      if (/^(\\d)\\1{13}$/.test(cnpj)) return false;
       let length = cnpj.length - 2;
       let numbers = cnpj.substring(0, length);
       const digits = cnpj.substring(length);
@@ -682,42 +689,68 @@
             return;
           } else {
             const em = user.email || '';
-            showVerifyBanner(em);
+            enterWaitingEmailVerification();
           }
         }
       } catch(_){ }
     });
 
-    /* ====== ENVIO DA VERIFICAÇÃO PELO BACKEND (SendGrid) ====== */
-    async function sendVerificationViaBackend(user) {
-      if (!user) throw new Error('Usuário não autenticado.');
-      // força refresh do token ('à prova de expiração')
-      let idToken = await user.getIdToken(true);
-      let resp = await fetch(API.sendVerificationEmail, {
-        method: 'POST',
-        headers: {
-          'Authorization': 'Bearer ' + idToken,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({})
-      });
-      if (resp.status === 401 || resp.status === 403) {
-        // 1 retry com refresh forçado
-        idToken = await user.getIdToken(true);
-        resp = await fetch(API.sendVerificationEmail, {
-          method: 'POST',
+    /* ====== Patch solicitado: função robusta de envio (backend bonito → fallback SDK) ====== */
+    async function enviarEmailVerificacaoRobusto() {
+      const u = firebase.auth().currentUser;
+      if (!u) throw new Error("Usuário não autenticado");
+
+      // 1) Tenta o e-mail "bonitinho" via backend
+      try {
+        const idToken = await u.getIdToken(true);
+        const r = await fetch("https://mei-robo-prod.onrender.com/api/auth/send-verification-email", {
+          method: "POST",
           headers: {
-            'Authorization': 'Bearer ' + idToken,
-            'Content-Type': 'application/json'
+            "Authorization": "Bearer " + idToken,
+            "Content-Type": "application/json",
+            "Accept": "application/json"
           },
           body: JSON.stringify({})
         });
+        if (r.ok) {
+          return { ok:true, via:"backend_pretty" };
+        }
+        // Log leve para diagnóstico e cai no fallback
+        console.warn("[cadastro] backend send-verification falhou:", r.status);
+      } catch (e) {
+        console.warn("[cadastro] backend send-verification exception:", e?.message || e);
       }
-      if (!resp.ok) {
-        const txt = await resp.text().catch(()=> '');
-        throw new Error('Falha ao enviar verificação (HTTP ' + resp.status + '): ' + txt);
+
+      // 2) Fallback: SDK Firebase (template padrão, mas sempre entrega)
+      const actionCodeSettings = {
+        // IMPORTANTÍSSIMO: apontar para a nossa verify-email.html minimalista
+        url: "https://www.meirobo.com.br/verify-email.html?cont=/pages/configuracao.html",
+        handleCodeInApp: false
+      };
+      try {
+        // libera temporariamente o SDK apesar do guard (ver bloco Guard mais abaixo)
+        window.__ALLOW_SDK_VERIF__ = true;
+        await u.sendEmailVerification(actionCodeSettings);
+        return { ok:true, via:"sdk_fallback" };
+      } finally {
+        // pequena janela de tempo para chamadas subsequentes, depois fecha
+        setTimeout(()=>{ window.__ALLOW_SDK_VERIF__ = false; }, 1500);
       }
-      return true;
+    }
+
+    // Handler utilitário caso seja usado em algum botão/CTA
+    async function onEnviarVerificacao() {
+      const btn = document.getElementById("enviarVerificacaoBtn"); // ajuste o id se houver
+      try {
+        btn && (btn.disabled = true);
+        const res = await enviarEmailVerificacaoRobusto();
+        console.log("[cadastro] verificação enviada via:", res.via);
+        // mantenha seu toast/caixa minimalista existente
+      } catch (e) {
+        console.error("[cadastro] falha ao enviar verificação:", e?.message || e);
+      } finally {
+        btn && (btn.disabled = false);
+      }
     }
 
     /* ====== Submit (com Turnstile obrigatório, preservando backend) ====== */
@@ -790,18 +823,18 @@
         const { user, created } = await ensureAuthenticated(email, senha);
         createdNewUser = !!created;
 
-        // ★★★ ENVIO DE VERIFICAÇÃO — SOMENTE BACKEND (SendGrid)
+        // ★★★ ENVIO DE VERIFICAÇÃO — Tenta backend bonito → fallback SDK
         try {
           if (user && !user.emailVerified) {
-            await sendVerificationViaBackend(user);
+            await enviarEmailVerificacaoRobusto();
           }
         } catch (e) {
-          console.warn('[cadastro] falha no sendVerification backend:', e?.message || e);
+          console.warn('[cadastro] falha no envio de verificação (robusto):', e?.message || e);
         }
 
         const idToken = await user.getIdToken();
         console.log('[cadastro] idToken len:', (idToken||'').length);
-        try { showVerifyBanner(user.email || email); } catch(_){}
+        try { /* enterWaitingEmailVerification(); */ } catch(_){}
 
         // ★ Ajustar CTA local para já incluir ?email=
         try {
@@ -867,22 +900,28 @@
         try {
           const usr = firebase?.auth?.().currentUser;
           if (usr && !usr.emailVerified) {
-            await sendVerificationViaBackend(usr).catch(()=>{ /* não bloqueia a navegação */ });
+            await enviarEmailVerificacaoRobusto().catch(()=>{ /* não bloqueia a navegação */ });
           }
         } catch(_) {}
         /* ==== FIM PATCH 3 ==== */
 
+        /* ==== Patch 1 — Sucesso inline: NÃO redireciona automaticamente ==== */
         // ===== Sucesso inline =====
         const mail = (data.email || email).trim();
 
         // guarda o e-mail para a tela seguinte (opcional)
         try { localStorage.setItem('pendingEmail', mail); } catch (_){}
 
-        // redireciona imediatamente para a tela de verificação
-        location.href = '/verify-email.html?email=' + encodeURIComponent(mail);
+        // NÃO redireciona: usa UI minimalista e foco/visibilidade
+        try { /* enterWaitingEmailVerification(); */ } catch(_){}
+        try { if (goVerify) goVerify.href = '/verify-email.html?email=' + encodeURIComponent(mail); } catch(_){}
 
-        // (não precisamos mais mostrar successBox/verifyBanner aqui)
+        // mensagem discreta (sem bloquear UX)
+        formMsg.className = 'ok';
+        formMsg.textContent = 'Verificação enviada. Abra o e-mail, confirme e volte para esta aba; seguiremos automaticamente.';
+        try { enterWaitingEmailVerification(); } catch(_){}
         return;
+        /* ==== Fim Patch 1 ==== */
 
       } catch(e){
         console.error(e);
@@ -906,18 +945,18 @@
               const cred = await authInst.createUserWithEmailAndPassword(email, (pwd.value || ''));
               const user = cred.user;
 
-              // ★★★ Reclaim também usa SOMENTE o backend
+              // ★★★ Reclaim também usa BACKEND→FALLBACK
               try {
                 if (user && !user.emailVerified) {
-                  await sendVerificationViaBackend(user);
+                  await enviarEmailVerificacaoRobusto();
                 }
               } catch (_e) {
-                console.warn('[cadastro][reclaim] falha no sendVerification backend:', _e?.message || _e);
+                console.warn('[cadastro][reclaim] falha no envio de verificação (robusto):', _e?.message || _e);
               }
 
               const idToken = await user.getIdToken();
-              showVerifyBanner(user.email || email);
-              try { if (goVerify) goVerify.href = '/verify-email.html?email=' + encodeURIComponent(user?.email || email); } catch(_) {}
+              /* enterWaitingEmailVerification(); */
+              try { if (goVerify) goVerify.href = '/verify-email.html?email=' + encodeURIComponent(user?.email || email); } catch(_){}
 
               const telefoneDigits = normalizeDigits(phoneInput.value || '');
               const cnpjDigits = normalizeCNPJ(cnpjInput.value || '');
@@ -939,11 +978,18 @@
 
               const res2 = await fetch(API.cadastro, { method:'POST', headers, body: JSON.stringify(payload) });
               if (res2.ok) {
-                /* ==== (2) PATCH: remover caixa antiga e redirecionar direto ==== */
-                // Redireciona SEM mostrar caixa antiga
-                location.href = '/verify-email.html?email=' + encodeURIComponent(email);
+                /* ==== Patch 2 — Reclaim sem “caixa antiga” e sem redirect ==== */
+                // Não exibimos mais a “caixa antiga”; mantemos o fluxo minimalista
+                form.style.display = 'none';
+                /* enterWaitingEmailVerification(); */
+                try { if (goVerify) goVerify.href = '/verify-email.html?email=' + encodeURIComponent(email); } catch(_){}
+
+                // Mensagem discreta na própria página
+                formMsg.className = 'ok';
+                formMsg.textContent = 'Verificação enviada. Confirme o e-mail e volte para esta aba; seguiremos automaticamente.';
+                try { enterWaitingEmailVerification(); } catch(_){}
                 return;
-                /* ==== FIM PATCH 2 ==== */
+                /* ==== Fim Patch 2 ==== */
               } else {
                 formMsg.textContent = 'Cadastro criado, mas não conseguimos salvar seus dados agora. Tente novamente.';
                 enableSubmit();
@@ -999,8 +1045,13 @@
         const u=firebase?.auth?.().currentUser;
         const P=(firebase?.User?.prototype)||(u&&Object.getPrototypeOf(u));
         if(P?.sendEmailVerification){
+          // Mantém o guard, mas permite fallback do SDK quando liberado explicitamente
+          const __orig = P.sendEmailVerification;
           P.sendEmailVerification=function(){
-            console.warn('[guard] bloqueado sendEmailVerification');
+            if (window.__ALLOW_SDK_VERIF__ === true) {
+              return __orig.apply(this, arguments);
+            }
+            console.warn('[guard] bloqueado sendEmailVerification (use backend ou liberar fallback)');
             return Promise.reject(new Error('Use backend SendGrid'));
           };
           console.log('[guard] ativo');
@@ -1011,5 +1062,198 @@
     }catch(e){console.warn('[guard] falhou',e);}
   })();
   </script>
+
+  <!-- ======== AUTO-AVANÇO ROBUSTO (com token) ======== -->
+  <script>
+  (function(){
+    const API_BASE = (window.API_BASE || 'https://mei-robo-prod.onrender.com').replace(/\/$/,'');
+    const DEST = '/pages/configuracao.html';
+    let _watching = false;
+    let _stop = false;
+
+    async function checkOnce(){
+      try{
+        const u = firebase?.auth?.().currentUser || null;
+        if (!u) return false;
+        try { await u.reload(); } catch(_){}
+        if (u.emailVerified === true) return true;
+
+        // fallback via backend com Bearer
+        const idt = await u.getIdToken(true);
+        const r = await fetch(API_BASE + '/api/auth/whoami', {
+          headers: { 'Authorization':'Bearer '+idt, 'Accept':'application/json' }
+        });
+        if (r.ok){
+          const j = await r.json().catch(()=> ({}));
+          if (j?.emailVerified === true || j?.email_verified === true) return true;
+        }
+      }catch(_){}
+      return false;
+    }
+
+    async function watcher(){
+      if (_watching) return;
+      _watching = true;
+      const until = Date.now() + 3*60*1000; // 3 minutos
+      while(!_stop && Date.now()<until){
+        if (await checkOnce()){
+          try { new BroadcastChannel('auth').postMessage({type:'email-verified'}); } catch(_){}
+          location.href = DEST;
+          return;
+        }
+        await new Promise(r=>setTimeout(r, 1500));
+      }
+      _watching = false;
+    }
+
+    // Disparos quando o usuário voltar para esta aba
+    window.addEventListener('focus', watcher);
+    document.addEventListener('visibilitychange', ()=> {
+      if (document.visibilityState === 'visible') watcher();
+    });
+
+    // Começa assim que a página carregar
+    if (document.readyState === 'complete' || document.readyState === 'interactive') {
+      watcher();
+    } else {
+      document.addEventListener('DOMContentLoaded', watcher);
+    }
+  })();
+  </script>
+
+  <!-- ========== Patch 1 — foco/visibilidade: reload + whoami + gatilho localStorage ========== -->
+  <script>
+  (function(){
+    const API_BASE = (window.API_BASE || 'https://mei-robo-prod.onrender.com').replace(/\/$/,'');
+    const CONT = '/pages/configuracao.html';
+
+    async function hardCheckAndAdvance(){
+      try {
+        const u = firebase?.auth?.().currentUser || null;
+
+        // 0) gatilho extra: se verify-email marcou no localStorage, já tenta avançar
+        try {
+          if (localStorage.getItem('mr_email_verified') === '1') {
+            if (u) { try { await u.reload(); } catch(_) {} }
+            if (u?.emailVerified === true) { location.href = CONT; return; }
+            // ainda sem u pronto? avança assim mesmo; configuracao.html exige auth.
+            setTimeout(()=> location.href = CONT, 150);
+            return;
+          }
+        } catch(_) {}
+
+        if (u) {
+          try { await u.reload(); } catch(_){}
+          if (u.emailVerified === true) { location.href = CONT; return; }
+
+          // segundo verificador: backend com Bearer
+          try {
+            const idt = await u.getIdToken(true);
+            const r = await fetch(API_BASE + '/api/auth/whoami', {
+              headers: { 'Authorization':'Bearer '+idt, 'Accept':'application/json' }
+            });
+            if (r.ok) {
+              const j = await r.json().catch(()=>({}));
+              if (j && (j.email_verified === true || j.emailVerified === true)) {
+                location.href = CONT; return;
+              }
+            }
+          } catch(_) {}
+        }
+      } catch(_) {}
+    }
+
+    // dispara ao ganhar foco/visibilidade
+    window.addEventListener('focus', hardCheckAndAdvance, {passive:true});
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible') hardCheckAndAdvance();
+    }, {passive:true});
+
+    // pequeno “heartbeat” só quando visível (desliga sozinho após 3 min)
+    (function heartbeat(){
+      const until = Date.now() + 3*60*1000;
+      const tick = async () => {
+        if (document.visibilityState === 'visible') await hardCheckAndAdvance();
+        if (Date.now() < until) setTimeout(tick, 2000);
+      };
+      setTimeout(tick, 1000);
+    })();
+
+    // primeira checagem logo após init do Firebase
+    document.addEventListener('DOMContentLoaded', () => setTimeout(hardCheckAndAdvance, 350));
+  })();
+  </script>
+
+  <!-- ========== PATCHES SOLICITADOS (UI minimalista + entrar estado aguardando) ========== -->
+  <script>
+  // === UI minimalista: aguardando verificação de e-mail ===
+  // Substitui qualquer implementação antiga.
+  function renderVerifyDialog(containerEl) {
+    try {
+      const el = containerEl || document.getElementById('step-verify') || document.getElementById('verify') || document.getElementById('cadastroStep');
+      if (!el) return;
+
+      el.innerHTML = `
+        <div class="card-dark" style="padding:20px;border-radius:12px">
+          <h2 style="margin:0 0 8px;">Verifique seu e-mail ✅</h2>
+          <p style="opacity:.9;margin:0 0 8px">
+            Abra o e-mail que enviamos e confirme sua conta. 
+            <strong>Depois, volte para <u>esta</u> aba</strong>. Ao retornar, seguimos automaticamente para a Configuração da conta.
+          </p>
+          <p class="hint" style="opacity:.75;margin:0">
+            Dica: confira a caixa de spam/lixo. Não há mais nada para fazer aqui — é só voltar a esta aba após confirmar.
+          </p>
+        </div>
+      `;
+
+      // Remoção defensiva: apaga qualquer botão herdado/legado desta região.
+      const kill = el.querySelectorAll('button, a.btn, .actions, .row-actions');
+      kill.forEach(n => n.remove());
+    } catch(_) {}
+  }
+
+  // Listeners globais (uma única vez)
+  let __mr_verify_bound = false;
+
+  // Função chamada quando entramos no estado "aguardando verificação".
+  async function enterWaitingEmailVerification() {
+    // 1) Desenhar a UI minimalista SEM botões
+    try { renderVerifyDialog(); } catch(_) {}
+
+    // 2) Cancelar qualquer loop/polling legado (se existia)
+    try {
+      if (window.__verifyInterval) { clearInterval(window.__verifyInterval); window.__verifyInterval = null; }
+      if (window.__verifyTimeout)  { clearTimeout(window.__verifyTimeout);   window.__verifyTimeout  = null; }
+      // Esconde o banner antigo, se presente
+      try { document.getElementById('verifyBanner').style.display = 'none'; } catch(_){}
+    } catch(_) {}
+
+    // 3) Auto-avanço quando a aba volta ao foco/visibilidade
+    async function tryAdvance() {
+      try {
+        const u = firebase.auth().currentUser;
+        if (!u) return;
+        try { await u.reload(); } catch(_) {}
+        if (u.emailVerified === true) {
+          // Redirect hard para a tela de configuração (sem depender de nada externo)
+          window.location.href = '/pages/configuracao.html';
+        }
+      } catch(_) {}
+    }
+
+    // Bind uma única vez (evita múltiplos handlers)
+    if (!__mr_verify_bound) {
+      __mr_verify_bound = true;
+      window.addEventListener('focus', tryAdvance, { passive:true });
+      document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'visible') tryAdvance();
+      }, { passive:true });
+
+      // Redundância: checa também logo após 800ms (aba ainda em foco)
+      setTimeout(tryAdvance, 800);
+    }
+  }
+  </script>
 </body>
 </html>
+
