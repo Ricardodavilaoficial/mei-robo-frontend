@@ -609,7 +609,9 @@
           headers: {
             'Authorization': 'Bearer ' + idToken,
             'Accept': 'application/json'
-          }
+          },
+          mode: 'cors',                 /* PATCH: reforça CORS */
+          credentials: 'include'        /* PATCH: envia cookies se houver */
         });
 
         // 2) Se o backend não aceitar o método (405), tenta /api/auth/whoami
@@ -619,7 +621,8 @@
             headers: {
               'Authorization': 'Bearer ' + idToken,
               'Accept': 'application/json'
-            }
+            },
+            mode: 'cors', credentials: 'include'  /* PATCH */
           });
           if (r2.ok) {
             const j2 = await r2.json().catch(()=>({}));
@@ -738,7 +741,9 @@
             "Content-Type": "application/json",
             "Accept": "application/json"
           },
-          body: JSON.stringify({})
+          body: JSON.stringify({}),
+          mode: "cors",                        /* PATCH: reforça CORS */
+          credentials: "include"               /* PATCH */
         });
         if (r.ok) {
           return { ok:true, via:"backend_pretty" };
@@ -805,6 +810,21 @@
 
       let createdNewUser = false;
       let authInst = null;
+
+      // PATCH: helper de fetch com retry curto (cobre falhas transitórias/preflight)
+      async function fetchWithRetry(url, opts, tries=2){
+        let lastErr=null;
+        for (let i=0;i<tries;i++){
+          try{
+            const res = await fetch(url, opts);
+            return res;
+          }catch(e){
+            lastErr = e;
+            await new Promise(r=>setTimeout(r, 400*(i+1)));
+          }
+        }
+        throw lastErr || new Error('fetch_failed');
+      }
 
       try {
         const nome = (document.getElementById('nome').value || '').trim();
@@ -887,7 +907,15 @@
         headers['X-Submit-Nonce'] = submitNonce;
         console.log('[cadastro] nonce=', submitNonce);
 
-        const res = await fetch(API.cadastro, { method: 'POST', headers, body: JSON.stringify(payload) });
+        /* PATCH MINIMALISTA: reforça CORS + credenciais e retry curto */
+        const res = await fetchWithRetry(API.cadastro, {
+          method: 'POST',
+          headers,
+          body: JSON.stringify(payload),
+          mode: 'cors',
+          credentials: 'include'
+        });
+
         const text = await res.text();
         let data = {};
         try { data = text ? JSON.parse(text) : {}; } catch(_) {}
@@ -916,7 +944,22 @@
             return;
           }
 
-          throw new Error('Falha no cadastro.');
+          // PATCH: mensagens melhores em 401/403/5xx sem cair no genérico de "conexão"
+          if (res.status === 401 || res.status === 403) {
+            formMsg.className='error';
+            formMsg.textContent='Sessão expirada. Faça login novamente e tente enviar.';
+            enableSubmit();
+            await tryDeleteJustCreatedUser(authInst, createdNewUser);
+            SUBMITTING = false;
+            return;
+          }
+
+          formMsg.className='error';
+          formMsg.textContent='Não foi possível concluir agora. Tente novamente em instantes.';
+          enableSubmit();
+          await tryDeleteJustCreatedUser(authInst, createdNewUser);
+          SUBMITTING = false;
+          return;
         }
 
         /* ==== (3) PATCH: reforço para garantir envio do e-mail de verificação ==== */
@@ -951,7 +994,8 @@
                 'X-Turnstile-Token': token,
                 'cf-turnstile-response': token
               },
-              body: JSON.stringify({ email })
+              body: JSON.stringify({ email }),
+              mode: 'cors', credentials: 'include'      /* PATCH */
             });
             const j = await resp.json().catch(()=>({}));
             if (resp.ok && j.ok) {
@@ -987,7 +1031,10 @@
               headers['X-Submit-Nonce'] = submitNonce2;
               console.log('[cadastro] nonce(reclaim)=', submitNonce2);
 
-              const res2 = await fetch(API.cadastro, { method:'POST', headers, body: JSON.stringify(payload) });
+              const res2 = await fetch(API.cadastro, { 
+                method:'POST', headers, body: JSON.stringify(payload),
+                mode: 'cors', credentials: 'include'     /* PATCH */
+              });
               if (res2.ok) {
                 form.style.display = 'none';
                 showVerifyModal();
@@ -1006,7 +1053,8 @@
         if (wrong) {
           formMsg.innerHTML = 'Este e-mail já tem cadastro. <a href="/pages/login.html" class="link">Ir para login</a>';
         } else {
-          formMsg.textContent='Falha de conexão. Tente novamente.';
+          /* PATCH: troca a mensagem genérica por instrução mais útil */
+          formMsg.textContent='Não conseguimos falar com o servidor agora. Tente novamente em instantes.';
         }
 
         try { if (window.turnstile && CF_WIDGET_ID) turnstile.reset(CF_WIDGET_ID); } catch(_) {}
@@ -1067,7 +1115,7 @@
   <!-- ======== AUTO-AVANÇO ROBUSTO (com token) ======== -->
   <script>
   (function(){
-    const API_BASE = (window.API_BASE || 'https://mei-robo-prod.onrender.com').replace(/\/$/,'');
+    const API_BASE = (window.API_BASE || 'https://mei-robo-prod.onrender.com').replace(/\\/$/,'');
     const DEST = '/pages/configuracao.html';
     let _watching = false;
     let _stop = false;
@@ -1082,7 +1130,8 @@
         // fallback via backend com Bearer
         const idt = await u.getIdToken(true);
         const r = await fetch(API_BASE + '/api/auth/whoami', {
-          headers: { 'Authorization':'Bearer '+idt, 'Accept':'application/json' }
+          headers: { 'Authorization':'Bearer '+idt, 'Accept':'application/json' },
+          mode: 'cors', credentials: 'include'     /* PATCH */
         });
         if (r.ok){
           const j = await r.json().catch(()=> ({}));
@@ -1123,7 +1172,7 @@
   <!-- ========== Patch 1 — foco/visibilidade: reload + whoami + gatilho localStorage ========== -->
   <script>
   (function(){
-    const API_BASE = (window.API_BASE || 'https://mei-robo-prod.onrender.com').replace(/\/$/,'');
+    const API_BASE = (window.API_BASE || 'https://mei-robo-prod.onrender.com').replace(/\\/$/,'');
     const CONT = '/pages/configuracao.html';
 
     async function hardCheckAndAdvance(){
@@ -1146,7 +1195,8 @@
           try {
             const idt = await u.getIdToken(true);
             const r = await fetch(API_BASE + '/api/auth/whoami', {
-              headers: { 'Authorization':'Bearer '+idt, 'Accept':'application/json' }
+              headers: { 'Authorization':'Bearer '+idt, 'Accept':'application/json' },
+              mode: 'cors', credentials: 'include'       /* PATCH */
             });
             if (r.ok) {
               const j = await r.json().catch(()=>({}));
@@ -1269,8 +1319,9 @@
         return true;
       }
       const tok = await u.getIdToken(true);
-      const r = await fetch((window.API_BASE||'https://mei-robo-prod.onrender.com').replace(/\/$/,'') + '/api/auth/whoami', {
-        headers: { 'Authorization':'Bearer '+tok, 'Accept':'application/json' }
+      const r = await fetch((window.API_BASE||'https://mei-robo-prod.onrender.com').replace(/\\/$/,'') + '/api/auth/whoami', {
+        headers: { 'Authorization':'Bearer '+tok, 'Accept':'application/json' },
+        mode: 'cors', credentials: 'include'         /* PATCH */
       });
       if (r.ok) {
         const j = await r.json().catch(()=> ({}));
@@ -1311,3 +1362,4 @@
   </script>
 </body>
 </html>
+
