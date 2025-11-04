@@ -231,7 +231,7 @@
       try {
         const user = firebase.auth().currentUser;
         if (user) {
-          try { await user.reload(); } catch(_) {}
+          try { await user.reload(); } catch(_){}
           await user.getIdToken(true);
           const token = await user.getIdToken();
           await fetch(API_BASE + '/api/auth/check-verification', {
@@ -269,10 +269,11 @@
         `;
       }
 
+      // NOVO: garante redirecionamento também nesta aba
+      setTimeout(()=> { try { location.href = cont; } catch(_) {} }, 300);
+
       // Se houve opener (mesmo navegador/aba), podemos fechar esta janela
-      try {
-        if (window.opener) setTimeout(()=>window.close(), 2000);
-      } catch(_) {}
+      try { if (window.opener) setTimeout(()=>window.close(), 2000); } catch(_) {}
     }
 
     // Chamada após sucesso no applyActionCode OU quando oobCode não existe
@@ -331,8 +332,8 @@
           const r = await fetch(API_BASE + `/api/auth/check-verification?email=${encodeURIComponent(email)}`, { credentials: 'include' });
           const js = await r.json().catch(()=> ({}));
           if (js?.verified === true) {
-            // avançar direto para configuração
-            location.href = cont;
+            try { broadcastVerified(); } catch(_) {}   // NOVO: sinaliza antes
+            location.href = cont;                      // mantém avanço nesta aba
             return;
           }
         } catch(_) {}
