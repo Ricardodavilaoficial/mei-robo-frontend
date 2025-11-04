@@ -264,6 +264,9 @@
         const bc = new BroadcastChannel('auth');
         try { bc.postMessage({type:'email-verified'}); } finally { bc.close?.(); }
       } catch(_) {}
+
+      // 4) redundância explícita solicitada
+      try { localStorage.setItem('mr_email_verified','1'); } catch(_){}
     }
 
     async function afterVerifiedUI() {
@@ -349,3 +352,4 @@
   </script>
 </body>
 </html>
+
