@@ -221,7 +221,7 @@
           </div>
 
           <div class="actions" style="margin-top:12px">
-            <button id="submitBtn" type="submit" class="cta btn-disabled" aria-disabled="true">Avançar</button>
+            <button id="submitBtn" type="submit" class="cta btn-disabled" aria-disabled="true" disabled>Avançar</button>
           </div>
 
           <!-- Rodapé de orientação -->
@@ -344,18 +344,18 @@
 
     /* ==== (1) PATCH: enableSubmit com blindagem de aceite + DOMContentLoaded ==== */
     function enableSubmit(){
-      // Blindagem extra: NUNCA habilita se os Termos não estiverem marcados
       try {
         if (!aceite?.checked) { disableSubmit(); return; }
       } catch(_) {}
       submitBtn.classList.remove('btn-disabled');
       submitBtn.removeAttribute('aria-disabled');
+      submitBtn.removeAttribute('disabled');           /* << NOVO */
     }
     function disableSubmit(){
       submitBtn.classList.add('btn-disabled');
       submitBtn.setAttribute('aria-disabled','true');
+      submitBtn.setAttribute('disabled','disabled');   /* << NOVO */
     }
-    // Garante estado inicial correto ao carregar a página
     document.addEventListener('DOMContentLoaded', () => {
       try { updateButtonState(); } catch(_){}
     });
@@ -690,22 +690,20 @@
     function hideVerifyBanner(){ verifyBanner.style.display = 'none'; }
 
     /* ====== (C) Handler do botão com backend + fallback ====== */
-    btnAlreadyVerified.addEventListener('click', async (e)=>{
-      e.preventDefault();
-      // tenta avançar (reload + backend)
-      await advanceIfVerified(true);
-
-      // fallback final: manda para verify-email com cont=/pages/configuracao.html
-      try{
-        const u = firebase.auth().currentUser || null;
-        const mail = (u?.email || (emailInput?.value||'')).trim();
-        if (verifyBanner.style.display !== 'none') {
-          // se ainda está preso no banner, oferece rota manual
-          window.location.href = '/verify-email.html?cont=/pages/configuracao.html'
-            + (mail ? ('&email=' + encodeURIComponent(mail)) : '');
-        }
-      }catch(_){}
-    });
+    if (btnAlreadyVerified) {                   /* << NOVO: protege o addEventListener */
+      btnAlreadyVerified.addEventListener('click', async (e)=>{
+        e.preventDefault();
+        await advanceIfVerified(true);
+        try{
+          const u = firebase.auth().currentUser || null;
+          const mail = (u?.email || (emailInput?.value||'')).trim();
+          if (verifyBanner.style.display !== 'none') {
+            window.location.href = '/verify-email.html?cont=/pages/configuracao.html'
+              + (mail ? ('&email=' + encodeURIComponent(mail)) : '');
+          }
+        }catch(_){}
+      });
+    }
 
     // Se o usuário já estiver logado quando abrir esta página,
     document.addEventListener('DOMContentLoaded', async () => {
@@ -745,7 +743,6 @@
         if (r.ok) {
           return { ok:true, via:"backend_pretty" };
         }
-        // Log leve para diagnóstico e cai no fallback
         console.warn("[cadastro] backend send-verification falhou:", r.status);
       } catch (e) {
         console.warn("[cadastro] backend send-verification exception:", e?.message || e);
@@ -753,29 +750,25 @@
 
       // 2) Fallback: SDK Firebase (template padrão, mas sempre entrega)
       const actionCodeSettings = {
-        // IMPORTANTÍSSIMO: apontar para a nossa verify-email.html minimalista
         url: "https://www.meirobo.com.br/verify-email.html?cont=/pages/configuracao.html",
         handleCodeInApp: false
       };
       try {
-        // libera temporariamente o SDK apesar do guard (ver bloco Guard mais abaixo)
         window.__ALLOW_SDK_VERIF__ = true;
         await u.sendEmailVerification(actionCodeSettings);
         return { ok:true, via:"sdk_fallback" };
       } finally {
-        // pequena janela de tempo para chamadas subsequentes, depois fecha
         setTimeout(()=>{ window.__ALLOW_SDK_VERIF__ = false; }, 1500);
       }
     }
 
-    // Handler utilitário caso seja usado em algum botão/CTA
+    // Handler utilitário (se for necessário)
     async function onEnviarVerificacao() {
-      const btn = document.getElementById("enviarVerificacaoBtn"); // ajuste o id se houver
+      const btn = document.getElementById("enviarVerificacaoBtn");
       try {
         btn && (btn.disabled = true);
         const res = await enviarEmailVerificacaoRobusto();
         console.log("[cadastro] verificação enviada via:", res.via);
-        // mantenha seu toast/caixa minimalista existente
       } catch (e) {
         console.error("[cadastro] falha ao enviar verificação:", e?.message || e);
       } finally {
@@ -935,24 +928,13 @@
         } catch(_) {}
         /* ==== FIM PATCH 3 ==== */
 
-        /* ==== Patch 1 — Sucesso inline: NÃO redireciona automaticamente ==== */
-        // ===== Sucesso inline =====
+        /* ==== Sucesso inline → MODAL minimalista + estado aguardando ==== */
         const mail = (data.email || email).trim();
-
-        // guarda o e-mail para a tela seguinte (opcional)
         try { localStorage.setItem('pendingEmail', mail); } catch (_){}
-
-        // NÃO redireciona: usa UI minimalista e foco/visibilidade
-        try { /* enterWaitingEmailVerification(); */ } catch(_){}
         try { if (goVerify) goVerify.href = '/verify-email.html?email=' + encodeURIComponent(mail); } catch(_){}
-
-        // mensagem discreta → SUBSTITUÍDA PELO MODAL (PATCH 2.2)
-        // formMsg.className = 'ok';
-        // formMsg.textContent = 'Verificação enviada. Abra o e-mail, confirme e volte para esta aba; seguiremos automaticamente.';
         showVerifyModal();
         try { enterWaitingEmailVerification(); } catch(_){}
         return;
-        /* ==== Fim Patch 1 ==== */
 
       } catch(e){
         console.error(e);
@@ -976,7 +958,6 @@
               const cred = await authInst.createUserWithEmailAndPassword(email, (pwd.value || ''));
               const user = cred.user;
 
-              // ★★★ Reclaim também usa BACKEND→FALLBACK
               try {
                 if (user && !user.emailVerified) {
                   await enviarEmailVerificacaoRobusto();
@@ -986,7 +967,6 @@
               }
 
               const idToken = await user.getIdToken();
-              /* enterWaitingEmailVerification(); */
               try { if (goVerify) goVerify.href = '/verify-email.html?email=' + encodeURIComponent(user?.email || email); } catch(_){}
 
               const telefoneDigits = normalizeDigits(phoneInput.value || '');
@@ -1009,19 +989,10 @@
 
               const res2 = await fetch(API.cadastro, { method:'POST', headers, body: JSON.stringify(payload) });
               if (res2.ok) {
-                /* ==== Patch 2 — Reclaim sem “caixa antiga” e sem redirect ==== */
-                // Não exibimos mais a “caixa antiga”; mantemos o fluxo minimalista
                 form.style.display = 'none';
-                /* enterWaitingEmailVerification(); */
-                try { if (goVerify) goVerify.href = '/verify-email.html?email=' + encodeURIComponent(email); } catch(_){}
-
-                // Mensagem discreta → SUBSTITUÍDA PELO MODAL (PATCH 2.2)
-                // formMsg.className = 'ok';
-                // formMsg.textContent = 'Verificação enviada. Confirme o e-mail e volte para esta aba; seguiremos automaticamente.';
                 showVerifyModal();
                 try { enterWaitingEmailVerification(); } catch(_){}
                 return;
-                /* ==== Fim Patch 2 ==== */
               } else {
                 formMsg.textContent = 'Cadastro criado, mas não conseguimos salvar seus dados agora. Tente novamente.';
                 enableSubmit();
@@ -1048,7 +1019,6 @@
     // Guard no submit
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
-
       if (SUBMITTING) return;
       SUBMITTING = true;
 
@@ -1077,7 +1047,6 @@
         const u=firebase?.auth?.().currentUser;
         const P=(firebase?.User?.prototype)||(u&&Object.getPrototypeOf(u));
         if(P?.sendEmailVerification){
-          // Mantém o guard, mas permite fallback do SDK quando liberado explicitamente
           const __orig = P.sendEmailVerification;
           P.sendEmailVerification=function(){
             if (window.__ALLOW_SDK_VERIF__ === true) {
@@ -1138,13 +1107,11 @@
       _watching = false;
     }
 
-    // Disparos quando o usuário voltar para esta aba
     window.addEventListener('focus', watcher);
     document.addEventListener('visibilitychange', ()=> {
       if (document.visibilityState === 'visible') watcher();
     });
 
-    // Começa assim que a página carregar
     if (document.readyState === 'complete' || document.readyState === 'interactive') {
       watcher();
     } else {
@@ -1163,12 +1130,10 @@
       try {
         const u = firebase?.auth?.().currentUser || null;
 
-        // 0) gatilho extra: se verify-email marcou no localStorage, já tenta avançar
         try {
           if (localStorage.getItem('mr_email_verified') === '1') {
             if (u) { try { await u.reload(); } catch(_) {} }
             if (u?.emailVerified === true) { location.href = CONT; return; }
-            // ainda sem u pronto? avança assim mesmo; configuracao.html exige auth.
             setTimeout(()=> location.href = CONT, 150);
             return;
           }
@@ -1178,7 +1143,6 @@
           try { await u.reload(); } catch(_){}
           if (u.emailVerified === true) { location.href = CONT; return; }
 
-          // segundo verificador: backend com Bearer
           try {
             const idt = await u.getIdToken(true);
             const r = await fetch(API_BASE + '/api/auth/whoami', {
@@ -1195,13 +1159,11 @@
       } catch(_) {}
     }
 
-    // dispara ao ganhar foco/visibilidade
     window.addEventListener('focus', hardCheckAndAdvance, {passive:true});
     document.addEventListener('visibilitychange', () => {
       if (document.visibilityState === 'visible') hardCheckAndAdvance();
     }, {passive:true});
 
-    // pequeno “heartbeat” só quando visível (desliga sozinho após 3 min)
     (function heartbeat(){
       const until = Date.now() + 3*60*1000;
       const tick = async () => {
@@ -1211,15 +1173,12 @@
       setTimeout(tick, 1000);
     })();
 
-    // primeira checagem logo após init do Firebase
     document.addEventListener('DOMContentLoaded', () => setTimeout(hardCheckAndAdvance, 350));
   })();
   </script>
 
   <!-- ========== PATCHES SOLICITADOS (UI minimalista + entrar estado aguardando) ========== -->
   <script>
-  // === UI minimalista: aguardando verificação de e-mail ===
-  // Substitui qualquer implementação antiga.
   function renderVerifyDialog(containerEl) {
     try {
       const el = containerEl || document.getElementById('step-verify') || document.getElementById('verify') || document.getElementById('cadastroStep');
@@ -1238,50 +1197,39 @@
         </div>
       `;
 
-      // Remoção defensiva: apaga qualquer botão herdado/legado desta região.
       const kill = el.querySelectorAll('button, a.btn, .actions, .row-actions');
       kill.forEach(n => n.remove());
     } catch(_) {}
   }
 
-  // Listeners globais (uma única vez)
   let __mr_verify_bound = false;
 
-  // Função chamada quando entramos no estado "aguardando verificação".
   async function enterWaitingEmailVerification() {
-    // 1) Desenhar a UI minimalista SEM botões
     try { renderVerifyDialog(); } catch(_) {}
 
-    // 2) Cancelar qualquer loop/polling legado (se existia)
     try {
       if (window.__verifyInterval) { clearInterval(window.__verifyInterval); window.__verifyInterval = null; }
       if (window.__verifyTimeout)  { clearTimeout(window.__verifyTimeout);   window.__verifyTimeout  = null; }
-      // Esconde o banner antigo, se presente
       try { document.getElementById('verifyBanner').style.display = 'none'; } catch(_){}
     } catch(_) {}
 
-    // 3) Auto-avanço quando a aba volta ao foco/visibilidade
     async function tryAdvance() {
       try {
         const u = firebase.auth().currentUser;
         if (!u) return;
         try { await u.reload(); } catch(_) {}
         if (u.emailVerified === true) {
-          // Redirect hard para a tela de configuração (sem depender de nada externo)
           window.location.href = '/pages/configuracao.html';
         }
       } catch(_) {}
     }
 
-    // Bind uma única vez (evita múltiplos handlers)
     if (!__mr_verify_bound) {
       __mr_verify_bound = true;
       window.addEventListener('focus', tryAdvance, { passive:true });
       document.addEventListener('visibilitychange', () => {
         if (document.visibilityState === 'visible') tryAdvance();
       }, { passive:true });
-
-      // Redundância: checa também logo após 800ms (aba ainda em foco)
       setTimeout(tryAdvance, 800);
     }
   }
@@ -1289,7 +1237,6 @@
 
   <!-- PATCH 2 — JS utilitários do overlay + guardas de auto-avanço -->
   <script>
-  // ——— Caixa minimalista ———
   function showVerifyModal(){
     const ov = document.getElementById('vrfyOverlay');
     if (!ov) return;
@@ -1306,13 +1253,11 @@
     const btnMail = document.getElementById('vrfyOpenMail');
     const btnOk   = document.getElementById('vrfyFechar');
     btnMail?.addEventListener('click', () => {
-      // Tenta abrir webmail mais comum do usuário (fallback: apenas fecha)
       window.open('https://mail.google.com', '_blank', 'noopener,noreferrer');
     });
     btnOk?.addEventListener('click', hideVerifyModal);
   });
 
-  // ——— Checagem e redirecionamento ———
   const DEST_CONFIG = '/pages/configuracao.html';
   async function checkAndAdvance() {
     try {
@@ -1323,7 +1268,6 @@
         location.href = DEST_CONFIG + '?src=cadastro';
         return true;
       }
-      // Fallback: ping no backend com Bearer
       const tok = await u.getIdToken(true);
       const r = await fetch((window.API_BASE||'https://mei-robo-prod.onrender.com').replace(/\/$/,'') + '/api/auth/whoami', {
         headers: { 'Authorization':'Bearer '+tok, 'Accept':'application/json' }
@@ -1339,16 +1283,13 @@
     return false;
   }
 
-  // ——— Guardas: quando a aba volta ao foco/visível, storage ou broadcast ———
   function attachRedirectGuards(){
-    // 1) Sinal local setado pelo verify-email.html
     try {
       window.addEventListener('storage', (e) => {
         if (e.key === 'mr_email_verified' && e.newValue === '1') checkAndAdvance();
       });
     } catch(){}
 
-    // 2) Broadcast de outras janelas
     try {
       const bc = new BroadcastChannel('auth');
       bc.addEventListener('message', (ev) => {
@@ -1356,21 +1297,17 @@
       });
     } catch(){}
 
-    // 3) Voltar ao foco / ficar visível
     window.addEventListener('focus', checkAndAdvance);
     document.addEventListener('visibilitychange', () => {
       if (document.visibilityState === 'visible') checkAndAdvance();
     });
 
-    // 4) Mutação de token (Firebase atualiza após applyActionCode)
     try {
       firebase.auth().onIdTokenChanged(() => { checkAndAdvance(); });
     } catch(){}
   }
 
-  // Chama na carga da página
   document.addEventListener('DOMContentLoaded', attachRedirectGuards);
   </script>
 </body>
 </html>
-
