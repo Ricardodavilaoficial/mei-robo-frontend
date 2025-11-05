@@ -218,7 +218,8 @@
       try {
         await new Promise(r => setTimeout(r, 200)); // dá tempo do firebase init
         const u = firebase.auth().currentUser || null;
-        emailSpan.textContent = (u?.email) || emailParam || "—";
+        // Prioriza o ?email= antes do usuário logado — evita mostrar "—" quando a aba não está autenticada
+        emailSpan.textContent = emailParam || (u?.email) || "—";
         renderDebounceTip();
 
         // Se já estiver verificado, não redireciona: só sinaliza e instrui a voltar

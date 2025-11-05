@@ -969,6 +969,7 @@
             const fallbackMail = (u.email || (emailInput.value||'')).trim();
             showVerifyBanner(fallbackMail);
             const url = '/verify-email.html?email=' + encodeURIComponent(fallbackMail) + '&cont=/pages/configuracao.html';
+            if (typeof goVerify !== 'undefined' && goVerify) { goVerify.href = url; }
             try {
               if (!VERIFY_TAB || VERIFY_TAB.closed) {
                 VERIFY_TAB = window.open(url, '_blank', 'noopener,noreferrer');
@@ -982,13 +983,6 @@
           }
         }
       } catch(_){}
-
-      // (1) Pré-abre aba de verificação no gesto do usuário para não ser bloqueada
-      try {
-        if (!VERIFY_TAB || VERIFY_TAB.closed) {
-          VERIFY_TAB = window.open('/verify-email.html', '_blank', 'noopener,noreferrer');
-        }
-      } catch(_) {}
 
       if (SUBMITTING) return;
       SUBMITTING = true;
@@ -1079,3 +1073,4 @@
   </script>
 </body>
 </html>
+
