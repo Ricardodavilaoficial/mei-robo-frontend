@@ -280,6 +280,9 @@
     const verifyBannerEmail = document.getElementById('verifyBannerEmail');
     const btnAlreadyVerified = document.getElementById('btnAlreadyVerified');
 
+    // Aba de verificação pré-aberta (para não ser bloqueada)
+    let VERIFY_TAB = null;
+
     let cnpjAvailability = 'unknown';
 
     /* ====== Turnstile ====== */
@@ -777,10 +780,11 @@
         console.log('[cadastro] idToken len:', (idToken||'').length);
         try { showVerifyBanner(user.email || email); } catch(_){}
 
-        // ★ Ajustar CTA local para já incluir ?email=
+        // ★ Ajustar CTA local para já incluir ?email= e cont=/pages/configuracao.html
         try {
           if (goVerify) {
-            goVerify.href = '/verify-email.html?email=' + encodeURIComponent(user?.email || email);
+            const mailHref = '/verify-email.html?email=' + encodeURIComponent(user?.email || email) + '&cont=/pages/configuracao.html';
+            goVerify.href = mailHref;
           }
         } catch(_) {}
 
@@ -839,10 +843,15 @@
           throw new Error('Falha no cadastro.');
         }
 
-        // ===== Sucesso (A2): abrir verify em nova aba + banner incisivo na ABA atual =====
+        // ===== Sucesso (A2): abrir verify em nova aba (pré-aberta) + banner incisivo na ABA atual =====
         const mail = (data.email || email).trim();
         try {
-          window.open('/verify-email.html?email=' + encodeURIComponent(mail), '_blank', 'noopener,noreferrer');
+          const url = '/verify-email.html?email=' + encodeURIComponent(mail) + '&cont=/pages/configuracao.html';
+          if (VERIFY_TAB && !VERIFY_TAB.closed) {
+            VERIFY_TAB.location = url;
+          } else {
+            window.open(url, '_blank', 'noopener,noreferrer');
+          }
         } catch(_) {}
 
         try {
@@ -897,7 +906,7 @@
 
               const idToken = await user.getIdToken();
               showVerifyBanner(user.email || email);
-              try { if (goVerify) goVerify.href = '/verify-email.html?email=' + encodeURIComponent(user?.email || email); } catch(_) {}
+              try { if (goVerify) goVerify.href = '/verify-email.html?email=' + encodeURIComponent(user?.email || email) + '&cont=/pages/configuracao.html'; } catch(_) {}
 
               const telefoneDigits = normalizeDigits(phoneInput.value || '');
               const cnpjDigits = normalizeCNPJ(cnpjInput.value || '');
@@ -924,7 +933,7 @@
                   <span class="hint">Depois de confirmar, continue em <em>Configuração da conta</em>.</span>`;
                 successBox.style.display='block';
                 showVerifyBanner(email);
-                try { if (goVerify) goVerify.href = '/verify-email.html?email=' + encodeURIComponent(email); } catch(_) {}
+                try { if (goVerify) goVerify.href = '/verify-email.html?email=' + encodeURIComponent(email) + '&cont=/pages/configuracao.html'; } catch(_) {}
                 return;
               } else {
                 formMsg.textContent = 'Cadastro criado, mas não conseguimos salvar seus dados agora. Tente novamente.';
@@ -953,6 +962,13 @@
     // Guard no submit
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
+
+      // (1) Pré-abre aba de verificação no gesto do usuário para não ser bloqueada
+      try {
+        if (!VERIFY_TAB || VERIFY_TAB.closed) {
+          VERIFY_TAB = window.open('/verify-email.html', '_blank', 'noopener,noreferrer');
+        }
+      } catch(_) {}
 
       if (SUBMITTING) return;
       SUBMITTING = true;
