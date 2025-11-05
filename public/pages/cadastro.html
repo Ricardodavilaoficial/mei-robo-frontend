@@ -71,13 +71,6 @@
     #successBox .actions { display:flex; gap:8px; margin-top:10px; flex-wrap:wrap; }
     #successBox .actions a { text-decoration:none; }
     .footer-note { margin-top:14px; opacity:.9 }
-
-    /* Patch solicitado: visual de botão desabilitado (nativo) */
-    button[disabled] {
-      opacity:.45 !important;
-      cursor:not-allowed !important;
-      filter:saturate(0.6);
-    }
   </style>
 </head>
 <body>
@@ -142,7 +135,7 @@
           <div class="form-row">
             <label for="telefone"><strong>WhatsApp (com DDD)</strong></label>
             <input id="telefone" name="telefone" class="input" inputmode="tel"
-                   pattern="^\\D*(\\d\\D*){10,11}$"
+                   pattern="^\D*(\d\D*){10,11}$"
                    title="Informe um telefone com DDD (10 ou 11 dígitos)"
                    placeholder="Ex.: (11) 98765-4321" autocomplete="tel" required />
             <span class="hint">Coloque um número que você usa.</span>
@@ -151,7 +144,7 @@
           <div class="form-row">
             <label for="cnpj"><strong>CNPJ</strong></label>
             <input id="cnpj" name="cnpj" class="input" inputmode="numeric"
-              pattern="^\\d{14}$|^\\d{2}\\.\\d{3}\\.\\d{3}/\\d{4}-\\d{2}$"
+              pattern="^\d{14}$|^\d{2}\.\d{3}\.\d{3}/\d{4}-\d{2}$"
               title="Informe um CNPJ válido (14 dígitos ou 00.000.000/0000-00)"
               placeholder="Somente números ou 00.000.000/0000-00" autocomplete="on" required />
             <span class="hint">
@@ -312,9 +305,7 @@
       try{ return new URLSearchParams(location.search).get('validate') === '1'; }catch(_){ return false; }
     }
 
-    /* ==== (1) PATCH leve: enableSubmit respeitando aceite ==== */
     function enableSubmit(){
-      try { if (!aceite?.checked) { disableSubmit(); return; } } catch(_) {}
       submitBtn.classList.remove('btn-disabled');
       submitBtn.removeAttribute('aria-disabled');
     }
@@ -322,7 +313,6 @@
       submitBtn.classList.add('btn-disabled');
       submitBtn.setAttribute('aria-disabled','true');
     }
-    document.addEventListener('DOMContentLoaded', () => { try { updateButtonState(); } catch(_){ } });
 
     function renderTurnstile() {
       try {
@@ -335,7 +325,7 @@
           return;
         }
 
-        const meta = document.querySelector('meta[name=\"TURNSTILE_SITE_KEY\"]');
+        const meta = document.querySelector('meta[name="TURNSTILE_SITE_KEY"]');
         const SITE_KEY = (meta?.content || '').trim();
         if (!window.turnstile || !SITE_KEY || CF_WIDGET_ID) return;
 
@@ -351,16 +341,16 @@
             updateButtonState();
           },
           'error-callback': function() {
-            CF_TOKEN = \"\"; CF_TOKEN_TS = 0;
+            CF_TOKEN = ""; CF_TOKEN_TS = 0;
             const hidden = document.getElementById('cf_token');
-            if (hidden) hidden.value = \"\";
+            if (hidden) hidden.value = "";
             reRenderTurnstileWithBackoff();
             updateButtonState();
           },
           'expired-callback': function() {
-            CF_TOKEN = \"\"; CF_TOKEN_TS = 0;
+            CF_TOKEN = ""; CF_TOKEN_TS = 0;
             const hidden = document.getElementById('cf_token');
-            if (hidden) hidden.value = \"\";
+            if (hidden) hidden.value = "";
             try { turnstile.reset(CF_WIDGET_ID); } catch(e) {}
             updateButtonState();
           }
@@ -375,9 +365,9 @@
         if (!CF_TOKEN_TS) return;
         const age = Date.now() - CF_TOKEN_TS;
         if (age > 115000) {
-          CF_TOKEN = \"\"; CF_TOKEN_TS = 0;
+          CF_TOKEN = ""; CF_TOKEN_TS = 0;
           const hidden = document.getElementById('cf_token');
-          if (hidden) hidden.value = \"\";
+          if (hidden) hidden.value = "";
           if (window.turnstile && CF_WIDGET_ID) {
             try { turnstile.reset(CF_WIDGET_ID); } catch(_) {}
           }
@@ -387,12 +377,12 @@
     }, 5000);
 
     /* ====== Helpers ====== */
-    function normalizeDigits(v){ return (v || '').replace(/\\D+/g,''); }
+    function normalizeDigits(v){ return (v || '').replace(/\D+/g,''); }
     function normalizeCNPJ(v){ return normalizeDigits(v); }
     function validateCNPJ(cnpj){
       cnpj = normalizeCNPJ(cnpj);
       if (cnpj.length !== 14) return false;
-      if (/^(\\d)\\1{13}$/.test(cnpj)) return false;
+      if (/^(\d)\1{13}$/.test(cnpj)) return false;
       let length = cnpj.length - 2;
       let numbers = cnpj.substring(0, length);
       const digits = cnpj.substring(length);
@@ -539,14 +529,6 @@
         });
         window.addEventListener('email-verified', onSignal);
 
-        window.addEventListener('storage', function(e){
-          try{
-            if (!e) return;
-            const k = e.key || '';
-            if (k === 'mr_email_verified' || k === 'emailVerified') onSignal();
-          }catch(_){}
-        });
-
         setInterval(function(){
           try {
             if (verifyBanner.style.display !== 'none') advanceIfVerified(false);
@@ -562,8 +544,10 @@
         const user = firebase.auth().currentUser;
         if (!user) return false;
 
+        // força refresh do token para evitar 401 por expiração
         let idToken = await user.getIdToken(true);
 
+        // 1) Tenta GET /api/auth/check-verification (sem body)
         let res = await fetch(API.checkVerification, {
           method: 'GET',
           headers: {
@@ -572,6 +556,7 @@
           }
         });
 
+        // 2) Se o backend não aceitar o método (405), tenta /api/auth/whoami
         if (res.status === 405) {
           const r2 = await fetch(API_BASE + '/api/auth/whoami', {
             method: 'GET',
@@ -589,6 +574,7 @@
             }
             return false;
           }
+          // se whoami falhar, dá uma última chance reatualizando user
           try { await user.reload(); } catch(_){}
           if (user.emailVerified === true) {
             location.href = '/pages/configuracao.html';
@@ -597,12 +583,14 @@
           return false;
         }
 
+        // 3) Fluxo normal do check-verification (GET)
         const data = await res.json().catch(()=>({}));
         if (res.ok && data && data.verified === true) {
           location.href = '/pages/configuracao.html';
           return true;
         }
 
+        // 4) Última tentativa: Firebase local
         try { await user.reload(); } catch(_){}
         if (user.emailVerified === true) {
           location.href = '/pages/configuracao.html';
@@ -621,11 +609,16 @@
         if (!window.firebase?.auth) return;
         const user = firebase.auth().currentUser;
         if (!user) return;
+
+        // 1) Tenta só o reload (barato)
         try { await user.reload(); } catch(_){}
+
         if (user.emailVerified === true) {
           location.href = "/pages/configuracao.html";
           return;
         }
+
+        // 2) Plano B: pergunta pro backend (cobre caso de outro navegador)
         const ok = await checkVerifiedViaBackendAndAdvance();
         if (!ok && cameFromSignal) {
           verifyBannerText.textContent =
@@ -643,17 +636,22 @@
     /* ====== (C) Handler do botão com backend + fallback ====== */
     btnAlreadyVerified.addEventListener('click', async (e)=>{
       e.preventDefault();
+      // tenta avançar (reload + backend)
       await advanceIfVerified(true);
+
+      // fallback final: manda para verify-email com cont=/pages/configuracao.html
       try{
         const u = firebase.auth().currentUser || null;
         const mail = (u?.email || (emailInput?.value||'')).trim();
         if (verifyBanner.style.display !== 'none') {
+          // se ainda está preso no banner, oferece rota manual
           window.location.href = '/verify-email.html?cont=/pages/configuracao.html'
             + (mail ? ('&email=' + encodeURIComponent(mail)) : '');
         }
       }catch(_){}
     });
 
+    // Se o usuário já estiver logado quando abrir esta página,
     document.addEventListener('DOMContentLoaded', async () => {
       try{
         if (!window.firebase?.auth) return;
@@ -671,53 +669,53 @@
       } catch(_){ }
     });
 
-    /* ====== Envio verificação: backend → fallback SDK ====== */
-    async function enviarEmailVerificacaoRobusto() {
-      const u = firebase.auth().currentUser;
-      if (!u) throw new Error("Usuário não autenticado");
-      try {
-        const idToken = await u.getIdToken(true);
-        const r = await fetch("https://mei-robo-prod.onrender.com/api/auth/send-verification-email", {
-          method: "POST",
+    /* ====== ENVIO DA VERIFICAÇÃO PELO BACKEND (SendGrid) ====== */
+    async function sendVerificationViaBackend(user) {
+      if (!user) throw new Error('Usuário não autenticado.');
+      // força refresh do token ('à prova de expiração')
+      let idToken = await user.getIdToken(true);
+      let resp = await fetch(API.sendVerificationEmail, {
+        method: 'POST',
+        headers: {
+          'Authorization': 'Bearer ' + idToken,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({})
+      });
+      if (resp.status === 401 || resp.status === 403) {
+        // 1 retry com refresh forçado
+        idToken = await user.getIdToken(true);
+        resp = await fetch(API.sendVerificationEmail, {
+          method: 'POST',
           headers: {
-            "Authorization": "Bearer " + idToken,
-            "Content-Type": "application/json",
-            "Accept": "application/json"
+            'Authorization': 'Bearer ' + idToken,
+            'Content-Type': 'application/json'
           },
           body: JSON.stringify({})
         });
-        if (r.ok) {
-          return { ok:true, via:"backend_pretty" };
-        }
-        console.warn("[cadastro] backend send-verification falhou:", r.status);
-      } catch (e) {
-        console.warn("[cadastro] backend send-verification exception:", e?.message || e);
       }
-      const actionCodeSettings = {
-        url: "https://www.meirobo.com.br/verify-email.html?cont=/pages/configuracao.html",
-        handleCodeInApp: false
-      };
-      try {
-        window.__ALLOW_SDK_VERIF__ = true;
-        await u.sendEmailVerification(actionCodeSettings);
-        return { ok:true, via:"sdk_fallback" };
-      } finally {
-        setTimeout(()=>{ window.__ALLOW_SDK_VERIF__ = false; }, 1500);
+      if (!resp.ok) {
+        const txt = await resp.text().catch(()=> '');
+        throw new Error('Falha ao enviar verificação (HTTP ' + resp.status + '): ' + txt);
       }
+      return true;
     }
 
-    /* ====== Submit ====== */
+    /* ====== Submit (com Turnstile obrigatório, preservando backend) ====== */
     async function proceedSubmit(){
       formMsg.className='hint';
       formMsg.textContent='Enviando cadastro com segurança...';
 
+      // === 1. Token direto do widget Turnstile ===
       let token = "";
       try {
         if (window.turnstile && CF_WIDGET_ID) {
           token = turnstile.getResponse(CF_WIDGET_ID) || "";
         }
       } catch(_) {}
-      if (!token) token = (document.getElementById('cf_token')?.value || '').trim();
+      if (!token) {
+        token = (document.getElementById('cf_token')?.value || '').trim();
+      }
       if (!token) {
         formMsg.className='error';
         formMsg.textContent='Desafio de segurança expirou. Clique novamente na caixinha e envie em seguida.';
@@ -773,26 +771,20 @@
         const { user, created } = await ensureAuthenticated(email, senha);
         createdNewUser = !!created;
 
+        // ★★★ ENVIO DE VERIFICAÇÃO — SOMENTE BACKEND (SendGrid)
         try {
           if (user && !user.emailVerified) {
-            await enviarEmailVerificacaoRobusto();
+            await sendVerificationViaBackend(user);
           }
         } catch (e) {
-          console.warn('[cadastro] falha no envio de verificação (robusto):', e?.message || e);
+          console.warn('[cadastro] falha no sendVerification backend:', e?.message || e);
         }
-
-        /* ==== Patch 2 — Redireciono imediato para verify-email minimal ==== */
-        {
-          const mailToShow = (user?.email || email).trim();
-          location.href = '/verify-email.html?email=' + encodeURIComponent(mailToShow) + '&cont=/pages/configuracao.html';
-          return;
-        }
-        /* ==== Fim Patch 2 ==== */
 
         const idToken = await user.getIdToken();
         console.log('[cadastro] idToken len:', (idToken||'').length);
         try { showVerifyBanner(user.email || email); } catch(_){}
 
+        // ★ Ajustar CTA local para já incluir ?email=
         try {
           if (goVerify) {
             goVerify.href = '/verify-email.html?email=' + encodeURIComponent(user?.email || email);
@@ -833,14 +825,7 @@
             formMsg.textContent='Desafio de segurança expirou. Clique novamente na caixinha e envie em seguida.';
             try { if (window.turnstile && CF_WIDGET_ID) turnstile.reset(CF_WIDGET_ID); } catch(_) {}
             enableSubmit();
-            /* ==== Patch 1 — limpeza CONDICIONAL (não limpar em 429/preflight) ==== */
-            try {
-              const is422 = (res && res.status === 422);
-              const wrongPwd = false;
-              const shouldClean = is422 || wrongPwd;
-              if (shouldClean) { await tryDeleteJustCreatedUser(authInst, createdNewUser); }
-            } catch(_) {}
-            /* ==== Fim Patch 1 ==== */
+            await tryDeleteJustCreatedUser(authInst, createdNewUser);
             SUBMITTING = false;
             return;
           }
@@ -851,14 +836,7 @@
               'Algum campo está inválido. Revise nome, e-mail, telefone e CNPJ.';
             try { if (window.turnstile && CF_WIDGET_ID) turnstile.reset(CF_WIDGET_ID); } catch(_) {}
             enableSubmit();
-            /* ==== Patch 1 — limpeza CONDICIONAL (limpa só em 422/credencial inválida) ==== */
-            try {
-              const is422 = (res && res.status === 422);
-              const wrongPwd = false;
-              const shouldClean = is422 || wrongPwd;
-              if (shouldClean) { await tryDeleteJustCreatedUser(authInst, createdNewUser); }
-            } catch(_) {}
-            /* ==== Fim Patch 1 ==== */
+            await tryDeleteJustCreatedUser(authInst, createdNewUser);
             SUBMITTING = false;
             return;
           }
@@ -866,19 +844,16 @@
           throw new Error('Falha no cadastro.');
         }
 
-        try {
-          const usr = firebase?.auth?.().currentUser;
-          if (usr && !usr.emailVerified) {
-            await enviarEmailVerificacaoRobusto().catch(()=>{});
-          }
-        } catch(_) {}
-
+        // ===== Sucesso inline =====
         const mail = (data.email || email).trim();
+
+        // guarda o e-mail para a tela seguinte (opcional)
         try { localStorage.setItem('pendingEmail', mail); } catch (_){}
-        try { if (goVerify) goVerify.href = '/verify-email.html?email=' + encodeURIComponent(mail); } catch(_){}
-        try { showVerifyBanner(mail); } catch(_){}
-        formMsg.className = 'ok';
-        formMsg.textContent = 'Verificação enviada. Abra o e-mail, confirme e volte para esta aba; seguiremos automaticamente.';
+
+        // redireciona imediatamente para a tela de verificação
+        location.href = '/verify-email.html?email=' + encodeURIComponent(mail);
+
+        // (não precisamos mais mostrar successBox/verifyBanner aqui)
         return;
 
       } catch(e){
@@ -903,17 +878,18 @@
               const cred = await authInst.createUserWithEmailAndPassword(email, (pwd.value || ''));
               const user = cred.user;
 
+              // ★★★ Reclaim também usa SOMENTE o backend
               try {
                 if (user && !user.emailVerified) {
-                  await enviarEmailVerificacaoRobusto();
+                  await sendVerificationViaBackend(user);
                 }
               } catch (_e) {
-                console.warn('[cadastro][reclaim] falha no envio de verificação (robusto):', _e?.message || _e);
+                console.warn('[cadastro][reclaim] falha no sendVerification backend:', _e?.message || _e);
               }
 
               const idToken = await user.getIdToken();
               showVerifyBanner(user.email || email);
-              try { if (goVerify) goVerify.href = '/verify-email.html?email=' + encodeURIComponent(user?.email || email); } catch(_){}
+              try { if (goVerify) goVerify.href = '/verify-email.html?email=' + encodeURIComponent(user?.email || email); } catch(_) {}
 
               const telefoneDigits = normalizeDigits(phoneInput.value || '');
               const cnpjDigits = normalizeCNPJ(cnpjInput.value || '');
@@ -935,11 +911,12 @@
 
               const res2 = await fetch(API.cadastro, { method:'POST', headers, body: JSON.stringify(payload) });
               if (res2.ok) {
-                form.style.display = 'none';
+                form.style.display='none';
+                successMsg.innerHTML = `Enviamos um e-mail para <strong>${email}</strong>.<br/>
+                  <span class="hint">Depois de confirmar, continue em <em>Configuração da conta</em>.</span>`;
+                successBox.style.display='block';
                 showVerifyBanner(email);
-                try { if (goVerify) goVerify.href = '/verify-email.html?email=' + encodeURIComponent(email); } catch(_){}
-                formMsg.className = 'ok';
-                formMsg.textContent = 'Verificação enviada. Confirme o e-mail e volte para esta aba; seguiremos automaticamente.';
+                try { if (goVerify) goVerify.href = '/verify-email.html?email=' + encodeURIComponent(email); } catch(_) {}
                 return;
               } else {
                 formMsg.textContent = 'Cadastro criado, mas não conseguimos salvar seus dados agora. Tente novamente.';
@@ -958,24 +935,16 @@
         }
 
         try { if (window.turnstile && CF_WIDGET_ID) turnstile.reset(CF_WIDGET_ID); } catch(_) {}
-        /* ==== Patch 1 — limpeza CONDICIONAL no catch (apenas senha errada/credenciais inválidas) ==== */
-        try {
-          if (authInst) {
-            const is422 = false;
-            const wrongPwd = (e && (e.code === 'auth/wrong-password' || e.code === 'auth/invalid-login-credentials' || e.__wrongPassword));
-            const shouldClean = is422 || wrongPwd;
-            if (shouldClean) { await tryDeleteJustCreatedUser(authInst, createdNewUser); }
-          }
-        } catch(_) {}
-        /* ==== Fim Patch 1 ==== */
-
+        if (authInst) await tryDeleteJustCreatedUser(authInst, createdNewUser);
         enableSubmit();
         SUBMITTING = false;
       }
     }
 
+    // Guard no submit
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
+
       if (SUBMITTING) return;
       SUBMITTING = true;
 
@@ -1004,12 +973,8 @@
         const u=firebase?.auth?.().currentUser;
         const P=(firebase?.User?.prototype)||(u&&Object.getPrototypeOf(u));
         if(P?.sendEmailVerification){
-          const __orig = P.sendEmailVerification;
           P.sendEmailVerification=function(){
-            if (window.__ALLOW_SDK_VERIF__ === true) {
-              return __orig.apply(this, arguments);
-            }
-            console.warn('[guard] bloqueado sendEmailVerification (use backend ou liberar fallback)');
+            console.warn('[guard] bloqueado sendEmailVerification');
             return Promise.reject(new Error('Use backend SendGrid'));
           };
           console.log('[guard] ativo');
@@ -1020,74 +985,5 @@
     }catch(e){console.warn('[guard] falhou',e);}
   })();
   </script>
-
-  <!-- ======== AUTO-AVANÇO MINIMAL (substituição solicitada) ======== -->
-  <script>
-  (function(){
-    const API_BASE = (window.API_BASE || 'https://mei-robo-prod.onrender.com').replace(/\/$/,'');
-    const DEST = '/pages/configuracao.html';
-
-    async function tryAdvance(){
-      try {
-        const u = firebase?.auth?.().currentUser || null;
-        if (!u) return false;
-
-        // 1) força atualizar o usuário e checa local
-        try { await u.reload(); } catch(_){}
-        if (u.emailVerified === true) { location.href = DEST; return true; }
-
-        // 2) força refresh do token e consulta check-verification
-        const idt1 = await u.getIdToken(true);
-        const r1 = await fetch(API_BASE + '/api/auth/check-verification', {
-          method: 'GET',
-          headers: { 'Authorization': 'Bearer ' + idt1, 'Accept': 'application/json' }
-        });
-        if (r1.ok) {
-          const j1 = await r1.json().catch(()=> ({}));
-          if (j1?.verified === true) { location.href = DEST; return true; }
-        }
-
-        // 3) fallback robusto: pergunta ao whoami (server confere direto)
-        const idt2 = await u.getIdToken(true);
-        const r2 = await fetch(API_BASE + '/api/auth/whoami', {
-          method: 'GET',
-          headers: { 'Authorization': 'Bearer ' + idt2, 'Accept': 'application/json' }
-        });
-        if (r2.ok) {
-          const j2 = await r2.json().catch(()=> ({}));
-          if (j2?.emailVerified === true || j2?.email_verified === true) {
-            location.href = DEST; return true;
-          }
-        }
-
-        return false;
-      } catch { return false; }
-    }
-
-    // Dispara quando a aba volta
-    function onBackToTab(){
-      // tenta por até ~3 minutos, com pequenos intervalos
-      const until = Date.now() + 3*60*1000;
-      (async function loop(){
-        if (await tryAdvance()) return;
-        if (Date.now() < until) setTimeout(loop, 1500);
-      })();
-    }
-
-    window.addEventListener('focus', onBackToTab, {passive:true});
-    document.addEventListener('visibilitychange', () => {
-      if (document.visibilityState === 'visible') onBackToTab();
-    }, {passive:true});
-
-    // primeira tentativa logo após carregar
-    if (document.readyState === 'complete' || document.readyState === 'interactive') {
-      onBackToTab();
-    } else {
-      document.addEventListener('DOMContentLoaded', onBackToTab);
-    }
-  })();
-  </script>
 </body>
 </html>
-
-
