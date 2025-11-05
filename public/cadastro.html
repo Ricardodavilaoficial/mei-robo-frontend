@@ -486,7 +486,7 @@
       if (!s) return 0;
       if (s.length >= 8) score++;
       if (s.length >= 12) score++;
-      if (/[a-z]/.test(s)) score++;
+      if (/[a-z]/.test(s)) score++
       if (/[A-Z]/.test(s)) score++;
       if (/[0-9]/.test(s)) score++;
       if (/[^A-Za-z0-9]/.test(s)) score++;
@@ -844,7 +844,8 @@
         // ===== Sucesso (A2): abrir verify em nova aba (pré-aberta) + banner incisivo na ABA atual =====
         const mail = ((data?.email || '').trim()) || ((user?.email || email || '').trim());
         try {
-          const url = '/verify-email.html?email=' + encodeURIComponent(mail) + '&cont=/pages/configuracao.html';
+          try { localStorage.setItem('mr_waiting_email_verification','1'); } catch(_){}
+          const url = '/verify-email.html?email=' + encodeURIComponent(mail) + '&cont=' + encodeURIComponent('/pages/configuracao.html') + '&from=cadastro&t=' + Date.now();
           if (VERIFY_TAB && !VERIFY_TAB.closed) {
             VERIFY_TAB.location = url;
           } else {
@@ -931,7 +932,7 @@
                   <span class="hint">Depois de confirmar, continue em <em>Configuração da conta</em>.</span>`;
                 successBox.style.display='block';
                 showVerifyBanner(email);
-                try { if (goVerify) goVerify.href = '/verify-email.html?email=' + encodeURIComponent(email) + '&cont=/pages/configuracao.html'; } catch(_) {}
+                try { if (goVerify) goVerify.href = '/verify-email.html?email=' + encodeURIComponent(email) + '&cont=/pages/configuracao.html'; } catch(_){}
                 return;
               } else {
                 formMsg.textContent = 'Cadastro criado, mas não conseguimos salvar seus dados agora. Tente novamente.';
@@ -969,6 +970,7 @@
             const fallbackMail = (u.email || (emailInput.value||'')).trim();
             showVerifyBanner(fallbackMail);
             const url = '/verify-email.html?email=' + encodeURIComponent(fallbackMail) + '&cont=/pages/configuracao.html';
+            if (typeof goVerify !== 'undefined' && goVerify) { goVerify.href = url; }
             try {
               if (!VERIFY_TAB || VERIFY_TAB.closed) {
                 VERIFY_TAB = window.open(url, '_blank', 'noopener,noreferrer');
@@ -982,13 +984,6 @@
           }
         }
       } catch(_){}
-
-      // (1) Pré-abre aba de verificação no gesto do usuário para não ser bloqueada
-      try {
-        if (!VERIFY_TAB || VERIFY_TAB.closed) {
-          VERIFY_TAB = window.open('/verify-email.html', '_blank', 'noopener,noreferrer');
-        }
-      } catch(_) {}
 
       if (SUBMITTING) return;
       SUBMITTING = true;
@@ -1035,6 +1030,19 @@
           const j = await r.json().catch(()=> ({}));
           if (j?.verified === true) { location.href = DEST; return true; }
         }
+
+        // 2.1) Fallback final: re-login silencioso para renovar sessão/claims
+        try {
+          const e = (typeof emailInput !== 'undefined' && emailInput) ? (emailInput.value || '').trim() : '';
+          const p = (typeof pwd !== 'undefined' && pwd) ? (pwd.value || '') : '';
+          if (e && p) {
+            await firebase.auth().signInWithEmailAndPassword(e, p);
+            const u2 = firebase.auth().currentUser || null;
+            try { await (u2 && u2.reload ? u2.reload() : Promise.resolve()); } catch(_){}
+            if (u2 && u2.emailVerified === true) { location.href = DEST; return true; }
+          }
+        } catch(_){}
+
       }catch(_){}
       return false;
     }
