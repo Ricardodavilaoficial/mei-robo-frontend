@@ -823,7 +823,6 @@
             try { if (window.turnstile && CF_WIDGET_ID) turnstile.reset(CF_WIDGET_ID); } catch(_) {}
             enableSubmit();
             // A1: manter usuário logado — não apagar nem signOut
-            // await tryDeleteJustCreatedUser(authInst, createdNewUser);
             SUBMITTING = false;
             return;
           }
@@ -835,7 +834,6 @@
             try { if (window.turnstile && CF_WIDGET_ID) turnstile.reset(CF_WIDGET_ID); } catch(_) {}
             enableSubmit();
             // A1: manter usuário logado — não apagar nem signOut
-            // await tryDeleteJustCreatedUser(authInst, createdNewUser);
             SUBMITTING = false;
             return;
           }
@@ -844,7 +842,7 @@
         }
 
         // ===== Sucesso (A2): abrir verify em nova aba (pré-aberta) + banner incisivo na ABA atual =====
-        const mail = (data.email || email).trim();
+        const mail = ((data?.email || '').trim()) || ((user?.email || email || '').trim());
         try {
           const url = '/verify-email.html?email=' + encodeURIComponent(mail) + '&cont=/pages/configuracao.html';
           if (VERIFY_TAB && !VERIFY_TAB.closed) {
@@ -953,7 +951,6 @@
 
         try { if (window.turnstile && CF_WIDGET_ID) turnstile.reset(CF_WIDGET_ID); } catch(_) {}
         // A1: manter usuário logado — não apagar nem signOut
-        // if (authInst) await tryDeleteJustCreatedUser(authInst, createdNewUser);
         enableSubmit();
         SUBMITTING = false;
       }
@@ -962,6 +959,29 @@
     // Guard no submit
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
+
+      // (0) Se o usuário já está logado mas ainda não verificou, NÃO reenviar POST:
+      try {
+        const u = firebase?.auth?.().currentUser || null;
+        if (u) {
+          try { await u.reload(); } catch(_){}
+          if (u && !u.emailVerified) {
+            const fallbackMail = (u.email || (emailInput.value||'')).trim();
+            showVerifyBanner(fallbackMail);
+            const url = '/verify-email.html?email=' + encodeURIComponent(fallbackMail) + '&cont=/pages/configuracao.html';
+            try {
+              if (!VERIFY_TAB || VERIFY_TAB.closed) {
+                VERIFY_TAB = window.open(url, '_blank', 'noopener,noreferrer');
+              } else {
+                VERIFY_TAB.location = url;
+              }
+            } catch(_) {}
+            formMsg.className='hint';
+            formMsg.textContent='Já enviamos o e-mail de verificação. Confirme e volte para esta aba.';
+            return; // evita re-POST
+          }
+        }
+      } catch(_){}
 
       // (1) Pré-abre aba de verificação no gesto do usuário para não ser bloqueada
       try {
@@ -1059,4 +1079,3 @@
   </script>
 </body>
 </html>
-
