@@ -533,7 +533,20 @@
       } catch(_) {}
     })();
 
-    /* ====== (A) Utilitária: checar via backend e avançar ====== */
+/* Sinalização extra: se outra aba gravar no localStorage, avançar de imediato */
+try {
+  window.addEventListener('storage', function (ev) {
+    try {
+      if (ev && ev.key === 'mr_email_verified' && ev.newValue === '1') {
+        // limpa o flag e avança
+        try { localStorage.removeItem('mr_email_verified'); } catch(_){}
+        window.location.href = '/pages/configuracao.html';
+      }
+    } catch(_) {}
+  }, { passive: true });
+} catch(_) {}
+
+/* ====== (A) Utilitária: checar via backend e avançar ====== */
     async function checkVerifiedViaBackendAndAdvance(){
       try {
         if (!window.firebase?.auth) return false;
@@ -902,7 +915,7 @@
               } catch (_e) {
                 console.warn('[cadastro][reclaim] falha no sendVerification backend:', _e?.message || _e);
               }
-
+              
               const idToken = await user.getIdToken();
               showVerifyBanner(user.email || email);
               try { if (goVerify) goVerify.href = '/verify-email.html?email=' + encodeURIComponent(user?.email || email) + '&cont=/pages/configuracao.html'; } catch(_) {}
@@ -1076,7 +1089,7 @@
           P.sendEmailVerification=function(){
             console.warn('[guard] bloqueado sendEmailVerification');
             return Promise.reject(new Error('Use backend SendGrid'));
-          };
+          }
           console.log('[guard] ativo');
           clearInterval(iv);
         }
@@ -1087,3 +1100,4 @@
   </script>
 </body>
 </html>
+
