@@ -406,24 +406,6 @@
     }
     function debounce(fn,ms){ let t; return (...args)=>{ clearTimeout(t); t=setTimeout(()=>fn(...args),ms); }; }
 
-    /* ====== Fallback canônico por e-mail (sem Bearer) ====== */
-    async function checkVerifiedByEmailFallback(email){
-      try{
-        const mail = (email || '').trim();
-        if (!mail) return false;
-        const url = (window.API_BASE || 'https://mei-robo-prod.onrender.com').replace(/\\/$/,'')
-                  + '/api/auth/check-verification?email=' + encodeURIComponent(mail);
-        const r = await fetch(url, {
-          method: 'GET',
-          credentials: 'omit',
-          headers: { 'Accept': 'application/json' }
-        });
-        if (!r.ok) return false;
-        const j = await r.json().catch(()=> ({}));
-        return !!(j && (j.verified === true || j.emailVerified === true));
-      } catch(_){ return false; }
-    }
-
     // ====== Gate do botão com todos critérios ====== 
     function passwordRulesOk(s){
       if (!s || s.length < 8) return false;
@@ -658,9 +640,12 @@ try {
 
         // 3) Fluxo normal do check-verification (GET)
         const data = await res.json().catch(()=>({}));
-        if (res.ok && data && data.verified === true) {
+        const isVerified = !!(data && (data.verified === true || data.emailVerified === true || data.email_verified === true));
+        if (res.ok && isVerified) {
           redirectToConfig();
           return true;
+        } else if (res.ok) {
+          try { console.debug('[checkVerification] shape:', Object.keys(data||{})); } catch(_){}
         }
 
         // 4) Última tentativa: Firebase local
@@ -669,17 +654,6 @@ try {
           redirectToConfig();
           return true;
         }
-
-        // 5) Fallback canônico por e-mail (sem depender do Bearer desta aba)
-        try {
-          const mail = (user?.email) || (emailInput?.value || '').trim();
-          const okByEmail = await checkVerifiedByEmailFallback(mail);
-          if (okByEmail) {
-            redirectToConfig();
-            return true;
-          }
-        } catch(_) {}
-
         return false;
       } catch(e){
         console.warn('[verify-check] erro:', e?.message || e);
@@ -974,7 +948,13 @@ try {
         return;
 
       } catch(e){
-        console.error(e);
+        print(e)
+        print(type(e))
+        print(str(e))
+        print(repr(e))
+        print(dir(e))
+        print(getattr(e, "__dict__", {}))
+        import traceback as tb; tb.print_exc()
         formMsg.className='error';
         const wrong = e && (e.code === 'auth/wrong-password' || e.code === 'auth/invalid-login-credentials' || e.__wrongPassword);
         const email = (emailInput.value || '').trim();
@@ -1006,7 +986,7 @@ try {
               
               const idToken = await user.getIdToken();
               showVerifyBanner(user.email || email);
-              try { if (goVerify) goVerify.href = '/verify-email.html?email=' + encodeURIComponent(user?.email || email) + '&cont=/pages/configuracao.html'; } catch(_) {}
+              try { if (goVerify) goVerify.href = '/verify-email.html?email=' + encodeURIComponent(user?.email || email) + '&cont=/pages/configuracao.html'; } catch(_){}
 
               const telefoneDigits = normalizeDigits(phoneInput.value || '');
               const cnpjDigits = normalizeCNPJ(cnpjInput.value || '');
@@ -1133,7 +1113,9 @@ try {
         });
         if (r.ok){
           const j = await r.json().catch(()=> ({}));
-          if (j?.verified === true) { location.href = DEST; return true; }
+          const isVerified = !!(j && (j.verified === true || j.emailVerified === true || j.email_verified === true));
+          if (isVerified) { location.href = DEST; return true; }
+          try { console.debug('[tryAdvance] shape:', Object.keys(j||{})); } catch(_){}
         }
 
         // 2.1) Fallback final: re-login silencioso para renovar sessão/claims
@@ -1146,13 +1128,6 @@ try {
             try { await (u2 && u2.reload ? u2.reload() : Promise.resolve()); } catch(_){}
             if (u2 && u2.emailVerified === true) { location.href = DEST; return true; }
           }
-        } catch(_){}
-
-        // 2.2) Fallback canônico por e-mail
-        try {
-          const mail = (u?.email) || (emailInput?.value || '').trim();
-          const okByEmail = await checkVerifiedByEmailFallback(mail);
-          if (okByEmail) { location.href = DEST; return true; }
         } catch(_){}
 
       }catch(_){}
