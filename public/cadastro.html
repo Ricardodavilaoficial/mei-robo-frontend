@@ -420,7 +420,7 @@
       const senhaOk = passwordRulesOk(pwd.value || '');
       const confirmOk = (pwd.value || '') === (pwd2.value || '');
       const termsOk = !!aceite.checked;
-      const turnstileOk = !!CF_TOKEN;
+      const turnstileOk = !!CF_TOKEN || isValidateMode(); // permite habilitar em ?validate=1
       const cnpjNotBlocked = cnpjAvailability !== 'unavailable';
 
       const allOk = !!(e1 && e2 && e1 === e2 &&
