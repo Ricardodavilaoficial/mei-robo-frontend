@@ -53,6 +53,8 @@
   <script>
     // ===== Base do backend
     const API_BASE = (window.API_BASE || 'https://mei-robo-prod.onrender.com').replace(/\/$/,'');
+    // [ADD] Flag compartilhada com cadastro.html para retomar "modo espera"
+    const WAIT_FLAG_KEY = 'mr_waiting_email_verification';
 
     // ===== Utils / Query
     function qs(k){try{return new URLSearchParams(location.search).get(k)||""}catch(_){return ""}}
@@ -78,6 +80,8 @@
       try { window.parent && window.parent.postMessage({type:'email-verified'}, "*"); } catch(_) {}
       try { const ev = new Event('email-verified'); window.dispatchEvent(ev); } catch(_) {}
       try { localStorage.setItem('mr_email_verified','1'); } catch(_) {}
+      // [ADD] garante que a outra aba retome o "modo de espera" mesmo se aberta direto por link
+      try { localStorage.setItem(WAIT_FLAG_KEY,'1'); } catch(_) {}
     }
 
     // ===== UI minimalista pós-verificação
@@ -231,12 +235,22 @@
             return;
           }
         }
+
+        // [ADD - opcional] se a flag existir, reforça a UI de "volte à aba do cadastro"
+        try {
+          if (localStorage.getItem(WAIT_FLAG_KEY) === '1') {
+            // só UI: a outra aba cuidará do avanço
+            // (mantemos a página informativa minimalista)
+          }
+        } catch(_) {}
       } catch {}
     });
 
     // ===== Pós-applyActionCode
     async function afterApplyActionCodeSuccess() {
       try { localStorage.setItem('mr_email_verified', '1'); } catch(_) {}
+      // [ADD] reforço do estado "aguardando verificação" para a outra aba
+      try { localStorage.setItem(WAIT_FLAG_KEY,'1'); } catch(_) {}
       try {
         const user = firebase.auth().currentUser;
         if (user) {
@@ -254,7 +268,7 @@
       try { window.opener && window.opener.postMessage({type:'email-verified'}, "*"); } catch(_) {}
       try { window.parent && window.parent.postMessage({type:'email-verified'}, "*"); } catch(_) {}
       try { const bc = new BroadcastChannel('auth'); try { bc.postMessage({type:'email-verified'}); } finally { bc.close?.(); } } catch(_) {}
-      try { localStorage.setItem('mr_email_verified','1'); } catch(_){}
+      try { localStorage.setItem('mr_email_verified','1'); } catch(_) {}
     }
     async function afterVerifiedUI() { broadcastVerified(); showReturnMessage(); }
     async function onVerified() { await afterVerifiedUI(); }
@@ -302,3 +316,4 @@
   </script>
 </body>
 </html>
+

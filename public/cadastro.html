@@ -509,6 +509,52 @@
       return;
     }
 
+    /* ====== [ADD] Modo de espera resiliente (polling incondicional) ====== */
+    const WAIT_FLAG_KEY = 'mr_waiting_email_verification';
+    const WAIT_POLL_MS  = 2000;   // 2s
+    const WAIT_MAX_MS   = 180000; // 3 min
+
+    let waitPollTimer = null;
+    let waitPollUntil = 0;
+
+    // Helper para redirecionar SEM nunca deixar timer/flag para trás
+    function redirectToConfig(){
+      try { stopEmailWaitMode(); } catch(_) {}
+      location.href = '/pages/configuracao.html';
+    }
+
+    function startEmailWaitMode(email){
+      try { localStorage.setItem(WAIT_FLAG_KEY,'1'); } catch(_){}
+
+      // Garante banner e botão visíveis
+      try {
+        showVerifyBanner(email || '');
+        if (btnAlreadyVerified) { btnAlreadyVerified.style.display = ''; }
+      } catch(_){}
+
+      // Liga polling incondicional
+      try { clearInterval(waitPollTimer); } catch(_){}
+      waitPollUntil = Date.now() + WAIT_MAX_MS;
+
+      waitPollTimer = setInterval(async () => {
+        try {
+          if (Date.now() > waitPollUntil) { stopEmailWaitMode(); return; }
+          await advanceIfVerified(false); // usa o fluxo já existente (reload + backend)
+        } catch(_){}
+      }, WAIT_POLL_MS);
+
+      // Primeira tentativa imediata (não esperar 2s)
+      try { advanceIfVerified(false); } catch(_){}
+    }
+
+    function stopEmailWaitMode(){
+      try { clearInterval(waitPollTimer); } catch(_){}
+      waitPollTimer = null;
+      waitPollUntil = 0;
+      try { localStorage.removeItem(WAIT_FLAG_KEY); } catch(_){}
+      // opcional: manter banner visível até o redirect — não esconder aqui
+    }
+
     /* ====== Sinalização cross-aba para verificação ====== */
     (function setupEmailVerifiedListeners(){
       try {
@@ -578,7 +624,7 @@ try {
             const j2 = await r2.json().catch(()=>({}));
             const verified = !!(j2 && (j2.email_verified === true || j2.emailVerified === true));
             if (verified) {
-              location.href = '/pages/configuracao.html';
+              redirectToConfig();
               return true;
             }
             return false;
@@ -586,7 +632,7 @@ try {
           // se whoami falhar, dá uma última chance reatualizando user
           try { await user.reload(); } catch(_){}
           if (user.emailVerified === true) {
-            location.href = '/pages/configuracao.html';
+            redirectToConfig();
             return true;
           }
           return false;
@@ -595,14 +641,14 @@ try {
         // 3) Fluxo normal do check-verification (GET)
         const data = await res.json().catch(()=>({}));
         if (res.ok && data && data.verified === true) {
-          location.href = '/pages/configuracao.html';
+          redirectToConfig();
           return true;
         }
 
         // 4) Última tentativa: Firebase local
         try { await user.reload(); } catch(_){}
         if (user.emailVerified === true) {
-          location.href = '/pages/configuracao.html';
+          redirectToConfig();
           return true;
         }
         return false;
@@ -623,7 +669,7 @@ try {
         try { await user.reload(); } catch(_){}
 
         if (user.emailVerified === true) {
-          location.href = "/pages/configuracao.html";
+          redirectToConfig();
           return;
         }
 
@@ -675,6 +721,16 @@ try {
             showVerifyBanner(em);
           }
         }
+
+        // [ADD] Se a página recarregar durante a espera, retome o estado e o polling
+        try {
+          if (localStorage.getItem(WAIT_FLAG_KEY) === '1') {
+            const u = (window.firebase?.auth?.().currentUser) || null;
+            const emailGuess = (u?.email) || (emailInput?.value || '');
+            startEmailWaitMode(emailGuess);
+          }
+        } catch(_){}
+
       } catch(_){ }
     });
 
@@ -792,6 +848,9 @@ try {
         const idToken = await user.getIdToken();
         console.log('[cadastro] idToken len:', (idToken||'').length);
         try { showVerifyBanner(user.email || email); } catch(_){}
+
+        // [ADD] começa o modo de espera resiliente (polling incondicional)
+        try { startEmailWaitMode(user.email || email); } catch(_){}
 
         // ★ Ajustar CTA local para já incluir ?email= e cont=/pages/configuracao.html
         try {
@@ -982,6 +1041,10 @@ try {
           if (u && !u.emailVerified) {
             const fallbackMail = (u.email || (emailInput.value||'')).trim();
             showVerifyBanner(fallbackMail);
+
+            // [ADD] começa o modo de espera resiliente (polling incondicional) também neste fluxo
+            try { startEmailWaitMode(fallbackMail); } catch(_){}
+
             const url = '/verify-email.html?email=' + encodeURIComponent(fallbackMail) + '&cont=/pages/configuracao.html';
             if (typeof goVerify !== 'undefined' && goVerify) { goVerify.href = url; }
             try {
