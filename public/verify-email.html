@@ -88,12 +88,12 @@
     function showReturnMessage() {
       const box = document.getElementById('verifyBox');
       if (box) {
-        box.innerHTML = `
+        box.innerHTML = \`
           <h2>E-mail verificado ✅</h2>
           <p>Agora <strong>volte para a ABA onde você iniciou o cadastro</strong>.
           Lá vamos avançar automaticamente para a Configuração da conta.</p>
           <p class="hint">Se esta janela tiver sido aberta só para confirmar, você pode fechá-la com segurança.</p>
-        `;
+        \`;
       }
       try { if (window.opener) setTimeout(()=>window.close(), 2000); } catch(_) {}
     }
@@ -103,7 +103,7 @@
       const last = Number(localStorage.getItem(LS_KEY) || "0");
       if (!last) { tip.textContent = ""; return; }
       const secs = Math.max(0, 90 - Math.floor((Date.now() - last)/1000));
-      tip.textContent = secs > 0 ? `Você pode reenviar novamente em ${secs}s.` : "";
+      tip.textContent = secs > 0 ? \`Você pode reenviar novamente em \${secs}s.\` : "";
       if (secs > 0) setTimeout(renderDebounceTip, 1000);
     }
     function canResend(){ const last = Number(localStorage.getItem(LS_KEY) || "0"); return (Date.now() - last) > 90_000; }
@@ -219,6 +219,8 @@
 
     // ===== BOOT
     document.addEventListener("DOMContentLoaded", async () => {
+      // [ADD] Seta o flag de "espera de verificação" assim que a página carrega
+      try { localStorage.setItem(WAIT_FLAG_KEY,'1'); } catch(_) {}
       try {
         await new Promise(r => setTimeout(r, 200)); // dá tempo do firebase init
         const u = firebase.auth().currentUser || null;
@@ -259,7 +261,7 @@
           const token = await user.getIdToken();
           fetch(API_BASE + '/api/auth/check-verification', {
             method: 'GET',
-            headers: { 'Authorization': `Bearer ${token}`, 'Accept':'application/json' },
+            headers: { 'Authorization': \`Bearer \${token}\`, 'Accept':'application/json' },
             credentials: 'omit'
           }).catch(()=>{});
         }
