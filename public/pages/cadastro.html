@@ -442,6 +442,12 @@
       aceite.addEventListener(evt, updateButtonState);
     });
 
+    // [ADD] Estado inicial de UI ao carregar
+    document.addEventListener('DOMContentLoaded', () => {
+      try { updatePwdMeter(); } catch(_) {}
+      try { updateButtonState(); } catch(_) {}
+    });
+
     async function checkCNPJAvailability(){
       const raw = cnpjInput.value;
       const digits = normalizeCNPJ(raw);
@@ -948,14 +954,9 @@ try {
         return;
 
       } catch(e){
-        print(e)
-        print(type(e))
-        print(str(e))
-        print(repr(e))
-        print(dir(e))
-        print(getattr(e, "__dict__", {}))
-        import traceback as tb; tb.print_exc()
+        console.error('[cadastro] erro no proceedSubmit:', e && (e.stack || e.message || e));
         formMsg.className='error';
+
         const wrong = e && (e.code === 'auth/wrong-password' || e.code === 'auth/invalid-login-credentials' || e.__wrongPassword);
         const email = (emailInput.value || '').trim();
 
@@ -965,8 +966,8 @@ try {
               method: 'POST',
               headers: {
                 'Content-Type': 'application/json',
-                'X-Turnstile-Token': token,
-                'cf-turnstile-response': token
+                'X-Turnstile-Token': (window.turnstile && CF_WIDGET_ID ? (turnstile.getResponse(CF_WIDGET_ID) || '') : (document.getElementById('cf_token')?.value || '')),
+                'cf-turnstile-response': (window.turnstile && CF_WIDGET_ID ? (turnstile.getResponse(CF_WIDGET_ID) || '') : (document.getElementById('cf_token')?.value || ''))
               },
               body: JSON.stringify({ email })
             });
@@ -975,7 +976,6 @@ try {
               const cred = await authInst.createUserWithEmailAndPassword(email, (pwd.value || ''));
               const user = cred.user;
 
-              // ★★★ Reclaim também usa SOMENTE o backend
               try {
                 if (user && !user.emailVerified) {
                   await sendVerificationViaBackend(user);
@@ -991,7 +991,7 @@ try {
               const telefoneDigits = normalizeDigits(phoneInput.value || '');
               const cnpjDigits = normalizeCNPJ(cnpjInput.value || '');
               const nome = (document.getElementById('nome').value || '').trim();
-              const tk = (window.turnstile && CF_WIDGET_ID) ? (turnstile.getResponse(CF_WIDGET_ID) || token) : token;
+              const tk = (window.turnstile && CF_WIDGET_ID) ? (turnstile.getResponse(CF_WIDGET_ID) || '') : (document.getElementById('cf_token')?.value || '');
               const payload = {
                 email, senha:(pwd.value||''), nome,
                 telefone: telefoneDigits, cnpj: cnpjDigits,
@@ -1022,7 +1022,7 @@ try {
                 return;
               }
             }
-          } catch(_) {}
+          } catch(_){}
         }
 
         if (wrong) {
@@ -1032,7 +1032,6 @@ try {
         }
 
         try { if (window.turnstile && CF_WIDGET_ID) turnstile.reset(CF_WIDGET_ID); } catch(_) {}
-        // A1: manter usuário logado — não apagar nem signOut
         enableSubmit();
         SUBMITTING = false;
       }
