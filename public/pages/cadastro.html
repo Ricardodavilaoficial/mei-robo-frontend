@@ -380,12 +380,12 @@
     }, 5000);
 
     /* ====== Helpers ====== */
-    function normalizeDigits(v){ return (v || '').replace(/\\D+/g,''); }
+    function normalizeDigits(v){ return (v || '').replace(/\D+/g,''); }
     function normalizeCNPJ(v){ return normalizeDigits(v); }
     function validateCNPJ(cnpj){
       cnpj = normalizeCNPJ(cnpj);
       if (cnpj.length !== 14) return false;
-      if (/^(\\d)\\1{13}$/.test(cnpj)) return false;
+      if (/^(\d)\1{13}$/.test(cnpj)) return false;
       let length = cnpj.length - 2;
       let numbers = cnpj.substring(0, length);
       const digits = cnpj.substring(length);
