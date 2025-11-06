@@ -135,7 +135,7 @@
           <div class="form-row">
             <label for="telefone"><strong>WhatsApp (com DDD)</strong></label>
             <input id="telefone" name="telefone" class="input" inputmode="tel"
-                   pattern="^\D*(\d\D*){10,11}$"
+                   pattern="^\\D*(\\d\\D*){10,11}$"
                    title="Informe um telefone com DDD (10 ou 11 dígitos)"
                    placeholder="Ex.: (11) 98765-4321" autocomplete="tel" required />
             <span class="hint">Coloque um número que você usa.</span>
@@ -144,7 +144,7 @@
           <div class="form-row">
             <label for="cnpj"><strong>CNPJ</strong></label>
             <input id="cnpj" name="cnpj" class="input" inputmode="numeric"
-              pattern="^\d{14}$|^\d{2}\.\d{3}\.\d{3}/\d{4}-\d{2}$"
+              pattern="^\\d{14}$|^\\d{2}\\.\\d{3}\\.\\d{3}/\\d{4}-\\d{2}$"
               title="Informe um CNPJ válido (14 dígitos ou 00.000.000/0000-00)"
               placeholder="Somente números ou 00.000.000/0000-00" autocomplete="on" required />
             <span class="hint">
@@ -280,6 +280,9 @@
     const verifyBannerEmail = document.getElementById('verifyBannerEmail');
     const btnAlreadyVerified = document.getElementById('btnAlreadyVerified');
 
+    // Aba de verificação pré-aberta (para não ser bloqueada)
+    let VERIFY_TAB = null;
+
     let cnpjAvailability = 'unknown';
 
     /* ====== Turnstile ====== */
@@ -377,12 +380,12 @@
     }, 5000);
 
     /* ====== Helpers ====== */
-    function normalizeDigits(v){ return (v || '').replace(/\D+/g,''); }
+    function normalizeDigits(v){ return (v || '').replace(/\\D+/g,''); }
     function normalizeCNPJ(v){ return normalizeDigits(v); }
     function validateCNPJ(cnpj){
       cnpj = normalizeCNPJ(cnpj);
       if (cnpj.length !== 14) return false;
-      if (/^(\d)\1{13}$/.test(cnpj)) return false;
+      if (/^(\\d)\\1{13}$/.test(cnpj)) return false;
       let length = cnpj.length - 2;
       let numbers = cnpj.substring(0, length);
       const digits = cnpj.substring(length);
@@ -483,7 +486,7 @@
       if (!s) return 0;
       if (s.length >= 8) score++;
       if (s.length >= 12) score++;
-      if (/[a-z]/.test(s)) score++;
+      if (/[a-z]/.test(s)) score++
       if (/[A-Z]/.test(s)) score++;
       if (/[0-9]/.test(s)) score++;
       if (/[^A-Za-z0-9]/.test(s)) score++;
@@ -499,18 +502,11 @@
     pwd.addEventListener('input', ()=>{ updatePwdMeter(); updateButtonState(); });
     togglePwd.addEventListener('click', (e)=>{ e.preventDefault(); const visible=pwd.type==='text'; pwd.type=visible?'password':'text'; togglePwd.textContent=visible?'Mostrar':'Ocultar'; togglePwd.setAttribute('aria-pressed', String(!visible)); pwd.focus(); });
 
-    /* ====== Helpers para Auth cleanup ====== */
+    /* ====== Helpers para Auth cleanup (DESATIVADO POR A1) ====== */
     async function tryDeleteJustCreatedUser(authInst, createdNewUser){
-      try{
-        if (!createdNewUser) { try{ await authInst.signOut(); }catch(_){} return; }
-        const u = authInst.currentUser;
-        if (!u) return;
-        if (!u.emailVerified) { await u.delete(); }
-        else { await authInst.signOut(); }
-      } catch(e){
-        try{ await authInst.signOut(); }catch(_){ }
-        console.warn('[cadastro] falha ao deletar usuário recém-criado:', e?.message || e);
-      }
+      // A1: desativado para manter o usuário logado mesmo em caso de erro no POST /api/cadastro.
+      console.log('[cadastro] tryDeleteJustCreatedUser desativado (A1).');
+      return;
     }
 
     /* ====== Sinalização cross-aba para verificação ====== */
@@ -537,7 +533,20 @@
       } catch(_) {}
     })();
 
-    /* ====== (A) Utilitária: checar via backend e avançar ====== */
+/* Sinalização extra: se outra aba gravar no localStorage, avançar de imediato */
+try {
+  window.addEventListener('storage', function (ev) {
+    try {
+      if (ev && ev.key === 'mr_email_verified' && ev.newValue === '1') {
+        // limpa o flag e avança
+        try { localStorage.removeItem('mr_email_verified'); } catch(_){}
+        window.location.href = '/pages/configuracao.html';
+      }
+    } catch(_) {}
+  }, { passive: true });
+} catch(_) {}
+
+/* ====== (A) Utilitária: checar via backend e avançar ====== */
     async function checkVerifiedViaBackendAndAdvance(){
       try {
         if (!window.firebase?.auth) return false;
@@ -784,10 +793,11 @@
         console.log('[cadastro] idToken len:', (idToken||'').length);
         try { showVerifyBanner(user.email || email); } catch(_){}
 
-        // ★ Ajustar CTA local para já incluir ?email=
+        // ★ Ajustar CTA local para já incluir ?email= e cont=/pages/configuracao.html
         try {
           if (goVerify) {
-            goVerify.href = '/verify-email.html?email=' + encodeURIComponent(user?.email || email);
+            const mailHref = '/verify-email.html?email=' + encodeURIComponent(user?.email || email) + '&cont=/pages/configuracao.html';
+            goVerify.href = mailHref;
           }
         } catch(_) {}
 
@@ -825,7 +835,7 @@
             formMsg.textContent='Desafio de segurança expirou. Clique novamente na caixinha e envie em seguida.';
             try { if (window.turnstile && CF_WIDGET_ID) turnstile.reset(CF_WIDGET_ID); } catch(_) {}
             enableSubmit();
-            await tryDeleteJustCreatedUser(authInst, createdNewUser);
+            // A1: manter usuário logado — não apagar nem signOut
             SUBMITTING = false;
             return;
           }
@@ -836,7 +846,7 @@
               'Algum campo está inválido. Revise nome, e-mail, telefone e CNPJ.';
             try { if (window.turnstile && CF_WIDGET_ID) turnstile.reset(CF_WIDGET_ID); } catch(_) {}
             enableSubmit();
-            await tryDeleteJustCreatedUser(authInst, createdNewUser);
+            // A1: manter usuário logado — não apagar nem signOut
             SUBMITTING = false;
             return;
           }
@@ -844,16 +854,35 @@
           throw new Error('Falha no cadastro.');
         }
 
-        // ===== Sucesso inline =====
-        const mail = (data.email || email).trim();
+        // ===== Sucesso (A2): abrir verify em nova aba (pré-aberta) + banner incisivo na ABA atual =====
+        const mail = ((data?.email || '').trim()) || ((user?.email || email || '').trim());
+        try {
+          try { localStorage.setItem('mr_waiting_email_verification','1'); } catch(_){}
+          const url = '/verify-email.html?email=' + encodeURIComponent(mail) + '&cont=' + encodeURIComponent('/pages/configuracao.html') + '&from=cadastro&t=' + Date.now();
+          if (VERIFY_TAB && !VERIFY_TAB.closed) {
+            VERIFY_TAB.location = url;
+          } else {
+            window.open(url, '_blank', 'noopener,noreferrer');
+          }
+        } catch(_) {}
 
-        // guarda o e-mail para a tela seguinte (opcional)
-        try { localStorage.setItem('pendingEmail', mail); } catch (_){}
+        try {
+          const box = document.createElement('div');
+          box.setAttribute('role','status');
+          box.style.cssText = 'margin:14px 0;padding:16px;border-radius:12px;background:#151618;border:1px solid #23302e';
+          box.innerHTML = `
+            <div style="font-weight:700;margin-bottom:6px">Verifique seu e-mail</div>
+            <div class="hint">Abrimos uma nova aba com instruções. Clique no link do e-mail para confirmar.
+            <br/>Depois, <strong>volte para esta aba</strong>: avançaremos automaticamente.</div>`;
+          document.querySelector('#formMsg')?.replaceWith(box);
+        } catch(_){}
 
-        // redireciona imediatamente para a tela de verificação
-        location.href = '/verify-email.html?email=' + encodeURIComponent(mail);
+        // também exibe/atualiza o banner superior
+        try { showVerifyBanner(mail); } catch(_){}
 
-        // (não precisamos mais mostrar successBox/verifyBanner aqui)
+        // NÃO redirecionar a aba atual
+        enableSubmit();
+        SUBMITTING = false;
         return;
 
       } catch(e){
@@ -886,10 +915,10 @@
               } catch (_e) {
                 console.warn('[cadastro][reclaim] falha no sendVerification backend:', _e?.message || _e);
               }
-
+              
               const idToken = await user.getIdToken();
               showVerifyBanner(user.email || email);
-              try { if (goVerify) goVerify.href = '/verify-email.html?email=' + encodeURIComponent(user?.email || email); } catch(_) {}
+              try { if (goVerify) goVerify.href = '/verify-email.html?email=' + encodeURIComponent(user?.email || email) + '&cont=/pages/configuracao.html'; } catch(_) {}
 
               const telefoneDigits = normalizeDigits(phoneInput.value || '');
               const cnpjDigits = normalizeCNPJ(cnpjInput.value || '');
@@ -916,7 +945,7 @@
                   <span class="hint">Depois de confirmar, continue em <em>Configuração da conta</em>.</span>`;
                 successBox.style.display='block';
                 showVerifyBanner(email);
-                try { if (goVerify) goVerify.href = '/verify-email.html?email=' + encodeURIComponent(email); } catch(_) {}
+                try { if (goVerify) goVerify.href = '/verify-email.html?email=' + encodeURIComponent(email) + '&cont=/pages/configuracao.html'; } catch(_){}
                 return;
               } else {
                 formMsg.textContent = 'Cadastro criado, mas não conseguimos salvar seus dados agora. Tente novamente.';
@@ -935,7 +964,7 @@
         }
 
         try { if (window.turnstile && CF_WIDGET_ID) turnstile.reset(CF_WIDGET_ID); } catch(_) {}
-        if (authInst) await tryDeleteJustCreatedUser(authInst, createdNewUser);
+        // A1: manter usuário logado — não apagar nem signOut
         enableSubmit();
         SUBMITTING = false;
       }
@@ -944,6 +973,30 @@
     // Guard no submit
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
+
+      // (0) Se o usuário já está logado mas ainda não verificou, NÃO reenviar POST:
+      try {
+        const u = firebase?.auth?.().currentUser || null;
+        if (u) {
+          try { await u.reload(); } catch(_){}
+          if (u && !u.emailVerified) {
+            const fallbackMail = (u.email || (emailInput.value||'')).trim();
+            showVerifyBanner(fallbackMail);
+            const url = '/verify-email.html?email=' + encodeURIComponent(fallbackMail) + '&cont=/pages/configuracao.html';
+            if (typeof goVerify !== 'undefined' && goVerify) { goVerify.href = url; }
+            try {
+              if (!VERIFY_TAB || VERIFY_TAB.closed) {
+                VERIFY_TAB = window.open(url, '_blank', 'noopener,noreferrer');
+              } else {
+                VERIFY_TAB.location = url;
+              }
+            } catch(_) {}
+            formMsg.className='hint';
+            formMsg.textContent='Já enviamos o e-mail de verificação. Confirme e volte para esta aba.';
+            return; // evita re-POST
+          }
+        }
+      } catch(_){}
 
       if (SUBMITTING) return;
       SUBMITTING = true;
@@ -965,6 +1018,66 @@
     });
   </script>
 
+  <!-- (A3) Auto-avanço na volta (focus/visibility) -->
+  <script>
+  (function(){
+    const API_BASE_IIFE = (window.API_BASE || 'https://mei-robo-prod.onrender.com').replace(/\/$/,'');
+    const DEST = '/pages/configuracao.html';
+
+    async function tryAdvance(){
+      try{
+        const u = firebase?.auth?.().currentUser || null;
+        if (!u) return false;
+
+        // 1) Firebase primeiro
+        try { await u.reload(); } catch(_){}
+        if (u.emailVerified === true) { location.href = DEST; return true; }
+
+        // 2) Backend (Bearer) como reforço
+        const idt = await u.getIdToken(true);
+        const r = await fetch(API_BASE_IIFE + '/api/auth/check-verification', {
+          method:'GET',
+          headers:{'Authorization':'Bearer '+idt,'Accept':'application/json'}
+        });
+        if (r.ok){
+          const j = await r.json().catch(()=> ({}));
+          if (j?.verified === true) { location.href = DEST; return true; }
+        }
+
+        // 2.1) Fallback final: re-login silencioso para renovar sessão/claims
+        try {
+          const e = (typeof emailInput !== 'undefined' && emailInput) ? (emailInput.value || '').trim() : '';
+          const p = (typeof pwd !== 'undefined' && pwd) ? (pwd.value || '') : '';
+          if (e && p) {
+            await firebase.auth().signInWithEmailAndPassword(e, p);
+            const u2 = firebase.auth().currentUser || null;
+            try { await (u2 && u2.reload ? u2.reload() : Promise.resolve()); } catch(_){}
+            if (u2 && u2.emailVerified === true) { location.href = DEST; return true; }
+          }
+        } catch(_){}
+
+      }catch(_){}
+      return false;
+    }
+
+    function onBackToTab(){
+      const until = Date.now() + 3*60*1000;
+      (async function loop(){
+        if (await tryAdvance()) return;
+        if (Date.now() < until) setTimeout(loop, 1500);
+      })();
+    }
+
+    // dispare no focus/visibility + 1ª carga
+    window.addEventListener('focus', onBackToTab, {passive:true});
+    document.addEventListener('visibilitychange', ()=> {
+      if (document.visibilityState === 'visible') onBackToTab();
+    }, {passive:true});
+    if (document.readyState !== 'loading') onBackToTab();
+    else document.addEventListener('DOMContentLoaded', onBackToTab);
+  })();
+  </script>
+
   <!-- Guard anti Firebase nativo (robustez) -->
   <script>
   (function(){
@@ -976,7 +1089,7 @@
           P.sendEmailVerification=function(){
             console.warn('[guard] bloqueado sendEmailVerification');
             return Promise.reject(new Error('Use backend SendGrid'));
-          };
+          }
           console.log('[guard] ativo');
           clearInterval(iv);
         }
@@ -987,3 +1100,4 @@
   </script>
 </body>
 </html>
+
