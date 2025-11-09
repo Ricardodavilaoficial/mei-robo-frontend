@@ -567,6 +567,53 @@
       } catch(_) {}
     })();
 
+<!-- INSERTED BLOCK START -->
+<script>
+(function(){
+  // 1) BC redundante
+  try {
+    const bc = new BroadcastChannel('mr_events');
+    bc.onmessage = (ev) => {
+      if (ev && ev.data && ev.data.type === 'email_verified') {
+        console.log('[cadastro] BC: email_verified recebido');
+        try { localStorage.removeItem('mr_email_verified'); } catch(_){}
+        advanceToConfig(); // sua função já existente para avançar
+      }
+    };
+  } catch(_) {}
+
+  // 2) storage (já existia; mantenha)
+  try {
+    window.addEventListener('storage', function(ev){
+      try {
+        if (ev && ev.key === 'mr_email_verified' && ev.newValue === '1') {
+          console.log('[cadastro] storage: email_verified=1');
+          try { localStorage.removeItem('mr_email_verified'); } catch(_){}
+          advanceToConfig();
+        }
+      } catch(_) {}
+    }, { passive: true });
+  } catch(_) {}
+
+  // 3) foco/visibilidade => recheck curto
+  function recheckOnFocus(){
+    try {
+      // sua função que consulta /api/auth/check-verification
+      if (typeof checkAdvance === 'function') {
+        console.log('[cadastro] foco/visível: recheck');
+        checkAdvance(); // se "true", chama advanceToConfig() no retorno
+      }
+    } catch(_) {}
+  }
+  window.addEventListener('focus', recheckOnFocus, { passive:true });
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden) recheckOnFocus();
+  }, { passive:true });
+
+})();
+</script>
+<!-- INSERTED BLOCK END -->
+
 /* Sinalização extra: se outra aba gravar no localStorage, avançar de imediato */
 try {
   window.addEventListener('storage', function (ev) {

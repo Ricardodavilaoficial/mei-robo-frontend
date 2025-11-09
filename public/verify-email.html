@@ -154,6 +154,11 @@
             if (verified) {
               msg.textContent = "E-mail verificado!";
               msg.className = "row ok";
+              // === 3 LINHAS SOLICITADAS (logo após marcar como verificado) ===
+              try { localStorage.setItem('mr_email_verified','1'); } catch(_) {}
+              try { new BroadcastChannel('mr_events').postMessage({ type: 'email_verified' }); } catch(_) {}
+              try { console.log('[verify-email] sinal disparado (mr_email_verified + BC)'); } catch(_) {}
+              // ===============================================================
               broadcastVerified();
               showReturnMessage();
               return true;
@@ -172,6 +177,11 @@
           if (res.ok && data && data.verified === true) {
             msg.textContent = "E-mail verificado!";
             msg.className = "row ok";
+            // === 3 LINHAS SOLICITADAS (logo após marcar como verificado) ===
+            try { localStorage.setItem('mr_email_verified','1'); } catch(_) {}
+            try { new BroadcastChannel('mr_events').postMessage({ type: 'email_verified' }); } catch(_) {}
+            try { console.log('[verify-email] sinal disparado (mr_email_verified + BC)'); } catch(_) {}
+            // ===============================================================
             broadcastVerified();
             showReturnMessage();
             return true;
@@ -183,6 +193,11 @@
         if (u.emailVerified === true) {
           msg.textContent = "E-mail verificado!";
           msg.className = "row ok";
+          // === 3 LINHAS SOLICITADAS (logo após marcar como verificado) ===
+          try { localStorage.setItem('mr_email_verified','1'); } catch(_) {}
+          try { new BroadcastChannel('mr_events').postMessage({ type: 'email_verified' }); } catch(_) {}
+          try { console.log('[verify-email] sinal disparado (mr_email_verified + BC)'); } catch(_) {}
+          // ===============================================================
           broadcastVerified();
           showReturnMessage();
           return true;
