@@ -1121,6 +1121,74 @@ try {
   })();
   </script>
 
+  <!-- Bloco adicional: check periódico + foco/visibilidade (posicionado logo após o listener de storage) -->
+  <script>
+  (function(){
+    var API_BASE = (window.API_BASE || 'https://mei-robo-prod.onrender.com').replace(/\/$/,'');
+    var WAIT_FLAG_KEY = 'mr_waiting_email_verification';
+    var timer = null;
+
+    async function checkAdvance(){
+      try{
+        var u = (firebase && firebase.auth && firebase.auth().currentUser) ? firebase.auth().currentUser : null;
+        if (!u) return false;
+
+        try { await u.reload(); } catch(_){}
+        if (u.emailVerified === true) {
+          // sinaliza e avança
+          try { localStorage.setItem('mr_email_verified','1'); } catch(_){}
+          try { localStorage.setItem(WAIT_FLAG_KEY,'1'); } catch(_){}
+          window.location.href = '/pages/configuracao.html';
+          return true;
+        }
+
+        // backend fallback
+        var idToken = await u.getIdToken(true);
+        var r = await fetch(API_BASE + '/api/auth/check-verification', {
+          headers: { 'Authorization': 'Bearer ' + idToken, 'Accept': 'application/json' }
+        });
+        if (r.ok){
+          var j = await r.json().catch(()=>({}));
+          var ok = !!(j && (j.verified === true || j.emailVerified === true || j.isVerified === true || (j.ok && j.status === 'verified')));
+          if (ok){
+            try { localStorage.setItem('mr_email_verified','1'); } catch(_){}
+            try { localStorage.setItem(WAIT_FLAG_KEY,'1'); } catch(_){}
+            window.location.href = '/pages/configuracao.html';
+            return true;
+          }
+        }
+      }catch(_){}
+      return false;
+    }
+
+    function startPolling(){
+      if (timer) return;
+      // checa rápido 2x, depois a cada 3s
+      checkAdvance();
+      setTimeout(checkAdvance, 1200);
+      timer = setInterval(checkAdvance, 3000);
+    }
+
+    document.addEventListener('visibilitychange', function(){
+      if (!document.hidden) checkAdvance();
+    }, {passive:true});
+
+    window.addEventListener('focus', function(){
+      checkAdvance();
+    }, {passive:true});
+
+    // Se a página de verificação tiver setado o flag, começamos a vigiar
+    try {
+      if (localStorage.getItem('mr_waiting_email_verification') === '1') {
+        startPolling();
+      } else {
+        // mesmo sem flag, iniciamos polling leve (caso o usuário já tenha verificado fora)
+        startPolling();
+      }
+    } catch(_){ startPolling(); }
+  })();
+  </script>
+
   <!-- Guard anti Firebase nativo (robustez) -->
   <script>
   (function(){
