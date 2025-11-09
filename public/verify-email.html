@@ -29,15 +29,34 @@
     .row-actions button{flex:1 1 200px}
     small.dim{opacity:.65}
     .muted{opacity:.75}
+
+    /* Destaque de instrução forte */
+    .callout{
+      margin:14px 0 8px;
+      padding:14px 16px;
+      border-radius:12px;
+      background:#0f3b2f;
+      border:1px solid #1f5f4e;
+      color:#d6fff0;
+    }
+    .callout strong{color:#ffffff}
   </style>
 </head>
 <body>
   <div class="wrap" id="verifyBox">
     <div class="top">
       <div class="logo"></div>
-      <h1>Verificação de e-mail</h1>
+      <h1>Confirme seu e-mail para continuar</h1>
     </div>
-    <p class="hint" id="intro">Abra o link que enviamos para seu e-mail. Se você chegou por esse link, estamos confirmando automaticamente…</p>
+
+    <div class="callout">
+      <p style="margin:0">
+        <strong>Abra sua caixa de entrada agora</strong> e clique no botão do e-mail de confirmação.<br/>
+        Depois, <strong>volte para esta aba</strong>: vamos avançar automaticamente para <em>Configuração da conta</em>.
+      </p>
+    </div>
+
+    <p class="hint" id="intro">Se você chegou por um link do e-mail, estamos confirmando automaticamente…</p>
     <div class="row">E-mail: <span id="email" class="email">—</span></div>
 
     <div class="row row-actions">
@@ -261,7 +280,7 @@
           const token = await user.getIdToken();
           fetch(API_BASE + '/api/auth/check-verification', {
             method: 'GET',
-            headers: { 'Authorization': \`Bearer \${token}\`, 'Accept':'application/json' },
+            headers: { 'Authorization': `Bearer ${token}`, 'Accept':'application/json' },
             credentials: 'omit'
           }).catch(()=>{});
         }
