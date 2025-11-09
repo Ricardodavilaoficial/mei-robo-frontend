@@ -568,40 +568,50 @@
     })();
 
 <!-- INSERTED BLOCK START -->
-<script>
+/* HOTFIX: sinais de verificação (BC + storage) e recheck no foco/visibilidade */
 (function(){
-  // 1) BC redundante
+  // 1) BroadcastChannel redundante
   try {
     const bc = new BroadcastChannel('mr_events');
     bc.onmessage = (ev) => {
       if (ev && ev.data && ev.data.type === 'email_verified') {
-        console.log('[cadastro] BC: email_verified recebido');
-        try { localStorage.removeItem('mr_email_verified'); } catch(_){}
-        advanceToConfig(); // sua função já existente para avançar
+        console.log('[cadastro] mr_events: email_verified');
+        try { localStorage.setItem('mr_email_verified','1'); } catch(_){}
+        if (typeof advanceIfVerified === 'function') {
+          advanceIfVerified(true);
+        } else {
+          window.location.href = '/pages/configuracao.html';
+        }
       }
     };
   } catch(_) {}
 
-  // 2) storage (já existia; mantenha)
+  // 2) storage (já existia; mantido, mas com log)
   try {
     window.addEventListener('storage', function(ev){
       try {
         if (ev && ev.key === 'mr_email_verified' && ev.newValue === '1') {
-          console.log('[cadastro] storage: email_verified=1');
+          console.log('[cadastro] storage: mr_email_verified=1');
           try { localStorage.removeItem('mr_email_verified'); } catch(_){}
-          advanceToConfig();
+          if (typeof advanceIfVerified === 'function') {
+            advanceIfVerified(true);
+          } else {
+            window.location.href = '/pages/configuracao.html';
+          }
         }
       } catch(_) {}
     }, { passive: true });
   } catch(_) {}
 
-  // 3) foco/visibilidade => recheck curto
+  // 3) foco/visibilidade => recheck curto (usa checkAdvance se existir; senão, advanceIfVerified)
   function recheckOnFocus(){
     try {
-      // sua função que consulta /api/auth/check-verification
       if (typeof checkAdvance === 'function') {
-        console.log('[cadastro] foco/visível: recheck');
-        checkAdvance(); // se "true", chama advanceToConfig() no retorno
+        console.log('[cadastro] foco/visível: checkAdvance()');
+        checkAdvance();
+      } else if (typeof advanceIfVerified === 'function') {
+        console.log('[cadastro] foco/visível: advanceIfVerified()');
+        advanceIfVerified(false);
       }
     } catch(_) {}
   }
@@ -609,9 +619,7 @@
   document.addEventListener('visibilitychange', () => {
     if (!document.hidden) recheckOnFocus();
   }, { passive:true });
-
 })();
-</script>
 <!-- INSERTED BLOCK END -->
 
 /* Sinalização extra: se outra aba gravar no localStorage, avançar de imediato */
@@ -820,10 +828,10 @@ try {
       console.log('[cadastro] token_age_ms=', Date.now() - CF_TOKEN_TS);
       disableSubmit();
 
-      let createdNewUser = false;
-      let authInst = null;
+      let createdNewUser = False
+      let authInst = null
 
-      try {
+      try:
         const nome = (document.getElementById('nome').value || '').trim();
         const email = (emailInput.value || '').trim();
         const senha = (pwd.value || '');
@@ -1257,6 +1265,70 @@ try {
     }catch(e){console.warn('[guard] falhou',e);}
   })();
   </script>
+<script>
+(() => {
+  const $ = (sel) => document.querySelector(sel);
+
+  // Tenta encontrar os botões, aceitando IDs/atributos antigos e novos
+  const btnAvancar =
+    document.getElementById('btnAvancar') ||
+    document.getElementById('submitBtn')   ||
+    document.querySelector('button[data-btn="avancar"]') ||
+    document.querySelector('button[type="submit"]');
+
+  const btnToggleSenha =
+    document.getElementById('toggleSenha') ||
+    document.getElementById('showPwdBtn')  ||
+    document.querySelector('[data-btn="toggle-senha"]') ||
+    document.getElementById('togglePwd');
+
+  const inpEmail = $('#email') || $('input[type="email"]');
+  const inpSenha = $('#senha') || $('input[type="password"], input[name="senha"]');
+
+  function enableAvancar() {
+    if (!btnAvancar) return;
+    btnAvancar.disabled = false;
+    btnAvancar.classList.remove('disabled','is-disabled','btn-disabled');
+    btnAvancar.removeAttribute('aria-disabled');
+  }
+
+  function conditionsOK() {
+    const okEmail = !!(inpEmail && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(inpEmail.value));
+    const okSenha = !!(inpSenha && (inpSenha.value || '').length >= 8);
+    return okEmail && okSenha;
+  }
+
+  // (1) Liga o “Mostrar senha”
+  function wireToggleSenha() {
+    if (!btnToggleSenha || !inpSenha || btnToggleSenha.__wired) return;
+    btnToggleSenha.__wired = true;
+    btnToggleSenha.addEventListener('click', (e) => {
+      e.preventDefault();
+      try { inpSenha.type = (inpSenha.type === 'password' ? 'text' : 'password'); } catch(_) {}
+    }, {passive:false});
+  }
+
+  // (2) Habilita “Avançar” quando form estiver minimamente válido
+  function wireValidation() {
+    const onAny = () => { if (conditionsOK()) enableAvancar(); };
+    [inpEmail, inpSenha].forEach(el => el && el.addEventListener('input', onAny, {passive:true}));
+    // fallback: se já estiver válido na abertura
+    setTimeout(onAny, 0);
+  }
+
+  // (3) Integra com Turnstile (se presente)
+  // Coloque data-callback="onTurnstileSuccess" no widget se ainda não estiver.
+  window.onTurnstileSuccess = function() { enableAvancar(); };
+
+  // (4) Modo validação manual (URL ?validate=1) — força habilitar
+  if (location.search.includes('validate=1')) enableAvancar();
+
+  // (5) Redundâncias seguras
+  wireToggleSenha();
+  wireValidation();
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && conditionsOK()) enableAvancar(); }, {passive:true});
+})();
+</script>
 </body>
 </html>
 
