@@ -103,18 +103,18 @@
       try { localStorage.setItem(WAIT_FLAG_KEY,'1'); } catch(_) {}
     }
 
-    // ===== UI minimalista pós-verificação
+    // ===== UI minimalista pós-verificação (ASCII-only)
     function showReturnMessage() {
-      const box = document.getElementById('verifyBox');
+      var box = document.getElementById('verifyBox');
       if (box) {
-        box.innerHTML = \`
-          <h2>E-mail verificado ✅</h2>
-          <p>Agora <strong>volte para a ABA onde você iniciou o cadastro</strong>.
-          Lá vamos avançar automaticamente para a Configuração da conta.</p>
-          <p class="hint">Se esta janela tiver sido aberta só para confirmar, você pode fechá-la com segurança.</p>
-        \`;
+        var html = ''
+          + '<h2>E-mail verificado</h2>'
+          + '<p>Agora <strong>volte para a ABA onde voce iniciou o cadastro</strong>. '
+          + 'La vamos avancar automaticamente para a Configuracao da conta.</p>'
+          + '<p class="hint">Se esta janela tiver sido aberta so para confirmar, voce pode fecha-la com seguranca.</p>';
+        try { box.innerHTML = html; } catch(_) {}
       }
-      try { if (window.opener) setTimeout(()=>window.close(), 2000); } catch(_) {}
+      try { if (window.opener) setTimeout(function(){ window.close(); }, 2000); } catch(_) {}
     }
 
     // ===== Debounce visual (apenas se reenvio estiver habilitado futuramente)
@@ -122,7 +122,7 @@
       const last = Number(localStorage.getItem(LS_KEY) || "0");
       if (!last) { tip.textContent = ""; return; }
       const secs = Math.max(0, 90 - Math.floor((Date.now() - last)/1000));
-      tip.textContent = secs > 0 ? \`Você pode reenviar novamente em \${secs}s.\` : "";
+      tip.textContent = secs > 0 ? `Você pode reenviar novamente em ${secs}s.` : "";
       if (secs > 0) setTimeout(renderDebounceTip, 1000);
     }
     function canResend(){ const last = Number(localStorage.getItem(LS_KEY) || "0"); return (Date.now() - last) > 90_000; }
