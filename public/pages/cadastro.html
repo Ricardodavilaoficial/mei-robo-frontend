@@ -89,9 +89,8 @@
         <div>
           <div class="badge">Aguardando verificação</div>
           <div class="hint" id="verifyBannerText" style="margin-top:8px">
-            Enviamos um link para o seu e-mail. Clique no link na sua caixa de entrada e depois toque em
-            <em>“Já verifiquei — continuar”</em> aqui nesta aba. Se você abriu o link em outra janela/aba,
-            vamos detectar automaticamente e continuar.
+            <strong>Abra seu e-mail agora e clique no botão de confirmação.</strong><br/>
+            Depois <strong>volte para esta aba</strong>. Assim que confirmarmos, vamos <strong>avançar automaticamente</strong> para a próxima etapa: <em>Configuração da Conta</em>.
           </div>
           <div class="hint" id="verifyBannerEmail" style="margin-top:6px; opacity:.9"></div>
         </div>
@@ -135,7 +134,7 @@
           <div class="form-row">
             <label for="telefone"><strong>WhatsApp (com DDD)</strong></label>
             <input id="telefone" name="telefone" class="input" inputmode="tel"
-                   pattern="^\\D*(\\d\\D*){10,11}$"
+                   pattern="^\D*(\d\D*){10,11}$"
                    title="Informe um telefone com DDD (10 ou 11 dígitos)"
                    placeholder="Ex.: (11) 98765-4321" autocomplete="tel" required />
             <span class="hint">Coloque um número que você usa.</span>
@@ -144,7 +143,7 @@
           <div class="form-row">
             <label for="cnpj"><strong>CNPJ</strong></label>
             <input id="cnpj" name="cnpj" class="input" inputmode="numeric"
-              pattern="^\\d{14}$|^\\d{2}\\.\\d{3}\\.\\d{3}/\\d{4}-\\d{2}$"
+              pattern="^\d{14}$|^\d{2}\.\d{3}\.\d{3}/\d{4}-\d{2}$"
               title="Informe um CNPJ válido (14 dígitos ou 00.000.000/0000-00)"
               placeholder="Somente números ou 00.000.000/0000-00" autocomplete="on" required />
             <span class="hint">
@@ -293,6 +292,41 @@
     let SUBMITTING = false;
     let CF_RETRY = 0;
 
+    
+    /* ====== SSE (definitivo) ====== */
+    let _sse;
+    async function startSSE(user){
+      try{
+        if (!user || typeof EventSource === 'undefined') return;
+        // fecha conexão anterior, se houver
+        try { _sse && _sse.close && _sse.close(); } catch(_){}
+        _sse = null;
+
+        // pega um ID token fresquinho e monta a URL definitiva
+        const idt = await user.getIdToken(true);
+        const url = (API_BASE.replace(/\/$/,'') + '/api/sse/verify?token=' + encodeURIComponent(idt));
+
+        const es = new EventSource(url);
+        _sse = es;
+
+        es.onmessage = function(ev){
+          try{
+            const j = JSON.parse(ev.data || '{}');
+            if (j && j.verified === true){
+              try { localStorage.setItem('mr_email_verified','1'); } catch(_){}
+              window.location.href = '/pages/configuracao.html';
+            }
+          }catch(_){}
+        };
+        es.onerror = function(){
+          // encerra para evitar loops agressivos; fallback de avanço já existe (focus/visibility + backend)
+          try{ es.close(); }catch(_){}
+          if (_sse === es) _sse = null;
+        };
+      }catch(_){}
+    }
+
+
     function reRenderTurnstileWithBackoff(){
       try { if (window.turnstile && CF_WIDGET_ID) turnstile.reset(CF_WIDGET_ID); } catch(_) {}
       CF_RETRY = Math.min(CF_RETRY + 1, 5);
@@ -380,12 +414,12 @@
     }, 5000);
 
     /* ====== Helpers ====== */
-    function normalizeDigits(v){ return (v || '').replace(/\\D+/g,''); }
+    function normalizeDigits(v){ return (v || '').replace(/\D+/g,''); }
     function normalizeCNPJ(v){ return normalizeDigits(v); }
     function validateCNPJ(cnpj){
       cnpj = normalizeCNPJ(cnpj);
       if (cnpj.length !== 14) return false;
-      if (/^(\\d)\\1{13}$/.test(cnpj)) return false;
+      if (/^(\d)\1{13}$/.test(cnpj)) return false;
       let length = cnpj.length - 2;
       let numbers = cnpj.substring(0, length);
       const digits = cnpj.substring(length);
@@ -630,8 +664,8 @@ try {
         // 2) Plano B: pergunta pro backend (cobre caso de outro navegador)
         const ok = await checkVerifiedViaBackendAndAdvance();
         if (!ok && cameFromSignal) {
-          verifyBannerText.textContent =
-            'Quase lá! Se não avançar em alguns segundos, clique de novo no botão.';
+          verifyBannerText.innerHTML =
+            '<strong>Quase lá!</strong> Se não avançar em alguns segundos, clique de novo no botão.';
         }
       } catch(_) {}
     }
@@ -666,6 +700,8 @@ try {
         if (!window.firebase?.auth) return;
         const user = firebase.auth().currentUser || null;
         if (user) {
+          // Inicia SSE para captura imediata do evento
+          try { startSSE(user); } catch(_){}
           try { await user.reload(); } catch(_){ }
           if (user.emailVerified === true) {
             location.href = '/pages/configuracao.html';
@@ -780,6 +816,9 @@ try {
         const { user, created } = await ensureAuthenticated(email, senha);
         createdNewUser = !!created;
 
+        // Inicia SSE para o canal do usuário imediatamente
+        try { startSSE(user.uid); } catch(_){}
+
         // ★★★ ENVIO DE VERIFICAÇÃO — SOMENTE BACKEND (SendGrid)
         try {
           if (user && !user.emailVerified) {
@@ -871,9 +910,11 @@ try {
           box.setAttribute('role','status');
           box.style.cssText = 'margin:14px 0;padding:16px;border-radius:12px;background:#151618;border:1px solid #23302e';
           box.innerHTML = `
-            <div style="font-weight:700;margin-bottom:6px">Verifique seu e-mail</div>
-            <div class="hint">Abrimos uma nova aba com instruções. Clique no link do e-mail para confirmar.
-            <br/>Depois, <strong>volte para esta aba</strong>: avançaremos automaticamente.</div>`;
+            <div style="font-weight:700;margin-bottom:6px">Confirme seu e-mail para continuar</div>
+            <div class="hint">
+              <strong>Abra sua caixa de entrada agora</strong> e clique no botão do e-mail de confirmação.
+              <br/>Depois <strong>volte para esta aba</strong>: avançaremos automaticamente para <em>Configuração da Conta</em>.
+            </div>`;
           document.querySelector('#formMsg')?.replaceWith(box);
         } catch(_){}
 
@@ -918,7 +959,7 @@ try {
               
               const idToken = await user.getIdToken();
               showVerifyBanner(user.email || email);
-              try { if (goVerify) goVerify.href = '/verify-email.html?email=' + encodeURIComponent(user?.email || email) + '&cont=/pages/configuracao.html'; } catch(_) {}
+              try { if (goVerify) goVerify.href = '/verify-email.html?email=' + encodeURIComponent(user?.email || email) + '&cont=/pages/configuracao.html'; } catch(_){}
 
               const telefoneDigits = normalizeDigits(phoneInput.value || '');
               const cnpjDigits = normalizeCNPJ(cnpjInput.value || '');
@@ -980,6 +1021,8 @@ try {
         if (u) {
           try { await u.reload(); } catch(_){}
           if (u && !u.emailVerified) {
+            // Garante SSE ligado
+            try{ startSSE(u); }catch(_){}
             const fallbackMail = (u.email || (emailInput.value||'')).trim();
             showVerifyBanner(fallbackMail);
             const url = '/verify-email.html?email=' + encodeURIComponent(fallbackMail) + '&cont=/pages/configuracao.html';
@@ -992,7 +1035,7 @@ try {
               }
             } catch(_) {}
             formMsg.className='hint';
-            formMsg.textContent='Já enviamos o e-mail de verificação. Confirme e volte para esta aba.';
+            formMsg.textContent='Enviamos o e-mail de verificação. Confirme e volte para esta aba.';
             return; // evita re-POST
           }
         }
@@ -1094,6 +1137,7 @@ try {
           clearInterval(iv);
         }
       }catch{}},150);
+    
       setTimeout(()=>clearInterval(iv),8000);
     }catch(e){console.warn('[guard] falhou',e);}
   })();
