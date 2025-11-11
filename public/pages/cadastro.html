@@ -216,7 +216,7 @@
           <div class="title">Conta criada!</div>
           <div id="successMsg" class="hint"></div>
           <div class="actions">
-            <a class="btn-primary" href="/verify-email.html" id="goVerify">Ir para verificação de e-mail</a>
+            <a class="btn-primary" href="/pages/verify-email.html" id="goVerify">Ir para verificação de e-mail</a>
             <a class="btn-secondary" href="/pages/login.html" id="goLogin">Entrar depois</a>
           </div>
         </aside>
@@ -345,10 +345,14 @@
     function enableSubmit(){
       submitBtn.classList.remove('btn-disabled');
       submitBtn.removeAttribute('aria-disabled');
+      submitBtn.disabled = false;
+      submitBtn.removeAttribute('disabled');
     }
     function disableSubmit(){
       submitBtn.classList.add('btn-disabled');
       submitBtn.setAttribute('aria-disabled','true');
+      submitBtn.disabled = true;
+      submitBtn.setAttribute('disabled','');
     }
 
     function renderTurnstile() {
@@ -475,6 +479,8 @@
       pwd2.addEventListener(evt, updateButtonState);
       aceite.addEventListener(evt, updateButtonState);
     });
+
+    document.addEventListener('DOMContentLoaded', () => { updateButtonState(); });
 
     async function checkCNPJAvailability(){
       const raw = cnpjInput.value;
@@ -688,7 +694,7 @@ try {
         const mail = (u?.email || (emailInput?.value||'')).trim();
         if (verifyBanner.style.display !== 'none') {
           // se ainda está preso no banner, oferece rota manual
-          window.location.href = '/verify-email.html?cont=/pages/configuracao.html'
+          window.location.href = '/pages/verify-email.html?cont=/pages/configuracao.html'
             + (mail ? ('&email=' + encodeURIComponent(mail)) : '');
         }
       }catch(_){}
@@ -817,7 +823,7 @@ try {
         createdNewUser = !!created;
 
         // Inicia SSE para o canal do usuário imediatamente
-        try { startSSE(user.uid); } catch(_){}
+        try { startSSE(user); } catch(_){}
 
         // ★★★ ENVIO DE VERIFICAÇÃO — SOMENTE BACKEND (SendGrid)
         try {
@@ -835,7 +841,7 @@ try {
         // ★ Ajustar CTA local para já incluir ?email= e cont=/pages/configuracao.html
         try {
           if (goVerify) {
-            const mailHref = '/verify-email.html?email=' + encodeURIComponent(user?.email || email) + '&cont=/pages/configuracao.html';
+            const mailHref = '/pages/verify-email.html?email=' + encodeURIComponent(user?.email || email) + '&cont=/pages/configuracao.html';
             goVerify.href = mailHref;
           }
         } catch(_) {}
@@ -897,7 +903,7 @@ try {
         const mail = ((data?.email || '').trim()) || ((user?.email || email || '').trim());
         try {
           try { localStorage.setItem('mr_waiting_email_verification','1'); } catch(_){}
-          const url = '/verify-email.html?email=' + encodeURIComponent(mail) + '&cont=' + encodeURIComponent('/pages/configuracao.html') + '&from=cadastro&t=' + Date.now();
+          const url = '/pages/verify-email.html?email=' + encodeURIComponent(mail) + '&cont=' + encodeURIComponent('/pages/configuracao.html') + '&from=cadastro&t=' + Date.now();
           if (VERIFY_TAB && !VERIFY_TAB.closed) {
             VERIFY_TAB.location = url;
           } else {
@@ -959,7 +965,7 @@ try {
               
               const idToken = await user.getIdToken();
               showVerifyBanner(user.email || email);
-              try { if (goVerify) goVerify.href = '/verify-email.html?email=' + encodeURIComponent(user?.email || email) + '&cont=/pages/configuracao.html'; } catch(_){}
+              try { if (goVerify) goVerify.href = '/pages/verify-email.html?email=' + encodeURIComponent(user?.email || email) + '&cont=/pages/configuracao.html'; } catch(_){}
 
               const telefoneDigits = normalizeDigits(phoneInput.value || '');
               const cnpjDigits = normalizeCNPJ(cnpjInput.value || '');
@@ -986,7 +992,7 @@ try {
                   <span class="hint">Depois de confirmar, continue em <em>Configuração da conta</em>.</span>`;
                 successBox.style.display='block';
                 showVerifyBanner(email);
-                try { if (goVerify) goVerify.href = '/verify-email.html?email=' + encodeURIComponent(email) + '&cont=/pages/configuracao.html'; } catch(_){}
+                try { if (goVerify) goVerify.href = '/pages/verify-email.html?email=' + encodeURIComponent(email) + '&cont=/pages/configuracao.html'; } catch(_){}
                 return;
               } else {
                 formMsg.textContent = 'Cadastro criado, mas não conseguimos salvar seus dados agora. Tente novamente.';
@@ -1025,7 +1031,7 @@ try {
             try{ startSSE(u); }catch(_){}
             const fallbackMail = (u.email || (emailInput.value||'')).trim();
             showVerifyBanner(fallbackMail);
-            const url = '/verify-email.html?email=' + encodeURIComponent(fallbackMail) + '&cont=/pages/configuracao.html';
+            const url = '/pages/verify-email.html?email=' + encodeURIComponent(fallbackMail) + '&cont=/pages/configuracao.html';
             if (typeof goVerify !== 'undefined' && goVerify) { goVerify.href = url; }
             try {
               if (!VERIFY_TAB || VERIFY_TAB.closed) {
