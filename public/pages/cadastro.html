@@ -1216,6 +1216,44 @@ try {
     }catch(e){console.warn('[guard] falhou',e);}
   })();
   </script>
+
+  <!-- Watchdog canônico (acrescentado no final, sem alterar nada mais) -->
+  <script>
+  (function(){
+  const API_BASE = (window.API_BASE || 'https://mei-robo-prod.onrender.com').replace(/\/$/,'');
+  const DEST = '/pages/configuracao.html';
+  let stop = false, started = false;
+
+  function go(){ if (stop) return; stop = true; try{ window.location.href = DEST; }catch(_){} }
+
+  function wireSignals(){
+    if (started) return; started = true;
+    try{ window.addEventListener('storage', (ev)=>{ if (ev.key==='mr_email_verified' && ev.newValue==='1') go(); }, {passive:true}); }catch(_){}
+    try{ new BroadcastChannel('mr_events').onmessage = (m)=>{ if (m?.data?.type==='email_verified') go(); }; }catch(_){}
+    try{ new BroadcastChannel('auth').onmessage = (m)=>{ if (m?.data?.type==='email-verified') go(); }; }catch(_){}
+    try{ document.addEventListener('visibilitychange', ()=>{ if (!document.hidden) ping(); }, {passive:true}); }catch(_){}
+  }
+
+  async function ping(){
+    if (stop) return;
+    try{
+      const opt = { method:'GET', headers:{'Accept':'application/json'} };
+      const r = await fetch(API_BASE + '/api/auth/check-verification', opt);
+      if (!r.ok) return;
+      const j = await r.json().catch(()=>({}));
+      if (j && j.verified===true) { go(); }
+    }catch(_){}
+  }
+
+  document.addEventListener('DOMContentLoaded', ()=>{
+    try { localStorage.setItem('mr_waiting_email_verification','1'); } catch(_){}
+    wireSignals();
+    ping();
+    const t1 = setInterval(ping, 1000); setTimeout(()=>clearInterval(t1), 90_000);
+    setTimeout(ping, 3000);
+  });
+  })();
+  </script>
 </body>
 </html>
 

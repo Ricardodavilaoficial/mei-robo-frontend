@@ -262,6 +262,12 @@
         emailSpan.textContent = emailParam || (u?.email) || "—";
         renderDebounceTip();
 
+        // === [AJUSTE 1/1]: Disparo imediato de verificação ao abrir a página ===
+        try { await checkWithBackend(); } catch(_){}
+        try { setTimeout(()=>checkWithBackend(), 1200); } catch(_){}
+        try { setTimeout(()=>checkWithBackend(), 3000); } catch(_){}
+        // ======================================================================
+
         // Se já estiver verificado, não redireciona: só sinaliza e instrui a voltar
         if (u) {
           try { await u.reload(); } catch(_){}
@@ -349,6 +355,74 @@
     document.addEventListener('DOMContentLoaded',()=>{ 
       try { if (typeof check === 'function') setTimeout(check,300); } catch(_) {}
     });
+
+    /* ==== [PATCH] SSE + fallback POST (inserido ao final do <script>) ==== */
+    (function(){
+      const API_BASE = (window.API_BASE || 'https://mei-robo-prod.onrender.com').replace(/\/$/,'');
+      const params = new URLSearchParams(location.search);
+      const token = params.get('token') || '';
+      const cont   = params.get('cont') || '/pages/configuracao.html';
+
+      function fireSignals(){
+        try { localStorage.setItem('mr_email_verified','1'); } catch(_){}
+        try { new BroadcastChannel('mr_events').postMessage({ type:'email_verified' }); } catch(_){}
+        try { new BroadcastChannel('auth').postMessage({ type:'email-verified' }); } catch(_){}
+      }
+      function onVerified(){
+        fireSignals();
+        // UI mínima já existente no arquivo
+        try { console.log('[verify-email] backend confirmou, sinal emitido'); } catch(_){}
+      }
+
+      async function confirmViaPOST(){
+        if (!token) return false;
+        try{
+          const r = await fetch(API_BASE + '/api/auth/confirm', {
+            method:'POST',
+            headers:{ 'Content-Type':'application/json', 'Accept':'application/json' },
+            body: JSON.stringify({ token })
+          });
+          if (!r.ok) return false;
+          const j = await r.json().catch(()=>({}));
+          if (j && (j.ok===true || j.verified===true)) { onVerified(); return true; }
+        }catch(_){}
+        return false;
+      }
+
+      function startSSE(){
+        if (!token || !('EventSource' in window)) return false;
+        const url = API_BASE + '/api/sse/verify?token=' + encodeURIComponent(token);
+        try{
+          const es = new EventSource(url, { withCredentials:false });
+          es.onmessage = (ev)=>{
+            try{
+              const data = ev && ev.data ? JSON.parse(ev.data) : {};
+              if (data && (data.ok===true || data.verified===true)) {
+                onVerified();
+              }
+            }catch(_){}
+          };
+          es.onerror = async ()=>{
+            // Caiu/401/timeout — tenta POST como fallback uma vez
+            try { es.close(); } catch(_){}
+            confirmViaPOST();
+          };
+          return true;
+        }catch(_){ return false; }
+      }
+
+      // Boot simples
+      document.addEventListener('DOMContentLoaded', async ()=>{
+        // registra o "modo espera" para a outra aba
+        try { localStorage.setItem('mr_waiting_email_verification','1'); } catch(_){}
+        let ok = startSSE();
+        if (!ok) { await confirmViaPOST(); }
+        // reforços leves
+        setTimeout(confirmViaPOST, 1200);
+        setTimeout(confirmViaPOST, 3000);
+      });
+    })();
+    /* ==== [/PATCH] ==== */
   </script>
 </body>
 </html>
