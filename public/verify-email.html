@@ -70,6 +70,36 @@
   </div>
 
   <script>
+  (function(){
+    const qs = k => new URLSearchParams(location.search).get(k) || '';
+    const vt = qs('vt');
+    const cont = qs('cont') || '/pages/configuracao.html';
+
+    async function confirmVT(){
+      try{
+        const r = await fetch('/api/auth/confirm-email', {
+          method:'POST',
+          headers:{'Content-Type':'application/json','Accept':'application/json'},
+          body: JSON.stringify({ vt })
+        });
+        const j = await r.json().catch(()=> ({}));
+        if (r.ok && j && j.ok && j.verified){
+          try { localStorage.setItem('mr_email_verified','1'); } catch(_){}
+          location.href = cont;
+          return;
+        }
+        console.warn('[verify-email] VT não confirmou:', j);
+      }catch(e){
+        console.error('[verify-email] erro confirmVT', e);
+      }
+    }
+
+    if (vt){ confirmVT(); } // fluxo principal
+    // mantém o watchdog existente como fallback (poll check-verification etc.)
+  })();
+  </script>
+
+  <script>
     // ===== Base do backend
     const API_BASE = (window.API_BASE || 'https://mei-robo-prod.onrender.com').replace(/\/$/,'');
     // [ADD] Flag compartilhada com cadastro.html para retomar "modo espera"
