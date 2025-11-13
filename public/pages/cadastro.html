@@ -584,7 +584,7 @@ try {
       }
     } catch(_) {}
   }, { passive: true });
-} catch(_) {}
+} catch(_){}
 
 /* ====== (A) Utilitária: checar via backend e avançar ====== */
     async function checkVerifiedViaBackendAndAdvance(){
@@ -1029,6 +1029,14 @@ try {
           if (u && !u.emailVerified) {
             // Garante SSE ligado
             try{ startSSE(u); }catch(_){}
+
+            // Reenvia o e-mail de verificação via backend (SendGrid)
+            try {
+              await sendVerificationViaBackend(u);
+            } catch(e) {
+              console.warn('[cadastro] falha ao reenviar verificação (branch 0):', e && (e.message || e));
+            }
+
             const fallbackMail = (u.email || (emailInput.value||'')).trim();
             showVerifyBanner(fallbackMail);
             const url = '/pages/verify-email.html?email=' + encodeURIComponent(fallbackMail) + '&cont=/pages/configuracao.html';
@@ -1256,4 +1264,3 @@ try {
   </script>
 </body>
 </html>
-
