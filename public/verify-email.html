@@ -50,140 +50,188 @@
   </div>
 
   <script>
-    // Utils
-    function qs(k){try{return new URLSearchParams(location.search).get(k)||""}catch(_){return ""}}
+    // ===== Utils de querystring =====
+    function qs(k){
+      try { return new URLSearchParams(location.search).get(k) || ""; }
+      catch(_) { return ""; }
+    }
+
+    // Para onde vamos depois de verificar
     const cont = qs("cont") || "/pages/configuracao.html";
-    const mode = qs("mode");           // esperado: verifyEmail
-    const oobCode = qs("oobCode");     // código do Firebase no link
-    const continueUrl = qs("continueUrl") || "";
-    const emailParam = qs("email") || ""; // opcional — se vier do template
+    // Token de verificação gerado pelo backend (vt=...)
+    const vt = qs("vt") || "";
+    // E-mail opcional vindo no link
+    const emailParam = qs("email") || "";
+
+    // Backend canônico (Render)
+    const API_BASE = "https://mei-robo-prod.onrender.com";
+
+    // Refs de UI
     const msg = document.getElementById("msg");
     const btn = document.getElementById("btn");
     const resendBtn = document.getElementById("resendBtn");
     const emailSpan = document.getElementById("email");
     const tip = document.getElementById("tip");
     const intro = document.getElementById("intro");
-    const LS_KEY = "meirobo_last_verif_sent_at"; // debounce local
 
+    // Debounce local para reenvio
+    const LS_KEY = "meirobo_last_verif_sent_at"; // timestamp do último reenvio
+
+    // ===== Sinalização para outras abas/janelas =====
     function broadcastVerified(){
+      // Flag que o cadastro.html e outros scripts já conhecem
+      try { localStorage.setItem("mr_email_verified","1"); } catch(_) {}
+
       try {
-        if ('BroadcastChannel' in window) {
-          new BroadcastChannel('auth').postMessage({type:'email-verified'});
+        if ("BroadcastChannel" in window) {
+          new BroadcastChannel("auth").postMessage({ type: "email-verified" });
+          new BroadcastChannel("mr_events").postMessage({ type: "email_verified" });
         }
       } catch(_) {}
-      try { window.opener && window.opener.postMessage({type:'email-verified'}, "*"); } catch(_) {}
-      try { window.parent && window.parent.postMessage({type:'email-verified'}, "*"); } catch(_) {}
+
+      try { window.opener && window.opener.postMessage({ type: "email-verified" }, "*"); } catch(_) {}
+      try { window.parent && window.parent.postMessage({ type: "email-verified" }, "*"); } catch(_) {}
+
       try {
-        const ev = new Event('email-verified'); window.dispatchEvent(ev);
+        const ev = new Event("email-verified");
+        window.dispatchEvent(ev);
       } catch(_) {}
     }
 
+    // ===== Debounce de reenvio =====
     function renderDebounceTip(){
-      const last = Number(localStorage.getItem(LS_KEY) || "0");
+      let last = 0;
+      try { last = Number(localStorage.getItem(LS_KEY) || "0"); } catch(_) { last = 0; }
       if (!last) { tip.textContent = ""; return; }
+
       const secs = Math.max(0, 90 - Math.floor((Date.now() - last)/1000));
-      tip.textContent = secs > 0 ? `Você pode reenviar novamente em ${secs}s.` : "";
+      tip.textContent = secs > 0 ? ("Você pode reenviar novamente em " + secs + "s.") : "";
       if (secs > 0) setTimeout(renderDebounceTip, 1000);
     }
 
     function canResend(){
-      const last = Number(localStorage.getItem(LS_KEY) || "0");
+      let last = 0;
+      try { last = Number(localStorage.getItem(LS_KEY) || "0"); } catch(_) { last = 0; }
       return (Date.now() - last) > 90_000; // 90s
     }
 
-    // *** AJUSTE: usar GET /api/auth/check-verification com fallback para GET /api/auth/whoami ***
-    async function checkWithBackend(){
-      msg.textContent = "Verificando...";
-      msg.className = "row hint";
-      try{
-        const u = firebase.auth().currentUser;
-        if (!u) { msg.textContent = "Entre com seu e-mail e senha e tente de novo."; msg.className = "row err"; return false; }
-        const idToken = await u.getIdToken(true);
+    // ===== Confirmação via backend usando vt =====
+    async function confirmWithBackend(){
+      if (!vt) {
+        msg.textContent = "Link de verificação inválido ou incompleto. Abra o e-mail mais recente e clique no botão.";
+        msg.className = "row err";
+        return false;
+      }
 
-        // 1) Tenta GET /api/auth/check-verification
-        let res = await fetch("/api/auth/check-verification", {
-          method: "GET",
-          headers: { "Authorization": "Bearer " + idToken, "Accept": "application/json" }
+      msg.textContent = "Confirmando seu e-mail…";
+      msg.className = "row hint";
+
+      try {
+        const body = { vt: vt };
+        if (emailParam) body.email = emailParam;
+
+        const res = await fetch(API_BASE.replace(/\/$/,"") + "/api/auth/confirm-email", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Accept": "application/json"
+          },
+          body: JSON.stringify(body)
         });
 
-        if (res.status === 405) {
-          // 2) Fallback: GET /api/auth/whoami
-          const r2 = await fetch("/api/auth/whoami", {
-            method: "GET",
-            headers: { "Authorization": "Bearer " + idToken, "Accept": "application/json" }
-          });
-          if (r2.ok) {
-            const j2 = await r2.json().catch(()=>({}));
-            const verified = !!(j2 && (j2.email_verified === true || j2.emailVerified === true));
-            if (verified) {
-              msg.textContent = "E-mail verificado! Redirecionando...";
-              msg.className = "row ok";
-              broadcastVerified();
-              setTimeout(()=> location.href = cont, 300);
-              return true;
-            } else {
-              msg.textContent = "Ainda não verificou. Abra o link do e-mail e tente novamente.";
-              msg.className = "row err";
-              return false;
-            }
-          } else {
-            msg.textContent = "Falha no fallback de verificação (" + r2.status + ").";
-            msg.className = "row err";
-            return false;
-          }
-        } else {
-          const data = await res.json().catch(()=>({}));
-          if (res.ok && data && data.verified === true) {
-            msg.textContent = "E-mail verificado! Redirecionando...";
-            msg.className = "row ok";
-            broadcastVerified();
-            setTimeout(()=> location.href = cont, 300);
-            return true;
-          }
+        const raw = await res.text();
+        let data = {};
+        try { data = raw ? JSON.parse(raw) : {}; } catch(_) {}
+
+        const ok =
+          !!(data &&
+             (data.verified === true ||
+              data.email_verified === true ||
+              data.ok === true ||
+              data.status === "verified"));
+
+        let already =
+          !!(data &&
+             (data.already === true ||
+              /already|usado|expirado/i.test(String(data.message || ""))));
+
+        // Se o backend responder 409/410 mas marcar como já usado, tratamos como sucesso idempotente
+        if (!res.ok && (res.status === 409 || res.status === 410)) {
+          already = true;
         }
 
-        // 3) Último recurso: recarrega usuário do Firebase e confere flag local
-        try { await u.reload(); } catch(_){}
-        if (u.emailVerified === true) {
-          msg.textContent = "E-mail verificado! Redirecionando...";
+        if (ok || already) {
+          try { localStorage.setItem("mr_email_verified","1"); } catch(_) {}
+
+          msg.textContent = already
+            ? "Este link já tinha sido usado, mas seu e-mail está verificado. Vamos seguir…"
+            : "E-mail verificado com sucesso! Redirecionando…";
           msg.className = "row ok";
+
           broadcastVerified();
-          setTimeout(()=> location.href = cont, 300);
+
+          setTimeout(function(){
+            location.href = cont || "/pages/configuracao.html";
+          }, 800);
           return true;
-        } else {
-          msg.textContent = "Ainda não verificou. Abra o link do e-mail e tente novamente.";
-          msg.className = "row err";
-          return false;
         }
-      } catch(e){
-        msg.textContent = "Erro ao verificar: " + (e && e.message ? e.message : e);
+
+        // Caso não venha nenhum sinal de sucesso
+        msg.textContent =
+          (data && data.message) ||
+          "Não conseguimos confirmar este link. Abra o e-mail mais recente ou peça um novo envio.";
+        msg.className = "row err";
+        return false;
+
+      } catch (e) {
+        msg.textContent = "Erro ao confirmar: " + (e && e.message ? e.message : e);
         msg.className = "row err";
         return false;
       }
     }
 
+    // ===== Reenvio via backend (se o usuário estiver logado nesta aba) =====
     async function resend(){
       msg.textContent = "";
       msg.className = "row hint";
+
       try {
-        const u = firebase?.auth?.().currentUser;
-        if (!u) { msg.textContent = "Faça login e tente de novo."; msg.className = "row err"; return; }
-        if (!canResend()){
+        if (!window.firebase || !firebase.auth) {
+          msg.textContent = "Abra a aba original onde você fez o cadastro para reenviar o e-mail.";
+          msg.className = "row err";
+          return;
+        }
+
+        const u = firebase.auth().currentUser || null;
+        if (!u) {
+          msg.textContent = "Faça login na aba original e tente reenviar de lá.";
+          msg.className = "row err";
+          return;
+        }
+
+        if (!canResend()) {
           renderDebounceTip();
           msg.textContent = "Aguarde alguns segundos antes de reenviar.";
           msg.className = "row hint";
           return;
         }
-        resendBtn.disabled = true; resendBtn.textContent = "Reenviando…";
+
+        resendBtn.disabled = true;
+        resendBtn.textContent = "Reenviando…";
+
         const idToken = await u.getIdToken(true);
-        const r = await fetch("/api/auth/send-verification-email", {
+        const r = await fetch(API_BASE.replace(/\/$/,"") + "/api/auth/send-verification-email", {
           method: "POST",
-          headers: { "Authorization": "Bearer " + idToken, "Content-Type": "application/json" },
+          headers: {
+            "Authorization": "Bearer " + idToken,
+            "Content-Type": "application/json"
+          },
           body: JSON.stringify({})
         });
+
         const text = await r.text();
         if (r.ok) {
-          localStorage.setItem(LS_KEY, String(Date.now()));
+          try { localStorage.setItem(LS_KEY, String(Date.now())); } catch(_) {}
           renderDebounceTip();
           msg.textContent = "Reenviado! Verifique sua caixa de entrada e o spam.";
           msg.className = "row ok";
@@ -191,81 +239,42 @@
           msg.textContent = "Falhou ao reenviar: " + (text || r.status);
           msg.className = "row err";
         }
+
       } catch (e) {
-        msg.textContent = "Erro ao reenviar: " + (e?.message || e);
+        msg.textContent = "Erro ao reenviar: " + (e && e.message ? e.message : e);
         msg.className = "row err";
       } finally {
-        resendBtn.disabled = false; resendBtn.textContent = "Reenviar e-mail";
+        resendBtn.disabled = false;
+        resendBtn.textContent = "Reenviar e-mail";
       }
     }
 
-    // 1) BOOT
-    document.addEventListener("DOMContentLoaded", async () => {
-      try {
-        await new Promise(r => setTimeout(r, 200)); // dá tempo do firebase init
-        const u = firebase.auth().currentUser || null;
-        emailSpan.textContent = (u?.email) || emailParam || "—";
-        renderDebounceTip();
+    // ===== Boot =====
+    document.addEventListener("DOMContentLoaded", function(){
+      // Mostra o e-mail se veio no link
+      emailSpan.textContent = emailParam || "—";
 
-        // 2) Se veio com o link oficial (mode=verifyEmail & oobCode), aplicar o código aqui mesmo
-        if ((mode || "").toLowerCase() === "verifyemail" && oobCode) {
-          intro.textContent = "Confirmando seu e-mail…";
-          msg.textContent = "Aguarde um instante…";
-          msg.className = "row hint";
+      renderDebounceTip();
 
-          try {
-            // Checa código (opcional – ajuda com mensagens melhores)
-            await firebase.auth().checkActionCode(oobCode).catch(()=>{});
-
-            // Aplica o código (funciona mesmo sem estar logado)
-            await firebase.auth().applyActionCode(oobCode);
-
-            // Força um refresh do usuário se estiver logado nesta aba
-            if (u) { try { await u.reload(); } catch(_){} }
-
-            msg.textContent = "E-mail verificado com sucesso!";
-            msg.className = "row ok";
-
-            // Sinaliza outras abas (cadastro.html) para avançarem
-            broadcastVerified();
-
-            // Se o e-mail trouxe continueUrl, usa; senão, usa 'cont' ou configuracao.html
-            const next = continueUrl || cont || "/pages/configuracao.html";
-            setTimeout(()=> location.href = next, 500);
-            return;
-          } catch (e) {
-            // Se o código já foi usado, tratamos como sucesso idempotente
-            const emsg = (e && (e.code||e.message)) || "";
-            const already = /expired|invalid|already/i.test(emsg) || /already.*used/i.test(emsg);
-            if (already) {
-              msg.textContent = "Este link já foi usado. Tentando finalizar…";
-              msg.className = "row hint";
-              broadcastVerified();
-              setTimeout(()=> location.href = cont, 500);
-              return;
-            }
-            msg.textContent = "Não foi possível confirmar automaticamente: " + (e?.message || e);
-            msg.className = "row err";
-          }
-        }
-      } catch {}
+      if (vt) {
+        // Caso normal vindo do e-mail oficial com vt
+        intro.textContent = "Confirmando seu e-mail…";
+        confirmWithBackend();
+      } else {
+        // Link sem vt (antigo / manual)
+        intro.textContent =
+          "Abra o link que enviamos para seu e-mail. Se você chegou por esse link, estamos confirmando automaticamente…";
+      }
     });
 
-    // 3) Botões
-    btn.addEventListener("click", async () => {
-      // Tenta fluxo rápido: se já veio com oobCode mas falhou por detalhe, re-aplica
-      if ((mode||"").toLowerCase() === "verifyemail" && oobCode) {
-        try {
-          await firebase.auth().applyActionCode(oobCode);
-          broadcastVerified();
-          msg.textContent = "Confirmado! Redirecionando…";
-          msg.className = "row ok";
-          setTimeout(()=> location.href = cont, 300);
-          return;
-        } catch(_) {}
+    // ===== Botões =====
+    btn.addEventListener("click", function(){
+      if (vt) {
+        confirmWithBackend();
+      } else {
+        msg.textContent = "Este link está incompleto. Abra o e-mail mais recente e clique no botão de verificação.";
+        msg.className = "row err";
       }
-      // Senão, cai no backend (exige login)
-      await checkWithBackend();
     });
 
     resendBtn.addEventListener("click", resend);

@@ -1193,32 +1193,29 @@ try {
 
         // 1) Firebase primeiro
         try { await u.reload(); } catch(_){}
-        if (u.emailVerified === true) { location.href = DEST; return true; }
+        if (u.emailVerified === true) {
+          location.href = DEST;
+          return true;
+        }
 
         // 2) Backend (Bearer) como reforço
         const idt = await u.getIdToken(true);
         const r = await fetch(API_BASE_IIFE + '/api/auth/check-verification', {
-          method:'GET',
-          headers:{'Authorization':'Bearer '+idt,'Accept':'application/json'}
+          method: 'GET',
+          headers: {
+            'Authorization': 'Bearer ' + idt,
+            'Accept': 'application/json'
+          }
         });
+
         if (r.ok){
           const j = await r.json().catch(()=> ({}));
-          if (j?.verified === true) { location.href = DEST; return true; }
-        }
-
-        // 2.1) Fallback final: re-login silencioso para renovar sessão/claims
-        try {
-          const e = (typeof emailInput !== 'undefined' && emailInput) ? (emailInput.value || '').trim() : '';
-          const p = (typeof pwd !== 'undefined' && pwd) ? (pwd.value || '') : '';
-          if (e && p) {
-            await firebase.auth().signInWithEmailAndPassword(e, p);
-            const u2 = firebase.auth().currentUser || null;
-            try { await (u2 && u2.reload ? u2.reload() : Promise.resolve()); } catch(_){}
-            if (u2 && u2.emailVerified === true) { location.href = DEST; return true; }
+          if (j && j.verified === true) {
+            location.href = DEST;
+            return true;
           }
-        } catch(_){}
-
-      }catch(_){}
+        }
+      } catch(_){}
       return false;
     }
 
