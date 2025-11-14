@@ -1,4 +1,5 @@
 <!DOCTYPE html> 
+
 <html lang="pt-BR">
 <head>
   <meta charset="utf-8" />
@@ -6,16 +7,22 @@
   <title>MEI Robô — Cadastro</title>
 
   <!-- Canonical WWW (o layout.js sobrescreve em runtime se precisar, mas já deixamos correto) -->
+
   <link rel="canonical" href="https://www.meirobo.com.br/cadastro.html" />
   <meta property="og:url" content="https://www.meirobo.com.br/cadastro.html" />
   <meta name="twitter:url" content="https://www.meirobo.com.br/cadastro.html" />
   <meta name="referrer" content="strict-origin-when-cross-origin" />
 
   <!-- Firebase Hosting: SDK compat + init automático -->
+
   <script defer src="/__/firebase/9.22.2/firebase-app-compat.js"></script>
+
   <script defer src="/__/firebase/9.22.2/firebase-auth-compat.js"></script>
+
   <!-- IMPORTANT: sem emulador em produção -->
+
   <script defer src="/__/firebase/init.js"></script>
+
   <script>
   window.addEventListener('load', () => {
     try {
@@ -31,6 +38,7 @@
   </script>
 
   <!-- Cloudflare Turnstile (produção) - mantido para atender o backend -->
+
   <meta name="TURNSTILE_SITE_KEY" content="0x4AAAAAAB0t6kBJwJJgmsr3">
   <script src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit" async defer></script>
 
@@ -72,6 +80,7 @@
     #successBox .actions a { text-decoration:none; }
     .footer-note { margin-top:14px; opacity:.9 }
   </style>
+
 </head>
 <body>
   <div id="app-header"></div>
@@ -79,7 +88,9 @@
 
   <main class="section">
     <div class="container form-wrap">
-      <h1 style="color:var(--wa-dark); margin:0 0 2px">Crie sua conta <small style="font-weight:400; opacity:.9">(etapa 1 de 3)</small></h1>
+      <h1 style="color:var(--wa-dark); margin:0 0 2px">
+        Crie sua conta <small style="font-weight:400; opacity:.9">(etapa 1 de 3)</small>
+      </h1>
       <p class="hint" style="margin:0 0 12px">
         Você cria sua conta agora. Depois confirmamos seu e-mail e, já logado, você completa a configuração (CNPJ e voz).
       </p>
@@ -278,37 +289,6 @@
     const verifyBannerText = document.getElementById('verifyBannerText');
     const verifyBannerEmail = document.getElementById('verifyBannerEmail');
     const btnAlreadyVerified = document.getElementById('btnAlreadyVerified');
-
-    // Aba de verificação pré-aberta (para não ser bloqueada)
-    let VERIFY_TAB = null;
-
-    // Pré-abre a aba de verificação assim que o usuário interagir (para não ser bloqueado como popup)
-    function warmupVerifyTab(){
-      try {
-        if (!VERIFY_TAB || VERIFY_TAB.closed) {
-          // abre uma aba simples, ligada a um gesto do usuário
-          VERIFY_TAB = window.open('about:blank', '_blank', 'noopener,noreferrer');
-          if (VERIFY_TAB) {
-            try {
-              VERIFY_TAB.document.write('<!DOCTYPE html><title>Aguardando verificação...</title>');
-              VERIFY_TAB.document.close();
-            } catch(_) {}
-          }
-        }
-      } catch(_) {}
-    }
-
-    // Liga o aquecimento em eventos que são gesto explícito do usuário
-    try {
-      if (emailInput) {
-        emailInput.addEventListener('focus', warmupVerifyTab, { once: true });
-      }
-      if (submitBtn) {
-        submitBtn.addEventListener('click', function(){
-          warmupVerifyTab();
-        }, { once: true });
-      }
-    } catch(_) {}
 
     let cnpjAvailability = 'unknown';
 
@@ -1200,6 +1180,7 @@ try {
   </script>
 
   <!-- (A3) Auto-avanço na volta (focus/visibility) -->
+
   <script>
   (function(){
     const API_BASE_IIFE = (window.API_BASE || 'https://mei-robo-prod.onrender.com').replace(/\/$/,'');
@@ -1260,6 +1241,7 @@ try {
   </script>
 
   <!-- Bloco adicional: check periódico + foco/visibilidade (posicionado logo após o listener de storage) -->
+
   <script>
   (function(){
     var API_BASE = (window.API_BASE || 'https://mei-robo-prod.onrender.com').replace(/\/$/,'');
@@ -1317,7 +1299,7 @@ try {
 
     // Se a página de verificação tiver setado o flag, começamos a vigiar
     try {
-      if (localStorage.getItem('mr_waiting_email_verification') === '1') {
+      if (localStorage.getItem(WAIT_FLAG_KEY) === '1') {
         startPolling();
       } else {
         // mesmo sem flag, iniciamos polling leve (caso o usuário já tenha verificado fora)
@@ -1328,6 +1310,7 @@ try {
   </script>
 
   <!-- Guard anti Firebase nativo (robustez) -->
+
   <script>
   (function(){
     try{
@@ -1350,6 +1333,7 @@ try {
   </script>
 
   <!-- Watchdog canônico (acrescentado no final, sem alterar nada mais) -->
+
   <script>
   (function(){
   const API_BASE = (window.API_BASE || 'https://mei-robo-prod.onrender.com').replace(/\/$/,'');
@@ -1407,5 +1391,6 @@ try {
   });
   })();
   </script>
+
 </body>
 </html>
