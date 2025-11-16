@@ -345,6 +345,33 @@
     // 🔧 Ajuste: prioriza window.API_BASE (se já definido) e mantém fallback para localStorage/config padrão
     const API_BASE = (window.API_BASE || localStorage.getItem('apiBase') || 'https://mei-robo-prod.onrender.com').replace(/\/+$/, '');
 
+    (async function enforceVerifiedEmail() {
+      try {
+        // opcional: checar flag local para UX mais rápida
+        const localFlag = localStorage.getItem("mr_email_verified");
+        if (localFlag === "1") return;
+
+        // checagem backend
+        const res = await fetch("/api/auth/check-verification", {
+          method: "GET",
+          credentials: "include"
+        });
+        if (!res.ok) {
+          // se der erro bizarro, não redireciona à força
+          console.warn("[configuracao] check-verification falhou:", res.status);
+          return;
+        }
+        const data = await res.json().catch(() => ({}));
+        const ok = !!(data.verified || data.ok || data.email_verificado);
+        if (!ok) {
+          // usuário tentou burlar? manda de volta pro cadastro
+          window.location.href = "/cadastro.html";
+        }
+      } catch (e) {
+        console.error("[configuracao] erro em enforceVerifiedEmail:", e);
+      }
+    })();
+
     /* ===== Gatekeeper robusto ===== */
     const authStatus = document.getElementById('authStatus');
     function setAuthMsg(t){ authStatus.textContent = t || ''; }
@@ -417,7 +444,7 @@
     function isValidCNPJ(cnpj){
       cnpj = onlyDigits(cnpj||'');
       if (cnpj.length !== 14) return false;
-      if (/^(\d)\1{13}$/.test(cnpj)) return false;
+      if (/^(\d){13}$/.test(cnpj)) return false;
       let t = 12, d1 = 0, d2 = 0, p1 = 5, p2 = 6;
       for (let i = 0; i < t; i++) {
         const n = parseInt(cnpj[i],10);
@@ -931,7 +958,8 @@
                       const emp2 = await fetchEmpresaDetalhes(c2);
                       if (emp2) populateFromEmpresa(emp2);
                     } catch(_){}
-                  }catch(_){}
+                  }catch(_){
+                  }
                   cnpjForm.style.display = 'none';
                   cnpjMsg.textContent = '';
                   tryCheckCnpjVinculo(hCnpj.value || '', authName || '');
@@ -1073,3 +1101,4 @@
   </script>
 </body>
 </html>
+
