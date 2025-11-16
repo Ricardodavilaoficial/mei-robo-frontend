@@ -201,6 +201,50 @@
 
           <div id="formMsg" class="hint" aria-live="polite"></div>
 
+          <!-- === Bloco pós-cadastro NOVO e padronizado === -->
+          <div id="postSignupBox" style="
+            margin-top: 24px;
+            padding: 20px;
+            background: #151618;
+            border-radius: 14px;
+            box-shadow: 0 6px 20px rgba(0,0,0,.35);
+            display: none;
+          ">
+            <h2 style="margin:0 0 8px; font-size:1.2rem;">Verifique seu e-mail</h2>
+            <p id="psgInfo" style="opacity:.9; line-height:1.5;">
+              Enviamos um link de confirmação para:<br>
+              <span id="psgEmail" style="
+                font-family: ui-monospace, Consolas, monospace;
+                background:#111;
+                padding:4px 6px;
+                border-radius:8px;
+                display:inline-block;
+                margin-top:6px;
+              ">—</span>
+              <br><br>
+              Abra seu e-mail, clique no botão e depois volte para esta aba.
+            </p>
+
+            <p id="psgStatus" style="margin-top:12px; opacity:.8;">Aguardando verificação…</p>
+
+            <div style="display:flex; gap:10px; flex-wrap:wrap; margin-top:14px;">
+              <button id="psgContinueBtn" disabled
+                style="flex:1 1 200px; padding:14px 16px; border-radius:12px;
+                      background:#25d366; color:#0b141a; border:0; cursor:not-allowed;
+                      opacity:.55; font-size:1rem; font-weight:600;">
+                Já verifiquei — continuar
+              </button>
+
+              <button id="psgResendBtn"
+                style="flex:1 1 200px; padding:14px 16px; border-radius:12px;
+                      background:#2a2d31; color:#e8e8e8; border:0; font-size:1rem;">
+                Reenviar e-mail
+              </button>
+            </div>
+
+            <p id="psgMsg" style="margin-top:12px; font-size:.9rem; opacity:.85;"></p>
+          </div>
+
           <!-- Turnstile (explícito, compacto) -->
           <div class="form-row full" style="margin-top:8px">
             <div id="cf-turnstile" aria-label="Validação de segurança"></div>
@@ -283,6 +327,14 @@
     const successBox = document.getElementById('successBox');
     const successMsg = document.getElementById('successMsg');
     const goVerify = document.getElementById('goVerify');
+
+    // Bloco pós-cadastro novo
+    const postSignupBox = document.getElementById('postSignupBox');
+    const psgEmail = document.getElementById('psgEmail');
+    const psgStatus = document.getElementById('psgStatus');
+    const psgMsg = document.getElementById('psgMsg');
+    const psgContinueBtn = document.getElementById('psgContinueBtn');
+    const psgResendBtn = document.getElementById('psgResendBtn');
 
     // Banner aguardando verificação
     const verifyBanner = document.getElementById('verifyBanner');
@@ -1057,44 +1109,73 @@ try {
           localStorage.setItem('mr_waiting_email_verification', '1'); 
         } catch(_) {}
 
-        /* PATCH 1 — novo conteúdo do box "Confirme seu e-mail" + botão inline */
-        try {
-          const box = document.createElement('div');
-          box.setAttribute('role','status');
-          box.style.cssText = 'margin:14px 0;padding:16px;border-radius:12px;background:#151618;border:1px solid #23302e';
-          box.innerHTML = `
-            <div style="font-weight:700;margin-bottom:6px">Confirme seu e-mail para continuar</div>
-            <div class="hint">
-              <strong>Abra sua caixa de entrada agora</strong> e clique no botão do e-mail de confirmação.
-              <br/>Depois <strong>volte para esta aba</strong> e clique em
-              <strong>“Já verifiquei — continuar”</strong> para avançar para <em>Configuração da Conta</em>.
-            </div>
-            <div class="actions" style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap">
-              <button type="button" id="btnInlineVerified" class="btn-secondary">
-                Já verifiquei — continuar
-              </button>
-            </div>
-          `;
-          const target = document.querySelector('#formMsg');
-          if (target && target.parentNode) {
-            target.parentNode.replaceChild(box, target);
+        // === Exibir bloco novo pós-cadastro ===
+        const box = document.getElementById("postSignupBox");
+        const emailOut = document.getElementById("psgEmail");
+        emailOut.textContent = emailInput.value.trim() || "—";
+        box.style.display = "block";
+
+        // desabilita rolagem pra cima
+        window.scrollTo({ top: box.offsetTop - 20, behavior: "smooth" });
+
+        document.getElementById("psgResendBtn").onclick = async function () {
+          psgMsg.textContent = "Reenviando…";
+
+          if (!firebase.auth().currentUser) {
+            psgMsg.textContent = "Abra a aba original onde você fez o cadastro.";
+            return;
           }
 
-          // Liga o botão inline no mesmo fluxo de avanço
           try {
-            const inlineBtn = box.querySelector('#btnInlineVerified');
-            if (inlineBtn) {
-              inlineBtn.addEventListener('click', function (ev) {
-                ev.preventDefault();
-                // usa o mesmo caminho que o botão do banner usa
-                advanceIfVerified(true);
-              });
+            const token = await firebase.auth().currentUser.getIdToken(true);
+            const r = await fetch(API_BASE + "/api/auth/send-verification-email", {
+              method: "POST",
+              headers: { "Authorization": "Bearer " + token }
+            });
+
+            const txt = await r.text();
+            if (r.ok) {
+              psgMsg.textContent = "Pronto! Verifique sua caixa de entrada.";
+            } else {
+              psgMsg.textContent = "Falha no reenvio: " + txt;
+            }
+          } catch (e) {
+            psgMsg.textContent = "Erro ao reenviar.";
+          }
+        };
+
+        async function pollVerification() {
+          try {
+            const r = await fetch(API_BASE + "/api/auth/check-verification", {
+              method: "GET",
+              credentials: "include"
+            });
+
+            if (!r.ok) return setTimeout(pollVerification, 2000);
+
+            const data = await r.json();
+            const verified = !!(data.verified || data.ok || data.email_verificado);
+
+            if (verified) {
+              localStorage.setItem("mr_email_verified", "1");
+              document.getElementById("psgStatus").textContent = "E-mail confirmado!";
+              const btn = document.getElementById("psgContinueBtn");
+              btn.disabled = false;
+              btn.style.opacity = "1";
+              btn.style.cursor = "pointer";
+              return;
             }
           } catch(_) {}
-        } catch(_) {}
 
-        // atualiza o banner superior com o e-mail (se tivermos)
-        try { showVerifyBanner(mail); } catch(_){}
+          setTimeout(pollVerification, 2000);
+        }
+
+        pollVerification();
+
+        document.getElementById("psgContinueBtn").onclick = function () {
+          if (this.disabled) return;
+          window.location.href = "/pages/configuracao.html";
+        };
 
         // NÃO abrir verify-email automaticamente, nem trocar de aba.
         // Deixa o usuário na tela de cadastro aguardando verificação.
@@ -1317,4 +1398,3 @@ try {
 
 </body>
 </html>
-

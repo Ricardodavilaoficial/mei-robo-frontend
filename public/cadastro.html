@@ -84,7 +84,7 @@
 </head>
 <body>
   <div id="app-header"></div>
-  <div id="header"></div>
+  <div id="header"></"></div>
 
   <main class="section">
     <div class="container form-wrap">
@@ -201,6 +201,50 @@
 
           <div id="formMsg" class="hint" aria-live="polite"></div>
 
+          <!-- === Bloco pós-cadastro NOVO e padronizado === -->
+          <div id="postSignupBox" style="
+            margin-top: 24px;
+            padding: 20px;
+            background: #151618;
+            border-radius: 14px;
+            box-shadow: 0 6px 20px rgba(0,0,0,.35);
+            display: none;
+          ">
+            <h2 style="margin:0 0 8px; font-size:1.2rem;">Verifique seu e-mail</h2>
+            <p id="psgInfo" style="opacity:.9; line-height:1.5;">
+              Enviamos um link de confirmação para:<br>
+              <span id="psgEmail" style="
+                font-family: ui-monospace, Consolas, monospace;
+                background:#111;
+                padding:4px 6px;
+                border-radius:8px;
+                display:inline-block;
+                margin-top:6px;
+              ">—</span>
+              <br><br>
+              Abra seu e-mail, clique no botão e depois volte para esta aba.
+            </p>
+
+            <p id="psgStatus" style="margin-top:12px; opacity:.8;">Aguardando verificação…</p>
+
+            <div style="display:flex; gap:10px; flex-wrap:wrap; margin-top:14px;">
+              <button id="psgContinueBtn" disabled
+                style="flex:1 1 200px; padding:14px 16px; border-radius:12px;
+                      background:#25d366; color:#0b141a; border:0; cursor:not-allowed;
+                      opacity:.55; font-size:1rem; font-weight:600;">
+                Já verifiquei — continuar
+              </button>
+
+              <button id="psgResendBtn"
+                style="flex:1 1 200px; padding:14px 16px; border-radius:12px;
+                      background:#2a2d31; color:#e8e8e8; border:0; font-size:1rem;">
+                Reenviar e-mail
+              </button>
+            </div>
+
+            <p id="psgMsg" style="margin-top:12px; font-size:.9rem; opacity:.85;"></p>
+          </div>
+
           <!-- Turnstile (explícito, compacto) -->
           <div class="form-row full" style="margin-top:8px">
             <div id="cf-turnstile" aria-label="Validação de segurança"></div>
@@ -284,6 +328,14 @@
     const successMsg = document.getElementById('successMsg');
     const goVerify = document.getElementById('goVerify');
 
+    // Bloco pós-cadastro novo
+    const postSignupBox = document.getElementById('postSignupBox');
+    const psgEmail = document.getElementById('psgEmail');
+    const psgStatus = document.getElementById('psgStatus');
+    const psgMsg = document.getElementById('psgMsg');
+    const psgContinueBtn = document.getElementById('psgContinueBtn');
+    const psgResendBtn = document.getElementById('psgResendBtn');
+
     // Banner aguardando verificação
     const verifyBanner = document.getElementById('verifyBanner');
     const verifyBannerText = document.getElementById('verifyBannerText');
@@ -323,8 +375,16 @@
             const j = JSON.parse(ev.data || '{}');
             console.log('[cadastro][SSE] mensagem', j);
             if (j && j.verified === true){
+              // Só marca sinal local, sem redirecionar.
               try { localStorage.setItem('mr_email_verified','1'); } catch(_){}
-              window.location.href = '/pages/configuracao.html';
+              try {
+                // Se o banner existe, reforça o texto para orientar o clique.
+                if (verifyBannerText) {
+                  verifyBannerText.innerHTML =
+                    '<strong>Seu e-mail já foi confirmado.</strong><br/>' +
+                    'Agora volte ao formulário e clique em <strong>“Já verifiquei — continuar”</strong> para seguir para a próxima etapa.';
+                }
+              } catch(_) {}
             }
           }catch(err){
             console.warn('[cadastro][SSE] falha ao processar mensagem', err);
@@ -568,10 +628,24 @@
     (function setupEmailVerifiedListeners(){
       try {
         var bc = ('BroadcastChannel' in window) ? new BroadcastChannel('auth') : null;
+
         function onSignal(){
+          // Só marca que vimos um sinal de verificação e reforça o banner.
           try { localStorage.setItem('emailVerified', 'true'); } catch(_){ }
-          advanceIfVerified(true);
+          try {
+            if (verifyBannerText) {
+              verifyBannerText.innerHTML =
+                '<strong>Detectamos a confirmação do seu e-mail.</strong><br/>' +
+                'Para continuar, clique em <strong>“Já verifiquei — continuar”</strong>.';
+            }
+            if (verifyBanner && verifyBanner.style.display === 'none') {
+              const mail = (emailInput?.value || '').trim();
+              showVerifyBanner(mail);
+            }
+          } catch(_) {}
+          // ⚠️ NADA de advanceIfVerified aqui.
         }
+
         if (bc) bc.addEventListener('message', function(ev){
           if (ev && ev.data && ev.data.type === 'email-verified') onSignal();
         });
@@ -580,28 +654,42 @@
         });
         window.addEventListener('email-verified', onSignal);
 
-        setInterval(function(){
-          try {
-            if (verifyBanner.style.display !== 'none') advanceIfVerified(false);
-          } catch(_) {}
-        }, 3000);
+        // ⚠️ Removido o setInterval que ficava chamando advanceIfVerified sozinho.
       } catch(_) {}
     })();
 
-/* Sinalização extra: se outra aba gravar no localStorage, avançar de imediato */
+/* Sinalização extra: se outra aba gravar no localStorage, reforça banner mas não redireciona */
 try {
   window.addEventListener('storage', function (ev) {
     try {
       if (ev && ev.key === 'mr_email_verified' && ev.newValue === '1') {
-        // limpa o flag e avança
+        // Apenas limpa o flag e reforça o banner — SEM redirecionar.
         try { localStorage.removeItem('mr_email_verified'); } catch(_){}
-        window.location.href = '/pages/configuracao.html';
+        try {
+          if (verifyBannerText) {
+            verifyBannerText.innerHTML =
+              '<strong>Seu e-mail foi verificado.</strong><br/>' +
+              'Clique em <strong>“Já verifiquei — continuar”</strong> para avançar para a Configuração da conta.';
+          }
+          if (verifyBanner && verifyBanner.style.display === 'none') {
+            showVerifyBanner((emailInput?.value || '').trim());
+          }
+        } catch(_) {}
       }
     } catch(_) {}
   }, { passive: true });
 } catch(_){}
 
-/* ====== (A) Utilitária: checar via backend e avançar ====== */
+    // Marca verificação local e avança para Configuração (uso único)
+    function markVerifiedAndGo(){
+      try {
+        localStorage.setItem('mr_email_verified','1');
+        localStorage.setItem('mr_force_config','1');
+      } catch(_){}
+      window.location.href = '/pages/configuracao.html';
+    }
+
+    /* ====== (A) Utilitária: checar via backend e avançar ====== */
     async function checkVerifiedViaBackendAndAdvance(){
       try {
         if (!window.firebase?.auth) return false;
@@ -633,7 +721,7 @@ try {
             const j2 = await r2.json().catch(()=>({}));
             const verified = !!(j2 && (j2.email_verified === true || j2.emailVerified === true));
             if (verified) {
-              location.href = '/pages/configuracao.html';
+              markVerifiedAndGo();
               return true;
             }
             return false;
@@ -641,7 +729,7 @@ try {
           // se whoami falhar, dá uma última chance reatualizando user
           try { await user.reload(); } catch(_){}
           if (user.emailVerified === true) {
-            location.href = '/pages/configuracao.html';
+            markVerifiedAndGo();
             return true;
           }
           return false;
@@ -650,14 +738,14 @@ try {
         // 3) Fluxo normal do check-verification (GET)
         const data = await res.json().catch(()=>({}));
         if (res.ok && data && data.verified === true) {
-          location.href = '/pages/configuracao.html';
+          markVerifiedAndGo();
           return true;
         }
 
         // 4) Última tentativa: Firebase local
         try { await user.reload(); } catch(_){}
         if (user.emailVerified === true) {
-          location.href = '/pages/configuracao.html';
+          markVerifiedAndGo();
           return true;
         }
         return false;
@@ -678,7 +766,7 @@ try {
         try { await user.reload(); } catch(_){}
 
         if (user.emailVerified === true) {
-          location.href = "/pages/configuracao.html";
+          markVerifiedAndGo();
           return;
         }
 
@@ -692,31 +780,59 @@ try {
     }
 
     function showVerifyBanner(email){
+      // mostra o banner e, se possível, rola a tela até ele
       verifyBannerEmail.textContent = email ? ('E-mail: ' + email) : '';
       verifyBanner.style.display = 'flex';
+      try {
+        verifyBanner.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      } catch(_) {}
     }
     function hideVerifyBanner(){ verifyBanner.style.display = 'none'; }
 
-    /* ====== (C) Handler do botão com backend + fallback ====== */
-    btnAlreadyVerified.addEventListener('click', async (e)=>{
-      e.preventDefault();
-      console.log('[cadastro][btnAlreadyVerified] clique - tentando avançar');
-      // tenta avançar (reload + backend)
-      await advanceIfVerified(true);
-
-      // fallback final (apenas sob gesto do usuário): manda para verify-email com cont=/pages/configuracao.html
-      try{
-        const u = firebase.auth().currentUser || null;
-        const mail = (u?.email || (emailInput?.value||'')).trim();
-        if (verifyBanner.style.display !== 'none') {
-          const url = '/pages/verify-email.html?cont=/pages/configuracao.html'
-            + (mail ? ('&email=' + encodeURIComponent(mail)) : '');
-          console.log('[cadastro][btnAlreadyVerified] fallback manual para', url);
-          window.location.href = url; // gesto explícito, aceitável
+    /* ====== (C) Handler do botão "Já verifiquei — continuar" ====== */
+    async function handleManualAdvance(){
+      try {
+        if (!window.firebase?.auth) {
+          console.warn('[cadastro][btnAlreadyVerified] Firebase Auth não disponível');
+          verifyBannerText.innerHTML =
+            '<strong>Erro momentâneo.</strong> Recarregue esta página e tente de novo.';
+          return;
         }
-      }catch(err){
-        console.warn('[cadastro][btnAlreadyVerified] erro no fallback manual', err);
+
+        const user = firebase.auth().currentUser || null;
+        if (!user) {
+          console.log('[cadastro][btnAlreadyVerified] sem usuário logado');
+          verifyBannerText.innerHTML =
+            'Faça login com seu e-mail e senha em <strong>Entrar</strong> para continuar a configuração.';
+          return;
+        }
+
+        // Passo 1: tenta só o Firebase local
+        try { await user.reload(); } catch(_){}
+        if (user.emailVerified === true) {
+          window.location.href = '/pages/configuracao.html';
+          return;
+        }
+
+        // Passo 2: pergunta para o backend (cobre confirmação em outro navegador/dispositivo)
+        verifyBannerText.innerHTML = 'Confirmando sua verificação no servidor…';
+        const ok = await checkVerifiedViaBackendAndAdvance();
+
+        if (!ok) {
+          verifyBannerText.innerHTML =
+            '<strong>Quase lá!</strong> Ainda não encontramos sua confirmação. ' +
+            'Confirme se clicou no e-mail mais recente e tente de novo em alguns instantes.';
+        }
+      } catch (err) {
+        console.warn('[cadastro][btnAlreadyVerified] erro no avanço manual', err);
+        verifyBannerText.innerHTML =
+          'Não foi possível confirmar agora. Aguarde alguns instantes e tente novamente.';
       }
+    }
+
+    btnAlreadyVerified.addEventListener('click', function(e){
+      e.preventDefault();
+      handleManualAdvance();
     });
 
     // Se o usuário já estiver logado quando abrir esta página,
@@ -795,6 +911,7 @@ try {
               'Content-Type': 'application/json'
             },
             body: JSON.stringify({})
+
           });
         } catch(err) {
           console.error('[cadastro][sendVerificationViaBackend] erro ao repetir envio após 401/403', err);
@@ -992,24 +1109,73 @@ try {
           localStorage.setItem('mr_waiting_email_verification', '1'); 
         } catch(_) {}
 
-        try {
-          const box = document.createElement('div');
-          box.setAttribute('role','status');
-          box.style.cssText = 'margin:14px 0;padding:16px;border-radius:12px;background:#151618;border:1px solid #23302e';
-          box.innerHTML = `
-            <div style="font-weight:700;margin-bottom:6px">Confirme seu e-mail para continuar</div>
-            <div class="hint">
-              <strong>Abra sua caixa de entrada agora</strong> e clique no botão do e-mail de confirmação.
-              <br/>Depois <strong>volte para esta aba</strong>: avançaremos automaticamente para <em>Configuração da Conta</em>.
-            </div>`;
-          const target = document.querySelector('#formMsg');
-          if (target && target.parentNode) {
-            target.parentNode.replaceChild(box, target);
-          }
-        } catch(_) {}
+        // === Exibir bloco novo pós-cadastro ===
+        const box = document.getElementById("postSignupBox");
+        const emailOut = document.getElementById("psgEmail");
+        emailOut.textContent = emailInput.value.trim() || "—";
+        box.style.display = "block";
 
-        // atualiza o banner superior com o e-mail (se tivermos)
-        try { showVerifyBanner(mail); } catch(_){}
+        // desabilita rolagem pra cima
+        window.scrollTo({ top: box.offsetTop - 20, behavior: "smooth" });
+
+        document.getElementById("psgResendBtn").onclick = async function () {
+          psgMsg.textContent = "Reenviando…";
+
+          if (!firebase.auth().currentUser) {
+            psgMsg.textContent = "Abra a aba original onde você fez o cadastro.";
+            return;
+          }
+
+          try {
+            const token = await firebase.auth().currentUser.getIdToken(true);
+            const r = await fetch(API_BASE + "/api/auth/send-verification-email", {
+              method: "POST",
+              headers: { "Authorization": "Bearer " + token }
+            });
+
+            const txt = await r.text();
+            if (r.ok) {
+              psgMsg.textContent = "Pronto! Verifique sua caixa de entrada.";
+            } else {
+              psgMsg.textContent = "Falha no reenvio: " + txt;
+            }
+          } catch (e) {
+            psgMsg.textContent = "Erro ao reenviar.";
+          }
+        };
+
+        async function pollVerification() {
+          try {
+            const r = await fetch(API_BASE + "/api/auth/check-verification", {
+              method: "GET",
+              credentials: "include"
+            });
+
+            if (!r.ok) return setTimeout(pollVerification, 2000);
+
+            const data = await r.json();
+            const verified = !!(data.verified || data.ok || data.email_verificado);
+
+            if (verified) {
+              localStorage.setItem("mr_email_verified", "1");
+              document.getElementById("psgStatus").textContent = "E-mail confirmado!";
+              const btn = document.getElementById("psgContinueBtn");
+              btn.disabled = false;
+              btn.style.opacity = "1";
+              btn.style.cursor = "pointer";
+              return;
+            }
+          } catch(_) {}
+
+          setTimeout(pollVerification, 2000);
+        }
+
+        pollVerification();
+
+        document.getElementById("psgContinueBtn").onclick = function () {
+          if (this.disabled) return;
+          window.location.href = "/pages/configuracao.html";
+        };
 
         // NÃO abrir verify-email automaticamente, nem trocar de aba.
         // Deixa o usuário na tela de cadastro aguardando verificação.
@@ -1179,130 +1345,22 @@ try {
     });
   </script>
 
-  <!-- (A3) Auto-avanço na volta (focus/visibility) -->
-
+  <!-- (A3) Auto-avanço na volta (focus/visibility) DESATIVADO:
+       a navegação agora só ocorre quando o usuário clica em
+       "Já verifiquei — continuar". -->
   <script>
   (function(){
-    const API_BASE_IIFE = (window.API_BASE || 'https://mei-robo-prod.onrender.com').replace(/\/$/,'');
-    const DEST = '/pages/configuracao.html';
-
-    async function tryAdvance(){
-      try{
-        const u = firebase?.auth?.().currentUser || null;
-        if (!u) return false;
-
-        // 1) Firebase primeiro
-        try { await u.reload(); } catch(_){}
-        if (u.emailVerified === true) {
-          location.href = DEST;
-          return true;
-        }
-
-        // 2) Backend (Bearer) como reforço
-        const idt = await u.getIdToken(true);
-        const r = await fetch(API_BASE_IIFE + '/api/auth/check-verification', {
-          method: 'GET',
-          headers: {
-            'Authorization': 'Bearer ' + idt,
-            'Accept': 'application/json'
-          }
-        });
-
-        if (r.ok){
-          const j = await r.json().catch(()=> ({}));
-          if (j && j.verified === true) {
-            location.href = DEST;
-            return true;
-          }
-        }
-      } catch(_){}
-      return false;
-    }
-
-    function onBackToTab(){
-      const until = Date.now() + 3*60*1000;
-      (async function loop(){
-        if (await tryAdvance()) return;
-        if (Date.now() < until) setTimeout(loop, 1500);
-      })();
-    }
-
-    // dispare no focus/visibility + 1ª carga
-    window.addEventListener('focus', onBackToTab, {passive:true});
-    document.addEventListener('visibilitychange', ()=> {
-      if (document.visibilityState === 'visible') onBackToTab();
-    }, {passive:true});
-    if (document.readyState !== 'loading') onBackToTab();
-    else document.addEventListener('DOMContentLoaded', onBackToTab);
+    // Mantido apenas como placeholder, sem lógica de redirect.
+    console.log('[cadastro][auto-advance] desativado; avanço só pelo botão "Já verifiquei — continuar".');
   })();
   </script>
 
-  <!-- Bloco adicional: check periódico + foco/visibilidade (posicionado logo após o listener de storage) -->
-
+  <!-- Bloco adicional de check periódico DESATIVADO:
+       não há mais redirects automáticos; o backend só é consultado
+       quando o usuário clica em "Já verifiquei — continuar". -->
   <script>
   (function(){
-    var API_BASE = (window.API_BASE || 'https://mei-robo-prod.onrender.com').replace(/\/$/,'');
-    var WAIT_FLAG_KEY = 'mr_waiting_email_verification';
-    var timer = null;
-
-    async function checkAdvance(){
-      try{
-        var u = (firebase && firebase.auth && firebase.auth().currentUser) ? firebase.auth().currentUser : null;
-        if (!u) return false;
-
-        try { await u.reload(); } catch(_){}
-        if (u.emailVerified === true) {
-          // sinaliza e avança
-          try { localStorage.setItem('mr_email_verified','1'); } catch(_){}
-          try { localStorage.setItem(WAIT_FLAG_KEY,'1'); } catch(_){}
-          window.location.href = '/pages/configuracao.html';
-          return true;
-        }
-
-        // backend fallback
-        var idToken = await u.getIdToken(true);
-        var r = await fetch(API_BASE + '/api/auth/check-verification', {
-          headers: { 'Authorization': 'Bearer ' + idToken, 'Accept': 'application/json' }
-        });
-        if (r.ok){
-          var j = await r.json().catch(()=>({}));
-          var ok = !!(j && (j.verified === true || j.emailVerified === true || j.isVerified === true || (j.ok && j.status === 'verified')));
-          if (ok){
-            try { localStorage.setItem('mr_email_verified','1'); } catch(_){}
-            try { localStorage.setItem(WAIT_FLAG_KEY,'1'); } catch(_){}
-            window.location.href = '/pages/configuracao.html';
-            return true;
-          }
-        }
-      }catch(_){}
-      return false;
-    }
-
-    function startPolling(){
-      if (timer) return;
-      // checa rápido 2x, depois a cada 3s
-      checkAdvance();
-      setTimeout(checkAdvance, 1200);
-      timer = setInterval(checkAdvance, 3000);
-    }
-
-    document.addEventListener('visibilitychange', function(){
-      if (!document.hidden) checkAdvance();
-    }, {passive:true});
-
-    window.addEventListener('focus', function(){
-      checkAdvance();
-    }, {passive:true});
-
-    // Se a página de verificação tiver setado o flag, começamos a vigiar
-    try {
-      if (localStorage.getItem(WAIT_FLAG_KEY) === '1') {
-        startPolling();
-      } else {
-        // mesmo sem flag, iniciamos polling leve (caso o usuário já tenha verificado fora)
-        startPolling();
-      }
-    } catch(_){ startPolling(); }
+    console.log('[cadastro][polling] desativado; checagem agora só é feita sob gesto do usuário.');
   })();
   </script>
 
@@ -1329,63 +1387,12 @@ try {
   })();
   </script>
 
-  <!-- Watchdog canônico (acrescentado no final, sem alterar nada mais) -->
-
+  <!-- Watchdog canônico DESATIVADO:
+       qualquer redirect para /pages/configuracao.html agora acontece
+       apenas via clique no botão "Já verifiquei — continuar". -->
   <script>
   (function(){
-  const API_BASE = (window.API_BASE || 'https://mei-robo-prod.onrender.com').replace(/\/$/,'');
-  const DEST = '/pages/configuracao.html';
-  let stop = false, started = false;
-
-  function go(){ if (stop) return; stop = true; try{ window.location.href = DEST; }catch(_){} }
-
-  function wireSignals(){
-    if (started) return; started = true;
-    try{ window.addEventListener('storage', (ev)=>{ if (ev.key==='mr_email_verified' && ev.newValue==='1') go(); }, {passive:true}); }catch(_){}
-    try{ new BroadcastChannel('mr_events').onmessage = (m)=>{ if (m?.data?.type==='email_verified') go(); }; }catch(_){}
-    try{ new BroadcastChannel('auth').onmessage = (m)=>{ if (m?.data?.type==='email-verified') go(); }; }catch(_){}
-    try{ document.addEventListener('visibilitychange', ()=>{ if (!document.hidden) ping(); }, {passive:true}); }catch(_){}
-  }
-
-  async function ping(){
-    if (stop) return;
-    try{
-      // precisa ter usuário logado no Firebase
-      const u = (firebase && firebase.auth && firebase.auth().currentUser)
-        ? firebase.auth().currentUser
-        : null;
-      if (!u) return;
-
-      // pega um ID token fresquinho
-      let idt;
-      try {
-        idt = await u.getIdToken(true);
-      } catch(_) {
-        return;
-      }
-
-      const r = await fetch(API_BASE + '/api/auth/check-verification', {
-        method:'GET',
-        headers:{
-          'Accept':'application/json',
-          'Authorization':'Bearer ' + idt
-        }
-      });
-      if (!r.ok) return;
-      const j = await r.json().catch(()=>({}));
-      if (j && j.verified === true) {
-        go();
-      }
-    }catch(_){}
-  }
-
-  document.addEventListener('DOMContentLoaded', ()=>{
-    try { localStorage.setItem('mr_waiting_email_verification','1'); } catch(_){}
-    wireSignals();
-    ping();
-    const t1 = setInterval(ping, 1000); setTimeout(()=>clearInterval(t1), 90_000);
-    setTimeout(ping, 3000);
-  });
+    console.log('[cadastro][watchdog] desativado; avanço controlado só pelo botão.');
   })();
   </script>
 
