@@ -345,6 +345,9 @@
     // 🔧 Ajuste: prioriza window.API_BASE (se já definido) e mantém fallback para localStorage/config padrão
     const API_BASE = (window.API_BASE || localStorage.getItem('apiBase') || 'https://mei-robo-prod.onrender.com').replace(/\/+$/, '');
 
+    // === REMOVIDO: enforceVerifiedEmail baseado em check-verification, para evitar ping-pong com outras telas ===
+    // O controle principal de verificação de e-mail fica no fluxo cadastro.html + backend.
+
     /* ===== Gatekeeper robusto ===== */
     const authStatus = document.getElementById('authStatus');
     function setAuthMsg(t){ authStatus.textContent = t || ''; }
@@ -380,9 +383,13 @@
       try { await user.getIdToken(true); } catch(_) {}
     }
 
+    // 🔧 NOVO: garante apenas que o usuário está logado. Não redireciona mais para verify-email.html.
     async function ensureVerifiedOrSendBack(){
       const okSdk = await waitForFirebaseAuthReady();
-      if (!okSdk){ setAuthMsg('Serviço de autenticação indisponível. Recarregue a página.'); return false; }
+      if (!okSdk){
+        setAuthMsg('Serviço de autenticação indisponível. Recarregue a página.');
+        return false;
+      }
 
       let user = firebase.auth().currentUser;
       if (!user){
@@ -399,11 +406,7 @@
       try { await user.reload(); } catch(_) {}
       await refreshTokenSafe(user);
 
-      if (!user.emailVerified){
-        location.href = '/verify-email.html?cont=' + encodeURIComponent('/pages/configuracao.html');
-        return false;
-      }
-
+      // Não vamos mais checar user.emailVerified aqui. O backend já protege o que for necessário.
       setAuthMsg('');
       return true;
     }
@@ -417,7 +420,7 @@
     function isValidCNPJ(cnpj){
       cnpj = onlyDigits(cnpj||'');
       if (cnpj.length !== 14) return false;
-      if (/^(\d)\1{13}$/.test(cnpj)) return false;
+      if (/^(\d){13}$/.test(cnpj)) return false;
       let t = 12, d1 = 0, d2 = 0, p1 = 5, p2 = 6;
       for (let i = 0; i < t; i++) {
         const n = parseInt(cnpj[i],10);
@@ -839,7 +842,10 @@
         } else if (resp.status === 401) {
           location.href = '/pages/login.html?next=' + encodeURIComponent('/pages/configuracao.html'); return;
         } else if (resp.status === 403 || resp.status === 428) {
-          location.href = '/verify-email.html?cont=' + encodeURIComponent('/pages/configuracao.html'); return;
+          // 🔧 Antes redirecionava para verify-email.html, causando "volta" indesejada.
+          // Agora mantemos o usuário no fluxo principal (cadastro controla verificação).
+          setAuthMsg('Confirme seu e-mail na tela de cadastro e, depois, volte para esta tela.');
+          return;
         } else if (!resp.ok) {
           payload = {};
         } else {
@@ -931,7 +937,8 @@
                       const emp2 = await fetchEmpresaDetalhes(c2);
                       if (emp2) populateFromEmpresa(emp2);
                     } catch(_){}
-                  }catch(_){}
+                  }catch(_){
+                  }
                   cnpjForm.style.display = 'none';
                   cnpjMsg.textContent = '';
                   tryCheckCnpjVinculo(hCnpj.value || '', authName || '');
@@ -1073,3 +1080,4 @@
   </script>
 </body>
 </html>
+
