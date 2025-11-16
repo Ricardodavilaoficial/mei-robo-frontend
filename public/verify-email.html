@@ -266,8 +266,19 @@
       renderDebounceTip();
 
       if (vt) {
-        // Caso normal vindo do e-mail oficial com vt
+        // Caso normal vindo do e-mail oficial com vt:
+        // esta tela vira apenas INFORMATIVA.
         intro.textContent = "Confirmando seu e-mail…";
+
+        // Esconde os botões para não sugerir nenhuma ação extra aqui
+        try {
+          btn.disabled = true;
+          resendBtn.disabled = true;
+          btn.style.display = "none";
+          resendBtn.style.display = "none";
+        } catch (_) {}
+
+        // Confirma com o backend e avisa as outras abas
         confirmWithBackend();
       } else {
         // Link sem vt (antigo / manual)
