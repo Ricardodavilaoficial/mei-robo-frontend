@@ -255,19 +255,73 @@
         if (__applyMock()) return;
 
         pill('verificando…', 'muted');
-        // tenta gate1 e depois gate2
-        let g = null;
-        const r1 = await fetchJSON(API.gate1).catch(()=>null);
-        if (r1 && r1.ok && r1.body) g = asGate(r1.body);
-        if (!g) {
-          const r2 = await fetchJSON(API.gate2).catch(()=>null);
-          if (r2 && r2.ok && r2.body) g = asGate(r2.body);
-          if (!g && ((r1 && r1.status===401) || (r2 && r2.status===401))) { renderUnauth(); return; }
-        }
-        if (!g) { renderError(); return; }
 
-        if (g.stripe_enabled) renderReady();
-        else renderBlocked(g);
+        let g = null;
+        let r1 = null;
+        let r2 = null;
+
+        // 1) Tenta gate1 (Stripe)
+        try {
+          r1 = await fetchJSON(API.gate1);
+        } catch (e) {
+          console.warn('[ativar-cliente] falha em gate1:', e);
+        }
+
+        if (r1 && r1.ok && r1.body) {
+          g = asGate(r1.body);
+        } else if (r1 && r1.status === 404) {
+          // 404 aqui = "nenhum WABA ainda" é estado normal antes do pagamento,
+          // não é erro fatal. Backend já garantiu os pré-requisitos.
+          console.info('[ativar-cliente] gate1 respondeu 404 (sem WABA ainda) — liberando checkout.');
+          g = {
+            stripe_enabled: true,
+            reason: 'no_waba_yet',
+            needs_docs: false,
+            pending_review: false,
+            scoreVinculo: null
+          };
+        }
+
+        // 2) Se ainda não tiver gate, tenta gate2 (conta/status)
+        if (!g) {
+          try {
+            r2 = await fetchJSON(API.gate2);
+          } catch (e) {
+            console.warn('[ativar-cliente] falha em gate2:', e);
+          }
+
+          if (r2 && r2.ok && r2.body) {
+            g = asGate(r2.body);
+          } else if (r2 && r2.status === 404) {
+            console.info('[ativar-cliente] gate2 respondeu 404 (sem WABA ainda) — liberando checkout.');
+            g = {
+              stripe_enabled: true,
+              reason: 'no_waba_yet',
+              needs_docs: false,
+              pending_review: false,
+              scoreVinculo: null
+            };
+          }
+        }
+
+        // 3) Se algum dos dois for 401, força tela de login
+        if (!g && ((r1 && r1.status === 401) || (r2 && r2.status === 401))) {
+          renderUnauth();
+          return;
+        }
+
+        // 4) Se ainda assim não temos gate, erro real
+        if (!g) {
+          renderError();
+          return;
+        }
+
+        // 5) Decide pelo gate
+        if (g.stripe_enabled) {
+          renderReady();
+        } else {
+          renderBlocked(g);
+        }
       } catch(e){
         console.error(e);
         renderError();
