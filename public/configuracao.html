@@ -90,7 +90,7 @@
 
     #authStatus { margin:8px 0 0; font-size:.9rem; opacity:.85 }
   </style>
-  
+
   <script>
     window.API_BASE = "https://mei-robo-prod.onrender.com";
   </script>
@@ -532,7 +532,7 @@
       player: document.getElementById('vozPlayer'),
     };
 
-    const voiceState = { files: [], uploading:false, ready:false, media:{rec:null, chunks:[]} };
+    const voiceState = { files: [], uploading:false, ready:false, started:false, media:{rec:null, chunks:[]} };
 
     function setVoiceMsg(text, isError=false){
       voiceEls.msg.textContent = text || '';
@@ -577,6 +577,13 @@
         return;
       }
       voiceEls.btnEnviar.disabled = !voiceEls.aceite.checked;
+    }
+
+    function updateSalvarStateAfterVoiceChange(){
+      // Se já existe voz pronta OU se o upload já foi iniciado, podemos liberar o botão.
+      if (voiceState.ready || voiceState.started) {
+        btnSalvar.disabled = false;
+      }
     }
 
     /* === Gravação opcional (mantida) === */
@@ -626,6 +633,11 @@
     async function uploadSingle(uid, idToken){
       if (!voiceEls.aceite.checked){ setVoiceMsg('Confirme a autorização de uso da voz para continuar.', true); return; }
       if (voiceState.files.length===0){ setVoiceMsg('Selecione/grave pelo menos 1 áudio.', true); return; }
+
+      // 🔴 NOVO: marcar que o upload foi iniciado
+      voiceState.started = true;
+      updateSalvarStateAfterVoiceChange();
+      // 🔴 FIM NOVO
 
       const file = voiceState.files[0]; // usa o primeiro (fluxo simples/robusto)
       voiceState.uploading = true; enableVoiceControls(false); setUploadPct(0);
@@ -685,7 +697,17 @@
     function setupVoice(uid, idToken){
       voiceEls.btnChoose.addEventListener('click',()=> voiceEls.input.click());
       voiceEls.input.addEventListener('change',(e)=>{ const files=e.target?.files; if(files) addFiles(files); voiceEls.input.value=''; });
-      voiceEls.btnClear.addEventListener('click',()=>{ voiceState.files=[]; renderFileList(); validateVoiceReady(); setUploadPct(0); setVoiceMsg(''); });
+      voiceEls.btnClear.addEventListener('click',()=>{
+        voiceState.files = [];
+        voiceState.uploading = false;
+        voiceState.ready = false;
+        voiceState.started = false;
+        renderFileList();
+        validateVoiceReady();
+        setUploadPct(0);
+        setVoiceMsg('');
+        btnSalvar.disabled = true; // volta a exigir nova ação
+      });
       voiceEls.recStart.addEventListener('click', startRec);
       voiceEls.recStop.addEventListener('click', stopRec);
       voiceEls.aceite.addEventListener('change', validateVoiceReady);
@@ -1018,15 +1040,19 @@
       }
     }
 
-    /* ===== Submit (inalterado) ===== */
+    /* ===== Submit (ajustado para started OU ready) ===== */
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
       cfgFeedback.textContent = '';
 
-      if (!voiceState.ready){
-        cfgFeedback.textContent = '⚠️ Envie e processe a sua voz primeiro. O botão será liberado quando ficar “✅ pronta”.';
+      // 🔴 NOVO: mudou a regra
+      if (!voiceState.ready && !voiceState.started){
+        cfgFeedback.textContent = '⚠️ Antes de continuar, clique em “Enviar & Processar” na sua voz.';
+        btnSalvar.disabled = false;
+        btnSalvar.textContent = 'Salvar e continuar';
         return;
       }
+      // 🔴 FIM NOVO
 
       btnSalvar.disabled = true;
       btnSalvar.textContent = 'Enviando…';
