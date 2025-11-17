@@ -136,21 +136,46 @@
       const r = await fetch(url, Object.assign({ credentials:'include' }, opts||{}));
       const ct = r.headers.get('content-type') || '';
       const body = ct.includes('application/json') ? await r.json() : await r.text();
+      console.info('[ativar-cliente] fetch', url, 'status=', r.status, 'ct=', ct);
       return { ok: r.ok, status: r.status, body };
     }
 
     function asGate(obj){
       if (!obj || typeof obj !== 'object') return null;
-      const stripe_enabled = !!(obj.stripe_enabled ?? obj.stripeEnabled ?? obj.enabled ?? obj.allow ?? obj.gate_ok ?? obj.ok);
-      const reason = obj.reason || obj.state || '';
-      const needs_docs = !!(obj.needs_docs ?? obj.needsDocs ?? obj.docs ?? obj.need_docs);
-      return {
-        stripe_enabled,
-        reason,
-        needs_docs,
-        pending_review: !!(obj.pending_review ?? obj.pendingReview),
-        scoreVinculo: (typeof obj.scoreVinculo === 'number' ? obj.scoreVinculo : null)
-      };
+
+      // tenta aninhar em data/gate se existir
+      let source = obj;
+      if (obj.gate && typeof obj.gate === 'object') {
+        source = obj.gate;
+      } else if (obj.data && typeof obj.data === 'object') {
+        source = obj.data;
+      }
+
+      const stripe_enabled = !!(
+        source.stripe_enabled ??
+        source.stripeEnabled ??
+        source.enabled ??
+        source.allow ??
+        source.gate_ok ??
+        source.ok
+      );
+      const reason = source.reason || source.state || '';
+      const needs_docs = !!(
+        source.needs_docs ??
+        source.needsDocs ??
+        source.docs ??
+        source.need_docs
+      );
+
+      const pending_review = !!(source.pending_review ?? source.pendingReview);
+      const scoreVinculo = (typeof source.scoreVinculo === 'number' ? source.scoreVinculo : null);
+
+      // se nada disso acender, retorna null pra cair no fallback
+      if (!stripe_enabled && !needs_docs && !pending_review && !reason && scoreVinculo === null) {
+        return null;
+      }
+
+      return { stripe_enabled, reason, needs_docs, pending_review, scoreVinculo };
     }
 
     function renderUnauth(){
@@ -267,36 +292,24 @@
           console.warn('[ativar-cliente] falha em gate1:', e);
         }
 
-        if (r1 && r1.ok && r1.body) {
-          g = asGate(r1.body);
-        } else if (r1 && r1.status === 404) {
-          // 404 aqui = "nenhum WABA ainda" é estado normal antes do pagamento,
-          // não é erro fatal. Backend já garantiu os pré-requisitos.
-          console.info('[ativar-cliente] gate1 respondeu 404 (sem WABA ainda) — liberando checkout.');
-          g = {
-            stripe_enabled: true,
-            reason: 'no_waba_yet',
-            needs_docs: false,
-            pending_review: false,
-            scoreVinculo: null
-          };
+        // Se 401 em gate1 → precisa logar
+        if (r1 && r1.status === 401) {
+          renderUnauth();
+          return;
         }
 
-        // 2) Se ainda não tiver gate, tenta gate2 (conta/status)
-        if (!g) {
-          try {
-            r2 = await fetchJSON(API.gate2);
-          } catch (e) {
-            console.warn('[ativar-cliente] falha em gate2:', e);
+        if (r1 && r1.ok) {
+          // tenta interpretar
+          if (r1.body && typeof r1.body === 'object') {
+            g = asGate(r1.body);
           }
 
-          if (r2 && r2.ok && r2.body) {
-            g = asGate(r2.body);
-          } else if (r2 && r2.status === 404) {
-            console.info('[ativar-cliente] gate2 respondeu 404 (sem WABA ainda) — liberando checkout.');
+          // fallback agressivo: se deu 200 mas não conseguimos mapear, liberamos stripe
+          if (!g) {
+            console.info('[ativar-cliente] gate1 200 mas sem mapeamento; assumindo stripe_enabled=true (fallback).');
             g = {
               stripe_enabled: true,
-              reason: 'no_waba_yet',
+              reason: 'gate1_ok_fallback',
               needs_docs: false,
               pending_review: false,
               scoreVinculo: null
@@ -304,19 +317,44 @@
           }
         }
 
-        // 3) Se algum dos dois for 401, força tela de login
-        if (!g && ((r1 && r1.status === 401) || (r2 && r2.status === 401))) {
-          renderUnauth();
-          return;
+        // 2) Se ainda não tiver gate (gate1 falhou mesmo), tenta gate2 (conta/status)
+        if (!g) {
+          try {
+            r2 = await fetchJSON(API.gate2);
+          } catch (e) {
+            console.warn('[ativar-cliente] falha em gate2:', e);
+          }
+
+          if (r2 && r2.status === 401) {
+            renderUnauth();
+            return;
+          }
+
+          if (r2 && r2.ok) {
+            if (r2.body && typeof r2.body === 'object') {
+              g = asGate(r2.body);
+            }
+            if (!g) {
+              console.info('[ativar-cliente] gate2 200 mas sem mapeamento; assumindo stripe_enabled=true (fallback).');
+              g = {
+                stripe_enabled: true,
+                reason: 'gate2_ok_fallback',
+                needs_docs: false,
+                pending_review: false,
+                scoreVinculo: null
+              };
+            }
+          }
         }
 
-        // 4) Se ainda assim não temos gate, erro real
+        // 3) Se ainda assim não temos gate, aí sim é erro real
         if (!g) {
+          console.warn('[ativar-cliente] nenhum gate utilizável; exibindo erro.');
           renderError();
           return;
         }
 
-        // 5) Decide pelo gate
+        // 4) Decide pelo gate
         if (g.stripe_enabled) {
           renderReady();
         } else {
@@ -392,8 +430,6 @@
         $btnCheckout.disabled = true;
         $btnCheckout.textContent = 'Preparando…';
 
-        // Se o backend aceitar cupom via querystring e ainda não estiver aplicado,
-        // você pode optar por enviar ?cupom=CODIGO. Caso já aplique no perfil, não precisa.
         const codigo = normalizeCode($codigo.value);
         const qs = (!cupomState.aplicado && codigo) ? ('?cupom=' + encodeURIComponent(codigo)) : '';
         const r = await fetchJSON(API.checkout + qs);
@@ -403,7 +439,6 @@
           location.href = url;
           return;
         }
-        // fallback: permanece nesta mesma página (não vai para admin)
         $btnCheckout.disabled = false;
         $btnCheckout.textContent = 'Seguir para assinatura';
         alert('Não foi possível iniciar a assinatura agora. Tente novamente.');
@@ -425,3 +460,4 @@
   </script>
 </body>
 </html>
+
