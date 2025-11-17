@@ -89,7 +89,7 @@
   <main class="section">
     <div class="container form-wrap">
       <h1 style="color:var(--wa-dark); margin:0 0 2px">
-        Crie sua conta <small style="font-weight:400; opacity:.9">(etapa 1 de 3)</small>
+        Crie sua conta
       </h1>
       <p class="hint" style="margin:0 0 12px">
         Você cria sua conta agora. Depois confirmamos seu e-mail e, já logado, você completa a configuração (CNPJ e voz).
@@ -815,12 +815,14 @@ try {
     }
 
     function showVerifyBanner(email){
-      // mostra o banner e, se possível, rola a tela até ele
-      verifyBannerEmail.textContent = email ? ('E-mail: ' + email) : '';
-      verifyBanner.style.display = 'flex';
+      // [LEGACY] Mantida só para compatibilidade.
+      // Não mostramos mais o banner antigo nem fazemos scroll.
       try {
-        verifyBanner.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        if (verifyBannerEmail) {
+          verifyBannerEmail.textContent = email ? ('E-mail: ' + email) : '';
+        }
       } catch(_) {}
+      // nada de display, nada de scroll, nada de botão extra
     }
     function hideVerifyBanner(){ verifyBanner.style.display = 'none'; }
 
