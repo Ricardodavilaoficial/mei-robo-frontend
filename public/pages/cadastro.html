@@ -232,7 +232,7 @@
               <button id="psgContinueBtn"
                 style="flex:1 1 200px; padding:14px 16px; border-radius:12px;
                       background:#25d366; color:#0b141a; border:0; cursor:pointer;
-                      opacity:1; font-size:1rem; font-weight:600;">
+                      font-size:1rem; font-weight:600;">
                 Já verifiquei — continuar
               </button>
 
@@ -337,12 +337,38 @@
     const psgContinueBtn = document.getElementById('psgContinueBtn');
     const psgResendBtn = document.getElementById('psgResendBtn');
 
-    // PATCH 2.1: botão verde usa o mesmo fluxo do “feioso”
+    // PATCH 3: botão verde valida no backend antes de avançar
     if (psgContinueBtn) {
-      psgContinueBtn.addEventListener('click', function (e) {
-        e.preventDefault();
-        handleManualAdvance();
-      });
+      document.getElementById("psgContinueBtn").onclick = async function () {
+        try {
+          if (!window.firebase?.auth) {
+            psgStatus.textContent = "Erro temporário. Recarregue esta página e tente de novo.";
+            return;
+          }
+
+          const user = firebase.auth().currentUser || null;
+          if (!user) {
+            psgStatus.textContent =
+              "Faça login com seu e-mail e senha em Entrar para continuar a configuração.";
+            return;
+          }
+
+          psgStatus.textContent = "Confirmando sua verificação no servidor…";
+
+          // Reusa a mesma lógica forte do banner "Já verifiquei"
+          const ok = await checkVerifiedViaBackendAndAdvance();
+
+          if (!ok) {
+            psgStatus.textContent =
+              "Ainda não encontramos sua confirmação. Confira se clicou no link do e-mail mais recente " +
+              "e tente de novo em alguns instantes.";
+          }
+        } catch (err) {
+          console.warn('[cadastro][psgContinueBtn] erro', err);
+          psgStatus.textContent =
+            "Não foi possível confirmar agora. Aguarde alguns instantes e tente novamente.";
+        }
+      };
     }
 
     // Banner aguardando verificação
@@ -1378,3 +1404,4 @@ try {
 
 </body>
 </html>
+
