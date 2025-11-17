@@ -1041,59 +1041,105 @@
     }
 
     /* ===== Submit (ajustado para started OU ready) ===== */
-    form.addEventListener('submit', async (e) => {
-      e.preventDefault();
+    async function getIdTokenOrNull() {
+      try {
+        const user = firebase.auth().currentUser;
+        if (!user) return null;
+        return await user.getIdToken(true);
+      } catch (e) {
+        console.error("[configuracao] falha ao obter idToken:", e);
+        return null;
+      }
+    }
+
+    async function salvarConfiguracao(event) {
+      event.preventDefault();
       cfgFeedback.textContent = '';
 
-      // 🔴 NOVO: mudou a regra
-      if (!voiceState.ready && !voiceState.started){
+      // mantém a regra de voz: precisa ter voz enviada ou upload iniciado
+      if (!voiceState.ready && !voiceState.started) {
         cfgFeedback.textContent = '⚠️ Antes de continuar, clique em “Enviar & Processar” na sua voz.';
         btnSalvar.disabled = false;
         btnSalvar.textContent = 'Salvar e continuar';
         return;
       }
-      // 🔴 FIM NOVO
 
       btnSalvar.disabled = true;
       btnSalvar.textContent = 'Enviando…';
 
+      const formEl = document.getElementById('config-form');
+      const fd = new FormData(formEl);
+
+      // garante que o uid vá no form (caso ainda não esteja)
       try {
-        let idToken = null;
-        if (window.firebase && firebase.auth && firebase.auth().currentUser) {
-          try { idToken = await firebase.auth().currentUser.getIdToken(true); } catch(_) {}
+        const user = firebase.auth().currentUser;
+        if (user && !fd.get("uid")) {
+          fd.set("uid", user.uid);
         }
+      } catch (_) {}
 
-        const fd = new FormData(form);
-        if (fd.get('janela_resposta') !== 'custom') fd.delete('janela_resposta_custom');
-        fd.set('cnpj', document.getElementById('hid-cnpj').value || '');
-        fd.set('segmento', document.getElementById('hid-segmento').value || '');
-        fd.set('legal_name', document.getElementById('hid-legalname').value || '');
-        fd.set('trade_name', document.getElementById('hid-tradename').value || '');
+      if (fd.get('janela_resposta') !== 'custom') fd.delete('janela_resposta_custom');
+      fd.set('cnpj', document.getElementById('hid-cnpj').value || '');
+      fd.set('segmento', document.getElementById('hid-segmento').value || '');
+      fd.set('legal_name', document.getElementById('hid-legalname').value || '');
+      fd.set('trade_name', document.getElementById('hid-tradename').value || '');
 
-        const brandingChoice = (fd.get('branding_choice') || '').trim();
-        if (brandingChoice !== 'custom') fd.set('public_brand', '');
+      const brandingChoice = (fd.get('branding_choice') || '').trim();
+      if (brandingChoice !== 'custom') fd.set('public_brand', '');
 
-        const headers = {}; if (idToken) headers['Authorization'] = 'Bearer ' + idToken;
-        const resp = await fetch(`${API_BASE}/api/configuracao`, { method: 'POST', headers, body: fd });
+      const headers = {};
+      const idToken = await getIdTokenOrNull();
+      if (idToken) {
+        headers["Authorization"] = "Bearer " + idToken;
+      }
 
-        let payload; const ct = resp.headers.get('content-type') || '';
-        if (ct.includes('application/json')) payload = await resp.json();
-        else payload = { message: await resp.text() };
-
-        if (!resp.ok) {
-          cfgFeedback.textContent = '❌ Falha ao salvar: ' + (payload?.message || JSON.stringify(payload));
-          btnSalvar.disabled = false; btnSalvar.textContent = 'Salvar e continuar';
-          return;
-        }
-
-        cfgFeedback.textContent = '✅ Configuração salva. Continuando…';
-        setTimeout(() => { window.location.href = '/pages/dashboard.html'; }, 600);
-      } catch (err) {
+      let resp;
+      try {
+        resp = await fetch(`${API_BASE}/api/configuracao`, {
+          method: 'POST',
+          headers,
+          body: fd
+        });
+      } catch (e) {
+        console.error("[configuracao] erro de rede:", e);
         cfgFeedback.textContent = '❌ Erro ao comunicar com o servidor.';
         btnSalvar.disabled = false;
         btnSalvar.textContent = 'Salvar e continuar';
+        return;
       }
-    });
+
+      let payload;
+      try {
+        const ct = resp.headers.get('content-type') || '';
+        if (ct.includes('application/json')) {
+          payload = await resp.json();
+        } else {
+          payload = { message: await resp.text() };
+        }
+      } catch (_) {
+        payload = null;
+      }
+
+      if (!resp.ok) {
+        let msg = '❌ Falha ao salvar.';
+        if (payload && payload.message) {
+          msg += ' ' + payload.message;
+        } else if (payload) {
+          msg += ' ' + JSON.stringify(payload);
+        }
+        console.error("[configuracao] erro HTTP:", resp.status);
+        cfgFeedback.textContent = msg;
+        btnSalvar.disabled = false;
+        btnSalvar.textContent = 'Salvar e continuar';
+        return;
+      }
+
+      console.log("[configuracao] salvo:", payload);
+      cfgFeedback.textContent = '✅ Configuração salva. Continuando…';
+      setTimeout(() => { window.location.href = '/pages/dashboard.html'; }, 600);
+    }
+
+    form.addEventListener('submit', salvarConfiguracao);
 
     for (const r of document.getElementsByName('branding_choice')) {
       r.addEventListener('change', () => {
