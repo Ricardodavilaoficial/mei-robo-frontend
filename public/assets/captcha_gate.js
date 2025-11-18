@@ -38,7 +38,8 @@
   }
 
   const API_BASE   = getApiBase().replace(/\/+$/, '');
-  const VERIFY_URL = API_BASE + '/captcha/verify';
+  // 🔧 AJUSTE: usar rota com prefixo /api, que é a que tem CORS liberado no backend
+  const VERIFY_URL = API_BASE + '/api/captcha/verify';
   console.log('[captcha_gate] VERIFY_URL =', VERIFY_URL);
 
   function setGatedEnabled(enabled) {
