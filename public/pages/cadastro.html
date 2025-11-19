@@ -449,7 +449,7 @@
     }
 
     function isValidateMode(){
-      try{ return new URLSearchParams(location.search).get('validate') === '1'; }catch(_){ return false; }
+      try{ return new URLSearchParams(location.search).get('validate') === '1';}catch(_){ return false; }
     }
 
     function enableSubmit(){
@@ -1300,33 +1300,59 @@ try {
         if (u) {
           try { await u.reload(); } catch(_){}
           if (u && !u.emailVerified) {
-            console.log('[cadastro][submit] usuário já logado e não verificado, apenas reenvio de e-mail');
+            console.log('[cadastro][submit] usuário já logado e não verificado (vista local), checando no backend antes de reenviar');
             // Garante SSE ligado
-            try{ startSSE(u); }catch(_){}
+            try { startSSE(u); } catch (_){}
 
-            // Reenvia o e-mail de verificação via backend (SendGrid)
+            // 1) Primeiro: pergunta pro backend se, na prática, já está verificado
+            let advanced = false;
+            try {
+              advanced = await checkVerifiedViaBackendAndAdvance();
+            } catch (err) {
+              console.warn('[cadastro][submit] erro ao checar verificação no backend', err);
+            }
+
+            if (advanced) {
+              // Se o backend já confirmou, o próprio checkVerifiedViaBackendAndAdvance()
+              // já redirecionou para /pages/configuracao.html.
+              console.log('[cadastro][submit] e-mail já confirmado no backend; não vamos reenviar o e-mail.');
+              return;
+            }
+
+            // 2) Se NÃO estiver verificado no backend, aí sim reenvia o e-mail
+            console.log('[cadastro][submit] ainda não verificado no backend; reenviando e-mail de verificação.');
             try {
               await sendVerificationViaBackend(u);
             } catch(e) {
               console.warn('[cadastro] falha ao reenviar verificação (branch 0):', e && (e.message || e));
               try {
                 formMsg.className = 'error';
-                formMsg.textContent = 'Não foi possível reenviar o e-mail de verificação agora. Tente novamente em alguns instantes.';
-              } catch(_) {}
+                formMsg.textContent =
+                  'Não foi possível reenviar o e-mail de verificação agora. Tente novamente em alguns instantes.';
+              } catch (_) {}
             }
 
-            const fallbackMail = (u.email || (emailInput.value||'')).trim();
+            const fallbackMail = (u.email || (emailInput.value || '')).trim();
             showVerifyBanner(fallbackMail);
-            const url = '/pages/verify-email.html?email=' + encodeURIComponent(fallbackMail) + '&cont=/pages/configuracao.html';
-            if (typeof goVerify !== 'undefined' && goVerify) { goVerify.href = url; }
+            const url =
+              '/pages/verify-email.html?email=' +
+              encodeURIComponent(fallbackMail) +
+              '&cont=/pages/configuracao.html';
+            if (typeof goVerify !== 'undefined' && goVerify) {
+              goVerify.href = url;
+            }
 
             // ⚠️ IMPORTANTE: NÃO abrir verify-email automaticamente.
-            // Deixa o usuário na tela de cadastro, apenas com o banner e o CTA configurado.
-            console.log('[cadastro][submit] reenvio de verificação concluído (sem navegação automática) para', fallbackMail);
+            console.log(
+              '[cadastro][submit] reenvio de verificação concluído (sem navegação automática) para',
+              fallbackMail
+            );
 
-            formMsg.className='hint';
+            formMsg.className = 'hint';
             if (!formMsg.textContent) {
-              formMsg.textContent='Enviamos (ou estamos tentando enviar) o e-mail de verificação. Confirme na sua caixa de entrada e volte para esta aba.';
+              formMsg.textContent =
+                'Enviamos (ou estamos tentando enviar) o e-mail de verificação. ' +
+                'Confirme na sua caixa de entrada e volte para esta aba.';
             }
             return; // evita re-POST
           }
