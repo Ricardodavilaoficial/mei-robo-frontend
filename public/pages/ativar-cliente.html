@@ -92,6 +92,26 @@
       cupomAtivar:  API_BASE + "/api/cupons/ativar"
     };
 
+    // Helper: pega Authorization: Bearer <idToken> do Firebase (se logado)
+    async function getAuthHeadersOrNull(){
+      try {
+        if (!window.firebase || !firebase.auth) {
+          console.warn('[ativar-cliente] Firebase não disponível para auth.');
+          return null;
+        }
+        const user = firebase.auth().currentUser;
+        if (!user) {
+          console.warn('[ativar-cliente] nenhum usuário logado.');
+          return null;
+        }
+        const token = await user.getIdToken();
+        return { 'Authorization': 'Bearer ' + token };
+      } catch (e) {
+        console.warn('[ativar-cliente] falha ao obter idToken:', e);
+        return null;
+      }
+    }
+
     // MOCK DE PREVIEW: ?mock=ready | blocked | unauth | error
     const __qs = new URLSearchParams(location.search);
     const __mock = (__qs.get('mock')||'').toLowerCase();
@@ -403,22 +423,35 @@
       msg('Aplicando…', '');
       $btnAplicar.disabled = true;
       try{
+        const authHeaders = await getAuthHeadersOrNull();
+        if (!authHeaders) {
+          msg('Faça login para aplicar o cupom.', 'msg-err');
+          $btnAplicar.disabled = false;
+          return;
+        }
+
         const r = await fetchJSON(API.cupomAtivar, {
           method:'POST',
-          headers:{ 'Content-Type': 'application/json' },
+          headers: Object.assign(
+            { 'Content-Type': 'application/json' },
+            authHeaders
+          ),
           body: JSON.stringify({ codigo, code: codigo }) // aceita ambas chaves
         });
+
         if (r.ok && r.body) {
           cupomState.aplicado = true;
           msg('Cupom aplicado com sucesso! O desconto aparecerá na próxima etapa.', 'msg-ok');
           clearPendingCupom();
         } else if (r.status === 401) {
           msg('Faça login para aplicar o cupom.', 'msg-err');
+          $btnAplicar.disabled = false;
         } else {
           msg('Não foi possível aplicar. Tente novamente.', 'msg-err');
           $btnAplicar.disabled = false;
         }
       } catch(e){
+        console.error(e);
         msg('Erro de rede ao aplicar. Tente novamente.', 'msg-err');
         $btnAplicar.disabled = false;
       }
@@ -430,9 +463,22 @@
         $btnCheckout.disabled = true;
         $btnCheckout.textContent = 'Preparando…';
 
+        const authHeaders = await getAuthHeadersOrNull();
+        if (!authHeaders) {
+          alert('Faça login para concluir a assinatura.');
+          $btnCheckout.disabled = false;
+          $btnCheckout.textContent = 'Seguir para assinatura';
+          return;
+        }
+
         const codigo = normalizeCode($codigo.value);
-        const qs = (!cupomState.aplicado && codigo) ? ('?cupom=' + encodeURIComponent(codigo)) : '';
-        const r = await fetchJSON(API.checkout + qs);
+        const qs = (!cupomState.aplicado && codigo)
+          ? ('?cupom=' + encodeURIComponent(codigo))
+          : '';
+
+        const r = await fetchJSON(API.checkout + qs, {
+          headers: authHeaders
+        });
 
         if (r.ok && r.body && (r.body.checkoutUrl || r.body.url || r.body.location)) {
           const url = r.body.checkoutUrl || r.body.url || r.body.location;
