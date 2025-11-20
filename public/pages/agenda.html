@@ -494,7 +494,7 @@
     function exportCSV(filename, rows){
       const headers = ['Data','Hora','Cliente','Assunto','Duração(min)','Status'];
       const data = [headers].concat(rows.map(r => [r.data, r.hora, r.cliente, r.assunto, r.dur, r.status]));
-      const csv = data.map(line => line.map(v => `"${(v??'').toString().replace(/"/g,'""')}"`).join(',')).join('\r\n');
+      const csv = data.map(line => line.map(v => \`"\${(v??'').toString().replace(/"/g,'""')}"\`).join(',')).join('\r\n');
       const blob = new Blob([csv], {type:'text/csv;charset=utf-8;'});
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -527,6 +527,53 @@
         });
       }
       return rows;
+    }
+
+    // Normaliza listas vindas da API (/api/agenda/view):
+    // - remove horários "livres"
+    // - garante campos esperados pelo front
+    function normalizeApiList(list) {
+      if (!Array.isArray(list)) return [];
+      return list
+        .filter(function (it) {
+          const st = String(it.status || '').toLowerCase();
+          // Só mantemos horários realmente ocupados/pendentes/cancelados
+          return st && st !== 'livre';
+        })
+        .map(function (it) {
+          return {
+            hhmm: it.hhmm || '',
+            cliente: it.cliente || it.clienteNome || '',
+            assunto: it.assunto || '',
+            dur: it.dur || it.duracaoMin || 60,
+            status: it.status || 'ocupado',
+            level: it.level || 'ok',
+            date: it.date || ''
+          };
+        });
+    }
+
+    // Reorganiza a lista "semana" (array) em um mapa { 'YYYY-MM-DD': [itens...] }
+    function rebuildWeekData(semanaArray, weekDataTarget) {
+      Object.keys(weekDataTarget).forEach(function (k) { delete weekDataTarget[k]; });
+      if (!Array.isArray(semanaArray)) return;
+
+      semanaArray.forEach(function (it) {
+        var key = (it.date || '').slice(0, 10); // espera 'YYYY-MM-DD'
+        if (!key) return;
+
+        if (!weekDataTarget[key]) {
+          weekDataTarget[key] = [];
+        }
+        weekDataTarget[key].push({
+          hhmm: it.hhmm || '',
+          cliente: it.cliente || '',
+          assunto: it.assunto || '',
+          dur: it.dur || 60,
+          status: it.status || 'ocupado',
+          level: it.level || 'ok'
+        });
+      });
     }
 
     function init(){
@@ -671,17 +718,17 @@
 
               const data = await res.json();
 
-              // Atualiza listas em memória
-              listHoje.splice(0, listHoje.length, ...(Array.isArray(data.hoje) ? data.hoje : []));
-              listAmanha.splice(0, listAmanha.length, ...(Array.isArray(data.amanha) ? data.amanha : []));
+              // Normaliza listas vindas da API (remove "livre" e ajusta campos)
+              const hojeNorm   = normalizeApiList(data.hoje);
+              const amanhaNorm = normalizeApiList(data.amanha);
+              const semanaNorm = normalizeApiList(data.semana);
 
-              // Limpa e reatribui semana
-              Object.keys(weekData).forEach(function (k) { delete weekData[k]; });
-              if (data.semana && typeof data.semana === 'object') {
-                Object.keys(data.semana).forEach(function (k) {
-                  weekData[k] = data.semana[k];
-                });
-              }
+              // Atualiza listas em memória (Hoje / Amanhã)
+              listHoje.splice(0, listHoje.length, ...hojeNorm);
+              listAmanha.splice(0, listAmanha.length, ...amanhaNorm);
+
+              // Reorganiza semana em mapa { data: [itens...] } para o grid de 7 dias
+              rebuildWeekData(semanaNorm, weekData);
 
               // Re-render com os dados reais, respeitando filtros/busca atuais
               const term = (busca.value || '').trim().toLowerCase();
