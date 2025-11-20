@@ -164,6 +164,11 @@
     header._fallback{ border-bottom:1px solid var(--card-br); }
     footer._fallback{ border-top:1px solid var(--card-br); font-size:.9rem; color:#9fb0aa; }
   </style>
+
+  <!-- Firebase Hosting: SDK compat + init automático -->
+  <script defer src="/__/firebase/9.22.2/firebase-app-compat.js"></script>
+  <script defer src="/__/firebase/9.22.2/firebase-auth-compat.js"></script>
+  <script defer src="/__/firebase/init.js"></script>
 </head>
 <body class="app-shell">
   <!-- Header via layout.js; fallback leve abaixo -->
@@ -544,18 +549,23 @@
       const listAmanha = validateMode ? [].concat(demoAmanha) : [];
       const weekData   = validateMode ? makeWeekDemo(now)     : {};
 
-      // Render Hoje & Amanhã (duas colunas)
-      const contHoje = renderTwoCols(document.getElementById('colHojeA'), document.getElementById('colHojeB'), listHoje);
-      const contAmanha = renderTwoCols(document.getElementById('colAmanhaA'), document.getElementById('colAmanhaB'), listAmanha);
-      document.getElementById('contHoje').textContent = contHoje + (contHoje===1?' agendamento':' agendamentos');
-      document.getElementById('contAmanha').textContent = contAmanha + (contAmanha===1?' agendamento':' agendamentos');
+      function renderBase(filterForWeek, termForWeek) {
+        const contHoje = renderTwoCols(document.getElementById('colHojeA'), document.getElementById('colHojeB'), listHoje);
+        const contAmanha = renderTwoCols(document.getElementById('colAmanhaA'), document.getElementById('colAmanhaB'), listAmanha);
 
-      // Atualiza mini-dashboard com os contadores reais
-      document.getElementById('qtdHoje').textContent = String(contHoje);
-      document.getElementById('qtdAmanha').textContent = String(contAmanha);
+        document.getElementById('contHoje').textContent = contHoje + (contHoje===1?' agendamento':' agendamentos');
+        document.getElementById('contAmanha').textContent = contAmanha + (contAmanha===1?' agendamento':' agendamentos');
 
-      // Semana (D+2 a D+8) — grid 7 colunas; default visual 'livres'
-      renderWeekGrid(document.getElementById('weekGrid'), now, weekData, 'livres', '');
+        // Atualiza mini-dashboard com os contadores reais
+        document.getElementById('qtdHoje').textContent = String(contHoje);
+        document.getElementById('qtdAmanha').textContent = String(contAmanha);
+
+        // Semana (D+2 a D+8)
+        renderWeekGrid(document.getElementById('weekGrid'), now, weekData, filterForWeek, termForWeek);
+      }
+
+      // Render inicial: 7 dias começando em "livres" e busca vazia
+      renderBase('livres', '');
 
       // Filtros locais (ocupados/livres/todos) + busca
       const chips = document.querySelectorAll('.chip');
@@ -564,7 +574,11 @@
 
       function applyFilters(){
         const term = (busca.value || '').trim().toLowerCase();
-        // Hoje & Amanhã
+
+        // Re-render base com o filtro aplicado na grade de 7 dias
+        renderBase(active, term);
+
+        // Hoje & Amanhã — aplica filtro visual
         ['colHojeA','colHojeB','colAmanhaA','colAmanhaB'].forEach(id => {
           document.querySelectorAll('#'+id+' .slot-row').forEach(row => {
             const slot = row.querySelector('.cell-slot');
@@ -577,8 +591,6 @@
             row.style.display = visible ? '' : 'none';
           });
         });
-        // 7 dias
-        renderWeekGrid(document.getElementById('weekGrid'), now, weekData, active, term);
       }
 
       chips.forEach(chip => {
@@ -628,6 +640,61 @@
         const rows = collectRowsWeek(now, weekData);
         exportCSV('agendamentos-prox7dias.csv', rows);
       });
+
+      // Se não estiver em modo de validação, tenta carregar agenda real da API
+      if (!validateMode) {
+        console.log('[agenda] modo normal → carregando dados reais da API.');
+
+        if (!window.firebase || !firebase.auth) {
+          console.error('[agenda] Firebase Auth não disponível.');
+        } else {
+          firebase.auth().onAuthStateChanged(async function (user) {
+            if (!user) {
+              console.warn('[agenda] Usuário não logado, mantendo agenda vazia.');
+              return;
+            }
+
+            try {
+              const token = await user.getIdToken(true);
+              const res = await fetch('/api/agenda/view', {
+                method: 'GET',
+                headers: {
+                  'Authorization': 'Bearer ' + token,
+                  'Accept': 'application/json'
+                }
+              });
+
+              if (!res.ok) {
+                console.error('[agenda] Falha ao buscar /api/agenda/view:', res.status);
+                return;
+              }
+
+              const data = await res.json();
+
+              // Atualiza listas em memória
+              listHoje.splice(0, listHoje.length, ...(Array.isArray(data.hoje) ? data.hoje : []));
+              listAmanha.splice(0, listAmanha.length, ...(Array.isArray(data.amanha) ? data.amanha : []));
+
+              // Limpa e reatribui semana
+              Object.keys(weekData).forEach(function (k) { delete weekData[k]; });
+              if (data.semana && typeof data.semana === 'object') {
+                Object.keys(data.semana).forEach(function (k) {
+                  weekData[k] = data.semana[k];
+                });
+              }
+
+              // Re-render com os dados reais, respeitando filtros/busca atuais
+              const term = (busca.value || '').trim().toLowerCase();
+              renderBase(active, term);
+              applyFilters();
+            } catch (err) {
+              console.error('[agenda] Erro ao carregar agenda real:', err);
+            }
+          });
+        }
+      } else {
+        console.log('[agenda] validate=1 → usando dados de demonstração.');
+      }
     }
 
     document.addEventListener('DOMContentLoaded', init);
