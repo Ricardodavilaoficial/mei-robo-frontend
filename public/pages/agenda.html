@@ -194,13 +194,15 @@
           <a class="btn primary" href="#" id="btnNovo">Novo agendamento</a>
         </div>
       </div>
-      <div class="mini-title">Quantidade de agendamentos</div>
+      <div class="mini-title">Resumo rápido da sua agenda</div>
       <div class="mini-line">
         <span class="mini-pill">Hoje: <b id="qtdHoje">0</b></span>
         <span class="mini-pill">Amanhã: <b id="qtdAmanha">0</b></span>
         <span class="mini-pill">Próx. 7 dias: <b id="qtd7">0</b></span>
       </div>
-      <div class="mini-hint" id="miniHint">Resumo automático do período selecionado.</div>
+      <div class="mini-hint" id="miniHint">
+        Quando o MEI Robô estiver ligado na sua conta, ele usa esta agenda para propor horários e lembrar dos compromissos.
+      </div>
     </section>
 
     <!-- Busca + Filtros -->
@@ -234,6 +236,9 @@
         <div class="col" id="colHojeA"></div>
         <div class="col" id="colHojeB"></div>
       </div>
+      <p class="mini-hint">
+        Aqui vão os horários do dia. O MEI Robô usa isto como referência para sugerir horários e evitar conflito de agenda.
+      </p>
     </section>
 
     <!-- AMANHÃ -->
@@ -254,6 +259,9 @@
         <div class="col" id="colAmanhaA"></div>
         <div class="col" id="colAmanhaB"></div>
       </div>
+      <p class="mini-hint">
+        Amanhã é onde normalmente o robô começa a oferecer horários alternativos quando hoje já está cheio.
+      </p>
     </section>
 
     <!-- SETE DIAS -->
@@ -271,6 +279,9 @@
         </div>
       </div>
       <div class="week-grid" id="weekGrid"></div>
+      <p class="mini-hint">
+        Esta janela de 7 dias é o mapa para o MEI Robô entender quando pode sugerir encaixes, retornos e lembretes.
+      </p>
     </section>
   </main>
 
@@ -623,3 +634,4 @@
   </script>
 </body>
 </html>
+

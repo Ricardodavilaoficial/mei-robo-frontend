@@ -292,7 +292,7 @@
       </section>
 
       <!-- 3) IMPORTAR CONTATOS -->
-      <section class="card" style="margin-top:14px;">
+      <section id="import" class="card" style="margin-top:14px;">
         <strong>Importar contatos (opcional)</strong>
         <p class="value-soft" style="margin:8px 0 10px;">
           Tem seus contatos numa planilha? Exporte como <b>CSV</b> e importe aqui.
@@ -471,6 +471,7 @@
         <button class="btn small" id="btnRequestOptin" disabled>Pedir autorização agora</button>
         <button class="btn small" id="btnSendConfirmation" disabled>Confirmar autorização</button>
         <button class="btn small" id="btnMarkExternal">Marcar autorização externa</button>
+        <button class="btn small" id="btnCloseConsent" type="button">Fechar</button>
       </div>
 
       <div class="hint" id="linkArea" style="display:none; margin-top:8px;">
@@ -478,9 +479,6 @@
         <button class="btn small" id="btnCopyLink" type="button">Copiar link</button>
         <div style="margin-top:6px;">Toque no link. Seu WhatsApp abre. Peça para a pessoa mandar um <b>“Oi”</b>.</div>
       </div>
-    </div>
-    <div class="modal-footer">
-      <button class="btn primary" id="btnCloseConsent" type="button">Fechar</button>
     </div>
   </dialog>
 
@@ -523,13 +521,13 @@
 
   <script>
   (function(){
-    
+
     // --- SANDBOX UID via query (?uid=demo_uid) ---
     const _qp = new URLSearchParams(location.search);
     const SANDBOX_UID = _qp.get('uid') || 'demo_uid';
     window.MEI_ROBO = window.MEI_ROBO || {};
     window.MEI_ROBO.DEMO_UID = SANDBOX_UID;
-const $ = (q)=>document.querySelector(q);
+    const $ = (q)=>document.querySelector(q);
 
     /* ====== Refs ====== */
     const formNew = $("#formNewContact");
@@ -611,7 +609,16 @@ const $ = (q)=>document.querySelector(q);
 
     function fs(){ return (window.firebase?.firestore) ? firebase.firestore(): null; }
     function st(){ return (window.firebase?.storage) ? firebase.storage(): null; }
-    function pathClientes(){ return fs().collection('profissionais').doc(SANDBOX_UID).collection('clientes'); }
+
+    // UID usado para dados: em produção, o UID real; em vitrine, o SANDBOX_UID
+    function dataUid(){
+      return (CURRENT_USER && CURRENT_USER.uid) || SANDBOX_UID;
+    }
+
+    function pathClientes(){
+      const db = fs();
+      return db.collection('profissionais').doc(dataUid()).collection('clientes');
+    }
 
     function styleCodeFrom(d){
       const T = d.tom==='informal'?'INF':(d.tom==='formal'?'FOR':'EQ');
@@ -705,28 +712,33 @@ const $ = (q)=>document.querySelector(q);
     }
 
     async function ensureAuth(){
-      if(!window.firebase || !firebase?.auth){ return null; }
-      try{
-        await firebase.auth().signInAnonymously();
-        CURRENT_USER = { uid: SANDBOX_UID };
-        return CURRENT_USER;
-      }catch(e){
-        console.error('[contatos] ensureAuth', e);
+      if (!window.firebase || !firebase?.auth) {
         return null;
       }
-    }; }
-        setTimeout(()=>location.href='/pages/login.html',150);
-        return null;
+
+      // Modo vitrine (?validate=1): não força login nem grava nada de verdade
+      if (isValidateMode()) {
+        const demoUser = { uid: SANDBOX_UID, demo: true };
+        CURRENT_USER = demoUser;
+        return demoUser;
       }
-      const user = await new Promise(r=>{
-        const off=firebase.auth().onAuthStateChanged(u=>{off(); r(u||null);});
+
+      // Produção: exige usuário logado (como o Dashboard)
+      return new Promise((resolve) => {
+        const off = firebase.auth().onAuthStateChanged((u) => {
+          off();
+          if (!u) {
+            const next = encodeURIComponent(location.pathname + location.search);
+            setTimeout(() => {
+              location.href = '/pages/login.html?next=' + next;
+            }, 150);
+            resolve(null);
+            return;
+          }
+          CURRENT_USER = u;
+          resolve(u);
+        });
       });
-      if(!user){
-        if(isValidateMode()){ demoPopulate(); return {demo:true}; }
-        location.href='/pages/login.html'; return null;
-      }
-      CURRENT_USER=user;
-      return user;
     }
 
     function disableForVitrine(){
@@ -787,7 +799,17 @@ const $ = (q)=>document.querySelector(q);
       };
       payload.preferenciaAudio = (payload.audioRule==='off')?'texto':'permitido';
       payload.styleCode = styleCodeFrom(payload);
-      try { const tn = normalizeBRPhone(payload.telefone); payload.telefone_v2 = { raw: payload.telefone, msisdn: tn.msisdn, waKey: tn.waKey }; } catch{}_;
+      try {
+        const tn = normalizeBRPhone(payload.telefone);
+        payload.telefone_v2 = {
+          raw: payload.telefone,
+          msisdn: tn.msisdn,
+          waKey: tn.waKey
+        };
+      } catch (e) {
+        // Se não conseguir normalizar, segue sem telefone_v2
+        console.warn('[contatos] telefone_v2 skip', e && e.message ? e.message : e);
+      }
 
       if(id){ await col.doc(id).set(payload,{merge:true}); }
       else { await col.add(payload); }
@@ -1145,7 +1167,7 @@ const $ = (q)=>document.querySelector(q);
           const isPdf = ext==='pdf' || file.type==='application/pdf';
           if(!isImg && !isPdf){ alert('Apenas imagens ou PDF.'); continue; }
 
-          const path=`sandbox/${SANDBOX_UID}/contatos/${CURRENT_ACERVO_ID}/${Date.now()}_${file.name.replace(/[^a-zA-Z0-9._-]/g,'_')}`;
+          const path=`sandbox/${dataUid()}/contatos/${CURRENT_ACERVO_ID}/${Date.now()}_${file.name.replace(/[^a-zA-Z0-9._-]/g,'_')}`;
           const ref=storage.ref().child(path);
 
           await new Promise((resolve,reject)=>{
@@ -1201,4 +1223,3 @@ const $ = (q)=>document.querySelector(q);
   </script>
 </body>
 </html>
-
