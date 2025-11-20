@@ -43,22 +43,35 @@
 
       <div id="status" class="badge muted">carregando…</div>
 
+      <!-- Identidade prática dentro do MEI Robô -->
+      <div id="perfil" class="section" style="margin-top:12px"></div>
+
+      <!-- Dados fiscais / CNPJ -->
       <div id="empresa" class="section" style="margin-top:12px"></div>
 
       <details style="margin-top:10px">
-        <summary>O que faremos em seguida?</summary>
+        <summary>O que você pode fazer agora?</summary>
         <ul class="list">
-          <li>Ativar sua voz digital (seus áudios já enviados).</li>
-          <li>Configurar agenda inteligente e mensagens iniciais.</li>
-          <li>Revisar catálogos e atalhos de atendimento.</li>
+          <li>Cadastre seus contatos e já personalize o jeito que você fala com cada cliente.</li>
+          <li>Liste seus serviços e preços para o MEI Robô responder orçamentos direto pelo WhatsApp.</li>
+          <li>Defina as regras da sua agenda para o MEI Robô marcar horários como se fosse você.</li>
+          <li>Crie um modelo de orçamento timbrado para quando você precisar formalizar seus preços.</li>
         </ul>
       </details>
+
+      <p class="muted" style="margin-top:10px">
+        Seu número de WhatsApp com o MEI Robô será configurado em até <strong>7 dias úteis</strong>.
+        Enquanto isso, usar essas informações ajuda a deixar sua voz digital, sua agenda e seus atendimentos prontos
+        para quando os clientes começarem a chamar.
+      </p>
 
       <div class="actions">
         <a id="btnContinuar" class="cta" href="/pages/dashboard.html">Salvar e continuar</a>
         <a class="btn-secondary" href="/pages/ativar-cliente.html">Voltar</a>
       </div>
-      <p id="docsHint" class="muted" style="display:none;margin-top:6px">Percebemos uma pendência de vínculo. Se necessário, <a href="/pages/vinculo.html">envie seus documentos aqui</a>.</p>
+      <p id="docsHint" class="muted" style="display:none;margin-top:6px">
+        Percebemos uma pendência de vínculo. Se necessário, <a href="/pages/vinculo.html">envie seus documentos aqui</a>.
+      </p>
     </div>
   </main>
 
@@ -73,6 +86,7 @@
     };
 
     const $status   = document.getElementById('status');
+    const $perfil   = document.getElementById('perfil');
     const $empresa  = document.getElementById('empresa');
     const $docsHint = document.getElementById('docsHint');
 
@@ -140,12 +154,13 @@
 
       if (isFree) {
         if (h2) h2.textContent = 'Boas-vindas! Seu cupom foi aplicado.';
-        if (p)  p.innerHTML = 'Cupom validado e licença ativada. Confira os dados da sua empresa e avance para as configurações iniciais.';
+        if (p)  p.innerHTML = 'Seu número de WhatsApp com o MEI Robô chega em até 7 dias úteis. '
+          + 'Cupom validado e licença ativada. Confira os dados da sua empresa e avance para as configurações iniciais.';
         arrivedMsg = 'cupom aplicado';
       } else if (hasStripeSession) {
         if (h2) h2.textContent = 'Boas-vindas! Pagamento confirmado.';
-        /* >>> TEXTO AJUSTADO (SLA 7 dias úteis) <<< */
-        if (p)  p.innerHTML = 'Seu número de WhatsApp com o MEI Robô chega em até 7 dias úteis. Siga com as configurações para habilitá-lo.';
+        if (p)  p.innerHTML = 'Seu número de WhatsApp com o MEI Robô chega em até 7 dias úteis. '
+          + 'Confira os dados da sua empresa e avance para as configurações iniciais.';
         arrivedMsg = 'pagamento confirmado';
       }
     }
@@ -157,25 +172,49 @@
       const cnae = emp.cnaePrincipal || {};
       const seg  = mapSegmento(cnae);
 
-      const pills = html([
-        emp.cnpj ? `<span class="pill mono">${t(emp.cnpj)}</span>` : '',
-        seg.segmento ? `<span class="pill">${t(seg.segmento)}</span>` : '',
-        (cnae.descricao || cnae.codigo) ? `<span class="pill">${t(cnae.descricao || cnae.codigo)}</span>` : ''
+      // Atuação prática dentro do MEI Robô (card de altivez)
+      const atividadeLabel = (cnae.descricao || cnae.codigo || seg.segmento || null);
+      const segmentoLabel  = seg.segmento || null;
+
+      $perfil.innerHTML = html([
+        `<div class="field"><div class="label">Como você vai aparecer no MEI Robô</div><div>${t(atividadeLabel)}</div></div>`,
+        `<div class="field" style="margin-top:8px"><div class="label">Segmento</div><div>${t(segmentoLabel)}</div></div>`,
+        `<p class="muted" style="margin-top:8px">`,
+          `É assim que o MEI Robô vai enxergar você e como seus clientes verão seus serviços, agenda e orçamentos.`,
+        `</p>`
       ]);
 
       const endereco = emp.endereco || {};
       const loc = [endereco.municipio, endereco.uf].filter(Boolean).map(esc).join(' / ');
 
+      const pills = html([
+        emp.cnpj ? `<span class="pill mono">${t(emp.cnpj)}</span>` : '',
+        segmentoLabel ? `<span class="pill">${t(segmentoLabel)}</span>` : '',
+        (cnae.descricao || cnae.codigo) ? `<span class="pill">${t(cnae.descricao || cnae.codigo)}</span>` : ''
+      ]);
+
+      // Dados fiscais / CNPJ
       $empresa.innerHTML = html([
-        `<div class="grid">`,
+        `<div class="field" style="margin-bottom:10px">`,
+          `<div class="label">Status da conta</div>`,
+          `<div>`,
+            `<span class="pill ok">dados carregados ✔</span>`,
+            vinc.stripe_enabled ? `<span class="pill ok">assinatura ativa ✔</span>` : '',
+          `</div>`,
+        `</div>`,
+        `<div class="grid" style="margin-top:4px">`,
           `<div class="field"><div class="label">Razão social</div><div>${t(emp.razaoSocial)}</div></div>`,
           `<div class="field"><div class="label">Nome fantasia</div><div>${t(emp.nomeFantasia)}</div></div>`,
-          `<div class="field"><div class="label">Segmento</div><div>${t(seg.segmento)}</div></div>`,
+          `<div class="field"><div class="label">CNPJ</div><div>${t(emp.cnpj)}</div></div>`,
           `<div class="field"><div class="label">CNAE principal</div><div>${t(cnae.descricao || cnae.codigo)}</div></div>`,
           `<div class="field"><div class="label">Município/UF</div><div>${loc || "<span class='muted'>—</span>"}</div></div>`,
         `</div>`,
         pills ? `<div style="margin-top:10px">${pills}</div>` : '',
-        vinc.stripe_enabled ? `<p class="muted" style="margin:10px 0 0">Assinatura ativa ✔</p>` : ''
+        `<p class="muted" style="margin:10px 0 0">`,
+          `Esses dados vêm do seu CNPJ e são usados apenas para cobrança, documentos e verificação da empresa. `,
+          `Seus clientes não veem o CNAE nem essa descrição fiscal.`,
+        `</p>`,
+        vinc.stripe_enabled ? `` : ``
       ]);
 
       if (vinc.needs_docs) {
@@ -227,14 +266,17 @@
         if (!r || !r.ok || !r.body) {
           if (r && r.status === 401) {
             pill('entre para continuar', 'warn');
+            $perfil.innerHTML = '';
             $empresa.innerHTML = '<p class="muted">Faça login para ver seus dados.</p><p><a class="btn-secondary" href="/pages/login.html">Entrar</a></p>';
           } else {
-            /* >>> AJUSTE: não exibir “erro” no estado feliz pós-Stripe/cupom <<< */
+            // no pós-pagamento/cupom, não assusta o usuário com "erro"
             if (hasStripeSession || isFree) {
               pill('dados pendentes', 'muted');
+              $perfil.innerHTML = '';
               $empresa.innerHTML = '<p class="muted">Você pode seguir com as configurações iniciais; os dados da empresa serão carregados em breve.</p>';
             } else {
               pill('não foi possível carregar agora', 'err');
+              $perfil.innerHTML = '';
               $empresa.innerHTML = '<p class="muted">Tente novamente em alguns instantes. Se persistir, fale com o suporte.</p>';
             }
           }
@@ -245,12 +287,14 @@
         renderEmpresa(r.body);
         safeCheckDocs();
       } catch (e){
-        /* >>> AJUSTE: silenciar erro visual no pós-Stripe/cupom <<< */
+        // no pós-pagamento/cupom, mantemos a jornada "feliz"
         if (hasStripeSession || isFree) {
           pill('dados pendentes', 'muted');
+          $perfil.innerHTML = '';
           $empresa.innerHTML = '<p class="muted">Você pode seguir com as configurações iniciais; os dados da empresa serão carregados em breve.</p>';
         } else {
           pill('não foi possível carregar agora', 'err');
+          $perfil.innerHTML = '';
           $empresa.innerHTML = '<p class="muted">Tente novamente em alguns instantes. Se persistir, fale com o suporte.</p>';
         }
       }
