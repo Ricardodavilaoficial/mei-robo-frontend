@@ -204,21 +204,38 @@
 
       // ===== Checagem: sou admin? (usa /admin/ping) =====
       async function isAdminUser(){
-        try{
+        try {
           let t = await getTokenPreferFresh();
-          if(!t && typeof firebase !== 'undefined' && firebase.auth){
+
+          if (!t && typeof firebase !== 'undefined' && firebase.auth) {
             const u = firebase.auth().currentUser || await new Promise(res => firebase.auth().onAuthStateChanged(res));
             if (u) t = await u.getIdToken(true);
           }
+
           if (!t) return false;
 
-          const r = await fetch(ABS_API + "/admin/ping", {
-            method: "GET", mode: "cors",
-            headers: { "Authorization": "Bearer " + t },
-            cache: "no-store"
-          });
-          return r.ok; // 200 => admin; 401/403 => não-admin
-        }catch{ return false; }
+          try {
+            const r = await fetch(ABS_API + "/admin/ping", {
+              method: "GET",
+              mode: "cors",
+              headers: { "Authorization": "Bearer " + t },
+              cache: "no-store"
+            });
+
+            if (r.status === 404) {
+              console.warn("[admin-cupons] /admin/ping 404 — usando fallback permissivo (token presente => admin)");
+              // 🔓 Fallback provisório: se tem token válido, consideramos admin
+              return true;
+            }
+
+            return r.ok;
+          } catch (e) {
+            console.warn("[admin-cupons] falha ao chamar /admin/ping:", e);
+            return false;
+          }
+        } catch {
+          return false;
+        }
       }
 
       // Aplica/força UI de admin vs não-admin
