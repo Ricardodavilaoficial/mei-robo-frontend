@@ -853,23 +853,63 @@
       NC.audioRule.value="match"; NC.speechRate.value="normal"; NC.clearPauses.checked=true;
     }
 
-    formNew?.addEventListener('submit', async (ev)=>{
+    // PATCH: handler robusto para "Salvar contato"
+    formNew?.addEventListener('submit', async (ev) => {
       ev.preventDefault();
-      if(isValidateMode()) return;
-      const data=readNewForm();
-      if(!data.nome){ alert('Informe o nome do contato.'); return; }
-      if(data.email && !emailRegex.test(data.email)){ alert('Email inválido.'); return; }
-      if(data.telefone && !phoneRegex.test(data.telefone)){ alert('Telefone inválido. Use +55 (DD) 9XXXX-XXXX'); return; }
-      btnSaveNew.disabled=true;
-      try{
-        await upsertContact(data,null);
+
+      // 1) Vitrine: não faz nada
+      if (isValidateMode()) {
+        return;
+      }
+
+      // 2) Sem usuário logado → não tenta salvar silenciosamente
+      if (!CURRENT_USER || !CURRENT_USER.uid) {
+        alert('Sua sessão parece ter expirado. Faça login novamente para salvar seus contatos.');
+        const next = encodeURIComponent(location.pathname + location.search);
+        setTimeout(() => {
+          location.href = '/pages/login.html?next=' + next;
+        }, 150);
+        return;
+      }
+
+      let data;
+      try {
+        // 3) Ler e validar o formulário (sem mexer no botão ainda)
+        data = readNewForm();
+
+        if (!data.nome) {
+          alert('Informe o nome do contato.');
+          return;
+        }
+        if (data.email && !emailRegex.test(data.email)) {
+          alert('Email inválido.');
+          return;
+        }
+        if (data.telefone && !phoneRegex.test(data.telefone)) {
+          alert('Telefone inválido. Use +55 (DD) 9XXXX-XXXX');
+          return;
+        }
+      } catch (e) {
+        console.error('[contatos] erro ao ler formulário', e);
+        alert('Erro ao ler os dados do contato. Tente recarregar a página.');
+        return;
+      }
+
+      // 4) Agora sim travamos o botão, já com tudo validado
+      btnSaveNew.disabled = true;
+
+      try {
+        await upsertContact(data, null);
         resetNewForm();
         await loadContacts();
         alert('Contato salvo.');
-      }catch(e){
+      } catch (e) {
         console.error('[contatos] salvar novo', e);
         alert('Não foi possível salvar. Tente novamente.');
-      }finally{ btnSaveNew.disabled=false; }
+      } finally {
+        // 5) Garantia forte: sempre reabilita o botão
+        btnSaveNew.disabled = false;
+      }
     });
 
     /* ====== Import CSV ====== */
