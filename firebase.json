@@ -20,8 +20,7 @@
             { "key": "Cross-Origin-Resource-Policy", "value": "same-origin" },
             {
               "key": "Content-Security-Policy",
-              "value": "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://challenges.cloudflare.com https://www.gstatic.com https://www.googleapis.com; connect-src 'self' https://mei-robo-prod.onrender.com https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://www.googleapis.com https://firebasestorage.googleapis.com https://*.firebasestorage.app https://challenges.cloudflare.com; img-src 'self' data: https:; media-src 'self' https://firebasestorage.googleapis.com https://*.firebasestorage.app https://storage.googleapis.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; frame-src https://challenges.cloudflare.com; object-src 'none'; base-uri 'self';"
-            }
+              "value": "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://challenges.cloudflare.com https://www.gstatic.com https://www.googleapis.com; connect-src 'self' https://mei-robo-prod.onrender.com https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://www.googleapis.com https://firestore.googleapis.com https://firebasestorage.googleapis.com https://*.firebasestorage.app https://challenges.cloudflare.com https://www.gstatic.com; img-src 'self' data: https:; media-src 'self' https://firebasestorage.googleapis.com https://*.firebasestorage.app https://storage.googleapis.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; frame-src https://challenges.cloudflare.com; object-src 'none'; base-uri 'self';"            }
           ]
         },
         {
