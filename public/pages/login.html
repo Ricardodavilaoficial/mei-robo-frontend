@@ -181,7 +181,16 @@
           console.log('Login OK — UID:', user.uid, 'IDToken(ini):', idt.slice(0,25), '...');
           say('Login OK! Redirecionando…', true);
 
-          window.location.href = '/pages/dashboard.html';
+          // 🔁 Redireciona para ?next=... se existir, senão dashboard
+          let target = '/pages/dashboard.html';
+          try {
+            const params = new URLSearchParams(location.search || '');
+            const next = params.get('next');
+            if (next) target = next;
+          } catch (e) {
+            console.warn('[login] erro lendo next', e);
+          }
+          window.location.href = target;
         }catch(err){
           const code = err && err.code ? String(err.code) : '';
           if(code === 'auth/user-not-found') say('Usuário não encontrado.');
@@ -224,7 +233,28 @@
         clearSession();
         window.location.href = '/cadastro.html';
       });
+
+      // Auto-login: se já estiver autenticado, respeita ?next=... ou cai no dashboard
+      try {
+        const auth = getLoginAuth();
+        auth.onAuthStateChanged(function(user){
+          if (!user) return; // fica na tela de login
+
+          let target = '/pages/dashboard.html';
+          try {
+            const params = new URLSearchParams(location.search || '');
+            const next = params.get('next');
+            if (next) target = next;
+          } catch (e) {
+            console.warn('[login] erro lendo next no onAuthStateChanged', e);
+          }
+          window.location.href = target;
+        });
+      } catch (e) {
+        console.warn('[login] onAuthStateChanged não inicializado:', e);
+      }
     })();
   </script>
 </body>
 </html>
+

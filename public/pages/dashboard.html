@@ -79,6 +79,14 @@
     .statline .badge{background:rgba(255,255,255,.03)}
     .banner{border:1px dashed #2a3a3f;background:rgba(255,255,255,.03);padding:10px;border-radius:10px;margin:10px 0}
     .sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+    .chip-link{
+      text-decoration:none;
+      color:inherit;
+    }
+    .chip-link:focus-visible{
+      outline:2px solid var(--brand);
+      outline-offset:2px;
+    }
   </style>
 </head>
 <body class="app-shell">
@@ -181,19 +189,40 @@
       <section class="card" style="margin-top:14px;">
         <strong>Passos de configuração</strong>
         <div class="list" style="margin-top:8px;">
-          <div id="chkEmail" class="note">• E-mail verificado: <span class="chip">—</span></div>
-          <div id="chkPhone" class="note">• Número comercial cadastrado: <span class="chip">—</span></div>
-          <div id="chkContato" class="note">• Pelo menos 1 contato: <span class="chip">—</span></div>
-          <div id="chkConsent" class="note">• Autorização ativa (pelo menos 1): <span class="chip">—</span></div>
+          <div id="chkEmail" class="note">
+            • E-mail verificado:
+            <a href="/pages/configuracao.html" class="chip-link">
+              <span class="chip">—</span>
+            </a>
+          </div>
+          <div id="chkPhone" class="note">
+            • Número comercial cadastrado:
+            <a href="/pages/configuracao.html" class="chip-link">
+              <span class="chip">—</span>
+            </a>
+          </div>
+          <div id="chkContato" class="note">
+            • Pelo menos 1 contato:
+            <a href="/pages/contatos.html" class="chip-link">
+              <span class="chip">—</span>
+            </a>
+          </div>
+          <div id="chkConsent" class="note">
+            • Autorização ativa (pelo menos 1):
+            <a href="/pages/contatos.html" class="chip-link">
+              <span class="chip">—</span>
+            </a>
+          </div>
         </div>
       </section>
 
-      <div class="card" style="margin-top:14px;">
+      <section class="card" style="margin-top:14px;">
         <div class="actions">
           <a class="btn" href="/pages/contatos.html">Ir para contatos</a>
+          <a class="btn" href="/pages/configuracao.html">Configurações da conta</a>
           <a class="btn ghost" href="/pages/precos.html">Planos</a>
         </div>
-      </div>
+      </section>
 
       <!-- Área para mensagens (mantida por compatibilidade, não usada no gate rígido) -->
       <div id="loginNotice" class="banner" style="display:none;" role="alert" aria-live="assertive"></div>

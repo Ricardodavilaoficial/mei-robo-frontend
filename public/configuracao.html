@@ -337,6 +337,17 @@
         </div>
       </form>
     </div>
+
+    <!-- Configuração da agenda (resumo) -->
+    <section class="card" style="margin-top:14px;">
+      <strong>Configuração da agenda</strong>
+      <p class="note" style="margin:6px 0 10px;">
+        Estas são as regras que o MEI Robô usa hoje para sugerir horários.
+      </p>
+      <ul class="list muted" id="agendaConfigResumo">
+        <li>Carregando configuração da agenda…</li>
+      </ul>
+    </section>
   </main>
 
   <div id="app-footer"></div>
@@ -909,6 +920,20 @@
         initBranding(data);
 
         // (Opcional) reforço de vínculo por nome
+        async function tryCheckCnpjVinculo(cnpj14, nomeBusca){
+          try {
+            if (!cnpj14) return;
+            const u = `${API_BASE}/integracoes/cnpj/${encodeURIComponent(cnpj14)}?nome=${encodeURIComponent(nomeBusca||'')}`;
+            const r = await fetch(u, { credentials: "include" });
+            if (!r.ok) return;
+            const j = await r.json();
+            const v = j && j.vinculoNome && j.vinculoNome.avaliacao;
+            if (v === 'EXATO' || v === 'PROVAVEL') {
+              cnpjVinculoHint.textContent = '✅ Vínculo ao CNPJ: ok.';
+            }
+          } catch(_){}
+        }
+
         tryCheckCnpjVinculo(hCnpj.value || '', authName || '');
 
         // ===== Se já temos CNPJ, buscar DETALHES públicos e sobrepor exibição
@@ -979,20 +1004,6 @@
       } catch(e) {
         // permanece na tela
       }
-    }
-
-    async function tryCheckCnpjVinculo(cnpj14, nomeBusca){
-      try {
-        if (!cnpj14) return;
-        const u = `${API_BASE}/integracoes/cnpj/${encodeURIComponent(cnpj14)}?nome=${encodeURIComponent(nomeBusca||'')}`;
-        const r = await fetch(u, { credentials: "include" });
-        if (!r.ok) return;
-        const j = await r.json();
-        const v = j && j.vinculoNome && j.vinculoNome.avaliacao;
-        if (v === 'EXATO' || v === 'PROVAVEL') {
-          cnpjVinculoHint.textContent = '✅ Vínculo ao CNPJ: ok.';
-        }
-      } catch(_){}
     }
 
     async function loadWabaStatus(uid, idToken){
@@ -1150,6 +1161,77 @@
       });
     }
   </script>
+
+  <script>
+  (function(){
+    // Garante Firebase disponível
+    if (!window.firebase || !firebase.firestore) return;
+
+    const resumoEl = document.getElementById('agendaConfigResumo');
+    if (!resumoEl) return;
+
+    function addLine(text){
+      const li = document.createElement('li');
+      li.textContent = text;
+      resumoEl.appendChild(li);
+    }
+
+    firebase.auth().onAuthStateChanged(async function(user){
+      if (!user) {
+        try {
+          const next = encodeURIComponent(location.pathname + location.search || '/pages/configuracao.html');
+          window.location.href = '/pages/login.html?next=' + next;
+        } catch (e) {
+          console.error('[configuracao] redirect login', e);
+          window.location.href = '/pages/login.html';
+        }
+        return;
+      }
+
+      try {
+        const db = firebase.firestore();
+        const profRef = db.collection('profissionais').doc(user.uid);
+        const cfgRef  = profRef.collection('config').doc('agendamento');
+
+        const [cfgSnap, profSnap] = await Promise.all([
+          cfgRef.get().catch(() => null),
+          profRef.get().catch(() => null)
+        ]);
+
+        let cfg = (cfgSnap && cfgSnap.exists) ? (cfgSnap.data() || {}) : {};
+        const prof = (profSnap && profSnap.exists) ? (profSnap.data() || {}) : {};
+
+        // Mesma lógica do backend: fallback em profissionais/{uid}
+        ['atendimentoInicio','atendimentoFim','intervaloMin'].forEach(function(k){
+          if ((cfg[k] === undefined || cfg[k] === null) && prof[k] !== undefined) {
+            cfg[k] = prof[k];
+          }
+        });
+
+        resumoEl.innerHTML = '';
+
+        const dias = Array.isArray(cfg.diasAtendimento) && cfg.diasAtendimento.length
+          ? cfg.diasAtendimento.join(', ')
+          : 'Segunda a sexta (padrão)';
+
+        const ini   = cfg.atendimentoInicio || '09:00';
+        const fim   = cfg.atendimentoFim   || '18:00';
+        const passo = cfg.intervaloMin     || 30;
+        const ant   = (cfg.antecedenciaMinDias !== undefined && cfg.antecedenciaMinDias !== null)
+          ? cfg.antecedenciaMinDias
+          : 2;
+
+        addLine('Dias de atendimento: ' + dias);
+        addLine('Horário de atendimento: ' + ini + ' às ' + fim);
+        addLine('Intervalo entre horários: ' + passo + ' minutos');
+        addLine('Antecedência mínima para agendar: ' + ant + ' dia(s)');
+
+      } catch (e) {
+        console.error('[configuracao] agenda resumo', e);
+        resumoEl.innerHTML = '<li>Agenda indisponível no momento.</li>';
+      }
+    });
+  })();
+  </script>
 </body>
 </html>
-
