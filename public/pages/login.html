@@ -234,22 +234,30 @@
         window.location.href = '/cadastro.html';
       });
 
-      // Auto-login: se já estiver autenticado, respeita ?next=... ou cai no dashboard
+      // Auto-login: se já estiver autenticado **e NÃO vier com ?next=...**,
+      // redireciona pro dashboard. Se vier com ?next, o fluxo passa pelo botão.
       try {
         const auth = getLoginAuth();
-        auth.onAuthStateChanged(function(user){
-          if (!user) return; // fica na tela de login
 
-          let target = '/pages/dashboard.html';
-          try {
-            const params = new URLSearchParams(location.search || '');
-            const next = params.get('next');
-            if (next) target = next;
-          } catch (e) {
-            console.warn('[login] erro lendo next no onAuthStateChanged', e);
-          }
-          window.location.href = target;
-        });
+        let hasNext = false;
+        try {
+          const params = new URLSearchParams(location.search || '');
+          hasNext = !!params.get('next');
+        } catch (e) {
+          console.warn('[login] erro lendo next no auto-login', e);
+        }
+
+        // Se veio de um fluxo protegido (?next=...), NÃO faz auto-redirect
+        if (hasNext) {
+          console.log('[login] auto-login desabilitado porque existe ?next=...');
+        } else {
+          auth.onAuthStateChanged(function(user){
+            if (!user) return; // fica na tela de login
+
+            let target = '/pages/dashboard.html';
+            window.location.href = target;
+          });
+        }
       } catch (e) {
         console.warn('[login] onAuthStateChanged não inicializado:', e);
       }
