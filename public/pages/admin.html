@@ -137,6 +137,11 @@
     Rodapé (fallback) — © 2025 MEI Robô
   </div>
 
+  <!-- Firebase v8 (ordem importa) -->
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+
   <!-- Firebase/App init (existentes no projeto) -->
   <script src="/assets/firebase-init.js?v=2025-09-10T133807"></script>
   <script src="/assets/backend-patch.js?v=2025-09-10T133807"></script>
@@ -209,35 +214,48 @@
 
     // --- Elevação automática visual (se admins/{uid} existir) ---
     function elevateAdminFromFirestore() {
-      const FNS = window.firebase && window.firebase.firestore;
-      const auth = window.firebase && window.firebase.auth && window.firebase.auth();
-      if(!FNS || !window.db || !auth) return;
+      const firebaseNS = window.firebase;
+      const db = window.db;
+      const auth = firebaseNS && firebaseNS.auth && firebaseNS.auth();
+      if (!firebaseNS || !db || !auth) return;
 
       auth.onAuthStateChanged(async (user) => {
         if(!user) return;
         const uid = user.uid;
         try {
-          const snap = FNS.getDoc ? await FNS.getDoc(FNS.doc(window.db, 'admins', uid)) : null;
-          if(snap && (snap.exists ? snap.exists() : snap.exists)) {
+          const docRef = db.collection('admins').doc(uid);
+          const snap = await docRef.get();
+          if (snap && snap.exists) {
             localStorage.setItem('isAdmin','1');
             localStorage.setItem('uid', uid);
             applyAdminShellToggle();
           }
-        } catch {}
+        } catch (e) {
+          console.warn('Admin: erro ao checar admins/{uid}', e);
+        }
       });
     }
 
     function requireAdminOrRedirect(){
       if(isValidateMode) return true;
       try {
-        const isAdmin = (localStorage.getItem('isAdmin') === '1');
-        const uid = localStorage.getItem('uid');
-        if(!isAdmin || !uid) { location.href = '/pages/login.html'; return false; }
+        const firebaseNS = window.firebase;
+        const auth = firebaseNS && firebaseNS.auth && firebaseNS.auth();
+        if (!auth) return true; // não bloqueia se SDK não estiver pronto
+
+        const user = auth.currentUser;
+        if (!user) {
+          location.href = '/pages/login.html';
+          return false;
+        }
         return true;
-      } catch(e) { location.href = '/pages/login.html'; return false; }
+      } catch(e) {
+        location.href = '/pages/login.html';
+        return false;
+      }
     }
 
-    // --- NOVO: Validação forte no backend (/admin/ping) ---
+    // --- Validação forte no backend (/admin/ping) ---
     async function verifyAdminWithBackend(){
       if(isValidateMode) return true; // modo demo
       const backend = (window.BACKEND_BASE_URL || 'https://mei-robo-prod.onrender.com').replace(/\/+$/,'');
@@ -319,23 +337,23 @@
         try { setText('users-novos', String((await F.getCountFromServer(F.query(profRef, F.where('createdAt','>=', daysAgo(7))))).data().count ?? '—')); } catch {}
         try { setText('users-inativos', String((await F.getCountFromServer(F.query(profRef, F.where('lastActiveAt','<=', daysAgo(14))))).data().count ?? '—')); } catch {}
         try { setText('users-cancelados', String((await F.getCountFromServer(F.query(profRef, F.where('status','in',['cancelado','cancelled'])))).data().count ?? '—')); } catch {}
-      } catch {} 
+      } catch {}
       try {
         const auditsRef = F.collection(DB,'audits');
-        try { 
+        try {
           const start = new Date(now.getFullYear(), now.getMonth(), now.getDate());
           const end = new Date(now.getFullYear(), now.getMonth(), now.getDate()+1);
           setText('usage-msgs-hoje', String((await F.getCountFromServer(F.query(auditsRef, F.where('event','in',['sent','queued']), F.where('ts','>=', ts(start)), F.where('ts','<', ts(end))))).data().count ?? '—'));
-        } catch {} 
-        try { setText('usage-dau', String((await F.getCountFromServer(F.query(auditsRef, F.where('ts','>=', daysAgo(1))))).data().count ?? '—')); } catch {} 
-        try { setText('usage-wau', String((await F.getCountFromServer(F.query(auditsRef, F.where('ts','>=', daysAgo(7))))).data().count ?? '—')); } catch {} 
-      } catch {} 
+        } catch {}
+        try { setText('usage-dau', String((await F.getCountFromServer(F.query(auditsRef, F.where('ts','>=', daysAgo(1))))).data().count ?? '—')); } catch {}
+        try { setText('usage-wau', String((await F.getCountFromServer(F.query(auditsRef, F.where('ts','>=', daysAgo(7))))).data().count ?? '—')); } catch {}
+      } catch {}
       try {
         const cupRef = F.collection(DB,'cuponsAtivacao');
-        try { setText('cup-emitidos', String((await F.getCountFromServer(cupRef)).data().count ?? '—')); } catch {} 
-        try { setText('cup-ativos', String((await F.getCountFromServer(F.query(cupRef, F.where('validUntil','>=', ts(now))))).data().count ?? '—')); } catch {} 
-        try { setText('cup-resgatados', String((await F.getCountFromServer(F.query(cupRef, F.where('status','==','resgatado')))).data().count ?? '—')); } catch {} 
-      } catch {} 
+        try { setText('cup-emitidos', String((await F.getCountFromServer(cupRef)).data().count ?? '—')); } catch {}
+        try { setText('cup-ativos', String((await F.getCountFromServer(F.query(cupRef, F.where('validUntil','>=', ts(now))))).data().count ?? '—')); } catch {}
+        try { setText('cup-resgatados', String((await F.getCountFromServer(F.query(cupRef, F.where('status','==','resgatado')))).data().count ?? '—')); } catch {}
+      } catch {}
     }
 
     (async function start(){
@@ -343,10 +361,12 @@
       elevateAdminFromFirestore();
       applyAdminShellToggle();
 
-      // Gate leve de storage + validação forte no backend
+      // Gate leve de "tem usuário logado?"
       if(!requireAdminOrRedirect()) return;
+
+      // Validação forte no backend
       const ok = await verifyAdminWithBackend();
-      if(!ok) return; // já redirecionou
+      if(!ok) return; // já redirecionou se não for admin
 
       try {
         if(isValidateMode) { await loadValidateData(); }
