@@ -694,8 +694,7 @@
       const db = fs(); if(!db || !CURRENT_USER) return;
       CURRENT_ROWS = [];
       const snap = await pathClientes().orderBy('nome','asc').get().catch(e=>{
-        console.error('[contatos] loadContacts', e); return {empty:true, forEach:()=>{}};
-      });
+        console.error('[contatos] loadContacts', e); return {empty:true, forEach:()=>{}}; });
       if(!snap.empty){
         snap.forEach(doc=> CURRENT_ROWS.push({id:doc.id, data:doc.data()}));
       }
@@ -777,8 +776,14 @@
     }
 
     async function upsertContact(data, id){
-      const db=fs(); if(!db || !CURRENT_USER) return;
-      const col=pathClientes();
+      const db = fs();
+      if (!db) {
+        throw new Error('Firestore indisponível (fs() retornou null).');
+      }
+      if (!CURRENT_USER || !CURRENT_USER.uid) {
+        throw new Error('Sem usuário autenticado para gravar contato.');
+      }
+      const col = pathClientes();
       const payload={
         nome:data.nome||'', comoChama:data.comoChama||'', categoria:data.categoria||'',
         tom:data.tom||'equilibrado',
@@ -816,7 +821,7 @@
     }
 
     async function setConsentExternal(contatoId){
-      const db=fs(); if(!db || !CURRENT_USER) return;
+      const db = fs(); if(!db || !CURRENT_USER) return;
       const ref=pathClientes().doc(contatoId);
       const now = (firebase.firestore.FieldValue.serverTimestamp?.() || new Date());
       await ref.set({ consentimento:{ status:'consentido', origem:'externo', atualizadoEm: now }, consent: { status:'consentido', source:'externo', timestamp: now } }, {merge:true});
@@ -1151,7 +1156,7 @@
 
     async function refreshFilesList(){
       filesList.textContent='Carregando…';
-      const db=fs(); if(!db || !CURRENT_USER || !CURRENT_ACERVO_ID){ filesList.textContent='Indisponível.'; return; }
+      const db = fs(); if(!db || !CURRENT_USER || !CURRENT_ACERVO_ID){ filesList.textContent='Indisponível.'; return; }
       const fileCol=pathClientes().doc(CURRENT_ACERVO_ID).collection('files');
       const snap=await fileCol.orderBy('createdAt','desc').get().catch(e=>{console.error('[acervo] listar',e);return{empty:true,forEach:()=>{}};});
       let html=''; let total=0;
@@ -1195,7 +1200,7 @@
         const doc=await pathClientes().doc(CURRENT_ACERVO_ID).get();
         let used = ((doc.data()?.acervo?.usage?.totalBytes)||0);
 
-        const storage=st(); const db=fs(); if(!storage || !db){ alert('Storage indisponível.'); return; }
+        const storage=st(); const db = fs(); if(!storage || !db){ alert('Storage indisponível.'); return; }
 
         upBar.style.display='block'; upProg.style.width='0%';
         let sent=0;

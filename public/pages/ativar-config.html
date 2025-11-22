@@ -11,9 +11,17 @@
 
   <link rel="stylesheet" href="/assets/styles.css" />
   <link rel="icon" href="data:,">
+
+  <!-- ✅ Firebase compat (DEVE vir antes do firebase-init.js) -->
+  <script defer src="/__/firebase/9.22.2/firebase-app-compat.js"></script>
+  <script defer src="/__/firebase/9.22.2/firebase-auth-compat.js"></script>
+  <script defer src="/__/firebase/init.js"></script>
+
+  <!-- Helper que espera o Firebase e injeta Authorization: Bearer quando necessário -->
   <script src="/assets/firebase-init.js"></script>
   <script src="/assets/backend-patch.js"></script>
   <script defer src="/assets/layout.js"></script>
+
   <style>
     .wrap { max-width:900px; margin:24px auto; padding:0 12px; }
     .card-dark { background:#101414; color:#e9f4f1; border:1px solid #23302e; border-radius:14px; padding:16px; }
@@ -112,19 +120,53 @@
     // Texto com placeholder seguro
     function t(v){ return (v===null||v===undefined||v==='') ? "<span class='muted'>—</span>" : esc(String(v)); }
 
+    // 🔑 Auth: pega uid + idToken do Firebase (se logado)
+    async function getAuthContext(){
+      let idToken = null;
+      let uid = null;
+      try{
+        if (window.firebase && firebase.auth && firebase.auth().currentUser) {
+          const user = firebase.auth().currentUser;
+          uid = user.uid;
+          idToken = await user.getIdToken(true);
+        }
+      } catch(e){
+        console.warn('[ativar-config] falha ao obter idToken:', e);
+      }
+      return { uid, idToken };
+    }
+
     // Normaliza formatos alternativos de resposta
     function normalizeConta(body){
       if (!body || typeof body !== 'object') return { empresa:{}, vinculo:{} };
-      const empresa = body.empresa || {
+
+      // Tenta pegar objeto empresa já estruturado do backend
+      const beEmp = body.empresa || {};
+      const empresa = body.empresa ? {
+        cnpj: beEmp.cnpj || beEmp.cnpjNumero || beEmp.cnpj_numero || beEmp.cnpjFormatado || null,
+        razaoSocial: beEmp.razaoSocial || beEmp.razao_social || beEmp.legal_name || null,
+        nomeFantasia: beEmp.nomeFantasia || beEmp.nome_fantasia || beEmp.trade_name || null,
+        endereco: beEmp.endereco || {
+          municipio: beEmp.municipio || beEmp.municipioDescricao || null,
+          uf: beEmp.uf || beEmp.estado || null
+        },
+        cnaePrincipal: beEmp.cnaePrincipal || beEmp.cnae_principal || {
+          codigo: beEmp.cnaePrincipalCodigo || beEmp.cnae_principal_codigo || null,
+          descricao: beEmp.cnaePrincipalDescricao || beEmp.cnae_principal_descricao || null
+        }
+      } : {
+        // Fallback antigo (body "flat")
         cnpj: body.cnpj || body.CNPJ || null,
         razaoSocial: body.razaoSocial || body.razao || null,
         nomeFantasia: body.nomeFantasia || body.fantasia || null,
         endereco: body.endereco || null,
         cnaePrincipal: body.cnaePrincipal || body.cnae_principal || body.CNAE || null
       };
+
       const vinculo = body.vinculo || {
         stripe_enabled: !!(body.stripe_enabled || body.stripeEnabled || body.assinatura_ativa),
-        needs_docs: !!(body.needs_docs || body.needsDocs || body.docs_pendentes)
+        needs_docs: !!(body.needs_docs || body.needsDocs || body.docs_pendentes),
+        pending_review: !!(body.pending_review || body.revisao_pendente)
       };
       return { empresa, vinculo };
     }
@@ -172,10 +214,10 @@
       const cnae = emp.cnaePrincipal || {};
       const seg  = mapSegmento(cnae);
 
-      // Atuação prática dentro do MEI Robô (card de altivez)
       const atividadeLabel = (cnae.descricao || cnae.codigo || seg.segmento || null);
       const segmentoLabel  = seg.segmento || null;
 
+      // Card "Como você vai aparecer..."
       $perfil.innerHTML = html([
         `<div class="field"><div class="label">Como você vai aparecer no MEI Robô</div><div>${t(atividadeLabel)}</div></div>`,
         `<div class="field" style="margin-top:8px"><div class="label">Segmento</div><div>${t(segmentoLabel)}</div></div>`,
@@ -193,7 +235,7 @@
         (cnae.descricao || cnae.codigo) ? `<span class="pill">${t(cnae.descricao || cnae.codigo)}</span>` : ''
       ]);
 
-      // Dados fiscais / CNPJ
+      // Card de dados fiscais / CNPJ
       $empresa.innerHTML = html([
         `<div class="field" style="margin-bottom:10px">`,
           `<div class="label">Status da conta</div>`,
@@ -213,8 +255,7 @@
         `<p class="muted" style="margin:10px 0 0">`,
           `Esses dados vêm do seu CNPJ e são usados apenas para cobrança, documentos e verificação da empresa. `,
           `Seus clientes não veem o CNAE nem essa descrição fiscal.`,
-        `</p>`,
-        vinc.stripe_enabled ? `` : ``
+        `</p>`
       ]);
 
       if (vinc.needs_docs) {
@@ -241,8 +282,8 @@
       return null;
     }
 
-    async function fetchJSON(url){
-      const r = await fetch(url, { credentials:'include' });
+    async function fetchJSON(url, options){
+      const r = await fetch(url, Object.assign({ credentials:'include' }, options || {}));
       const ct = r.headers.get('content-type') || '';
       const body = ct.includes('application/json') ? await r.json() : await r.text();
       return { ok: r.ok, status: r.status, body };
@@ -261,7 +302,20 @@
         }
 
         pill('carregando…', 'muted');
-        const r = await fetchJSON(API.status).catch(()=>null);
+
+        // 🔑 tenta pegar uid + token pra chamar /api/conta/status?uid=...
+        const { uid, idToken } = await getAuthContext();
+        let url = API.status;
+        const headers = {};
+
+        if (idToken) {
+          headers['Authorization'] = 'Bearer ' + idToken;
+          if (uid && !url.includes('uid=')) {
+            url = url + '?uid=' + encodeURIComponent(uid);
+          }
+        }
+
+        const r = await fetchJSON(url, { headers }).catch(()=>null);
 
         if (!r || !r.ok || !r.body) {
           if (r && r.status === 401) {
@@ -287,6 +341,7 @@
         renderEmpresa(r.body);
         safeCheckDocs();
       } catch (e){
+        console.error('[ativar-config] erro em load:', e);
         // no pós-pagamento/cupom, mantemos a jornada "feliz"
         if (hasStripeSession || isFree) {
           pill('dados pendentes', 'muted');
@@ -302,12 +357,19 @@
 
     async function safeCheckDocs(){
       try{
-        const r = await fetchJSON(API.vinculo);
+        const { idToken } = await getAuthContext();
+        const headers = {};
+        if (idToken) headers['Authorization'] = 'Bearer ' + idToken;
+
+        const r = await fetchJSON(API.vinculo, { headers });
         if (r && r.ok && r.body) {
           const needs = !!(r.body.needs_docs || r.body.needsDocs || r.body.docs_pendentes);
           if (needs) $docsHint.style.display = 'block';
         }
-      } catch(e){ /* opcional */ }
+      } catch(e){
+        // opcional, não quebra jornada
+        console.warn('[ativar-config] erro em safeCheckDocs:', e);
+      }
     }
 
     document.addEventListener('DOMContentLoaded', load);
