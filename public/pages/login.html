@@ -131,25 +131,30 @@
       function lsSet(k,v){ try{ localStorage.setItem(k,v); }catch{} }
       function lsDel(k){  try{ localStorage.removeItem(k); }catch{} }
 
-      // === App nomeado para isolar de qualquer inicialização legada ===
+      // Usa SEMPRE o app DEFAULT (mesmo app que o resto do site)
       function getLoginAuth() {
-        if (!(window.firebase && firebase.app)) throw new Error('SDK do Firebase não carregado.');
+        if (!(window.firebase && firebase.app)) {
+          throw new Error('SDK do Firebase não carregado.');
+        }
+
         let rootApp;
-        try { rootApp = firebase.app(); }
-        catch (e) { throw new Error('App DEFAULT não inicializado. Verifique /assets/firebase-init.js.'); }
+        try {
+          rootApp = firebase.app();
+        } catch (e) {
+          throw new Error('App DEFAULT não inicializado. Verifique /assets/firebase-init.js.');
+        }
+
         const cfg = rootApp.options || {};
         if ((cfg.apiKey || '').toUpperCase() === 'PASTE_API_KEY') {
           console.error('Config com PASTE_API_KEY detectada — verifique firebase-init.js');
           throw new Error('Config inválida (PASTE_API_KEY).');
         }
-        const loginApp =
-          (firebase.apps || []).find(a => a.name === 'loginApp') ||
-          firebase.initializeApp(cfg, 'loginApp');
+
         try {
           console.log('Default apiKey:', rootApp.options.apiKey);
-          console.log('loginApp apiKey:', loginApp.options.apiKey);
         } catch {}
-        return loginApp.auth();
+
+        return rootApp.auth();
       }
 
       async function doLogin(e){
@@ -265,4 +270,3 @@
   </script>
 </body>
 </html>
-
