@@ -202,7 +202,7 @@
         return fetch(url, merged).finally(()=>clearTimeout(timer));
       }
 
-      // ===== Checagem: sou admin? (usa /admin/ping, mas com fallback agressivo) =====
+      // ===== Checagem: sou admin? (AGORA ESTRITA via /admin/ping) =====
       async function isAdminUser(){
         try {
           let t = await getTokenPreferFresh();
@@ -219,35 +219,35 @@
             return false;
           }
 
-          // 🔐 Até aqui: já temos um token válido.
-          // Tentamos /admin/ping, mas QUALQUER problema de CORS/rede vira fallback permissivo.
-          try {
-            const r = await fetch(ABS_API + "/admin/ping", {
-              method: "GET",
-              mode: "cors",
-              headers: { "Authorization": "Bearer " + t },
-              cache: "no-store"
-            });
+          const r = await fetch(ABS_API + "/admin/ping", {
+            method: "GET",
+            mode: "cors",
+            headers: { "Authorization": "Bearer " + t },
+            cache: "no-store"
+          });
 
-            if (r.ok) {
-              console.log("[admin-cupons] /admin/ping OK => admin");
-              return true;
-            }
-
-            if (r.status === 404) {
-              console.warn("[admin-cupons] /admin/ping 404 — fallback: token presente => admin");
-              return true;
-            }
-
-            // Mesmo 401/403/500 etc: para esta tela interna, consideramos admin
-            console.warn("[admin-cupons] /admin/ping status", r.status, "— fallback: token presente => admin");
-            return true;
-          } catch (e) {
-            console.warn("[admin-cupons] falha ao chamar /admin/ping (CORS/rede?):", e, "— fallback: token presente => admin");
-            return true;
+          if (!r.ok) {
+            console.warn("[admin-cupons] /admin/ping status", r.status, "=> não-admin");
+            return false;
           }
+
+          const ct = (r.headers.get("content-type") || "").toLowerCase();
+          let data = null;
+          if (ct.includes("application/json")) {
+            try { data = await r.json(); } catch { data = null; }
+          }
+
+          const isAdmin = !!(data && data.ok === true && data.role === "admin");
+          if (!isAdmin) {
+            console.warn("[admin-cupons] /admin/ping OK mas sem role=admin => não-admin", data);
+            return false;
+          }
+
+          console.log("[admin-cupons] /admin/ping OK => admin confirmado");
+          return true;
+
         } catch (e) {
-          console.error("[admin-cupons] erro inesperado em isAdminUser:", e);
+          console.error("[admin-cupons] erro em isAdminUser (tratado como não-admin):", e);
           return false;
         }
       }
