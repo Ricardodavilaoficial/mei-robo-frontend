@@ -912,8 +912,8 @@
 
       return {
         diasAtendimento: dias,
-        atendimentoInicio: cfg.atendimentoInicio || '09:00',
-        atendimentoFim: cfg.atendimentoFim || '18:00',
+        atendimentoInicio: cfg.atendimentoInicio || '08:00',
+        atendimentoFim: cfg.atendimentoFim || '18:30',
         intervaloMin: (typeof cfg.intervaloMin === 'number' && cfg.intervaloMin > 0) ? cfg.intervaloMin : 30,
         antecedenciaMinDias: (typeof cfg.antecedenciaMinDias === 'number') ? cfg.antecedenciaMinDias : 2
       };
@@ -944,8 +944,8 @@
       const fInt = agendaFormEl.querySelector('select[name="intervaloMin"]');
       const fAnt = agendaFormEl.querySelector('input[name="antecedenciaMinDias"]');
 
-      if (fIni) fIni.value = cfg.atendimentoInicio || '09:00';
-      if (fFim) fFim.value = cfg.atendimentoFim || '18:00';
+      if (fIni) fIni.value = cfg.atendimentoInicio || '08:00';
+      if (fFim) fFim.value = cfg.atendimentoFim || '18:30';
       if (fInt) fInt.value = String(cfg.intervaloMin || 30);
       if (fAnt) fAnt.value = String(cfg.antecedenciaMinDias ?? 2);
     }
@@ -1021,8 +1021,8 @@
         .map(d => mapaDia[d] || d)
         .join(', ') || 'segunda a sexta (padrão)';
 
-      const ini = cfg.atendimentoInicio || '09:00';
-      const fim = cfg.atendimentoFim   || '18:00';
+      const ini = cfg.atendimentoInicio || '08:00';
+      const fim = cfg.atendimentoFim   || '18:30';
       const passo = cfg.intervaloMin || 30;
       const ant = (cfg.antecedenciaMinDias ?? 2);
 
