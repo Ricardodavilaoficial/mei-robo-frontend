@@ -57,6 +57,15 @@
     }
     input::placeholder{opacity:var(--ph-input)}
 
+    /* Ajuste visual da seção de agenda: inputs no tema escuro */
+    #agenda-form input[type="time"],
+    #agenda-form input[type="number"],
+    #agenda-form select {
+      background: var(--bg-input);
+      color: var(--fg-input);
+      border-color: var(--bd-input);
+    }
+
     .display-value{display:block;padding:10px 0 2px;font-weight:600;color:var(--fg-display);letter-spacing:.2px}
     .btn{padding:10px 14px;border:0;border-radius:8px;cursor:pointer}
     .btn.primary{background:#25D366;color:#fff}
@@ -340,7 +349,7 @@
 
     <!-- Configuração da agenda (form + resumo) -->
     <section class="card" style="margin-top:14px;">
-      <strong>Configuração da agenda</strong>
+      <strong>Configuração da agenda do MEI Robô</strong>
       <p class="note" style="margin:6px 0 10px;">
         Estas são as regras que o MEI Robô usa para sugerir horários aos seus clientes.
         Ajuste abaixo os dias, horários e a antecedência mínima.
@@ -393,6 +402,10 @@
       <ul class="list muted" id="agendaConfigResumo">
         <li>Carregando configuração da agenda…</li>
       </ul>
+      <p class="hint" style="margin-top:6px;">
+        O MEI Robô usa essas regras sempre que um cliente pedir horário pelo WhatsApp.
+        Você pode voltar aqui e ajustar a agenda a qualquer momento.
+      </p>
     </section>
   </main>
 
@@ -1303,7 +1316,7 @@
         const headers = {}; if (idToken) headers['Authorization'] = 'Bearer ' + idToken;
         const r = await fetch(`${API_BASE}/api/waba/status?uid=${encodeURIComponent(uid)}`, { headers });
         if (r.status === 404) {
-          console.info('[configuracao] /api/waba/status → 404 (rota inexistente). Status = UNKNOWN.');
+          // console.info('[configuracao] /api/waba/status → 404 (rota inexistente). Status = UNKNOWN.');
           setWabaUI('UNKNOWN');
           return;
         }
