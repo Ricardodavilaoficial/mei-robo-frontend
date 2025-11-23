@@ -759,7 +759,7 @@
 
                 if (cfgRes.ok) {
                   const cfgPayload = await cfgRes.json();
-                  const cfg = (cfgPayload && (cfgPayload.data || cfgPayload)) || {};
+                  const cfg = (cfgPayload && (cfgPayload.config || cfgPayload.data || cfgPayload)) || {};
 
                   // Valores vindos do backend (se existirem)
                   const cfgIni = cfg.atendimentoInicio || '08:00';
