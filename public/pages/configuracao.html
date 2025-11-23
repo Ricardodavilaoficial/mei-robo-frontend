@@ -338,12 +338,58 @@
       </form>
     </div>
 
-    <!-- Configuração da agenda (resumo) -->
+    <!-- Configuração da agenda (form + resumo) -->
     <section class="card" style="margin-top:14px;">
       <strong>Configuração da agenda</strong>
       <p class="note" style="margin:6px 0 10px;">
-        Estas são as regras que o MEI Robô usa hoje para sugerir horários.
+        Estas são as regras que o MEI Robô usa para sugerir horários aos seus clientes.
+        Ajuste abaixo os dias, horários e a antecedência mínima.
       </p>
+
+      <div id="agenda-alert" class="hint" style="margin-bottom:8px;"></div>
+
+      <form id="agenda-form" class="mt-12">
+        <label class="hint" style="margin-bottom:4px;">Dias de atendimento</label>
+        <div class="grid-3" style="margin-bottom:10px;">
+          <label><input type="checkbox" name="diasAtendimento" value="seg" /> Seg</label>
+          <label><input type="checkbox" name="diasAtendimento" value="ter" /> Ter</label>
+          <label><input type="checkbox" name="diasAtendimento" value="qua" /> Qua</label>
+          <label><input type="checkbox" name="diasAtendimento" value="qui" /> Qui</label>
+          <label><input type="checkbox" name="diasAtendimento" value="sex" /> Sex</label>
+          <label><input type="checkbox" name="diasAtendimento" value="sab" /> Sáb</label>
+          <label><input type="checkbox" name="diasAtendimento" value="dom" /> Dom</label>
+        </div>
+
+        <div class="grid-3">
+          <label>Início do atendimento
+            <input type="time" name="atendimentoInicio" required />
+          </label>
+          <label>Fim do atendimento
+            <input type="time" name="atendimentoFim" required />
+          </label>
+          <label>Intervalo entre horários
+            <select name="intervaloMin">
+              <option value="15">15 minutos</option>
+              <option value="30">30 minutos</option>
+              <option value="45">45 minutos</option>
+              <option value="60">60 minutos</option>
+            </select>
+          </label>
+        </div>
+
+        <div class="grid-3 mt-12">
+          <label>Antecedência mínima (dias)
+            <input type="number" name="antecedenciaMinDias" min="0" max="365" step="1" />
+          </label>
+        </div>
+
+        <div class="mt-12">
+          <button id="agenda-save-btn" type="submit" class="btn outline">Salvar agenda</button>
+        </div>
+      </form>
+
+      <hr style="margin:16px 0; border-color:rgba(255,255,255,0.08);" />
+
       <ul class="list muted" id="agendaConfigResumo">
         <li>Carregando configuração da agenda…</li>
       </ul>
@@ -431,7 +477,7 @@
     function isValidCNPJ(cnpj){
       cnpj = onlyDigits(cnpj||'');
       if (cnpj.length !== 14) return false;
-      if (/^(\d){13}$/.test(cnpj)) return false;
+      if (/^(\d)\1{13}$/.test(cnpj)) return false;
       let t = 12, d1 = 0, d2 = 0, p1 = 5, p2 = 6;
       for (let i = 0; i < t; i++) {
         const n = parseInt(cnpj[i],10);
@@ -492,6 +538,13 @@
     const cnpjInput = document.getElementById('cnpjInput');
     const btnSalvarCnpj = document.getElementById('btnSalvarCnpj');
     const cnpjMsg = document.getElementById('cnpjMsg');
+
+    // Agenda DOM
+    const agendaResumoEl = document.getElementById('agendaConfigResumo');
+    const agendaFormEl = document.getElementById('agenda-form');
+    const agendaAlertEl = document.getElementById('agenda-alert');
+    const agendaSaveBtn = document.getElementById('agenda-save-btn');
+    let currentAgendaConfig = null;
 
     fJanela.addEventListener('change', () => {
       wrapCustom.style.display = (fJanela.value === 'custom') ? 'block' : 'none';
@@ -850,6 +903,241 @@
       return null;
     }
 
+    /* ===== AGENDA: helpers ===== */
+    function normalizeAgendaConfig(raw){
+      const cfg = (raw && typeof raw === 'object') ? raw : {};
+      const dias = (Array.isArray(cfg.diasAtendimento) && cfg.diasAtendimento.length)
+        ? cfg.diasAtendimento
+        : ['seg','ter','qua','qui','sex'];
+
+      return {
+        diasAtendimento: dias,
+        atendimentoInicio: cfg.atendimentoInicio || '09:00',
+        atendimentoFim: cfg.atendimentoFim || '18:00',
+        intervaloMin: (typeof cfg.intervaloMin === 'number' && cfg.intervaloMin > 0) ? cfg.intervaloMin : 30,
+        antecedenciaMinDias: (typeof cfg.antecedenciaMinDias === 'number') ? cfg.antecedenciaMinDias : 2
+      };
+    }
+
+    function setAgendaMessage(msg, kind){
+      if (!agendaAlertEl) return;
+      agendaAlertEl.textContent = msg || '';
+      if (!msg){
+        agendaAlertEl.style.color = '';
+        return;
+      }
+      if (kind === 'error') agendaAlertEl.style.color = '#ffbdbd';
+      else if (kind === 'success') agendaAlertEl.style.color = '#8ff0c3';
+      else agendaAlertEl.style.color = '';
+    }
+
+    function preencherAgendaForm(cfg){
+      if (!agendaFormEl || !cfg) return;
+
+      const dias = cfg.diasAtendimento || [];
+      agendaFormEl.querySelectorAll('input[name="diasAtendimento"]').forEach(el => {
+        el.checked = dias.includes(el.value);
+      });
+
+      const fIni = agendaFormEl.querySelector('input[name="atendimentoInicio"]');
+      const fFim = agendaFormEl.querySelector('input[name="atendimentoFim"]');
+      const fInt = agendaFormEl.querySelector('select[name="intervaloMin"]');
+      const fAnt = agendaFormEl.querySelector('input[name="antecedenciaMinDias"]');
+
+      if (fIni) fIni.value = cfg.atendimentoInicio || '09:00';
+      if (fFim) fFim.value = cfg.atendimentoFim || '18:00';
+      if (fInt) fInt.value = String(cfg.intervaloMin || 30);
+      if (fAnt) fAnt.value = String(cfg.antecedenciaMinDias ?? 2);
+    }
+
+    function lerAgendaDoForm(){
+      const result = {
+        diasAtendimento: [],
+        atendimentoInicio: '',
+        atendimentoFim: '',
+        intervaloMin: 30,
+        antecedenciaMinDias: 2
+      };
+      if (!agendaFormEl) return result;
+
+      agendaFormEl.querySelectorAll('input[name="diasAtendimento"]:checked').forEach(el => {
+        result.diasAtendimento.push(el.value);
+      });
+
+      const fIni = agendaFormEl.querySelector('input[name="atendimentoInicio"]');
+      const fFim = agendaFormEl.querySelector('input[name="atendimentoFim"]');
+      const fInt = agendaFormEl.querySelector('select[name="intervaloMin"]');
+      const fAnt = agendaFormEl.querySelector('input[name="antecedenciaMinDias"]');
+
+      result.atendimentoInicio = fIni ? (fIni.value || '') : '';
+      result.atendimentoFim    = fFim ? (fFim.value || '') : '';
+      result.intervaloMin      = fInt ? (parseInt(fInt.value,10) || 30) : 30;
+      result.antecedenciaMinDias = fAnt ? (parseInt(fAnt.value,10) || 2) : 2;
+
+      return result;
+    }
+
+    function validarAgendaCfg(cfg){
+      if (!cfg.diasAtendimento || !cfg.diasAtendimento.length) {
+        return 'Escolha pelo menos um dia de atendimento.';
+      }
+      if (!cfg.atendimentoInicio || !cfg.atendimentoFim) {
+        return 'Informe horário de início e fim do atendimento.';
+      }
+      if (cfg.atendimentoInicio >= cfg.atendimentoFim) {
+        return 'O horário de início precisa ser antes do horário de fim.';
+      }
+      if (cfg.intervaloMin < 5) {
+        return 'Intervalo mínimo muito curto.';
+      }
+      if (cfg.antecedenciaMinDias < 0) {
+        return 'Antecedência mínima não pode ser negativa.';
+      }
+      return null;
+    }
+
+    function atualizarAgendaResumo(cfg){
+      if (!agendaResumoEl) return;
+      agendaResumoEl.innerHTML = '';
+
+      if (!cfg){
+        const li = document.createElement('li');
+        li.textContent = 'Sua agenda ainda não está configurada. Ajuste acima como deseja atender.';
+        agendaResumoEl.appendChild(li);
+        return;
+      }
+
+      const mapaDia = {
+        seg: 'segunda',
+        ter: 'terça',
+        qua: 'quarta',
+        qui: 'quinta',
+        sex: 'sexta',
+        sab: 'sábado',
+        dom: 'domingo'
+      };
+
+      const diasStr = (cfg.diasAtendimento || [])
+        .map(d => mapaDia[d] || d)
+        .join(', ') || 'segunda a sexta (padrão)';
+
+      const ini = cfg.atendimentoInicio || '09:00';
+      const fim = cfg.atendimentoFim   || '18:00';
+      const passo = cfg.intervaloMin || 30;
+      const ant = (cfg.antecedenciaMinDias ?? 2);
+
+      const l1 = document.createElement('li');
+      l1.textContent = 'Dias de atendimento: ' + diasStr;
+      const l2 = document.createElement('li');
+      l2.textContent = 'Horário de atendimento: ' + ini + ' às ' + fim;
+      const l3 = document.createElement('li');
+      l3.textContent = 'Intervalo entre horários: ' + passo + ' minutos';
+      const l4 = document.createElement('li');
+      l4.textContent = 'Antecedência mínima para agendar: ' + ant + ' dia(s)';
+
+      agendaResumoEl.appendChild(l1);
+      agendaResumoEl.appendChild(l2);
+      agendaResumoEl.appendChild(l3);
+      agendaResumoEl.appendChild(l4);
+    }
+
+    async function carregarAgendaConfigFromApi(){
+      if (!agendaFormEl && !agendaResumoEl) return;
+      const idToken = await getIdTokenOrNull();
+      if (!idToken) {
+        atualizarAgendaResumo(null);
+        return;
+      }
+
+      try {
+        const res = await fetch(`${API_BASE}/api/agenda/config`, {
+          headers: {
+            'Authorization': 'Bearer ' + idToken
+          }
+        });
+
+        if (res.status === 404) {
+          console.info('[configuracao] Agenda ainda não configurada (404). Usando defaults.');
+          currentAgendaConfig = normalizeAgendaConfig({});
+          preencherAgendaForm(currentAgendaConfig);
+          atualizarAgendaResumo(null);
+          return;
+        }
+
+        if (!res.ok) {
+          throw new Error('HTTP ' + res.status);
+        }
+
+        const data = await res.json().catch(() => ({}));
+        currentAgendaConfig = normalizeAgendaConfig(data);
+        preencherAgendaForm(currentAgendaConfig);
+        atualizarAgendaResumo(currentAgendaConfig);
+      } catch (e) {
+        console.warn('[configuracao] Erro ao carregar agenda; usando defaults.', e);
+        currentAgendaConfig = normalizeAgendaConfig({});
+        preencherAgendaForm(currentAgendaConfig);
+        atualizarAgendaResumo(null);
+      }
+    }
+
+    async function salvarAgendaConfig(ev){
+      ev.preventDefault();
+      if (!agendaFormEl) return;
+
+      const idToken = await getIdTokenOrNull();
+      if (!idToken) {
+        setAgendaMessage('Sessão expirada. Faça login novamente.', 'error');
+        return;
+      }
+
+      const payload = lerAgendaDoForm();
+      const err = validarAgendaCfg(payload);
+      if (err) {
+        setAgendaMessage(err, 'error');
+        return;
+      }
+
+      try {
+        if (agendaSaveBtn) {
+          agendaSaveBtn.disabled = true;
+          agendaSaveBtn.textContent = 'Salvando...';
+        }
+        setAgendaMessage('Salvando configuração de agenda...', null);
+
+        const res = await fetch(`${API_BASE}/api/agenda/config`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer ' + idToken
+          },
+          body: JSON.stringify(payload)
+        });
+
+        if (!res.ok) {
+          throw new Error('HTTP ' + res.status);
+        }
+
+        currentAgendaConfig = payload;
+        atualizarAgendaResumo(currentAgendaConfig);
+        setAgendaMessage('Configuração de agenda salva com sucesso.', 'success');
+      } catch (e) {
+        console.error('[configuracao] Erro ao salvar agenda', e);
+        setAgendaMessage('Não foi possível salvar a agenda agora. Tente novamente.', 'error');
+      } finally {
+        if (agendaSaveBtn) {
+          agendaSaveBtn.disabled = false;
+          agendaSaveBtn.textContent = 'Salvar agenda';
+        }
+      }
+    }
+
+    async function setupAgendaConfig(){
+      await carregarAgendaConfigFromApi();
+      if (agendaFormEl) {
+        agendaFormEl.addEventListener('submit', salvarAgendaConfig);
+      }
+    }
+
     /* ===== Inicialização ===== */
     (async function gatekeeper(){
       const ok = await ensureVerifiedOrSendBack();
@@ -948,6 +1236,9 @@
         setupVoice(uid, idToken);
         await loadWabaStatus(uid, idToken);
 
+        // Agenda (nova): carregamento + form
+        await setupAgendaConfig();
+
         // ===== Se ainda não há CNPJ, exibir bloco inline =====
         if (!hCnpj.value) {
           if (cnpjForm && cnpjInput && btnSalvarCnpj && cnpjMsg) {
@@ -1011,6 +1302,11 @@
         if (!uid) { setWabaUI('UNKNOWN'); return; }
         const headers = {}; if (idToken) headers['Authorization'] = 'Bearer ' + idToken;
         const r = await fetch(`${API_BASE}/api/waba/status?uid=${encodeURIComponent(uid)}`, { headers });
+        if (r.status === 404) {
+          console.info('[configuracao] /api/waba/status → 404 (rota inexistente). Status = UNKNOWN.');
+          setWabaUI('UNKNOWN');
+          return;
+        }
         if (!r.ok) { setWabaUI('UNKNOWN'); return; }
         const data = await r.json();
         setWabaUI(String(data.status || 'UNKNOWN').toUpperCase(), data);
@@ -1160,78 +1456,6 @@
         else document.getElementById('public_brand').setAttribute('disabled','disabled');
       });
     }
-  </script>
-
-  <script>
-  (function(){
-    // Garante Firebase disponível
-    if (!window.firebase || !firebase.firestore) return;
-
-    const resumoEl = document.getElementById('agendaConfigResumo');
-    if (!resumoEl) return;
-
-    function addLine(text){
-      const li = document.createElement('li');
-      li.textContent = text;
-      resumoEl.appendChild(li);
-    }
-
-    firebase.auth().onAuthStateChanged(async function(user){
-      if (!user) {
-        try {
-          const next = encodeURIComponent(location.pathname + location.search || '/pages/configuracao.html');
-          window.location.href = '/pages/login.html?next=' + next;
-        } catch (e) {
-          console.error('[configuracao] redirect login', e);
-          window.location.href = '/pages/login.html';
-        }
-        return;
-      }
-
-      try {
-        const db = firebase.firestore();
-        const profRef = db.collection('profissionais').doc(user.uid);
-        const cfgRef  = profRef.collection('config').doc('agendamento');
-
-        const [cfgSnap, profSnap] = await Promise.all([
-          cfgRef.get().catch(() => null),
-          profRef.get().catch(() => null)
-        ]);
-
-        let cfg = (cfgSnap && cfgSnap.exists) ? (cfgSnap.data() || {}) : {};
-        const prof = (profSnap && profSnap.exists) ? (profSnap.data() || {}) : {};
-
-        // Mesma lógica do backend: fallback em profissionais/{uid}
-        ['atendimentoInicio','atendimentoFim','intervaloMin'].forEach(function(k){
-          if ((cfg[k] === undefined || cfg[k] === null) && prof[k] !== undefined) {
-            cfg[k] = prof[k];
-          }
-        });
-
-        resumoEl.innerHTML = '';
-
-        const dias = Array.isArray(cfg.diasAtendimento) && cfg.diasAtendimento.length
-          ? cfg.diasAtendimento.join(', ')
-          : 'Segunda a sexta (padrão)';
-
-        const ini   = cfg.atendimentoInicio || '09:00';
-        const fim   = cfg.atendimentoFim   || '18:00';
-        const passo = cfg.intervaloMin     || 30;
-        const ant   = (cfg.antecedenciaMinDias !== undefined && cfg.antecedenciaMinDias !== null)
-          ? cfg.antecedenciaMinDias
-          : 2;
-
-        addLine('Dias de atendimento: ' + dias);
-        addLine('Horário de atendimento: ' + ini + ' às ' + fim);
-        addLine('Intervalo entre horários: ' + passo + ' minutos');
-        addLine('Antecedência mínima para agendar: ' + ant + ' dia(s)');
-
-      } catch (e) {
-        console.error('[configuracao] agenda resumo', e);
-        resumoEl.innerHTML = '<li>Agenda indisponível no momento.</li>';
-      }
-    });
-  })();
   </script>
 </body>
 </html>

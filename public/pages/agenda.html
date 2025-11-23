@@ -2,7 +2,7 @@
 <html lang="pt-BR">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Agenda — MEI Robô (V1.5 FINAL)</title>
 
   <!-- Canonical WWW v1.0 placeholders (layout.js pode sobrescrever em runtime) -->
@@ -228,7 +228,7 @@
     <section class="day-box" id="boxHoje">
       <div class="day-head">
         <div class="h-left">
-          <span class="badge">08:00–18:30</span>
+          <span class="badge" id="rangeHoje">08:00–18:30</span>
           <h3 id="tituloHoje">Agenda do dia (Hoje)</h3>
           <span class="period" id="periodHoje"></span>
         </div>
@@ -251,7 +251,7 @@
     <section class="day-box" id="boxAmanha">
       <div class="day-head">
         <div class="h-left">
-          <span class="badge">08:00–18:30</span>
+          <span class="badge" id="rangeAmanha">08:00–18:30</span>
           <h3 id="tituloAmanha">Agenda do dia (Amanhã)</h3>
           <span class="period" id="periodAmanha"></span>
         </div>
@@ -330,12 +330,29 @@
     })();
 
     // ===== Utilidades de Agenda =====
-    const startMinutes = 8 * 60;       // 08:00
-    const endMinutes   = 18 * 60 + 30; // 18:30
-    const step = 30; // minutos
+    // Horário padrão: 08:00–18:30, de 30 em 30 (fallback seguro)
+    let startMinutes = 8 * 60;       // 08:00
+    let endMinutes   = 18 * 60 + 30; // 18:30
+    let step = 30; // minutos (pode ser 15, 20, 30 ou 60 conforme config)
 
     function pad(n){ return (n<10?'0':'') + n; }
-    function minutesToHHMM(m){ const h = Math.floor(m/60), mm = m%60; return pad(h)+':'+pad(mm); }
+    function minutesToHHMM(m){
+      const h  = Math.floor(m/60);
+      const mm = m%60;
+      return pad(h)+':'+pad(mm);
+    }
+
+    // Converte "HH:MM" em minutos, com fallback seguro
+    function parseHHMMToMinutes(hhmm, fallback){
+      if (!hhmm || typeof hhmm !== 'string') return fallback;
+      const m = hhmm.match(/^(\d{1,2}):(\d{2})$/);
+      if (!m) return fallback;
+      const h  = parseInt(m[1], 10);
+      const mm = parseInt(m[2], 10);
+      if (isNaN(h) || isNaN(mm)) return fallback;
+      return h*60 + mm;
+    }
+
     function buildSlots(){
       const slots = [];
       for(let m = startMinutes; m <= endMinutes; m += step){ slots.push(minutesToHHMM(m)); }
@@ -494,7 +511,7 @@
     function exportCSV(filename, rows){
       const headers = ['Data','Hora','Cliente','Assunto','Duração(min)','Status'];
       const data = [headers].concat(rows.map(r => [r.data, r.hora, r.cliente, r.assunto, r.dur, r.status]));
-      const csv = data.map(line => line.map(v => \`"\${(v??'').toString().replace(/"/g,'""')}"\`).join(',')).join('\r\n');
+      const csv = data.map(line => line.map(v => `"${(v??'').toString().replace(/"/g,'""')}"`).join(',')).join('\r\n');
       const blob = new Blob([csv], {type:'text/csv;charset=utf-8;'});
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -730,6 +747,48 @@
               // Reorganiza semana em mapa { data: [itens...] } para o grid de 7 dias
               rebuildWeekData(semanaNorm, weekData);
 
+              // 🔧 NOVO: ler configuração de agenda para ajustar horário inicial/final e intervalo
+              try {
+                const cfgRes = await fetch('/api/agenda/config', {
+                  method: 'GET',
+                  headers: {
+                    'Authorization': 'Bearer ' + token,
+                    'Accept': 'application/json'
+                  }
+                });
+
+                if (cfgRes.ok) {
+                  const cfgPayload = await cfgRes.json();
+                  const cfg = (cfgPayload && (cfgPayload.data || cfgPayload)) || {};
+
+                  // Valores vindos do backend (se existirem)
+                  const cfgIni = cfg.atendimentoInicio || '08:00';
+                  const cfgFim = cfg.atendimentoFim   || '18:30';
+                  let cfgStep  = parseInt(cfg.intervaloMin, 10);
+
+                  // Só aceitamos alguns passos “do mundo real”
+                  if (!cfgStep || ![15, 20, 30, 60].includes(cfgStep)) {
+                    cfgStep = 30;
+                  }
+
+                  // Atualiza as variáveis globais usadas pela grade
+                  startMinutes = parseHHMMToMinutes(cfgIni, startMinutes);
+                  endMinutes   = parseHHMMToMinutes(cfgFim, endMinutes);
+                  step         = cfgStep;
+
+                  // Atualiza os badges de faixa horária (Hoje / Amanhã)
+                  const badgeHoje   = document.getElementById('rangeHoje');
+                  const badgeAmanha = document.getElementById('rangeAmanha');
+                  const rangeLabel  = minutesToHHMM(startMinutes) + '–' + minutesToHHMM(endMinutes);
+
+                  if (badgeHoje)   badgeHoje.textContent   = rangeLabel;
+                  if (badgeAmanha) badgeAmanha.textContent = rangeLabel;
+                }
+              } catch (e) {
+                console.error('[agenda] Erro ao carregar config de agenda:', e);
+                // Fallback: fica nos horários/intervalo padrão (08:00–18:30 / 30min)
+              }
+
               // Re-render com os dados reais, respeitando filtros/busca atuais
               const term = (busca.value || '').trim().toLowerCase();
               renderBase(active, term);
@@ -748,4 +807,3 @@
   </script>
 </body>
 </html>
-
