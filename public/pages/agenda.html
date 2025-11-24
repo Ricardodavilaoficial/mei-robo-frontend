@@ -77,6 +77,70 @@
       box-shadow: 0 2px 14px rgba(0,0,0,.25);
       min-height: var(--daybox-minh);
     }
+
+    /* Folgas (dias sem atendimento) */
+    .folga-controls{
+      padding: 12px 16px;
+      border-bottom:1px solid var(--card-br);
+      display:flex;
+      flex-direction:column;
+      gap:10px;
+    }
+    .folga-row{
+      display:flex;
+      flex-wrap:wrap;
+      gap:10px;
+      align-items:center;
+    }
+    .folga-row label{
+      font-weight:800;
+      color:var(--text-soft);
+    }
+    .folga-row input[type="date"]{
+      background:#0c120f;
+      border:1px solid var(--card-br);
+      border-radius:10px;
+      padding:8px 10px;
+      color:var(--text);
+      min-width:170px;
+    }
+    .folga-hint{
+      font-size:.9rem;
+      color:var(--muted);
+    }
+    .folga-list{
+      list-style:none;
+      margin:0;
+      padding:10px 16px 14px;
+    }
+    .folga-item{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:10px;
+      padding:6px 0;
+      border-bottom:1px dashed var(--card-br);
+      font-size:.95rem;
+    }
+    .folga-item:last-child{
+      border-bottom:none;
+    }
+    .folga-item strong{
+      font-weight:800;
+    }
+    .folga-item small{
+      opacity:.7;
+      margin-left:6px;
+    }
+    .folga-remove{
+      font-size:.85rem;
+      padding:4px 10px;
+    }
+    .badge-folga{
+      border-color:var(--danger);
+      color:var(--danger);
+    }
+
     .day-head{
       display:flex; align-items:center; justify-content:space-between;
       padding: 14px 16px; border-bottom:1px solid var(--card-br);
@@ -223,6 +287,38 @@
       </div>
     </div>
 
+    <!-- Folgas (dias sem atendimento) -->
+    <h2 class="section-title">Dias sem atendimento (folgas)</h2>
+    <section class="day-box" id="boxFolgas">
+      <div class="day-head">
+        <div class="h-left">
+          <span class="badge">Folgas</span>
+          <h3>Dias em que você não atende</h3>
+        </div>
+        <div class="h-right">
+          <span class="badge" id="contFolgas">0 dias</span>
+        </div>
+      </div>
+      <div class="folga-controls">
+        <div class="folga-row">
+          <label for="folgaData">Escolha o dia:</label>
+          <input type="date" id="folgaData" />
+        </div>
+        <div class="folga-row">
+          <button class="btn primary" type="button" id="btnAddFolga">Adicionar folga</button>
+          <span class="mini-hint folga-hint">
+            Use para feriados, viagens, recessos ou qualquer dia em que não quer atender.
+          </span>
+        </div>
+      </div>
+      <div class="folga-list" id="folgaListVazia">
+        <p class="mini-hint">
+          Nenhuma folga marcada. Sua agenda segue as regras de dias e horários definidas na configuração.
+        </p>
+      </div>
+      <ul class="folga-list" id="folgaList"></ul>
+    </section>
+
     <!-- HOJE -->
     <h2 class="section-title">Hoje</h2>
     <section class="day-box" id="boxHoje">
@@ -367,6 +463,44 @@
     const params = new URLSearchParams(location.search);
     const validateMode = params.get('validate') === '1';
 
+    // Folgas (dias sem atendimento) - armazenadas como 'YYYY-MM-DD'
+    const folgas = [];
+    const folgasSet = new Set();
+
+    function syncFolgaBadges(){
+      const cont   = document.getElementById('contFolgas');
+      const empty  = document.getElementById('folgaListVazia');
+      const listEl = document.getElementById('folgaList');
+      if(!cont || !empty || !listEl) return;
+
+      cont.textContent = folgas.length + (folgas.length === 1 ? ' dia' : ' dias');
+      empty.style.display = folgas.length ? 'none' : '';
+
+      listEl.innerHTML = '';
+      const sorted = folgas.slice().sort(function(a,b){ return a.date.localeCompare(b.date); });
+      sorted.forEach(function(item){
+        const li = document.createElement('li');
+        li.className = 'folga-item';
+
+        const span = document.createElement('span');
+        span.innerHTML = '<strong>'+item.label+'</strong><small>'+item.date+'</small>';
+
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'btn btn-ghost folga-remove';
+        btn.textContent = 'Remover';
+        btn.addEventListener('click', function(){
+          if(window.__agendaHandleRemoveFolga){
+            window.__agendaHandleRemoveFolga(item.date);
+          }
+        });
+
+        li.appendChild(span);
+        li.appendChild(btn);
+        listEl.appendChild(li);
+      });
+    }
+
     // ===== Dados de demonstração (apenas quando validate=1) =====
     const demoHoje = [
       { hhmm:'08:30', cliente:'João Barbeiro', assunto:'Corte masculino', dur:30, status:'agendado', level:'ok' },
@@ -466,44 +600,71 @@
         const dayList = weekData[key] || [];
         let dayCount = 0;
 
-        const col = document.createElement('div'); col.className = 'day-col';
+        const col = document.createElement('div');
+        col.className = 'day-col';
 
         // head
-        const head = document.createElement('div'); head.className = 'day-col-head';
-        const title = document.createElement('div'); title.className = 'day-col-title';
-        title.textContent = new Intl.DateTimeFormat('pt-BR', { weekday:'short' }).format(d) + ' ' + new Intl.DateTimeFormat('pt-BR', { day:'2-digit', month:'2-digit' }).format(d);
-        const count = document.createElement('div'); count.className = 'day-col-count'; count.textContent = '0 ag.';
-        head.appendChild(title); head.appendChild(count);
+        const head = document.createElement('div');
+        head.className = 'day-col-head';
+        const title = document.createElement('div');
+        title.className = 'day-col-title';
+        title.textContent =
+          new Intl.DateTimeFormat('pt-BR', { weekday:'short' }).format(d) + ' ' +
+          new Intl.DateTimeFormat('pt-BR', { day:'2-digit', month:'2-digit' }).format(d);
+        const count = document.createElement('div');
+        count.className = 'day-col-count';
+        count.textContent = '0 ag.';
+        head.appendChild(title);
+        head.appendChild(count);
+
+        // Marca visualmente quando é folga
+        const isFolga = folgasSet.has(key);
+        if (isFolga){
+          const tag = document.createElement('span');
+          tag.className = 'badge badge-folga';
+          tag.textContent = 'Folga';
+          head.appendChild(tag);
+        }
 
         // body
-        const body = document.createElement('div'); body.className = 'day-col-body';
-        slots.forEach(h => {
-          const it = dayList.find(x => x.hhmm === h);
-          const isBusy = !!it;
-          let visible = true;
-          if(filterMode === 'ocupados') visible = isBusy;
-          else if(filterMode === 'livres') visible = !isBusy;
+        const body = document.createElement('div');
+        body.className = 'day-col-body';
 
-          if(visible && term){
-            const text = isBusy ? (it.assunto + ' ' + it.cliente).toLowerCase() : 'livre';
-            visible = text.includes(term);
-          }
+        if (isFolga){
+          const msg = document.createElement('div');
+          msg.className = 'mini-hint';
+          msg.textContent = 'Dia bloqueado (folga). O MEI Robô não oferece horários aqui.';
+          body.appendChild(msg);
+        } else {
+          slots.forEach(function(h){
+            const it = dayList.find(function(x){ return x.hhmm === h; });
+            const isBusy = !!it;
+            let visible = true;
 
-          if(visible){
-            if(isBusy){ dayCount++; total++; }
-            body.appendChild(makeMiniRow(h, it));
-          }
-        });
+            if(filterMode === 'ocupados') visible = isBusy;
+            else if(filterMode === 'livres') visible = !isBusy;
+
+            if(visible && term){
+              const text = isBusy ? (it.assunto + ' ' + it.cliente).toLowerCase() : 'livre';
+              visible = text.includes(term);
+            }
+
+            if(visible){
+              if(isBusy){ dayCount++; total++; }
+              body.appendChild(makeMiniRow(h, it));
+            }
+          });
+        }
 
         count.textContent = dayCount + ' ag.';
-        col.appendChild(head); col.appendChild(body);
+        col.appendChild(head);
+        col.appendChild(body);
         container.appendChild(col);
       }
 
       // atualiza badge do topo (7 dias)
       var contSete = document.getElementById('contSete');
       if(contSete) contSete.textContent = total + ' no total';
-      // também o mini-pill
       var qtd7 = document.getElementById('qtd7');
       if(qtd7) qtd7.textContent = String(total);
     }
@@ -597,57 +758,118 @@
       const now = new Date();
 
       // Mostrar data de hoje no topo
-      document.getElementById('todayDate').textContent = 'Hoje — ' + new Intl.DateTimeFormat('pt-BR', { weekday:'short', day:'2-digit', month:'short' }).format(now);
+      const todayLabelEl = document.getElementById('todayDate');
+      if (todayLabelEl) {
+        todayLabelEl.textContent = 'Hoje — ' + new Intl.DateTimeFormat('pt-BR', { weekday:'short', day:'2-digit', month:'short' }).format(now);
+      }
 
       // Períodos exibidos ao lado dos títulos
       const d0 = now;
       const d1 = addDays(now, 1);
       const d2 = addDays(now, 2);
       const d8 = addDays(now, 8);
-      document.getElementById('periodHoje').textContent = '— ' + new Intl.DateTimeFormat('pt-BR', { weekday:'short', day:'2-digit', month:'short' }).format(d0);
-      document.getElementById('periodAmanha').textContent = '— ' + new Intl.DateTimeFormat('pt-BR', { weekday:'short', day:'2-digit', month:'short' }).format(d1);
-      document.getElementById('periodSete').textContent = '— ' + new Intl.DateTimeFormat('pt-BR', { day:'2-digit', month:'2-digit' }).format(d2) + ' a ' + new Intl.DateTimeFormat('pt-BR', { day:'2-digit', month:'2-digit' }).format(d8);
+      const periodHojeEl   = document.getElementById('periodHoje');
+      const periodAmanhaEl = document.getElementById('periodAmanha');
+      const periodSeteEl   = document.getElementById('periodSete');
+
+      if (periodHojeEl)   periodHojeEl.textContent   = '— ' + new Intl.DateTimeFormat('pt-BR', { weekday:'short', day:'2-digit', month:'short' }).format(d0);
+      if (periodAmanhaEl) periodAmanhaEl.textContent = '— ' + new Intl.DateTimeFormat('pt-BR', { weekday:'short', day:'2-digit', month:'short' }).format(d1);
+      if (periodSeteEl)   periodSeteEl.textContent   =
+        '— ' + new Intl.DateTimeFormat('pt-BR', { day:'2-digit', month:'2-digit' }).format(d2) +
+        ' a ' + new Intl.DateTimeFormat('pt-BR', { day:'2-digit', month:'2-digit' }).format(d8);
 
       // Dados ativos (produção vazia; validação com demo)
       const listHoje   = validateMode ? [].concat(demoHoje)   : [];
       const listAmanha = validateMode ? [].concat(demoAmanha) : [];
       const weekData   = validateMode ? makeWeekDemo(now)     : {};
 
-      function renderBase(filterForWeek, termForWeek) {
-        const contHoje = renderTwoCols(document.getElementById('colHojeA'), document.getElementById('colHojeB'), listHoje);
-        const contAmanha = renderTwoCols(document.getElementById('colAmanhaA'), document.getElementById('colAmanhaB'), listAmanha);
-
-        document.getElementById('contHoje').textContent = contHoje + (contHoje===1?' agendamento':' agendamentos');
-        document.getElementById('contAmanha').textContent = contAmanha + (contAmanha===1?' agendamento':' agendamentos');
-
-        // Atualiza mini-dashboard com os contadores reais
-        document.getElementById('qtdHoje').textContent = String(contHoje);
-        document.getElementById('qtdAmanha').textContent = String(contAmanha);
-
-        // Semana (D+2 a D+8)
-        renderWeekGrid(document.getElementById('weekGrid'), now, weekData, filterForWeek, termForWeek);
+      // Em modo de validação, marca alguns dias como folga para demonstração
+      if (validateMode) {
+        const todayKey  = fmtISO(now);
+        const extraKey  = fmtISO(addDays(now, 3));
+        [todayKey, extraKey].forEach(function(dateStr){
+          const d = new Date(dateStr + 'T12:00:00');
+          folgas.push({
+            date: dateStr,
+            label: new Intl.DateTimeFormat('pt-BR', { weekday:'long', day:'2-digit', month:'2-digit' }).format(d)
+          });
+          folgasSet.add(dateStr);
+        });
+        syncFolgaBadges();
       }
-
-      // Render inicial: 7 dias começando em "livres" e busca vazia
-      renderBase('livres', '');
 
       // Filtros locais (ocupados/livres/todos) + busca
       const chips = document.querySelectorAll('.chip');
       const busca = document.getElementById('busca');
       let active = 'all';
 
+      function renderBase(filterForWeek, termForWeek) {
+        const todayKey    = fmtISO(now);
+        const tomorrowKey = fmtISO(addDays(now, 1));
+
+        // HOJE
+        let contHoje = 0;
+        const colHojeA = document.getElementById('colHojeA');
+        const colHojeB = document.getElementById('colHojeB');
+
+        if (folgasSet.has(todayKey)) {
+          if (colHojeA) {
+            colHojeA.innerHTML = '';
+            const msg = document.createElement('p');
+            msg.className = 'mini-hint';
+            msg.textContent = 'Este dia está marcado como folga. O MEI Robô não oferece horários aqui.';
+            colHojeA.appendChild(msg);
+          }
+          if (colHojeB) colHojeB.innerHTML = '';
+        } else {
+          contHoje = renderTwoCols(colHojeA, colHojeB, listHoje);
+        }
+
+        // AMANHÃ
+        let contAmanha = 0;
+        const colAmanhaA = document.getElementById('colAmanhaA');
+        const colAmanhaB = document.getElementById('colAmanhaB');
+
+        if (folgasSet.has(tomorrowKey)) {
+          if (colAmanhaA) {
+            colAmanhaA.innerHTML = '';
+            const msg2 = document.createElement('p');
+            msg2.className = 'mini-hint';
+            msg2.textContent = 'Este dia está marcado como folga. O MEI Robô não oferece horários aqui.';
+            colAmanhaA.appendChild(msg2);
+          }
+          if (colAmanhaB) colAmanhaB.innerHTML = '';
+        } else {
+          contAmanha = renderTwoCols(colAmanhaA, colAmanhaB, listAmanha);
+        }
+
+        const contHojeEl   = document.getElementById('contHoje');
+        const contAmanhaEl = document.getElementById('contAmanha');
+        if (contHojeEl)   contHojeEl.textContent   = contHoje + (contHoje === 1 ? ' agendamento' : ' agendamentos');
+        if (contAmanhaEl) contAmanhaEl.textContent = contAmanha + (contAmanha === 1 ? ' agendamento' : ' agendamentos');
+
+        // Atualiza mini-dashboard com os contadores reais (0 se folga)
+        const qtdHojeEl   = document.getElementById('qtdHoje');
+        const qtdAmanhaEl = document.getElementById('qtdAmanha');
+        if (qtdHojeEl)   qtdHojeEl.textContent   = String(contHoje);
+        if (qtdAmanhaEl) qtdAmanhaEl.textContent = String(contAmanha);
+
+        // Semana (D+2 a D+8)
+        renderWeekGrid(document.getElementById('weekGrid'), now, weekData, filterForWeek, termForWeek);
+      }
+
       function applyFilters(){
-        const term = (busca.value || '').trim().toLowerCase();
+        const term = (busca && busca.value ? busca.value : '').trim().toLowerCase();
 
         // Re-render base com o filtro aplicado na grade de 7 dias
         renderBase(active, term);
 
-        // Hoje & Amanhã — aplica filtro visual
-        ['colHojeA','colHojeB','colAmanhaA','colAmanhaB'].forEach(id => {
-          document.querySelectorAll('#'+id+' .slot-row').forEach(row => {
+        // Hoje & Amanhã — aplica filtro visual nas linhas (quando não for folga)
+        ['colHojeA','colHojeB','colAmanhaA','colAmanhaB'].forEach(function(id){
+          document.querySelectorAll('#'+id+' .slot-row').forEach(function(row){
             const slot = row.querySelector('.cell-slot');
-            const isBusy = !!slot.querySelector('.pill');
-            const text = slot.textContent.toLowerCase();
+            const isBusy = !!(slot && slot.querySelector('.pill'));
+            const text = (slot ? slot.textContent : '').toLowerCase();
             let visible = true;
             if(active === 'ocupados') visible = isBusy;
             else if(active === 'livres') visible = !isBusy;
@@ -657,53 +879,242 @@
         });
       }
 
-      chips.forEach(chip => {
-        chip.addEventListener('click', () => {
-          chips.forEach(c => c.classList.remove('active'));
+      // Controles de filtro (chips)
+      chips.forEach(function(chip){
+        chip.addEventListener('click', function(){
+          chips.forEach(function(c){ c.classList.remove('active'); });
           chip.classList.add('active');
           active = chip.dataset.filter;
           applyFilters();
         });
       });
-      busca.addEventListener('input', applyFilters);
-      document.querySelector('.chip[data-filter="all"]').classList.add('active');
+      if (busca) {
+        busca.addEventListener('input', applyFilters);
+      }
+      const chipAll = document.querySelector('.chip[data-filter="all"]');
+      if (chipAll) chipAll.classList.add('active');
+
+      // Folgas — handlers
+      async function handleAddFolga(dateStr){
+        if (!dateStr) {
+          alert('Escolha um dia para marcar a folga.');
+          return;
+        }
+        if (folgasSet.has(dateStr)) {
+          alert('Esse dia já está marcado como folga.');
+          return;
+        }
+
+        // Modo demonstração: não chama backend
+        if (validateMode) {
+          const d = new Date(dateStr + 'T12:00:00');
+          folgas.push({
+            date: dateStr,
+            label: new Intl.DateTimeFormat('pt-BR', { weekday:'long', day:'2-digit', month:'2-digit' }).format(d)
+          });
+          folgasSet.add(dateStr);
+          syncFolgaBadges();
+          applyFilters();
+          return;
+        }
+
+        const user = (window.firebase && firebase.auth) ? firebase.auth().currentUser : null;
+        if (!user) {
+          alert('Você precisa estar logado para salvar folgas.');
+          return;
+        }
+
+        try {
+          const token = await user.getIdToken(true);
+          const res = await fetch('/api/agenda/folgas', {
+            method: 'POST',
+            headers: {
+              'Authorization': 'Bearer ' + token,
+              'Content-Type': 'application/json',
+              'Accept': 'application/json'
+            },
+            body: JSON.stringify({ date: dateStr })
+          });
+          if (!res.ok) {
+            console.error('[agenda] Erro ao salvar folga:', res.status);
+            alert('Não foi possível salvar essa folga agora. Tente de novo mais tarde.');
+            return;
+          }
+          const d = new Date(dateStr + 'T12:00:00');
+          folgas.push({
+            date: dateStr,
+            label: new Intl.DateTimeFormat('pt-BR', { weekday:'long', day:'2-digit', month:'2-digit' }).format(d)
+          });
+          folgasSet.add(dateStr);
+          syncFolgaBadges();
+          applyFilters();
+        } catch (e) {
+          console.error('[agenda] Erro inesperado ao salvar folga:', e);
+          alert('Não foi possível salvar essa folga agora. Tente novamente em instantes.');
+        }
+      }
+
+      async function handleRemoveFolga(dateStr){
+        if (!folgasSet.has(dateStr)) return;
+
+        // Modo demonstração: não chama backend
+        if (validateMode) {
+          const idx = folgas.findIndex(function(f){ return f.date === dateStr; });
+          if (idx >= 0) folgas.splice(idx, 1);
+          folgasSet.delete(dateStr);
+          syncFolgaBadges();
+          applyFilters();
+          return;
+        }
+
+        const user = (window.firebase && firebase.auth) ? firebase.auth().currentUser : null;
+        if (!user) {
+          alert('Você precisa estar logado para remover folgas.');
+          return;
+        }
+
+        try {
+          const token = await user.getIdToken(true);
+          const res = await fetch('/api/agenda/folgas?date=' + encodeURIComponent(dateStr), {
+            method: 'DELETE',
+            headers: {
+              'Authorization': 'Bearer ' + token,
+              'Accept': 'application/json'
+            }
+          });
+          if (!res.ok) {
+            console.error('[agenda] Erro ao remover folga:', res.status);
+            alert('Não foi possível remover essa folga agora. Tente de novo mais tarde.');
+            return;
+          }
+          const idx = folgas.findIndex(function(f){ return f.date === dateStr; });
+          if (idx >= 0) folgas.splice(idx, 1);
+          folgasSet.delete(dateStr);
+          syncFolgaBadges();
+          applyFilters();
+        } catch (e) {
+          console.error('[agenda] Erro inesperado ao remover folga:', e);
+          alert('Não foi possível remover essa folga agora. Tente novamente em instantes.');
+        }
+      }
+
+      async function loadFolgas(token){
+        try {
+          const res = await fetch('/api/agenda/folgas', {
+            method: 'GET',
+            headers: {
+              'Authorization': 'Bearer ' + token,
+              'Accept': 'application/json'
+            }
+          });
+          if (!res.ok) {
+            console.error('[agenda] Falha ao buscar /api/agenda/folgas:', res.status);
+            return;
+          }
+          const payload = await res.json();
+          const arr = Array.isArray(payload && payload.folgas) ? payload.folgas :
+                      (Array.isArray(payload) ? payload : []);
+
+          folgas.length = 0;
+          folgasSet.clear();
+
+          arr.forEach(function(raw){
+            const dateStr = raw.date || raw.data || '';
+            if (!dateStr) return;
+            const d = new Date(dateStr + 'T12:00:00');
+            folgas.push({
+              date: dateStr,
+              label: new Intl.DateTimeFormat('pt-BR', { weekday:'long', day:'2-digit', month:'2-digit' }).format(d)
+            });
+            folgasSet.add(dateStr);
+          });
+
+          syncFolgaBadges();
+        } catch (e) {
+          console.error('[agenda] Erro ao carregar folgas:', e);
+        }
+      }
+
+      // Disponibiliza handler de remoção para o syncFolgaBadges
+      window.__agendaHandleRemoveFolga = handleRemoveFolga;
+
+      // Botão de adicionar folga
+      const folgaDataInput = document.getElementById('folgaData');
+      const btnAddFolga = document.getElementById('btnAddFolga');
+      if (btnAddFolga && folgaDataInput) {
+        btnAddFolga.addEventListener('click', function(){
+          handleAddFolga(folgaDataInput.value);
+        });
+      }
+
+      // Render inicial: 7 dias começando em "livres" e busca vazia
+      renderBase('livres', '');
 
       // Botões âncora + default de filtro
-      document.getElementById('btnHoje').addEventListener('click', ()=>{
-        chips.forEach(c => c.classList.remove('active'));
-        document.querySelector('.chip[data-filter="all"]').classList.add('active');
-        active = 'all'; applyFilters();
-      });
-      document.getElementById('btnAmanha').addEventListener('click', ()=>{
-        chips.forEach(c => c.classList.remove('active'));
-        document.querySelector('.chip[data-filter="all"]').classList.add('active');
-        active = 'all'; applyFilters();
-      });
-      document.getElementById('btnSete').addEventListener('click', ()=>{
-        chips.forEach(c => c.classList.remove('active'));
-        document.querySelector('.chip[data-filter="livres"]').classList.add('active');
-        active = 'livres'; applyFilters();
-      });
+      const btnHoje = document.getElementById('btnHoje');
+      const btnAmanha = document.getElementById('btnAmanha');
+      const btnSete = document.getElementById('btnSete');
+
+      if (btnHoje) {
+        btnHoje.addEventListener('click', function(){
+          chips.forEach(function(c){ c.classList.remove('active'); });
+          const chipAll2 = document.querySelector('.chip[data-filter="all"]');
+          if (chipAll2) chipAll2.classList.add('active');
+          active = 'all';
+          applyFilters();
+        });
+      }
+      if (btnAmanha) {
+        btnAmanha.addEventListener('click', function(){
+          chips.forEach(function(c){ c.classList.remove('active'); });
+          const chipAll3 = document.querySelector('.chip[data-filter="all"]');
+          if (chipAll3) chipAll3.classList.add('active');
+          active = 'all';
+          applyFilters();
+        });
+      }
+      if (btnSete) {
+        btnSete.addEventListener('click', function(){
+          chips.forEach(function(c){ c.classList.remove('active'); });
+          const chipLivres = document.querySelector('.chip[data-filter="livres"]');
+          if (chipLivres) chipLivres.classList.add('active');
+          active = 'livres';
+          applyFilters();
+        });
+      }
 
       // Botão "Novo agendamento" (placeholder)
-      document.getElementById('btnNovo').addEventListener('click', (e)=>{
-        e.preventDefault();
-        alert('Ação: Novo agendamento (placeholder v1).');
-      });
+      const btnNovo = document.getElementById('btnNovo');
+      if (btnNovo) {
+        btnNovo.addEventListener('click', function(e){
+          e.preventDefault();
+          alert('Ação: Novo agendamento (placeholder v1).');
+        });
+      }
 
       // Exportações CSV
-      document.getElementById('exportHoje').addEventListener('click', ()=>{
-        const rows = collectRowsDay(d0, listHoje);
-        exportCSV('agendamentos-hoje.csv', rows);
-      });
-      document.getElementById('exportAmanha').addEventListener('click', ()=>{
-        const rows = collectRowsDay(d1, listAmanha);
-        exportCSV('agendamentos-amanha.csv', rows);
-      });
-      document.getElementById('exportSete').addEventListener('click', ()=>{
-        const rows = collectRowsWeek(now, weekData);
-        exportCSV('agendamentos-prox7dias.csv', rows);
-      });
+      const btnExportHoje   = document.getElementById('exportHoje');
+      const btnExportAmanha = document.getElementById('exportAmanha');
+      const btnExportSete   = document.getElementById('exportSete');
+
+      if (btnExportHoje) {
+        btnExportHoje.addEventListener('click', function(){
+          const rows = collectRowsDay(d0, listHoje);
+          exportCSV('agendamentos-hoje.csv', rows);
+        });
+      }
+      if (btnExportAmanha) {
+        btnExportAmanha.addEventListener('click', function(){
+          const rows = collectRowsDay(d1, listAmanha);
+          exportCSV('agendamentos-amanha.csv', rows);
+        });
+      }
+      if (btnExportSete) {
+        btnExportSete.addEventListener('click', function(){
+          const rows = collectRowsWeek(now, weekData);
+          exportCSV('agendamentos-prox7dias.csv', rows);
+        });
+      }
 
       // Se não estiver em modo de validação, tenta carregar agenda real da API
       if (!validateMode) {
@@ -747,7 +1158,7 @@
               // Reorganiza semana em mapa { data: [itens...] } para o grid de 7 dias
               rebuildWeekData(semanaNorm, weekData);
 
-              // 🔧 NOVO: ler configuração de agenda para ajustar horário inicial/final e intervalo
+              // 🔧 Configuração de agenda para ajustar horário inicial/final e intervalo
               try {
                 const cfgRes = await fetch('/api/agenda/config', {
                   method: 'GET',
@@ -789,8 +1200,11 @@
                 // Fallback: fica nos horários/intervalo padrão (08:00–18:30 / 30min)
               }
 
+              // Carrega folgas do backend
+              await loadFolgas(token);
+
               // Re-render com os dados reais, respeitando filtros/busca atuais
-              const term = (busca.value || '').trim().toLowerCase();
+              const term = (busca && busca.value ? busca.value : '').trim().toLowerCase();
               renderBase(active, term);
               applyFilters();
             } catch (err) {
