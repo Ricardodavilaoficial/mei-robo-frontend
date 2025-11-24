@@ -39,7 +39,7 @@
       <div class="note" style="margin:8px 0; display:flex; gap:12px; align-items:center; flex-wrap:wrap;">
         <span><strong>Versão:</strong> diag7</span>
         <span id="adminBadge" class="badge" style="padding:2px 6px;border-radius:6px;background:#1b2a33;">
-          status: <code id="admFlag">verificando…</code>
+          status: <code id="admFlag" data-admin-status>verificando…</code>
         </span>
       </div>
 
@@ -308,23 +308,35 @@
             if (btnIn && btnSw) {
               if (!u) {
                 btnIn.style.display = '';
-                btnSw.style.display = 'none';
+                btnSw.style.display = '';
+                // Não redireciona mais automaticamente; só avisa
+                btnIn.onclick = () => {
+                  const statusEl = document.querySelector('[data-admin-status]');
+                  if (statusEl) {
+                    statusEl.textContent = 'Faça login para acessar esta página.';
+                    statusEl.style.color = '#fbbf24';
+                  }
+                  setOut('Use a página de login para entrar (menu superior "Entrar").');
+                };
               } else {
                 btnIn.style.display = 'none';
                 btnSw.style.display = '';
+                btnSw.onclick = async () => {
+                  try {
+                    await firebase.auth().signOut();
+                    lsDel('idToken');
+                    updateAuthUI(null);
+                    const statusEl = document.querySelector('[data-admin-status]');
+                    if (statusEl) {
+                      statusEl.textContent = 'Faça login para acessar esta página.';
+                      statusEl.style.color = '#fbbf24';
+                    }
+                    await applyWhoamiAdmin();
+                  } catch(e) {
+                    setOut({ erro: 'Falha ao sair', detalhe: String(e && e.message || e) });
+                  }
+                };
               }
-              // Handler: redireciona para o login canônico (sem popup)
-              btnIn.onclick = () => { window.location.href = '/pages/login.html'; };
-              btnSw.onclick = async () => {
-                try {
-                  await firebase.auth().signOut();
-                  lsDel('idToken');
-                  updateAuthUI(null);
-                  await applyWhoamiAdmin();
-                } catch(e) {
-                  setOut({ erro: 'Falha ao sair', detalhe: String(e && e.message || e) });
-                }
-              };
             }
           } catch {}
         }
@@ -428,7 +440,7 @@
           async function doList(tokenValue){
             const base = ABS_API;
             const attempts = [
-              base + "/__list?col=cuponsAtivacao&limit=50",     // utilitária, se existir
+              base + "/api/admin/cupons?limit=50",              // utilitária, se existir (ajustada)
               base + "/api/admin/cupons?limit=50&status=todos", // rota oficial (se existir)
               base + "/admin/cupons?limit=50&status=todos"      // alternativa
             ];
@@ -530,7 +542,7 @@
             return { path, method, status: res.status, allow, acam, sample: (text||'').replace(/\s+/g,' ').slice(0,160) };
           }
 
-          const rows = [];
+          const rows = []
           rows.push(await ping("/admin/ping", "GET"));
           rows.push(await ping("/admin/cupons", "POST", {diasValidade:3,prefixo:"MEI"}));
           rows.push(await ping("/gerar-cupom", "POST", {diasValidade:3,prefixo:"MEI"}));
@@ -546,20 +558,83 @@
         }
       }
 
-      // Bindings
+      // Bindings + novo padrão de onAuthStateChanged (sem redirect automático)
       window.addEventListener('DOMContentLoaded', async () => {
+        const statusEl = document.querySelector('[data-admin-status]');
+
         try {
           if (typeof firebase !== 'undefined' && firebase.auth) {
-            firebase.auth().onAuthStateChanged(async u => {
-              updateAuthUI(u || null);
-              await applyWhoamiAdmin();
+            firebase.auth().onAuthStateChanged(async (user) => {
+              if (!user) {
+                console.warn('[admin-cupons] Usuário não logado');
+                updateAuthUI(null);
+                if (statusEl) {
+                  statusEl.textContent = 'Faça login para acessar esta página.';
+                  statusEl.style.color = '#fbbf24'; // amarelinho
+                }
+                // NÃO redireciona pro login; apenas mostra mensagem
+                await applyWhoamiAdmin();
+                return;
+              }
+
+              try {
+                const token = await user.getIdToken();
+                console.log('[admin-cupons] uid logado =', user.uid);
+
+                if (statusEl) {
+                  statusEl.textContent = 'Verificando acesso de admin…';
+                  statusEl.style.color = '#e5e7eb';
+                }
+
+                const resp = await fetch(ABS_API + '/admin/ping', {
+                  headers: { 'Authorization': 'Bearer ' + token }
+                });
+
+                if (!resp.ok) {
+                  const data = await resp.json().catch(() => ({}));
+                  console.warn('[admin-cupons] ping NÃO ok', resp.status, data);
+                  if (statusEl) {
+                    statusEl.textContent = 'Sem acesso a esta área (não é admin).';
+                    statusEl.style.color = '#f87171'; // vermelhinho
+                  }
+                  updateAuthUI(user || null);
+                  await applyWhoamiAdmin();
+                  return;
+                }
+
+                const data = await resp.json().catch(() => ({}));
+                console.log('[admin-cupons] /admin/ping OK => admin confirmado', data);
+                if (statusEl) {
+                  statusEl.textContent = 'Admin conectado.';
+                  statusEl.style.color = '#4ade80'; // verdinho
+                }
+                updateAuthUI(user || null);
+                await applyWhoamiAdmin();
+              } catch (e) {
+                console.error('[admin-cupons] erro no ping admin', e);
+                if (statusEl) {
+                  statusEl.textContent = 'Erro ao verificar acesso de admin.';
+                  statusEl.style.color = '#f97316';
+                }
+                updateAuthUI(user || null);
+                await applyWhoamiAdmin();
+              }
             });
           } else {
             updateAuthUI(null);
+            if (statusEl) {
+              statusEl.textContent = 'Firebase indisponível.';
+              statusEl.style.color = '#f97316';
+            }
             await applyWhoamiAdmin();
           }
         } catch(e) {
+          console.error('[admin-cupons] falha ao inicializar auth listener', e);
           updateAuthUI(null);
+          if (statusEl) {
+            statusEl.textContent = 'Erro ao inicializar autenticação.';
+            statusEl.style.color = '#f97316';
+          }
           await applyWhoamiAdmin();
         }
 
