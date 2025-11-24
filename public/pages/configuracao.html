@@ -558,6 +558,7 @@
     const agendaAlertEl = document.getElementById('agenda-alert');
     const agendaSaveBtn = document.getElementById('agenda-save-btn');
     let currentAgendaConfig = null;
+    let agendaSavedOk = false; // ✅ usamos isso para saber se a agenda já foi salva nesta jornada
 
     fJanela.addEventListener('change', () => {
       wrapCustom.style.display = (fJanela.value === 'custom') ? 'block' : 'none';
@@ -1074,6 +1075,7 @@
           currentAgendaConfig = normalizeAgendaConfig({});
           preencherAgendaForm(currentAgendaConfig);
           atualizarAgendaResumo(null);
+          agendaSavedOk = false; // ainda não existe configuração de agenda
           return;
         }
 
@@ -1085,11 +1087,13 @@
         currentAgendaConfig = normalizeAgendaConfig(data);
         preencherAgendaForm(currentAgendaConfig);
         atualizarAgendaResumo(currentAgendaConfig);
+        agendaSavedOk = true; // ✅ já existe agenda salva no servidor
       } catch (e) {
         console.warn('[configuracao] Erro ao carregar agenda; usando defaults.', e);
         currentAgendaConfig = normalizeAgendaConfig({});
         preencherAgendaForm(currentAgendaConfig);
         atualizarAgendaResumo(null);
+        agendaSavedOk = false;
       }
     }
 
@@ -1133,6 +1137,16 @@
         currentAgendaConfig = payload;
         atualizarAgendaResumo(currentAgendaConfig);
         setAgendaMessage('Configuração de agenda salva com sucesso.', 'success');
+
+        // ✅ marcamos que a agenda foi salva nesta jornada
+        agendaSavedOk = true;
+
+        // ✅ agora tentamos avançar: disparamos o submit do formulário principal
+        if (form && typeof form.requestSubmit === 'function') {
+          form.requestSubmit();
+        } else if (form) {
+          form.dispatchEvent(new Event('submit', { cancelable: true, bubbles: true }));
+        }
       } catch (e) {
         console.error('[configuracao] Erro ao salvar agenda', e);
         setAgendaMessage('Não foi possível salvar a agenda agora. Tente novamente.', 'error');
@@ -1148,6 +1162,9 @@
       await carregarAgendaConfigFromApi();
       if (agendaFormEl) {
         agendaFormEl.addEventListener('submit', salvarAgendaConfig);
+      }
+      if (agendaSaveBtn) {
+        agendaSaveBtn.textContent = 'Salvar e continuar'; // ✅ botão final da página
       }
     }
 
@@ -1376,6 +1393,8 @@
       event.preventDefault();
       cfgFeedback.textContent = '';
 
+      const formEl = document.getElementById('config-form');
+
       // mantém a regra de voz: precisa ter voz enviada ou upload iniciado
       if (!voiceState.ready && !voiceState.started) {
         cfgFeedback.textContent = '⚠️ Antes de continuar, clique em “Enviar & Processar” na sua voz.';
@@ -1384,10 +1403,17 @@
         return;
       }
 
+      // 🔎 validação de campos obrigatórios (igual filosofia do cadastro)
+      if (formEl && !formEl.reportValidity()) {
+        cfgFeedback.textContent = 'Preencha os campos obrigatórios destacados antes de continuar.';
+        btnSalvar.disabled = false;
+        btnSalvar.textContent = 'Salvar e continuar';
+        return;
+      }
+
       btnSalvar.disabled = true;
       btnSalvar.textContent = 'Enviando…';
 
-      const formEl = document.getElementById('config-form');
       const fd = new FormData(formEl);
 
       // garante que o uid vá no form (caso ainda não esteja)
@@ -1455,8 +1481,17 @@
       }
 
       console.log("[configuracao] salvo:", payload);
-      cfgFeedback.textContent = '✅ Configuração salva. Continuando…';
-      setTimeout(() => { window.location.href = '/pages/ativar-cliente.html'; }, 600);
+
+      if (agendaSavedOk) {
+        // ✅ voz ok + formulário ok + agenda salva → pode seguir para boas-vindas
+        cfgFeedback.textContent = '✅ Configuração salva. Indo para a etapa de boas-vindas…';
+        setTimeout(() => { window.location.href = '/pages/ativar-cliente.html'; }, 600);
+      } else {
+        // ✅ salvou comunicação, mas ainda falta a agenda
+        cfgFeedback.textContent = '✅ Configuração salva. Agora defina sua agenda logo abaixo para continuar.';
+        btnSalvar.disabled = false;
+        btnSalvar.textContent = 'Salvar e continuar';
+      }
     }
 
     form.addEventListener('submit', salvarConfiguracao);
