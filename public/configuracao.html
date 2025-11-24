@@ -340,8 +340,10 @@
           </div>
         </section>
 
+        <!-- PATCH 1: esconder botão antigo de salvar/continuar -->
         <div class="mt-24">
-          <button id="btn-salvar" type="submit" class="btn primary" disabled>Salvar e continuar</button>
+          <!-- Botão antigo de avançar foi desativado; a jornada segue agora pela agenda. -->
+          <button id="btn-salvar" type="button" class="btn primary" style="display:none" disabled>Salvar e continuar</button>
           <span id="config-feedback" class="hint mt-8" style="margin-left:8px;"></span>
         </div>
       </form>
@@ -393,7 +395,8 @@
         </div>
 
         <div class="mt-12">
-          <button id="agenda-save-btn" type="submit" class="btn outline">Salvar agenda</button>
+          <!-- PATCH 4: renomear botão da agenda -->
+          <button id="agenda-save-btn" type="submit" class="btn outline">Salvar e continuar</button>
         </div>
       </form>
 
@@ -1097,16 +1100,50 @@
       }
     }
 
+    // PATCH 3.1 — helper de validação da config mínima
+    function validarConfigObrigatoria() {
+      const faltando = [];
+
+      if (!hCnpj.value) {
+        faltando.push('CNPJ vinculado à conta');
+      }
+      if (!hNome.value) {
+        faltando.push('Nome da conta');
+      }
+      if (!hEmail.value) {
+        faltando.push('E-mail da conta');
+      }
+
+      if (faltando.length) {
+        return 'Antes de continuar, complete: ' + faltando.join(', ') + '.';
+      }
+      return null;
+    }
+
+    // PATCH 3.2 — nova função salvarAgendaConfig (voz + config + agenda + redirect)
     async function salvarAgendaConfig(ev){
       ev.preventDefault();
       if (!agendaFormEl) return;
 
-      const idToken = await getIdTokenOrNull();
-      if (!idToken) {
-        setAgendaMessage('Sessão expirada. Faça login novamente.', 'error');
+      // 1) Voz obrigatória para avançar
+      if (!voiceState.ready && !voiceState.started) {
+        setAgendaMessage('Antes de continuar, envie e processe a sua voz em “Enviar & Processar”.', 'error');
         return;
       }
 
+      // 2) Campos mínimos da configuração de comunicação
+      const msgCfg = validarConfigObrigatoria();
+      if (msgCfg) {
+        setAgendaMessage(msgCfg, 'error');
+        try {
+          // sobe a página até o topo do formulário de config
+          const y = form.offsetTop || 0;
+          window.scrollTo({ top: Math.max(y - 40, 0), behavior: 'smooth' });
+        } catch (_) {}
+        return;
+      }
+
+      // 3) Validação da agenda (dias/horários/antecedência)
       const payload = lerAgendaDoForm();
       const err = validarAgendaCfg(payload);
       if (err) {
@@ -1114,13 +1151,32 @@
         return;
       }
 
+      // 4) Token
+      const idToken = await getIdTokenOrNull();
+      if (!idToken) {
+        setAgendaMessage('Sessão expirada. Faça login novamente.', 'error');
+        return;
+      }
+
       try {
         if (agendaSaveBtn) {
           agendaSaveBtn.disabled = true;
-          agendaSaveBtn.textContent = 'Salvando...';
+          agendaSaveBtn.textContent = 'Salvando…';
         }
-        setAgendaMessage('Salvando configuração de agenda...', null);
+        setAgendaMessage('Salvando seus dados e a configuração de agenda…', null);
 
+        // 4.1. Salvar configurações de comunicação primeiro
+        const cfgResult = await salvarConfiguracaoSemRedirect();
+        if (!cfgResult || !cfgResult.ok) {
+          setAgendaMessage('Não foi possível salvar seus dados de comunicação. Confira os campos acima e tente novamente.', 'error');
+          try {
+            const y = form.offsetTop || 0;
+            window.scrollTo({ top: Math.max(y - 40, 0), behavior: 'smooth' });
+          } catch (_) {}
+          return;
+        }
+
+        // 4.2. Salvar agenda
         const res = await fetch(`${API_BASE}/api/agenda/config`, {
           method: 'POST',
           headers: {
@@ -1136,24 +1192,20 @@
 
         currentAgendaConfig = payload;
         atualizarAgendaResumo(currentAgendaConfig);
-        setAgendaMessage('Configuração de agenda salva com sucesso.', 'success');
+        setAgendaMessage('Configuração de agenda salva com sucesso. Indo para a próxima etapa…', 'success');
 
-        // ✅ marcamos que a agenda foi salva nesta jornada
-        agendaSavedOk = true;
+        // 4.3. Agora sim, avança a jornada
+        setTimeout(() => {
+          window.location.href = '/pages/ativar-cliente.html';
+        }, 800);
 
-        // ✅ agora tentamos avançar: disparamos o submit do formulário principal
-        if (form && typeof form.requestSubmit === 'function') {
-          form.requestSubmit();
-        } else if (form) {
-          form.dispatchEvent(new Event('submit', { cancelable: true, bubbles: true }));
-        }
       } catch (e) {
         console.error('[configuracao] Erro ao salvar agenda', e);
         setAgendaMessage('Não foi possível salvar a agenda agora. Tente novamente.', 'error');
       } finally {
         if (agendaSaveBtn) {
           agendaSaveBtn.disabled = false;
-          agendaSaveBtn.textContent = 'Salvar agenda';
+          agendaSaveBtn.textContent = 'Salvar e continuar';
         }
       }
     }
@@ -1389,31 +1441,11 @@
       }
     }
 
-    async function salvarConfiguracao(event) {
-      event.preventDefault();
+    // PATCH 2 — salvar configuração SEM redirect (helper da agenda)
+    async function salvarConfiguracaoSemRedirect() {
       cfgFeedback.textContent = '';
 
       const formEl = document.getElementById('config-form');
-
-      // mantém a regra de voz: precisa ter voz enviada ou upload iniciado
-      if (!voiceState.ready && !voiceState.started) {
-        cfgFeedback.textContent = '⚠️ Antes de continuar, clique em “Enviar & Processar” na sua voz.';
-        btnSalvar.disabled = false;
-        btnSalvar.textContent = 'Salvar e continuar';
-        return;
-      }
-
-      // 🔎 validação de campos obrigatórios (igual filosofia do cadastro)
-      if (formEl && !formEl.reportValidity()) {
-        cfgFeedback.textContent = 'Preencha os campos obrigatórios destacados antes de continuar.';
-        btnSalvar.disabled = false;
-        btnSalvar.textContent = 'Salvar e continuar';
-        return;
-      }
-
-      btnSalvar.disabled = true;
-      btnSalvar.textContent = 'Enviando…';
-
       const fd = new FormData(formEl);
 
       // garante que o uid vá no form (caso ainda não esteja)
@@ -1449,9 +1481,7 @@
       } catch (e) {
         console.error("[configuracao] erro de rede:", e);
         cfgFeedback.textContent = '❌ Erro ao comunicar com o servidor.';
-        btnSalvar.disabled = false;
-        btnSalvar.textContent = 'Salvar e continuar';
-        return;
+        return { ok:false, status:null, message:'erro_rede' };
       }
 
       let payload;
@@ -1467,34 +1497,25 @@
       }
 
       if (!resp.ok) {
-        let msg = '❌ Falha ao salvar.';
+        let msg = '❌ Falha ao salvar configurações de comunicação.';
         if (payload && payload.message) {
           msg += ' ' + payload.message;
-        } else if (payload) {
-          msg += ' ' + JSON.stringify(payload);
         }
-        console.error("[configuracao] erro HTTP:", resp.status);
+        console.error("[configuracao] erro HTTP:", resp.status, payload);
         cfgFeedback.textContent = msg;
-        btnSalvar.disabled = false;
-        btnSalvar.textContent = 'Salvar e continuar';
-        return;
+        return { ok:false, status:resp.status, message:msg };
       }
 
       console.log("[configuracao] salvo:", payload);
-
-      if (agendaSavedOk) {
-        // ✅ voz ok + formulário ok + agenda salva → pode seguir para boas-vindas
-        cfgFeedback.textContent = '✅ Configuração salva. Indo para a etapa de boas-vindas…';
-        setTimeout(() => { window.location.href = '/pages/ativar-cliente.html'; }, 600);
-      } else {
-        // ✅ salvou comunicação, mas ainda falta a agenda
-        cfgFeedback.textContent = '✅ Configuração salva. Agora defina sua agenda logo abaixo para continuar.';
-        btnSalvar.disabled = false;
-        btnSalvar.textContent = 'Salvar e continuar';
-      }
+      cfgFeedback.textContent = '✅ Dados de comunicação salvos.';
+      return { ok:true, status:resp.status, payload };
     }
 
-    form.addEventListener('submit', salvarConfiguracao);
+    // PATCH 2 — submit do form principal só salva (sem redirecionar)
+    form.addEventListener('submit', function (event) {
+      event.preventDefault();
+      salvarConfiguracaoSemRedirect();
+    });
 
     for (const r of document.getElementsByName('branding_choice')) {
       r.addEventListener('change', () => {
