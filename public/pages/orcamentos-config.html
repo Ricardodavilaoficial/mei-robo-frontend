@@ -1,0 +1,615 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Configuração de Orçamentos — MEI Robô (v1.0)</title>
+
+  <link rel="stylesheet" href="/assets/styles.css" />
+  <script src="/assets/layout.js" defer></script>
+
+  <!-- Firebase compat (igual outras telas) -->
+  <script defer src="/__/firebase/9.22.2/firebase-app-compat.js"></script>
+  <script defer src="/__/firebase/9.22.2/firebase-auth-compat.js"></script>
+  <script defer src="/__/firebase/9.22.2/firebase-firestore-compat.js"></script>
+  <script defer src="/__/firebase/9.22.2/firebase-storage-compat.js"></script>
+  <script defer src="/__/firebase/init.js"></script>
+
+  <style>
+    :root{
+      --bg:#0d1117;
+      --card:#161b22;
+      --br:#30363d;
+      --soft:#cfe3dc;
+      --muted:#9fb0aa;
+      --txt:#e6edf3;
+      --ok:#238636;
+      --danger:#ff6961;
+    }
+    html,body{
+      background:var(--bg);
+      color:var(--txt);
+      margin:0;
+      padding:0;
+      font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial;
+    }
+    main{
+      max-width:900px;
+      margin:0 auto;
+      padding:16px;
+    }
+    h1{
+      font-size:1.6rem;
+      margin:8px 0 4px;
+      color:var(--soft);
+    }
+    .subtitle{
+      font-size:.95rem;
+      color:var(--muted);
+      margin-bottom:12px;
+    }
+    .card{
+      background:var(--card);
+      border:1px solid var(--br);
+      border-radius:14px;
+      padding:14px;
+      margin:12px 0;
+    }
+    .card h2{
+      margin:0 0 8px;
+      font-size:1.1rem;
+      color:var(--soft);
+    }
+    .kicker{
+      font-size:.9rem;
+      color:var(--muted);
+    }
+    label{
+      font-weight:600;
+      font-size:.95rem;
+      display:block;
+      margin-top:8px;
+    }
+    input[type="text"],
+    input[type="number"],
+    textarea{
+      width:100%;
+      background:#0d1117;
+      color:var(--txt);
+      border:1px solid var(--br);
+      border-radius:10px;
+      padding:9px 10px;
+      margin-top:4px;
+    }
+    input::placeholder,
+    textarea::placeholder{
+      color:var(--muted);
+    }
+    textarea{
+      resize:vertical;
+      min-height:70px;
+    }
+    .row{
+      display:flex;
+      gap:10px;
+      flex-wrap:wrap;
+      align-items:center;
+    }
+    .grid-2{
+      display:grid;
+      grid-template-columns:1fr 1fr;
+      gap:10px;
+    }
+    .logo-box{
+      width:180px;
+      height:70px;
+      border:1px dashed var(--br);
+      border-radius:12px;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      color:var(--muted);
+      background:#0f141a;
+      overflow:hidden;
+      font-size:.85rem;
+    }
+    .logo-box.big{
+      width:160px;
+      height:160px;
+    }
+    .btn{
+      background:var(--ok);
+      color:#fff;
+      border:none;
+      border-radius:10px;
+      padding:10px 14px;
+      cursor:pointer;
+      font-weight:700;
+      font-size:.95rem;
+    }
+    .btn:hover{filter:brightness(1.05);}
+    .btn-ghost{
+      background:transparent;
+      border:1px solid var(--br);
+      color:var(--txt);
+    }
+    .btn-danger{
+      background:var(--danger);
+      color:#fff;
+    }
+    .right{text-align:right;}
+    .badge{
+      display:inline-block;
+      padding:2px 8px;
+      border-radius:999px;
+      border:1px solid var(--br);
+      font-size:.8rem;
+      color:var(--soft);
+    }
+    .pill{
+      display:inline-flex;
+      align-items:center;
+      gap:6px;
+      border-radius:999px;
+      border:1px solid var(--br);
+      padding:4px 10px;
+      font-size:.85rem;
+      color:var(--muted);
+    }
+    .pill input[type="checkbox"]{
+      margin:0;
+    }
+    .danger-text{color:var(--danger);}
+    .no-print{}
+  </style>
+</head>
+<body>
+  <div id="app-header" class="no-print"></div>
+
+  <main>
+    <header>
+      <h1>Configuração de Orçamentos</h1>
+      <p class="subtitle">
+        Deixe o orçamento com a cara do seu negócio. O MEI Robô usa estas informações para
+        timbrar e enviar orçamentos automáticos e manuais.
+      </p>
+    </header>
+
+    <!-- Identidade do MEI no orçamento -->
+    <section class="card">
+      <h2>Identidade no orçamento</h2>
+      <p class="kicker">
+        Estes dados aparecem como emissor do orçamento (no topo ou rodapé). Não são os dados do cliente,
+        são os seus dados.
+      </p>
+      <div class="grid-2">
+        <div>
+          <label for="nomeEmpresa">Nome do MEI / Empresa</label>
+          <input id="nomeEmpresa" type="text" placeholder="Ex.: ED BARBA / João da Silva MEI" />
+        </div>
+        <div>
+          <label for="documento">Documento (CPF/CNPJ)</label>
+          <input id="documento" type="text" placeholder="Ex.: 12.345.678/0001-90" />
+        </div>
+      </div>
+      <div class="grid-2">
+        <div>
+          <label for="telefone">Telefone / WhatsApp de contato</label>
+          <input id="telefone" type="text" placeholder="Ex.: (51) 99999-9999" />
+        </div>
+        <div>
+          <label for="cidadeUf">Cidade / UF</label>
+          <input id="cidadeUf" type="text" placeholder="Ex.: Porto Alegre / RS" />
+        </div>
+      </div>
+    </section>
+
+    <!-- Timbrado padrão -->
+    <section class="card">
+      <h2>Timbrado do orçamento</h2>
+      <p class="kicker">
+        Estes arquivos formam o “visual padrão” dos seus orçamentos. O MEI Robô reaproveita isso em todos os documentos.
+      </p>
+      <div class="row">
+        <div>
+          <label>Logo (cabeçalho)</label>
+          <div class="logo-box" id="prevLogo"><span>Logo</span></div>
+          <input type="file" id="inLogo" accept="image/png,image/svg+xml" class="no-print" />
+          <p class="kicker">PNG com fundo transparente ou SVG.</p>
+        </div>
+        <div>
+          <label>Assinatura</label>
+          <div class="logo-box" id="prevAssinatura"><span>Assinatura</span></div>
+          <input type="file" id="inAssinatura" accept="image/png,image/svg+xml" class="no-print" />
+          <p class="kicker">Opcional, aparece no rodapé.</p>
+        </div>
+        <div>
+          <label>Carimbo</label>
+          <div class="logo-box big" id="prevCarimbo"><span>Carimbo</span></div>
+          <input type="file" id="inCarimbo" accept="image/png,image/svg+xml" class="no-print" />
+          <p class="kicker">Opcional, usado em orçamentos impressos.</p>
+        </div>
+      </div>
+      <p class="kicker">
+        Dica: você sobe estes arquivos <strong>uma vez</strong>. Depois, o painel de orçamentos e o robô usam o mesmo timbrado.
+      </p>
+    </section>
+
+    <!-- Validade e texto jurídico -->
+    <section class="card">
+      <h2>Validade e texto jurídico</h2>
+      <p class="kicker">
+        Ajuda a evitar mal-entendidos: até quando o valor vale e que o orçamento ainda não é proposta.
+      </p>
+      <div class="grid-2">
+        <div>
+          <label for="validadeDias">Validade padrão do orçamento (em dias)</label>
+          <input id="validadeDias" type="number" min="0" step="1" placeholder="Ex.: 7" />
+          <p class="kicker">
+            Ex.: 7 = “Válido por 7 dias a partir da emissão”. Use 0 para não mostrar validade em dias.
+          </p>
+        </div>
+        <div>
+          <label>Exibição da validade</label>
+          <div class="pill" style="margin-top:6px">
+            <input type="checkbox" id="mostrarValidade" />
+            <label for="mostrarValidade" style="margin-top:0;font-weight:500;">Mostrar texto de validade nos orçamentos</label>
+          </div>
+        </div>
+      </div>
+
+      <label for="textoJuridico">Texto jurídico padrão</label>
+      <textarea id="textoJuridico" placeholder="Ex.: Este orçamento não é proposta e está sujeito à disponibilidade de agenda e alteração de preços sem aviso prévio."></textarea>
+      <p class="kicker">
+        Será exibido no rodapé dos orçamentos. Use para deixar claro que não é proposta, depende de disponibilidade, etc.
+      </p>
+    </section>
+
+    <!-- Condições de pagamento -->
+    <section class="card">
+      <h2>Condições de pagamento padrão</h2>
+      <label for="condicoesPagamento">Condições de pagamento</label>
+      <textarea id="condicoesPagamento" placeholder="Ex.: Pagamento no dia do serviço. Aceitamos Pix, cartão e dinheiro."></textarea>
+      <p class="kicker">
+        Aparece no rodapé dos orçamentos. Ajuda o cliente a saber “como vai pagar” antes de marcar.
+      </p>
+    </section>
+
+    <!-- Mensagem de envio padrão -->
+    <section class="card">
+      <h2>Mensagem de envio padrão</h2>
+      <label for="msgEnvio">Mensagem que acompanha o orçamento</label>
+      <textarea id="msgEnvio" placeholder="Ex.: Olá, segue conforme combinado o orçamento detalhado. Ele ainda não é proposta e está sujeito à disponibilidade e confirmação dos valores."></textarea>
+      <div style="margin-top:6px;">
+        <div class="pill">
+          <input type="checkbox" id="usarMsgAuto" />
+          <label for="usarMsgAuto" style="margin-top:0;font-weight:500;">Usar esta mensagem nos orçamentos automáticos do MEI Robô</label>
+        </div>
+        <div class="pill" style="margin-top:6px;">
+          <input type="checkbox" id="usarMsgManual" />
+          <label for="usarMsgManual" style="margin-top:0;font-weight:500;">Sugerir esta mensagem na tela de orçamento manual</label>
+        </div>
+      </div>
+      <p class="kicker">
+        O robô e o painel usam esta mensagem como abertura do orçamento (WhatsApp / e-mail).
+      </p>
+    </section>
+
+    <!-- Preferências de envio -->
+    <section class="card">
+      <h2>Preferências de envio</h2>
+      <p class="kicker">
+        Como o MEI Robô deve enviar o orçamento quando o cliente pedir “por escrito”.
+      </p>
+      <div class="row" style="margin-top:6px;">
+        <div class="pill">
+          <input type="radio" name="canal" id="canalWhats" value="whatsapp" />
+          <label for="canalWhats" style="margin-top:0;font-weight:500;">WhatsApp (recomendado)</label>
+        </div>
+        <div class="pill">
+          <input type="radio" name="canal" id="canalPdf" value="pdf_link" />
+          <label for="canalPdf" style="margin-top:0;font-weight:500;">Link de PDF (quando estiver disponível)</label>
+        </div>
+      </div>
+      <p class="kicker danger-text">
+        Na v1.0 o MEI Robô usa <strong>WhatsApp</strong>. O PDF por link entra numa versão futura.
+      </p>
+    </section>
+
+    <!-- Ações -->
+    <section class="card">
+      <div class="row" style="justify-content:space-between;">
+        <div class="kicker" id="statusText">
+          Carregando configuração...
+        </div>
+        <div class="row">
+          <button class="btn-ghost" id="btn-ver-exemplo">Ver exemplo de orçamento</button>
+          <button class="btn" id="btn-salvar-config">Salvar configuração</button>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <div id="app-footer" class="no-print"></div>
+
+  <script>
+    const el = (id)=>document.getElementById(id);
+    const params = new URLSearchParams(location.search);
+    const isValidate = params.get('validate') === '1';
+
+    function hasFirebaseCompat(){
+      try { return !!(window.firebase && typeof firebase.initializeApp === 'function'); }
+      catch(_){ return false; }
+    }
+
+    async function getUid(){
+      try{
+        if(!hasFirebaseCompat() || typeof firebase.auth !== 'function') return null;
+        const auth = firebase.auth();
+        const cur = auth.currentUser;
+        if(cur) return cur.uid;
+        return await new Promise(resolve => auth.onAuthStateChanged(u => resolve(u ? u.uid : null)));
+      }catch(_){
+        return null;
+      }
+    }
+
+    function getConfigDoc(uid){
+      if(!uid || typeof firebase === 'undefined' || typeof firebase.firestore !== 'function') return null;
+      try{
+        return firebase.firestore()
+          .collection('profissionais').doc(uid)
+          .collection('config').doc('orcamentos');
+      }catch(_){
+        return null;
+      }
+    }
+
+    function getStorage(){
+      try{
+        if(typeof firebase === 'undefined' || typeof firebase.storage !== 'function') return null;
+        return firebase.storage();
+      }catch(_){
+        return null;
+      }
+    }
+
+    function setStatus(msg){
+      const s = el('statusText');
+      if(s) s.textContent = msg;
+    }
+
+    // Previews simples (sem salvar ainda)
+    function setPreviewBox(boxId, url, placeholder){
+      const box = el(boxId);
+      if(!box) return;
+      if(!url){
+        box.style.backgroundImage = 'none';
+        box.style.backgroundColor = '#0f141a';
+        box.textContent = placeholder || box.textContent || '';
+        return;
+      }
+      box.textContent = '';
+      box.style.backgroundColor = '#0f141a';
+      box.style.backgroundImage = `url('${url}')`;
+      box.style.backgroundRepeat = 'no-repeat';
+      box.style.backgroundPosition = 'center';
+      box.style.backgroundSize = 'contain';
+    }
+
+    // Carregar config na inicialização
+    async function loadConfig(){
+      try{
+        const uid = await getUid();
+        if(!uid){
+          setStatus('Entre na sua conta para configurar seus orçamentos.');
+          return;
+        }
+        const ref = getConfigDoc(uid);
+        if(!ref){
+          setStatus('Nuvem indisponível para configuração.');
+          return;
+        }
+        const snap = await ref.get();
+        if(!snap.exists){
+          setStatus('Nenhuma configuração encontrada. Preencha e salve para criar seu modelo de orçamento.');
+          // Defaults amigáveis
+          el('validadeDias').value = '';
+          el('mostrarValidade').checked = true;
+          el('usarMsgAuto').checked = true;
+          el('usarMsgManual').checked = true;
+          el('canalWhats').checked = true;
+          return;
+        }
+        const data = snap.data() || {};
+
+        // Identidade
+        if(data.nomeEmpresa) el('nomeEmpresa').value = data.nomeEmpresa;
+        if(data.documento) el('documento').value = data.documento;
+        if(data.telefone) el('telefone').value = data.telefone;
+        if(data.cidadeUf) el('cidadeUf').value = data.cidadeUf;
+
+        // Validade / jurídico
+        if(typeof data.validadeDias === 'number') el('validadeDias').value = data.validadeDias;
+        el('mostrarValidade').checked = !!data.mostrarValidade;
+        if(data.textoJuridico) el('textoJuridico').value = data.textoJuridico;
+
+        // Condições pagamento
+        if(data.condicoesPagamento) el('condicoesPagamento').value = data.condicoesPagamento;
+
+        // Mensagem envio
+        if(data.msgEnvio) el('msgEnvio').value = data.msgEnvio;
+        el('usarMsgAuto').checked   = data.usarMsgAuto   !== false; // default true
+        el('usarMsgManual').checked = data.usarMsgManual !== false; // default true
+
+        // Canal
+        if(data.canalPreferencial === 'pdf_link'){
+          el('canalPdf').checked = true;
+        } else {
+          el('canalWhats').checked = true;
+        }
+
+        // Timbrado (URLs salvas)
+        if(data.logoUrl) setPreviewBox('prevLogo', data.logoUrl, 'Logo');
+        if(data.assinaturaUrl) setPreviewBox('prevAssinatura', data.assinaturaUrl, 'Assinatura');
+        if(data.carimboUrl) setPreviewBox('prevCarimbo', data.carimboUrl, 'Carimbo');
+
+        setStatus('Configuração carregada da nuvem.');
+      }catch(err){
+        console.warn('loadConfig erro:', err);
+        setStatus('Não foi possível carregar a configuração. Verifique conexão / login.');
+      }
+    }
+
+    async function uploadIfNeeded(uid, kind, file){
+      // kind: 'logo' | 'assinatura' | 'carimbo'
+      if(!file) return null;
+      const storage = getStorage();
+      if(!storage) return null;
+
+      const ext = (file.name && file.name.includes('.'))
+        ? file.name.split('.').pop()
+        : 'bin';
+      const path = `profissionais/${uid}/orcamentos/${kind}-${Date.now()}.${ext}`;
+      const ref = storage.ref().child(path);
+      const snap = await ref.put(file);
+      const url = await snap.ref.getDownloadURL();
+      return { path, url };
+    }
+
+    async function salvarConfig(){
+      if(isValidate){
+        alert('Modo de validação: não salva configuração.');
+        return;
+      }
+      try{
+        const uid = await getUid();
+        if(!uid){
+          alert('Entre na sua conta para salvar a configuração.');
+          return;
+        }
+        const ref = getConfigDoc(uid);
+        if(!ref){
+          alert('Nuvem indisponível. Tente novamente mais tarde.');
+          return;
+        }
+
+        setStatus('Salvando configuração...');
+        const payload = {};
+
+        // Identidade
+        payload.nomeEmpresa = el('nomeEmpresa').value.trim() || '';
+        payload.documento = el('documento').value.trim() || '';
+        payload.telefone = el('telefone').value.trim() || '';
+        payload.cidadeUf = el('cidadeUf').value.trim() || '';
+
+        // Validade / jurídico
+        const vdRaw = el('validadeDias').value;
+        const vd = vdRaw === '' ? null : Number(vdRaw);
+        if(vd !== null && !Number.isNaN(vd)) payload.validadeDias = vd;
+        payload.mostrarValidade = !!el('mostrarValidade').checked;
+        payload.textoJuridico = el('textoJuridico').value.trim() || '';
+
+        // Condições pagamento
+        payload.condicoesPagamento = el('condicoesPagamento').value.trim() || '';
+
+        // Mensagem envio
+        payload.msgEnvio = el('msgEnvio').value.trim() || '';
+        payload.usarMsgAuto = !!el('usarMsgAuto').checked;
+        payload.usarMsgManual = !!el('usarMsgManual').checked;
+
+        // Canal
+        let canal = 'whatsapp';
+        if(el('canalPdf').checked) canal = 'pdf_link';
+        payload.canalPreferencial = canal;
+
+        // Uploads (timbrado)
+        const logoFile = el('inLogo').files && el('inLogo').files[0];
+        const assFile  = el('inAssinatura').files && el('inAssinatura').files[0];
+        const carFile  = el('inCarimbo').files && el('inCarimbo').files[0];
+
+        // Só faz upload de quem tiver arquivo novo selecionado
+        if(logoFile){
+          const up = await uploadIfNeeded(uid, 'logo', logoFile);
+          if(up){
+            payload.logoPath = up.path;
+            payload.logoUrl  = up.url;
+            setPreviewBox('prevLogo', up.url, 'Logo');
+          }
+        }
+        if(assFile){
+          const up = await uploadIfNeeded(uid, 'assinatura', assFile);
+          if(up){
+            payload.assinaturaPath = up.path;
+            payload.assinaturaUrl  = up.url;
+            setPreviewBox('prevAssinatura', up.url, 'Assinatura');
+          }
+        }
+        if(carFile){
+          const up = await uploadIfNeeded(uid, 'carimbo', carFile);
+          if(up){
+            payload.carimboPath = up.path;
+            payload.carimboUrl  = up.url;
+            setPreviewBox('prevCarimbo', up.url, 'Carimbo');
+          }
+        }
+
+        payload.updatedAt = new Date().toISOString();
+
+        await ref.set(payload, { merge:true });
+        setStatus('Configuração salva na nuvem.');
+        alert('✅ Configuração de orçamento salva. O MEI Robô já pode usar este modelo.');
+      }catch(err){
+        console.warn('salvarConfig erro:', err);
+        setStatus('Erro ao salvar configuração.');
+        alert('Falha ao salvar configuração. Verifique conexão / autenticação.');
+      }
+    }
+
+    function bindEvents(){
+      const btnSalvar = el('btn-salvar-config');
+      if(btnSalvar){
+        btnSalvar.addEventListener('click', salvarConfig);
+      }
+      const btnExemplo = el('btn-ver-exemplo');
+      if(btnExemplo){
+        btnExemplo.addEventListener('click', ()=>{
+          // Abre a página de orçamentos em nova aba, carregando esta config
+          const base = '/pages/orcamentos.html';
+          const qs = isValidate ? '?validate=1' : '';
+          window.open(base + qs, '_blank');
+        });
+      }
+
+      // Previews locais ao escolher arquivo (antes de salvar)
+      function instantPreview(inputId, boxId, placeholder){
+        const input = el(inputId);
+        if(!input) return;
+        input.addEventListener('change', (e)=>{
+          const file = e.target.files && e.target.files[0];
+          if(!file){
+            setPreviewBox(boxId, null, placeholder);
+            return;
+          }
+          const r = new FileReader();
+          r.onload = ev => {
+            setPreviewBox(boxId, ev.target.result, placeholder);
+          };
+          r.readAsDataURL(file);
+        });
+      }
+      instantPreview('inLogo','prevLogo','Logo');
+      instantPreview('inAssinatura','prevAssinatura','Assinatura');
+      instantPreview('inCarimbo','prevCarimbo','Carimbo');
+    }
+
+    window.addEventListener('load', ()=>{
+      bindEvents();
+      if(isValidate){
+        setStatus('Modo de validação: nada será salvo na nuvem.');
+      }
+      loadConfig();
+    });
+  </script>
+</body>
+</html>
