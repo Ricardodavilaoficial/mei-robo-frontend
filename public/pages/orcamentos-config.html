@@ -117,6 +117,11 @@
       width:160px;
       height:160px;
     }
+    .logo-box.avatar{
+      width:90px;
+      height:90px;
+      border-radius:50%;
+    }
     .btn{
       background:var(--ok);
       color:#fff;
@@ -187,10 +192,14 @@
         <div>
           <label for="nomeEmpresa">Nome do MEI / Empresa</label>
           <input id="nomeEmpresa" type="text" placeholder="Ex.: ED BARBA / João da Silva MEI" />
+          <label for="slogan">Frase de destaque (opcional)</label>
+          <input id="slogan" type="text" placeholder="Ex.: Cuidando do seu visual desde 2015" />
         </div>
         <div>
           <label for="documento">Documento (CPF/CNPJ)</label>
           <input id="documento" type="text" placeholder="Ex.: 12.345.678/0001-90" />
+          <label for="cidadeUf">Cidade / UF</label>
+          <input id="cidadeUf" type="text" placeholder="Ex.: Porto Alegre / RS" />
         </div>
       </div>
       <div class="grid-2">
@@ -199,8 +208,14 @@
           <input id="telefone" type="text" placeholder="Ex.: (51) 99999-9999" />
         </div>
         <div>
-          <label for="cidadeUf">Cidade / UF</label>
-          <input id="cidadeUf" type="text" placeholder="Ex.: Porto Alegre / RS" />
+          <label>Foto ou ícone de perfil (opcional)</label>
+          <div class="row" style="align-items:center; gap:12px; margin-top:4px;">
+            <div class="logo-box avatar" id="prevAvatar"><span>Foto</span></div>
+            <div>
+              <input type="file" id="inAvatar" accept="image/png,image/jpeg,image/svg+xml" class="no-print" />
+              <p class="kicker">Pode ser uma foto sua ou um ícone do seu negócio.</p>
+            </div>
+          </div>
         </div>
       </div>
     </section>
@@ -231,9 +246,22 @@
           <p class="kicker">Opcional, usado em orçamentos impressos.</p>
         </div>
       </div>
-      <p class="kicker">
-        Dica: você sobe estes arquivos <strong>uma vez</strong>. Depois, o painel de orçamentos e o robô usam o mesmo timbrado.
-      </p>
+
+      <div class="grid-2" style="margin-top:10px;">
+        <div>
+          <label for="corPrincipal">Cor principal do orçamento</label>
+          <input id="corPrincipal" type="color" value="#238636" />
+          <p class="kicker">
+            Usada em títulos, total e detalhes visuais. Se você não mexer, usamos o verde do MEI Robô.
+          </p>
+        </div>
+        <div>
+          <p class="kicker">
+            Dica: você configura estes itens <strong>uma vez</strong>. Depois, o painel de orçamentos e o robô usam o mesmo timbrado
+            e a mesma “cara” em todos os documentos.
+          </p>
+        </div>
+      </div>
     </section>
 
     <!-- Validade e aviso -->
@@ -386,7 +414,6 @@
       if(s) s.textContent = msg;
     }
 
-    // Previews simples (sem salvar ainda)
     function setPreviewBox(boxId, url, placeholder){
       const box = el(boxId);
       if(!box) return;
@@ -404,7 +431,6 @@
       box.style.backgroundSize = 'contain';
     }
 
-    // Carregar config na inicialização
     async function loadConfig(){
       try{
         const uid = await getUid();
@@ -420,46 +446,47 @@
         const snap = await ref.get();
         if(!snap.exists){
           setStatus('Nenhuma configuração encontrada. Preencha e salve para criar seu modelo de orçamento.');
-          // Defaults amigáveis
           el('validadeDias').value = '';
           el('mostrarValidade').checked = true;
           el('usarMsgAuto').checked = true;
           el('usarMsgManual').checked = true;
           el('canalWhats').checked = true;
+          el('corPrincipal').value = '#238636';
           return;
         }
         const data = snap.data() || {};
 
-        // Identidade
         if(data.nomeEmpresa) el('nomeEmpresa').value = data.nomeEmpresa;
+        if(data.slogan) el('slogan').value = data.slogan;
         if(data.documento) el('documento').value = data.documento;
         if(data.telefone) el('telefone').value = data.telefone;
         if(data.cidadeUf) el('cidadeUf').value = data.cidadeUf;
 
-        // Validade / aviso
+        const cor = typeof data.corPrincipal === 'string' && data.corPrincipal.trim()
+          ? data.corPrincipal
+          : '#238636';
+        el('corPrincipal').value = cor;
+
         if(typeof data.validadeDias === 'number') el('validadeDias').value = data.validadeDias;
         el('mostrarValidade').checked = !!data.mostrarValidade;
         if(data.textoJuridico) el('textoJuridico').value = data.textoJuridico;
 
-        // Condições pagamento
         if(data.condicoesPagamento) el('condicoesPagamento').value = data.condicoesPagamento;
 
-        // Mensagem envio
         if(data.msgEnvio) el('msgEnvio').value = data.msgEnvio;
-        el('usarMsgAuto').checked   = data.usarMsgAuto   !== false; // default true
-        el('usarMsgManual').checked = data.usarMsgManual !== false; // default true
+        el('usarMsgAuto').checked   = data.usarMsgAuto   !== false;
+        el('usarMsgManual').checked = data.usarMsgManual !== false;
 
-        // Canal
         if(data.canalPreferencial === 'pdf_link'){
           el('canalPdf').checked = true;
         } else {
           el('canalWhats').checked = true;
         }
 
-        // Timbrado (URLs salvas)
         if(data.logoUrl) setPreviewBox('prevLogo', data.logoUrl, 'Logo');
         if(data.assinaturaUrl) setPreviewBox('prevAssinatura', data.assinaturaUrl, 'Assinatura');
         if(data.carimboUrl) setPreviewBox('prevCarimbo', data.carimboUrl, 'Carimbo');
+        if(data.avatarUrl) setPreviewBox('prevAvatar', data.avatarUrl, 'Foto');
 
         setStatus('Configuração carregada da nuvem.');
       }catch(err){
@@ -469,7 +496,6 @@
     }
 
     async function uploadIfNeeded(uid, kind, file){
-      // kind: 'logo' | 'assinatura' | 'carimbo'
       if(!file) return null;
       const storage = getStorage();
       if(!storage) return null;
@@ -504,36 +530,33 @@
         setStatus('Salvando configuração...');
         const payload = {};
 
-        // Identidade
         payload.nomeEmpresa = el('nomeEmpresa').value.trim() || '';
-        payload.documento = el('documento').value.trim() || '';
-        payload.telefone = el('telefone').value.trim() || '';
-        payload.cidadeUf = el('cidadeUf').value.trim() || '';
+        payload.slogan      = el('slogan').value.trim() || '';
+        payload.documento   = el('documento').value.trim() || '';
+        payload.telefone    = el('telefone').value.trim() || '';
+        payload.cidadeUf    = el('cidadeUf').value.trim() || '';
+        payload.corPrincipal = el('corPrincipal').value || '#238636';
 
-        // Validade / aviso
         const vdRaw = el('validadeDias').value;
         const vd = vdRaw === '' ? null : Number(vdRaw);
         if(vd !== null && !Number.isNaN(vd)) payload.validadeDias = vd;
         payload.mostrarValidade = !!el('mostrarValidade').checked;
         payload.textoJuridico = el('textoJuridico').value.trim() || '';
 
-        // Condições pagamento
         payload.condicoesPagamento = el('condicoesPagamento').value.trim() || '';
 
-        // Mensagem envio
         payload.msgEnvio = el('msgEnvio').value.trim() || '';
         payload.usarMsgAuto = !!el('usarMsgAuto').checked;
         payload.usarMsgManual = !!el('usarMsgManual').checked;
 
-        // Canal
         let canal = 'whatsapp';
         if(el('canalPdf').checked) canal = 'pdf_link';
         payload.canalPreferencial = canal;
 
-        // Uploads (timbrado)
-        const logoFile = el('inLogo').files && el('inLogo').files[0];
-        const assFile  = el('inAssinatura').files && el('inAssinatura').files[0];
-        const carFile  = el('inCarimbo').files && el('inCarimbo').files[0];
+        const logoFile   = el('inLogo').files && el('inLogo').files[0];
+        const assFile    = el('inAssinatura').files && el('inAssinatura').files[0];
+        const carFile    = el('inCarimbo').files && el('inCarimbo').files[0];
+        const avatarFile = el('inAvatar').files && el('inAvatar').files[0];
 
         if(logoFile){
           const up = await uploadIfNeeded(uid, 'logo', logoFile);
@@ -557,6 +580,14 @@
             payload.carimboPath = up.path;
             payload.carimboUrl  = up.url;
             setPreviewBox('prevCarimbo', up.url, 'Carimbo');
+          }
+        }
+        if(avatarFile){
+          const up = await uploadIfNeeded(uid, 'avatar', avatarFile);
+          if(up){
+            payload.avatarPath = up.path;
+            payload.avatarUrl  = up.url;
+            setPreviewBox('prevAvatar', up.url, 'Foto');
           }
         }
 
@@ -588,12 +619,10 @@
       const btnVoltar = el('btn-voltar-dashboard');
       if(btnVoltar){
         btnVoltar.addEventListener('click', ()=>{
-          // Sai sem salvar nada, só volta pro painel
           window.location.href = '/pages/dashboard.html';
         });
       }
 
-      // Previews locais ao escolher arquivo (antes de salvar)
       function instantPreview(inputId, boxId, placeholder){
         const input = el(inputId);
         if(!input) return;
@@ -613,6 +642,7 @@
       instantPreview('inLogo','prevLogo','Logo');
       instantPreview('inAssinatura','prevAssinatura','Assinatura');
       instantPreview('inCarimbo','prevCarimbo','Carimbo');
+      instantPreview('inAvatar','prevAvatar','Foto');
     }
 
     window.addEventListener('load', ()=>{
