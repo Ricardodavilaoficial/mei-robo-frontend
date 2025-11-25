@@ -176,11 +176,8 @@
 
       <!-- Navegação -->
       <div class="mt-6 row">
-        <div class="col">
-          <button id="btn-back" class="button">← Voltar (Configuração)</button>
-        </div>
-        <div class="col" style="text-align:right;">
-          <button id="btn-next" class="button">Próximo (Contatos)</button>
+        <div class="col" style="text-align:left;">
+          <button id="btn-back-dashboard" class="button">← Voltar para o painel</button>
         </div>
       </div>
     </section>
@@ -230,8 +227,7 @@
       let page = 0;
 
       // ===== Navegação =====
-      byId('btn-back').onclick = () => location.href = '/pages/configuracao.html';
-      byId('btn-next').onclick = () => location.href = '/pages/contatos.html';
+      byId('btn-back-dashboard').onclick = () => location.href = '/pages/dashboard.html';
 
       // ===== Sessão de validação opcional =====
       async function maybeCleanSession() {
@@ -253,7 +249,7 @@
       // ===== Slugify (gerado automaticamente a partir do nome) =====
       function slugify(str){
         return String(str || '')
-          .normalize('NFD').replace(/\\p{Diacritic}/gu,'')
+          .normalize('NFD').replace(/[\u0300-\u036f]/g,'')
           .toLowerCase()
           .replace(/[^a-z0-9]+/g,'-')
           .replace(/^-+|-+$/g,'')
@@ -263,8 +259,8 @@
       // ===== Parse de preço BRL ("45,00" ou "45.00") =====
       function parsePriceBRL(s){
         if (!s) return NaN;
-        let x = String(s).trim().replace(/\\s+/g,'');
-        x = x.replace(/\\./g,'').replace(',', '.');
+        let x = String(s).trim().replace(/\s+/g,'');
+        x = x.replace(/\./g,'').replace(',', '.');
         return Number(x);
       }
 
@@ -362,7 +358,7 @@
           'ACAB25,Sombra e acabamento,25,15,"acabamento, contorno"',
           'HIDR60,Hidratação capilar,60,40,"tratamento, mascara capilar"',
           'PIGM80,Pigmentação/Correção,80,45,"tonalizante, correcao de falhas"'
-        ].join('\\n');
+        ].join('\n');
         return new Blob([rows], {type:'text/csv;charset=utf-8'});
       }
       byId('btn-sample').onclick = () => {
@@ -404,7 +400,7 @@
 
       // ===== Parser simples =====
       function parseCsvBasic(text){
-        const lines = text.split(/\\r?\\n/).map(l=>l.trim()).filter(Boolean);
+        const lines = text.split(/\r?\n/).map(l=>l.trim()).filter(Boolean);
         if (!lines.length) return { header:[], rows:[] };
         const headerRaw = lines[0].split(',').map(h=>h.trim());
         const header = headerRaw.map(h=>h.toLowerCase());
@@ -502,19 +498,19 @@
             if (!nome) return;
             const slug = slugify(nome);
             const preco = parsePriceBRL(precoRaw);
-            const tempo = parseInt(String(tempoRaw).replace(/\\D/g,''), 10);
+            const tempo = parseInt(String(tempoRaw).replace(/\D/g,''), 10);
             const tags = splitTags(outrasRaw).join(';');
 
-            out.push([slug, '\"' + nome.replace(/\"/g,'\"\"') + '\"', 
-                      (isFinite(preco)?preco.toFixed(2):'0.00'), 
-                      (isFinite(tempo)?tempo:0), 
-                      '\"' + tags.replace(/\"/g,'\"\"') + '\"'].join(','));
+            out.push([slug, '"' + nome.replace(/"/g,'""') + '"',
+                      (isFinite(preco)?preco.toFixed(2):'0.00'),
+                      (isFinite(tempo)?tempo:0),
+                      '"' + tags.replace(/"/g,'""') + '"'].join(','));
           });
-          const canonicalBlob = new Blob([out.join('\\n')], {type:'text/csv;charset=utf-8'});
+          const canonicalBlob = new Blob([out.join('\n')], {type:'text/csv;charset=utf-8'});
           const canonicalFile = new File([canonicalBlob], 'importado.csv', { type: 'text/csv' });
 
           const token = await currentUser.getIdToken(true);
-          const url = BACKEND_BASE.replace(/\\/$/,'') + '/api/importar-precos';
+          const url = BACKEND_BASE.replace(/\/$/,'') + '/api/importar-precos';
           const fd = new FormData();
           fd.append('file', canonicalFile, canonicalFile.name);
 
@@ -554,7 +550,12 @@
         applyFilter();
       }
 
-      function normalize(t) { return String(t||'').toLowerCase().normalize('NFD').replace(/\\p{Diacritic}/gu,''); }
+      function normalize(t) {
+        return String(t||'')
+          .toLowerCase()
+          .normalize('NFD')
+          .replace(/[\u0300-\u036f]/g,'');
+      }
 
       function applyFilter(){
         const q = normalize(byId('search').value || '');
