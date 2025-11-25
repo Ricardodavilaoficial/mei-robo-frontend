@@ -979,7 +979,9 @@ Olá, segue conforme combinado o orçamento detalhado. Ele ainda não é propost
         cliente,
         itens: itensValidos,
         mensagemEnvio: el('msgEnvio')?.value || '',
-        infoAdicionais: el('infoAdicionais')?.value || ''
+        infoAdicionais: el('infoAdicionais')?.value || '',
+        total: getTotal(),   // ✅ manda o total já calculado
+        moeda: 'BRL'         // ✅ contrato v1: sempre BRL
       };
 
       return payload;
@@ -1019,11 +1021,11 @@ Olá, segue conforme combinado o orçamento detalhado. Ele ainda não é propost
 
         if(!resp.ok){
           console.warn('[orcamentos] falha ao salvar orçamento manual:', resp.status);
-          return;
+          return null;
         }
 
         const data = await resp.json();
-        print('[orcamentos] orçamento salvo:', data);
+        console.log('[orcamentos] orçamento salvo:', data);
 
         // Se backend devolveu número, reaproveita no timbrado
         if(data && data.numero){
@@ -1039,7 +1041,7 @@ Olá, segue conforme combinado o orçamento detalhado. Ele ainda não é propost
         if(data && data.id){
           orcamentosHistorico.unshift({
             id: data.id,
-            createdAt: data.createdAt,
+            createdAt: data.createdAt || new Date().toISOString(),
             clienteNome: payload.cliente?.nome || '',
             origem: payload.origem || 'manual',
             total: data.total || getTotal(),
@@ -1047,8 +1049,12 @@ Olá, segue conforme combinado o orçamento detalhado. Ele ainda não é propost
           });
           renderHistoricoOrcamentos();
         }
+
+        // ✅ retorna o orçamento salvo (gancho p/ futuro: enviar-whatsapp por ID, etc.)
+        return data;
       }catch(err){
         console.warn('[orcamentos] erro ao salvar orçamento manual:', err);
+        return null;
       }
     }
 
@@ -1209,4 +1215,3 @@ ${infoExtra}`;
   </script>
 </body>
 </html>
-
