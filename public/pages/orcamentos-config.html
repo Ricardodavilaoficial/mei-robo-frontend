@@ -156,7 +156,8 @@
       font-size:.85rem;
       color:var(--muted);
     }
-    .pill input[type="checkbox"]{
+    .pill input[type="checkbox"],
+    .pill input[type="radio"]{
       margin:0;
     }
     .danger-text{color:var(--danger);}
@@ -171,15 +172,15 @@
       <h1>Configuração de Orçamentos</h1>
       <p class="subtitle">
         Deixe o orçamento com a cara do seu negócio. O MEI Robô usa estas informações para
-        timbrar e enviar orçamentos automáticos e manuais.
+        timbrar e enviar orçamentos formais quando o cliente pedir “por escrito”.
       </p>
     </header>
 
-    <!-- Identidade do MEI no orçamento -->
+    <!-- Como o MEI aparece no orçamento -->
     <section class="card">
-      <h2>Identidade no orçamento</h2>
+      <h2>Como você aparece no orçamento</h2>
       <p class="kicker">
-        Estes dados aparecem como emissor do orçamento (no topo ou rodapé). Não são os dados do cliente,
+        Estes dados aparecem como quem está mandando o orçamento (no topo ou rodapé). Não são os dados do cliente,
         são os seus dados.
       </p>
       <div class="grid-2">
@@ -235,22 +236,27 @@
       </p>
     </section>
 
-    <!-- Validade e texto jurídico -->
+    <!-- Validade e aviso -->
     <section class="card">
-      <h2>Validade e texto jurídico</h2>
+      <h2>Validade e aviso no final</h2>
       <p class="kicker">
-        Ajuda a evitar mal-entendidos: até quando o valor vale e que o orçamento ainda não é proposta.
+        Aqui você define por quantos dias o preço costuma valer e um aviso no final do orçamento para evitar mal-entendidos.
+      </p>
+      <p class="kicker">
+        <strong>Orçamento x Proposta:</strong> orçamento é uma <strong>estimativa de preço de hoje</strong>, que pode mudar depois.
+        Proposta é um documento <strong>formal</strong>, com prazo e condições combinadas, que você precisa cumprir se o cliente aceitar.
+        O MEI Robô manda <strong>orçamentos formais</strong> quando o cliente pedir “por escrito”. A proposta só existe quando você confirmar com o cliente.
       </p>
       <div class="grid-2">
         <div>
-          <label for="validadeDias">Validade padrão do orçamento (em dias)</label>
+          <label for="validadeDias">Por quantos dias esse preço vale? (em dias)</label>
           <input id="validadeDias" type="number" min="0" step="1" placeholder="Ex.: 7" />
           <p class="kicker">
-            Ex.: 7 = “Válido por 7 dias a partir da emissão”. Use 0 para não mostrar validade em dias.
+            Ex.: 7 = “Válido por 7 dias a partir da emissão”. Use 0 se você <strong>não</strong> quiser mostrar validade no orçamento.
           </p>
         </div>
         <div>
-          <label>Exibição da validade</label>
+          <label>Mostrar validade no orçamento</label>
           <div class="pill" style="margin-top:6px">
             <input type="checkbox" id="mostrarValidade" />
             <label for="mostrarValidade" style="margin-top:0;font-weight:500;">Mostrar texto de validade nos orçamentos</label>
@@ -258,16 +264,16 @@
         </div>
       </div>
 
-      <label for="textoJuridico">Texto jurídico padrão</label>
-      <textarea id="textoJuridico" placeholder="Ex.: Este orçamento não é proposta e está sujeito à disponibilidade de agenda e alteração de preços sem aviso prévio."></textarea>
+      <label for="textoJuridico">Aviso importante no final do orçamento</label>
+      <textarea id="textoJuridico" placeholder="Ex.: Este documento é um orçamento. Os valores são estimativas e podem mudar conforme agenda, estoque ou alterações no serviço. Este orçamento não é proposta comercial e não gera compromisso automático. Para transformar em proposta formal, basta solicitar confirmação."></textarea>
       <p class="kicker">
-        Será exibido no rodapé dos orçamentos. Use para deixar claro que não é proposta, depende de disponibilidade, etc.
+        Este aviso aparece em letras menores no rodapé do orçamento. Use para deixar claro que é orçamento, que depende de disponibilidade e que não é proposta automática.
       </p>
     </section>
 
     <!-- Condições de pagamento -->
     <section class="card">
-      <h2>Condições de pagamento padrão</h2>
+      <h2>Como o cliente vai pagar</h2>
       <label for="condicoesPagamento">Condições de pagamento</label>
       <textarea id="condicoesPagamento" placeholder="Ex.: Pagamento no dia do serviço. Aceitamos Pix, cartão e dinheiro."></textarea>
       <p class="kicker">
@@ -312,7 +318,7 @@
         </div>
       </div>
       <p class="kicker danger-text">
-        Na v1.0 o MEI Robô usa <strong>WhatsApp</strong>. O PDF por link entra numa versão futura.
+        Na v1.0 o MEI Robô usa <strong>WhatsApp</strong>. O PDF por link entra numa versão futura, mas já respeita esta preferência.
       </p>
     </section>
 
@@ -323,6 +329,7 @@
           Carregando configuração...
         </div>
         <div class="row">
+          <button class="btn-ghost" id="btn-voltar-dashboard">Voltar para o painel</button>
           <button class="btn-ghost" id="btn-ver-exemplo">Ver exemplo de orçamento</button>
           <button class="btn" id="btn-salvar-config">Salvar configuração</button>
         </div>
@@ -429,7 +436,7 @@
         if(data.telefone) el('telefone').value = data.telefone;
         if(data.cidadeUf) el('cidadeUf').value = data.cidadeUf;
 
-        // Validade / jurídico
+        // Validade / aviso
         if(typeof data.validadeDias === 'number') el('validadeDias').value = data.validadeDias;
         el('mostrarValidade').checked = !!data.mostrarValidade;
         if(data.textoJuridico) el('textoJuridico').value = data.textoJuridico;
@@ -503,7 +510,7 @@
         payload.telefone = el('telefone').value.trim() || '';
         payload.cidadeUf = el('cidadeUf').value.trim() || '';
 
-        // Validade / jurídico
+        // Validade / aviso
         const vdRaw = el('validadeDias').value;
         const vd = vdRaw === '' ? null : Number(vdRaw);
         if(vd !== null && !Number.isNaN(vd)) payload.validadeDias = vd;
@@ -528,7 +535,6 @@
         const assFile  = el('inAssinatura').files && el('inAssinatura').files[0];
         const carFile  = el('inCarimbo').files && el('inCarimbo').files[0];
 
-        // Só faz upload de quem tiver arquivo novo selecionado
         if(logoFile){
           const up = await uploadIfNeeded(uid, 'logo', logoFile);
           if(up){
@@ -574,10 +580,16 @@
       const btnExemplo = el('btn-ver-exemplo');
       if(btnExemplo){
         btnExemplo.addEventListener('click', ()=>{
-          // Abre a página de orçamentos em nova aba, carregando esta config
           const base = '/pages/orcamentos.html';
           const qs = isValidate ? '?validate=1' : '';
           window.open(base + qs, '_blank');
+        });
+      }
+      const btnVoltar = el('btn-voltar-dashboard');
+      if(btnVoltar){
+        btnVoltar.addEventListener('click', ()=>{
+          // Sai sem salvar nada, só volta pro painel
+          window.location.href = '/pages/dashboard.html';
         });
       }
 
