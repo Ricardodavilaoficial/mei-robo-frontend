@@ -616,13 +616,29 @@ Olá, segue conforme combinado o orçamento detalhado. Ele ainda não é propost
       table.className = 'table-mini';
 
       const linhas = orcamentosHistorico.map(o => {
-        const dt = o.createdAt
-          ? new Date(o.createdAt)
-          : null;
-        const dataStr = dt && !Number.isNaN(dt.getTime())
-          ? dt.toLocaleDateString('pt-BR')
-          : (o.dataStr || '');
-        const cliente = o.cliente || o.clienteNome || '—';
+        // Data: aceita createdAt/enviadoEm como ISO ou Timestamp do Firestore
+        let dt = null;
+        if (o.createdAt && typeof o.createdAt === 'object' && typeof o.createdAt.seconds === 'number') {
+          dt = new Date(o.createdAt.seconds * 1000);
+        } else if (o.createdAt) {
+          dt = new Date(o.createdAt);
+        } else if (o.enviadoEm && typeof o.enviadoEm === 'object' && typeof o.enviadoEm.seconds === 'number') {
+          dt = new Date(o.enviadoEm.seconds * 1000);
+        } else if (o.enviadoEm) {
+          dt = new Date(o.enviadoEm);
+        }
+        const dataStr = dt && !Number.isNaN(dt.getTime()) ? dt.toLocaleDateString('pt-BR') : (o.dataStr || '');
+
+        // Cliente: trata objeto, string ou fallback
+        let cliente = '—';
+        if (o.cliente && typeof o.cliente === 'object') {
+          cliente = o.cliente.nome || o.cliente.contato || o.cliente.razaoSocial || o.clienteNome || '—';
+        } else if (typeof o.cliente === 'string' && o.cliente.trim()) {
+          cliente = o.cliente.trim();
+        } else if (o.clienteNome) {
+          cliente = o.clienteNome;
+        }
+
         const origemRotulo = o.origem === 'bot' ? 'MEI Robô' : 'Manual';
         const total = typeof o.total === 'number' ? o.total : Number(o.total || 0);
 
@@ -662,7 +678,28 @@ Olá, segue conforme combinado o orçamento detalhado. Ele ainda não é propost
     async function carregarHistoricoDoBackend(){
       try{
         if(isValidate){
-          console.log('[orcamentos] validate=1 → pulando chamada ao backend');
+          console.log('[orcamentos] validate=1 → pulando chamada ao backend e usando dados fake');
+          orcamentosHistorico = [
+            {
+              id: 'ORC-VALIDATE-1',
+              numero: 'ORC-2025-00001',
+              createdAt: new Date(),
+              cliente: { nome: 'Cliente Exemplo (modo validação)' },
+              origem: 'bot',
+              total: 350,
+              moeda: 'BRL'
+            },
+            {
+              id: 'ORC-VALIDATE-2',
+              numero: 'ORC-2025-00002',
+              createdAt: new Date(),
+              cliente: { nome: 'Cliente Manual (modo validação)' },
+              origem: 'manual',
+              total: 120,
+              moeda: 'BRL'
+            }
+          ];
+          renderHistoricoOrcamentos();
           return;
         }
         if(!hasFirebaseCompat()){
@@ -689,12 +726,21 @@ Olá, segue conforme combinado o orçamento detalhado. Ele ainda não é propost
         }
 
         const data = await resp.json();
-        if(!data || !Array.isArray(data.items)){
+        // Suporta formatos: {items:[...]}, {orcamentos:[...]}, ou lista direta
+        let lista = [];
+        if (Array.isArray(data)) {
+          lista = data;
+        } else if (Array.isArray(data.items)) {
+          lista = data.items;
+        } else if (Array.isArray(data.orcamentos)) {
+          lista = data.orcamentos;
+        }
+        if(!lista.length){
           console.warn('[orcamentos] resposta inesperada de /api/orcamentos', data);
           return;
         }
 
-        orcamentosHistorico = data.items;
+        orcamentosHistorico = lista;
         renderHistoricoOrcamentos();
       }catch(err){
         console.warn('[orcamentos] erro ao carregar histórico:', err);
@@ -977,7 +1023,7 @@ Olá, segue conforme combinado o orçamento detalhado. Ele ainda não é propost
         }
 
         const data = await resp.json();
-        console.log('[orcamentos] orçamento salvo:', data);
+        print('[orcamentos] orçamento salvo:', data);
 
         // Se backend devolveu número, reaproveita no timbrado
         if(data && data.numero){
@@ -1092,7 +1138,8 @@ ${num}
 Cliente: ${cliente}
 
 Itens:
-${decodeURIComponent(linhas.replace(/%0D%0A/g,'\n'))}
+${decodeURIComponent(linhas.replace(/%0D%0A/g,'
+'))}
 
 Total: ${fmt(total)}
 
@@ -1162,3 +1209,4 @@ ${infoExtra}`;
   </script>
 </body>
 </html>
+
