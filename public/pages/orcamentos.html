@@ -596,23 +596,51 @@ Olá, segue conforme combinado o orçamento detalhado. Ele ainda não é propost
     }
     renderTabela(); renderTotal();
 
-    // Histórico (placeholder por enquanto)
-    const orcamentosHistorico = []; // futuro: preenchido via backend
+    // Histórico vindo do backend
+    let orcamentosHistorico = [];
 
     function renderHistoricoOrcamentos(){
       const wrap = el('orcamentos-list-wrap');
       const vazio = el('orcamentos-list-vazio');
       if(!wrap) return;
+
       if(!orcamentosHistorico.length){
         if(vazio) vazio.style.display = 'block';
         wrap.querySelectorAll('table').forEach(t=>t.remove());
         return;
       }
+
       if(vazio) vazio.style.display = 'none';
 
-      // Exemplo de construção de tabela se/quando tiver dados reais
       const table = document.createElement('table');
       table.className = 'table-mini';
+
+      const linhas = orcamentosHistorico.map(o => {
+        const dt = o.createdAt
+          ? new Date(o.createdAt)
+          : null;
+        const dataStr = dt && !Number.isNaN(dt.getTime())
+          ? dt.toLocaleDateString('pt-BR')
+          : (o.dataStr || '');
+        const cliente = o.cliente || o.clienteNome || '—';
+        const origemRotulo = o.origem === 'bot' ? 'MEI Robô' : 'Manual';
+        const total = typeof o.total === 'number' ? o.total : Number(o.total || 0);
+
+        return `
+          <tr>
+            <td>${dataStr}</td>
+            <td>${cliente}</td>
+            <td>${fmt(total)}</td>
+            <td>${origemRotulo}</td>
+            <td class="right">
+              <button class="btn btn-ghost" style="padding:4px 8px;font-size:.75rem;" data-orc-id="${o.id||''}">
+                Ver
+              </button>
+            </td>
+          </tr>
+        `;
+      }).join('');
+
       table.innerHTML = `
         <thead>
           <tr>
@@ -623,20 +651,54 @@ Olá, segue conforme combinado o orçamento detalhado. Ele ainda não é propost
             <th class="right">Ação</th>
           </tr>
         </thead>
-        <tbody>
-          ${orcamentosHistorico.map(o=>`
-            <tr>
-              <td>${o.dataStr||''}</td>
-              <td>${o.cliente||''}</td>
-              <td>${fmt(o.total||0)}</td>
-              <td>${o.origem==='bot'?'MEI Robô':'Manual'}</td>
-              <td class="right"><button class="btn btn-ghost" style="padding:4px 8px;font-size:.75rem;">Ver</button></td>
-            </tr>
-          `).join('')}
-        </tbody>
+        <tbody>${linhas}</tbody>
       `;
+
       wrap.innerHTML = '';
       wrap.appendChild(table);
+    }
+
+    // Carrega lista do backend (GET /api/orcamentos)
+    async function carregarHistoricoDoBackend(){
+      try{
+        if(isValidate){
+          console.log('[orcamentos] validate=1 → pulando chamada ao backend');
+          return;
+        }
+        if(!hasFirebaseCompat()){
+          console.log('[orcamentos] Firebase compat não disponível');
+          return;
+        }
+
+        const token = await getIdToken();
+        if(!token){
+          console.log('[orcamentos] sem ID token, usuário não logado');
+          return;
+        }
+
+        const resp = await fetch('/api/orcamentos', {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+
+        if(!resp.ok){
+          console.warn('[orcamentos] falha ao carregar histórico:', resp.status);
+          return;
+        }
+
+        const data = await resp.json();
+        if(!data || !Array.isArray(data.items)){
+          console.warn('[orcamentos] resposta inesperada de /api/orcamentos', data);
+          return;
+        }
+
+        orcamentosHistorico = data.items;
+        renderHistoricoOrcamentos();
+      }catch(err){
+        console.warn('[orcamentos] erro ao carregar histórico:', err);
+      }
     }
 
     // ---------------- Firebase helpers ----------------
@@ -652,6 +714,19 @@ Olá, segue conforme combinado o orçamento detalhado. Ele ainda não é propost
         const current = auth.currentUser;
         if(current) return current.uid;
         return await new Promise(resolve => auth.onAuthStateChanged(u => resolve(u ? u.uid : null)));
+      }catch(_){
+        return null;
+      }
+    }
+
+    async function getIdToken(){
+      try{
+        if(!hasFirebaseCompat() || typeof firebase.auth !== 'function') return null;
+        const auth = firebase.auth();
+        const current = auth.currentUser;
+        const user = current || await new Promise(resolve => auth.onAuthStateChanged(u => resolve(u || null)));
+        if(!user) return null;
+        return await user.getIdToken();
       }catch(_){
         return null;
       }
@@ -829,6 +904,108 @@ Olá, segue conforme combinado o orçamento detalhado. Ele ainda não é propost
       });
     }
 
+    function montarPayloadAtual(){
+      const cliente = {
+        tipo: el('tipoCliente')?.value || '',
+        nome: el('nomeCliente')?.value || '',
+        contato: el('contatoCliente')?.value || '',
+        telefone: el('telCliente')?.value || '',
+        email: el('emailCliente')?.value || '',
+        referencia: el('obsCliente')?.value || ''
+      };
+
+      const itensValidos = itens
+        .filter(rowHasValue)
+        .map(it => ({
+          codigo: it.codigo || null,
+          nome: it.nome || '',
+          preco: Number(it.preco || 0),
+          qtd: Number(it.qtd || 1),
+          duracaoMin: it.duracao ? Number(it.duracao || 0) : 0
+        }));
+
+      if(!itensValidos.length){
+        return null;
+      }
+
+      const payload = {
+        origem: 'manual',
+        cliente,
+        itens: itensValidos,
+        mensagemEnvio: el('msgEnvio')?.value || '',
+        infoAdicionais: el('infoAdicionais')?.value || ''
+      };
+
+      return payload;
+    }
+
+    async function salvarOrcamentoManualNoBackend(){
+      try{
+        if(isValidate){
+          console.log('[orcamentos] validate=1 → não grava orçamento no backend');
+          return;
+        }
+        if(!hasFirebaseCompat()){
+          console.log('[orcamentos] sem Firebase compat, não grava orçamento');
+          return;
+        }
+
+        const token = await getIdToken();
+        if(!token){
+          console.log('[orcamentos] sem ID token, não grava orçamento');
+          return;
+        }
+
+        const payload = montarPayloadAtual();
+        if(!payload){
+          console.log('[orcamentos] nenhum item válido para gravar');
+          return;
+        }
+
+        const resp = await fetch('/api/orcamentos', {
+          method: 'POST',
+          headers: {
+            'Content-Type':'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify(payload)
+        });
+
+        if(!resp.ok){
+          console.warn('[orcamentos] falha ao salvar orçamento manual:', resp.status);
+          return;
+        }
+
+        const data = await resp.json();
+        console.log('[orcamentos] orçamento salvo:', data);
+
+        // Se backend devolveu número, reaproveita no timbrado
+        if(data && data.numero){
+          numero = data.numero;
+          const badge = el('numero-badge');
+          if(badge){
+            badge.textContent = numero;
+            badge.style.display = 'inline-block';
+          }
+        }
+
+        // Atualiza histórico em memória
+        if(data && data.id){
+          orcamentosHistorico.unshift({
+            id: data.id,
+            createdAt: data.createdAt,
+            clienteNome: payload.cliente?.nome || '',
+            origem: payload.origem || 'manual',
+            total: data.total || getTotal(),
+            moeda: data.moeda || 'BRL'
+          });
+          renderHistoricoOrcamentos();
+        }
+      }catch(err){
+        console.warn('[orcamentos] erro ao salvar orçamento manual:', err);
+      }
+    }
+
     // ---------------- Copiar / Imprimir / Exportar ----------------
     function garantirNumeroOrcamento(){
       if(numero) return;
@@ -887,7 +1064,8 @@ Olá, segue conforme combinado o orçamento detalhado. Ele ainda não é propost
 
       const btnImprimir = el('btn-imprimir');
       if(btnImprimir){
-        btnImprimir.addEventListener('click', ()=>{
+        btnImprimir.addEventListener('click', async ()=>{
+          await salvarOrcamentoManualNoBackend();
           garantirNumeroOrcamento();
           window.print();
         });
@@ -895,7 +1073,8 @@ Olá, segue conforme combinado o orçamento detalhado. Ele ainda não é propost
 
       const btnEmail = el('btn-email');
       if(btnEmail){
-        btnEmail.addEventListener('click', ()=>{
+        btnEmail.addEventListener('click', async ()=>{
+          await salvarOrcamentoManualNoBackend();
           garantirNumeroOrcamento();
           const empresa = el('orcNomeEmpresaTopo')?.textContent || 'Meu MEI';
           const num = numero || 'Orçamento (sem número)';
@@ -927,7 +1106,8 @@ ${infoExtra}`;
 
       const btnWhats = el('btn-whats');
       if(btnWhats){
-        btnWhats.addEventListener('click', ()=>{
+        btnWhats.addEventListener('click', async ()=>{
+          await salvarOrcamentoManualNoBackend();
           garantirNumeroOrcamento();
           const empresa = el('orcNomeEmpresaTopo')?.textContent || 'Meu MEI';
           const num = numero || 'Orçamento (sem número)';
@@ -973,7 +1153,8 @@ ${infoExtra}`;
 
     // ---------------- Boot ----------------
     window.addEventListener('load', ()=>{
-      renderHistoricoOrcamentos();     // hoje vazio, futuro = dados do robô
+      renderHistoricoOrcamentos();     // placeholder
+      carregarHistoricoDoBackend();    // busca real no /api/orcamentos
       loadLocalDefaults();             // texto local de info adicionais
       loadOrcamentoVisualConfig();     // timbrado + textos padrão
       bindAcoes();                     // eventos de botões
