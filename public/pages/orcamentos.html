@@ -1124,19 +1124,27 @@ Olá, segue conforme combinado o orçamento detalhado. Ele ainda não é propost
       }
 
       const btnEmail = el('btn-email');
-      if(btnEmail){
-        btnEmail.addEventListener('click', async ()=>{
+      if (btnEmail) {
+        btnEmail.addEventListener('click', async () => {
           await salvarOrcamentoManualNoBackend();
           garantirNumeroOrcamento();
+
           const empresa = el('orcNomeEmpresaTopo')?.textContent || 'Meu MEI';
           const num = numero || 'Orçamento (sem número)';
           const cliente = el('nomeCliente')?.value || 'Cliente';
-          const linhas = itens.filter(rowHasValue)
-            .map(it=> `- ${it.codigo?('#'+it.codigo+' - '):''}${it.nome||''} x ${it.qtd||1} — ${fmt((it.preco||0)*(it.qtd||1))}`)
-            .join('%0D%0A');
+
+          // Monta linhas em texto puro (com quebras de linha normais)
+          const linhas = itens
+            .filter(rowHasValue)
+            .map(it =>
+              `- ${it.codigo ? ('#' + it.codigo + ' - ') : ''}${it.nome || ''} x ${it.qtd || 1} — ${fmt((it.preco || 0) * (it.qtd || 1))}`
+            )
+            .join('\n');
+
           const total = getTotal();
           const infoExtra = el('infoAdicionais')?.value || '';
           const msgBase = el('msgEnvio')?.value || '';
+
           const corpoTxt = `${msgBase}
 
 ${empresa}
@@ -1144,8 +1152,7 @@ ${num}
 Cliente: ${cliente}
 
 Itens:
-${decodeURIComponent(linhas.replace(/%0D%0A/g,'
-'))}
+${linhas}
 
 Total: ${fmt(total)}
 
@@ -1215,3 +1222,4 @@ ${infoExtra}`;
   </script>
 </body>
 </html>
+
