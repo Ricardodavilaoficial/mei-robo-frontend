@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <title>Orçamento de Serviços — ED BARBA</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <style>
+    :root {
+      --cor-principal: #238636; /* mesma ideia da corPrincipal da config */
+      --texto: #222;
+      --cinza: #555;
+      --linha: #ddd;
+      --bg-card: #f8fafc;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      padding: 0;
+      font-family: system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+      background: #e5e7eb;
+      color: var(--texto);
+    }
+    .page {
+      max-width: 800px;
+      margin: 16px auto;
+      padding: 24px 24px 32px;
+      background: #fff;
+      box-shadow: 0 8px 24px rgba(15, 23, 42, 0.18);
+      border-radius: 12px;
+    }
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      padding-bottom: 12px;
+      border-bottom: 2px solid var(--cor-principal);
+    }
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .logo {
+      width: 64px;
+      height: 64px;
+      border-radius: 16px;
+      background: #0f172a;
+      color: #e5e7eb;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      font-size: 1.4rem;
+    }
+    .avatar {
+      width: 52px;
+      height: 52px;
+      border-radius: 999px;
+      background: #e5e7eb;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: .8rem;
+      color: #6b7280;
+      border: 1px solid #d1d5db;
+    }
+    .brand-text h1 {
+      margin: 0;
+      font-size: 1.4rem;
+      color: var(--cor-principal);
+    }
+    .brand-text .slogan {
+      margin: 2px 0 0;
+      font-size: .9rem;
+      color: var(--cinza);
+    }
+    .info-mei {
+      text-align: right;
+      font-size: .85rem;
+      color: var(--cinza);
+    }
+    .info-mei strong { color: var(--texto); }
+
+    .meta {
+      margin-top: 16px;
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      font-size: .9rem;
+      color: var(--cinza);
+    }
+    .meta strong { color: var(--texto); }
+
+    h2.section-title {
+      margin: 20px 0 8px;
+      font-size: 1.1rem;
+      color: var(--cor-principal);
+    }
+
+    .card {
+      background: var(--bg-card);
+      border-radius: 10px;
+      padding: 12px 14px;
+      border: 1px solid #e2e8f0;
+      margin-bottom: 12px;
+    }
+
+    .cliente-dados, .cond-dados {
+      font-size: .9rem;
+      line-height: 1.5;
+    }
+
+    table.itens {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 8px;
+      font-size: .9rem;
+    }
+    table.itens th,
+    table.itens td {
+      border-bottom: 1px solid var(--linha);
+      padding: 8px 6px;
+      text-align: left;
+    }
+    table.itens th {
+      background: #f1f5f9;
+      font-weight: 600;
+    }
+    table.itens th.valor,
+    table.itens td.valor {
+      text-align: right;
+      white-space: nowrap;
+    }
+
+    .total-box {
+      margin-top: 8px;
+      display: flex;
+      justify-content: flex-end;
+    }
+    .total-card {
+      min-width: 220px;
+      border-radius: 10px;
+      border: 1px solid var(--cor-principal);
+      padding: 10px 14px;
+      background: #ecfdf3;
+      text-align: right;
+    }
+    .total-card .label {
+      font-size: .85rem;
+      color: var(--cinza);
+    }
+    .total-card .valor-total {
+      font-size: 1.2rem;
+      font-weight: 700;
+      color: var(--cor-principal);
+    }
+
+    .condicoes {
+      font-size: .9rem;
+      line-height: 1.5;
+      color: var(--cinza);
+    }
+    .condicoes strong { color: var(--texto); }
+
+    .aviso-final {
+      margin-top: 12px;
+      font-size: .75rem;
+      color: #6b7280;
+      line-height: 1.4;
+    }
+
+    .assinatura-wrapper {
+      margin-top: 28px;
+      display: flex;
+      justify-content: space-between;
+      gap: 16px;
+      align-items: flex-end;
+    }
+    .assinatura-area {
+      flex: 1;
+      text-align: left;
+      font-size: .85rem;
+    }
+    .assinatura-area .linha {
+      border-bottom: 1px solid var(--linha);
+      margin-bottom: 4px;
+      height: 48px;
+      background-position: left center;
+      background-size: contain;
+      background-repeat: no-repeat;
+    }
+    .assinatura-area .nome {
+      font-weight: 600;
+      margin-top: 2px;
+    }
+    .carimbo-area {
+      width: 120px;
+      height: 120px;
+      border-radius: 16px;
+      border: 1px dashed var(--linha);
+      background: #f9fafb;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: .8rem;
+      color: #9ca3af;
+    }
+
+    @media print {
+      body {
+        background: #fff;
+      }
+      .page {
+        margin: 0;
+        max-width: none;
+        box-shadow: none;
+        border-radius: 0;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <header>
+      <div class="brand">
+        <div class="logo">EB</div>
+        <div class="brand-text">
+          <h1>ED BARBA — Serviços de Manutenção</h1>
+          <div class="slogan">Cuidando do seu condomínio com atenção aos detalhes.</div>
+        </div>
+      </div>
+      <div class="info-mei">
+        <div><strong>CNPJ:</strong> 12.345.678/0001-90</div>
+        <div><strong>WhatsApp:</strong> (51) 99999-9999</div>
+        <div><strong>Cidade/UF:</strong> Porto Alegre / RS</div>
+      </div>
+    </header>
+
+    <div class="meta">
+      <div>
+        <strong>Orçamento:</strong> ORC-2025-0001<br/>
+        <strong>Data:</strong> 25/11/2025
+      </div>
+      <div>
+        <strong>Condomínio:</strong> Residencial Jardim das Palmeiras<br/>
+        <strong>Destinatário:</strong> Síndico João Pereira
+      </div>
+    </div>
+
+    <h2 class="section-title">Dados do cliente</h2>
+    <div class="card cliente-dados">
+      <div><strong>Condomínio:</strong> Residencial Jardim das Palmeiras</div>
+      <div><strong>Endereço:</strong> Rua das Acácias, 123 — Porto Alegre / RS</div>
+      <div><strong>Contato:</strong> João Pereira (síndico) — (51) 98888-0000</div>
+      <div><strong>E-mail:</strong> sindico@jardimpalmeiras.com.br</div>
+    </div>
+
+    <h2 class="section-title">Serviços orçados</h2>
+    <table class="itens">
+      <thead>
+        <tr>
+          <th>Serviço</th>
+          <th>Descrição</th>
+          <th class="valor">Qtde</th>
+          <th class="valor">Valor unitário</th>
+          <th class="valor">Subtotal</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Manutenção de portões</td>
+          <td>Revisão completa dos portões de garagem (lubrificação, ajustes mecânicos e teste de segurança).</td>
+          <td class="valor">1</td>
+          <td class="valor">R$ 850,00</td>
+          <td class="valor">R$ 850,00</td>
+        </tr>
+        <tr>
+          <td>Pintura de hall</td>
+          <td>Pintura das áreas comuns (hall social e de serviço) com tinta acrílica lavável, mão de obra inclusa.</td>
+          <td class="valor">1</td>
+          <td class="valor">R$ 1.250,00</td>
+          <td class="valor">R$ 1.250,00</td>
+        </tr>
+        <tr>
+          <td>Limpeza de calhas</td>
+          <td>Limpeza e desobstrução de calhas nos blocos A, B e C.</td>
+          <td class="valor">1</td>
+          <td class="valor">R$ 480,00</td>
+          <td class="valor">R$ 480,00</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="total-box">
+      <div class="total-card">
+        <div class="label">Total do orçamento</div>
+        <div class="valor-total">R$ 2.580,00</div>
+      </div>
+    </div>
+
+    <h2 class="section-title">Condições de pagamento</h2>
+    <div class="card condicoes">
+      <p><strong>Pagamento:</strong> 50% na confirmação do serviço e 50% na conclusão.</p>
+      <p><strong>Formas aceitas:</strong> Pix, transferência bancária ou dinheiro.</p>
+      <p><strong>Prazo de execução:</strong> até 7 dias úteis após confirmação e liberação de acesso às áreas.</p>
+      <p><strong>Validade deste orçamento:</strong> 10 dias a partir da data de emissão.</p>
+    </div>
+
+    <div class="aviso-final">
+      <strong>Aviso importante:</strong> Este documento é um orçamento. Os valores são estimativas e podem mudar conforme
+      agenda, estoque ou alterações no serviço. Este orçamento não é proposta comercial e não gera compromisso automático.
+      Para transformar em proposta formal com condições fixas, basta solicitar confirmação por escrito.
+    </div>
+
+    <div class="assinatura-wrapper">
+      <div class="assinatura-area">
+        <div class="linha"></div>
+        <div class="nome">ED BARBA</div>
+        <div class="cinza">Responsável técnico</div>
+      </div>
+      <div class="carimbo-area">
+        espaço para carimbo
+      </div>
+    </div>
+  </div>
+</body>
+</html>
