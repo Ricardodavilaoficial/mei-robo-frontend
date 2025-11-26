@@ -736,7 +736,9 @@ Olá, segue conforme combinado o orçamento detalhado. Ele ainda não é propost
           lista = data.orcamentos;
         }
         if(!lista.length){
-          console.warn('[orcamentos] resposta inesperada de /api/orcamentos', data);
+          // Sem orçamentos ainda → mantém estado “vazio” bonitinho
+          orcamentosHistorico = [];
+          renderHistoricoOrcamentos();
           return;
         }
 
@@ -1169,23 +1171,32 @@ ${infoExtra}`;
         btnWhats.addEventListener('click', async ()=>{
           await salvarOrcamentoManualNoBackend();
           garantirNumeroOrcamento();
+
           const empresa = el('orcNomeEmpresaTopo')?.textContent || 'Meu MEI';
           const num = numero || 'Orçamento (sem número)';
           const cliente = el('nomeCliente')?.value || 'Cliente';
-          const linhas = itens.filter(rowHasValue)
-            .map(it=> `• ${it.codigo?('#'+it.codigo+' - '):''}${it.nome||''} x ${it.qtd||1} — ${fmt((it.preco||0)*(it.qtd||1))}`)
-            .join('%0A');
+
+          const linhas = itens
+            .filter(rowHasValue)
+            .map(it =>
+              `• ${it.codigo ? ('#' + it.codigo + ' - ') : ''}${it.nome || ''} x ${it.qtd || 1} — ${fmt((it.preco || 0) * (it.qtd || 1))}`
+            )
+            .join('\n');
+
           const total = getTotal();
-          const msgBase = encodeURIComponent(el('msgEnvio')?.value || '');
-          const infoExtra = encodeURIComponent(el('infoAdicionais')?.value || '');
-          const texto =
-            `${msgBase}` +
-            `%0A%0A${encodeURIComponent(empresa)}` +
-            `%0A${encodeURIComponent(num)}` +
-            `%0ACliente: ${encodeURIComponent(cliente)}` +
-            `%0A%0AItens:%0A${encodeURIComponent(linhas)}` +
-            `%0A%0ATotal: ${encodeURIComponent(fmt(total))}` +
-            `%0A%0A${infoExtra}`;
+          const msgBase = el('msgEnvio')?.value || '';
+          const infoExtra = el('infoAdicionais')?.value || '';
+
+          const textoPlano =
+            `${msgBase}\n\n` +
+            `${empresa}\n` +
+            `${num}\n` +
+            `Cliente: ${cliente}\n\n` +
+            `Itens:\n${linhas}\n\n` +
+            `Total: ${fmt(total)}\n\n` +
+            `${infoExtra}`;
+
+          const texto = encodeURIComponent(textoPlano);
           window.open(`https://wa.me/?text=${texto}`, '_blank');
         });
       }
