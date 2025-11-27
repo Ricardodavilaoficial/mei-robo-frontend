@@ -84,7 +84,7 @@
 </head>
 <body>
   <div id="app-header"></div>
-  <div id="header"></"></div>
+  <div id="header"></div>
 
   <main class="section">
     <div class="container form-wrap">
@@ -533,7 +533,7 @@
     function validateCNPJ(cnpj){
       cnpj = normalizeCNPJ(cnpj);
       if (cnpj.length !== 14) return false;
-      if (/^(\d){13}$/.test(cnpj)) return false;
+      if (/^(\d)\1{13}$/.test(cnpj)) return false;
       let length = cnpj.length - 2;
       let numbers = cnpj.substring(0, length);
       const digits = cnpj.substring(length);
