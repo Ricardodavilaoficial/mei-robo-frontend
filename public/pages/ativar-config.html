@@ -248,7 +248,7 @@
           `<div class="field"><div class="label">Razão social</div><div>${t(emp.razaoSocial)}</div></div>`,
           `<div class="field"><div class="label">Nome fantasia</div><div>${t(emp.nomeFantasia)}</div></div>`,
           `<div class="field"><div class="label">CNPJ</div><div>${t(emp.cnpj)}</div></div>`,
-          `<div class="field"><div class="label">CNAE principal</div><div>${t(cnae.descricao || cnae.codigo)}</div></div>`,
+          `<div class="field"><div class="label">CNAE principal</div><div>${t(emp.cnaeOficialDescricao)}</div></div>`,
           `<div class="field"><div class="label">Município/UF</div><div>${loc || "<span class='muted'>—</span>"}</div></div>`,
         `</div>`,
         pills ? `<div style="margin-top:10px">${pills}</div>` : '',
@@ -402,4 +402,3 @@
   </script>
 </body>
 </html>
-
