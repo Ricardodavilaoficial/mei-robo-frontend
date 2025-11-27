@@ -328,28 +328,7 @@
         }
       }
 
-      // MOCK objects
-      function mockData(){
-        if (mock === 'ok') {
-          return {
-            empresa: {
-              cnpj: "12.345.678/0001-90",
-              razaoSocial: "Exemplo Serviços Ltda",
-              nomeFantasia: "Exemplo",
-              endereco: { municipio: "Porto Alegre", uf: "RS" },
-              cnaePrincipal: { codigo: "9602-5/01", descricao: "Cabeleireiros, manicure e pedicure" }
-            },
-            vinculo: { stripe_enabled: true, needs_docs: false, pending_review: false }
-          };
-        }
-        if (mock === 'missing') {
-          return { empresa: {}, vinculo: { stripe_enabled: true } };
-        }
-        if (mock === 'error') return null;
-        return null;
-      }
-
-      // Hidrata os dados de "como você quer aparecer" a partir de /api/configuracao (formato flat atual)
+      // Hidrata os dados de "como você quer aparecer" a partir de /api/configuracao
       async function hydratePerfilFromConfig(data, auth){
         try{
           const { idToken } = auth || {};
@@ -359,31 +338,33 @@
           const r = await fetchJSON(API.config, { headers });
           if (!r || !r.ok || !r.body) return data;
 
-          // /api/configuracao hoje devolve: { ok: true, data: { ...flat... } }
-          const raw  = r.body || {};
-          const flat = raw.data || raw || {};
+          const body = r.body || {};
+          const cfg  = body.data || body || {};   // <--- nosso formato atual
           const empresa = data.empresa || {};
 
-          // Regra de prioridade:
-          // 1) public_brand (nome público) escolhido na configuracao.html
-          // 2) display_name (jeito que você se apresenta)
-          // 3) trade_name / legal_name / nome
+          // Tentamos achar o perfil em alguns formatos comuns
+          const perfil = body.perfil || body.profile || body.dadosPerfil || cfg || {};
+
           const atividade =
-            flat.public_brand ||
-            flat.display_name ||
-            flat.trade_name ||
-            flat.legal_name ||
-            flat.nome ||
+            perfil.atividade ||
+            perfil.atividade_principal ||
+            perfil.comoAparecer ||
+            perfil.como_aparecer ||
+            cfg.public_brand ||      // <--- nome público configurado
+            cfg.display_name ||      // <--- "como você costuma ser chamado?"
+            cfg.nome ||              // fallback
             null;
 
-          // Segmento MEI escolhido na configuracao.html
           const segmento =
-            flat.segmento ||
-            flat.segmento_publico ||
+            perfil.segmento ||
+            perfil.segmento_principal ||
+            cfg.segmento ||          // <--- segmento vindo de configuracao.html
+            cfg.area ||
+            cfg.areaAtuacao ||
             null;
 
           if (atividade) empresa.comoAparecer = atividade;
-          if (segmento)  empresa.segmentoEscolhido = segmento;
+          if (segmento) empresa.segmentoEscolhido = segmento;
 
           data.empresa = empresa;
 
@@ -530,3 +511,4 @@
   </script>
 </body>
 </html>
+
