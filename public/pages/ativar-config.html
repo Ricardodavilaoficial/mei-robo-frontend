@@ -90,7 +90,8 @@
     const API_BASE = "https://mei-robo-prod.onrender.com";
     const API = {
       status:  API_BASE + "/api/conta/status",
-      vinculo: API_BASE + "/api/verificacao/autoridade/status"
+      vinculo: API_BASE + "/api/verificacao/autoridade/status",
+      config:  API_BASE + "/api/configuracao"
     };
 
     const $status   = document.getElementById('status');
@@ -214,8 +215,19 @@
       const cnae = emp.cnaePrincipal || {};
       const seg  = mapSegmento(cnae);
 
-      const atividadeLabel = (cnae.descricao || cnae.codigo || seg.segmento || null);
-      const segmentoLabel  = seg.segmento || null;
+      // 👇 Preferimos o que o MEI escolheu na configuração da conta;
+      // se não tiver, caímos pro CNAE/segmento inferido.
+      const atividadeLabel =
+        emp.comoAparecer ||
+        cnae.descricao ||
+        cnae.codigo ||
+        seg.segmento ||
+        null;
+
+      const segmentoLabel =
+        emp.segmentoEscolhido ||
+        seg.segmento ||
+        null;
 
       // Card "Como você vai aparecer..."
       $perfil.innerHTML = html([
@@ -282,6 +294,55 @@
       return null;
     }
 
+    // Hidrata os dados de "como você quer aparecer" a partir de /api/configuracao
+    async function hydratePerfilFromConfig(data, auth){
+      try{
+        const { idToken } = auth || {};
+        const headers = {};
+        if (idToken) headers['Authorization'] = 'Bearer ' + idToken;
+
+        const r = await fetchJSON(API.config, { headers });
+        if (!r || !r.ok || !r.body) return data;
+
+        const body = r.body || {};
+        const empresa = data.empresa || {};
+
+        // Tentamos achar o perfil em alguns formatos comuns
+        const perfil = body.perfil || body.profile || body.dadosPerfil || body || {};
+
+        const atividade =
+          perfil.atividade ||
+          perfil.atividade_principal ||
+          perfil.comoAparecer ||
+          perfil.como_aparecer ||
+          body.comoAparecer ||
+          body.atividadePrincipal ||
+          body.atividade_principal;
+
+        const segmento =
+          perfil.segmento ||
+          perfil.segmento_principal ||
+          body.segmento ||
+          body.area ||
+          body.areaAtuacao;
+
+        if (atividade) empresa.comoAparecer = atividade;
+        if (segmento) empresa.segmentoEscolhido = segmento;
+
+        data.empresa = empresa;
+
+        console.debug('[ativar-config] perfil aplicado a partir de /api/configuracao:', {
+          comoAparecer: empresa.comoAparecer,
+          segmentoEscolhido: empresa.segmentoEscolhido,
+        });
+
+        return data;
+      } catch(e){
+        console.warn('[ativar-config] hydratePerfilFromConfig erro:', e);
+        return data;
+      }
+    }
+
     async function fetchJSON(url, options){
       const r = await fetch(url, Object.assign({ credentials:'include' }, options || {}));
       const ct = r.headers.get('content-type') || '';
@@ -304,7 +365,8 @@
         pill('carregando…', 'muted');
 
         // 🔑 tenta pegar uid + token pra chamar /api/conta/status?uid=...
-        const { uid, idToken } = await getAuthContext();
+        const auth = await getAuthContext();
+        const { uid, idToken } = auth;
         let url = API.status;
         const headers = {};
 
@@ -315,7 +377,7 @@
           }
         }
 
-        const r = await fetchJSON(url, { headers }).catch(()=>null);
+        let r = await fetchJSON(url, { headers }).catch(()=>null);
 
         if (!r || !r.ok || !r.body) {
           if (r && r.status === 401) {
@@ -337,8 +399,12 @@
           return;
         }
 
+        // 💡 Aqui hidrata com o que o MEI escolheu na configuração
+        let body = r.body;
+        body = await hydratePerfilFromConfig(body, auth);
+
         pill('dados carregados ✔', 'ok');
-        renderEmpresa(r.body);
+        renderEmpresa(body);
         safeCheckDocs();
       } catch (e){
         console.error('[ativar-config] erro em load:', e);
