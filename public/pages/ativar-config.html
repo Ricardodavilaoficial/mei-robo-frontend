@@ -328,6 +328,39 @@
         }
       }
 
+      // MOCK objects (pré-visualização via ?mock=ok|missing|error)
+      function mockData(){
+        if (mock === 'ok') {
+          return {
+            empresa: {
+              cnpj: "12.345.678/0001-90",
+              razaoSocial: "Exemplo Serviços Ltda",
+              nomeFantasia: "Exemplo",
+              endereco: { municipio: "Porto Alegre", uf: "RS" },
+              cnaePrincipal: {
+                codigo: "9602-5/01",
+                descricao: "Cabeleireiros, manicure e pedicure"
+              }
+            },
+            vinculo: {
+              stripe_enabled: true,
+              needs_docs: false,
+              pending_review: false
+            }
+          };
+        }
+        if (mock === 'missing') {
+          return {
+            empresa: {},
+            vinculo: { stripe_enabled: true, needs_docs: false, pending_review: false }
+          };
+        }
+        if (mock === 'error') {
+          return null;
+        }
+        return null;
+      }
+
       // Hidrata os dados de "como você quer aparecer" a partir de /api/configuracao
       async function hydratePerfilFromConfig(data, auth){
         try{
