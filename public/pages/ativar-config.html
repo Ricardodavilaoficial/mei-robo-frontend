@@ -121,6 +121,12 @@
     // Texto com placeholder seguro
     function t(v){ return (v===null||v===undefined||v==='') ? "<span class='muted'>—</span>" : esc(String(v)); }
 
+    function fmtCnpj(raw){
+      const d = String(raw || '').replace(/\D+/g,'');
+      if (d.length !== 14) return raw || '';
+      return d.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, "$1.$2.$3/$4-$5");
+    }
+
     // 🔑 Auth: pega uid + idToken do Firebase (se logado)
     async function getAuthContext(){
       let idToken = null;
@@ -139,9 +145,11 @@
 
     // Normaliza formatos alternativos de resposta
     function normalizeConta(body){
-      if (!body || typeof body !== 'object') return { empresa:{}, vinculo:{} };
+      if (!body || typeof body !== 'object') {
+        return { empresa:{}, vinculo:{}, publico:{} };
+      }
 
-      // Tenta pegar objeto empresa já estruturado do backend
+      // ---- Empresa (jurídica / CNPJ) ----
       const beEmp = body.empresa || {};
       const empresa = body.empresa ? {
         cnpj: beEmp.cnpj || beEmp.cnpjNumero || beEmp.cnpj_numero || beEmp.cnpjFormatado || null,
@@ -164,12 +172,37 @@
         cnaePrincipal: body.cnaePrincipal || body.cnae_principal || body.CNAE || null
       };
 
+      // ---- Perfil público (o que o cliente vê) ----
+      const bePub = body.publico || body.perfil_publico || {};
+      const publico = {
+        nomePublico:
+          bePub.nomePublico ||
+          bePub.nome_publico ||
+          bePub.displayName ||
+          bePub.nomeNegocio ||
+          bePub.nome_negocio ||
+          null,
+        segmentoPublico:
+          bePub.segmentoPublico ||
+          bePub.segmento_publico ||
+          bePub.nicho ||
+          bePub.atividade ||
+          null,
+        descricaoPublica:
+          bePub.descricaoPublica ||
+          bePub.descricao_publica ||
+          bePub.mensagemBoasVindas ||
+          bePub.headline ||
+          null,
+      };
+
       const vinculo = body.vinculo || {
         stripe_enabled: !!(body.stripe_enabled || body.stripeEnabled || body.assinatura_ativa),
         needs_docs: !!(body.needs_docs || body.needsDocs || body.docs_pendentes),
         pending_review: !!(body.pending_review || body.revisao_pendente)
       };
-      return { empresa, vinculo };
+
+      return { empresa, vinculo, publico };
     }
 
     // Mapeia um CNAE (código/descrição) para um rótulo amigável
@@ -212,12 +245,13 @@
       const norm = normalizeConta(data);
       const emp  = norm.empresa || {};
       const vinc = norm.vinculo || {};
+      const pub  = norm.publico || {};
       const cnae = emp.cnaePrincipal || {};
       const seg  = mapSegmento(cnae);
 
-      // 👇 Preferimos o que o MEI escolheu na configuração da conta;
-      // se não tiver, caímos pro CNAE/segmento inferido.
+      // Nome/segmento público (o que o cliente vê)
       const atividadeLabel =
+        pub.nomePublico ||
         emp.comoAparecer ||
         cnae.descricao ||
         cnae.codigo ||
@@ -225,16 +259,24 @@
         null;
 
       const segmentoLabel =
+        pub.segmentoPublico ||
         emp.segmentoEscolhido ||
         seg.segmento ||
         null;
+
+      const descricaoPublica = pub.descricaoPublica || null;
+      const cnpjFormatado = emp.cnpj ? fmtCnpj(emp.cnpj) : null;
+      const cnaeLabel = cnae.descricao || cnae.codigo || emp.cnaeOficialDescricao || null;
 
       // Card "Como você vai aparecer..."
       $perfil.innerHTML = html([
         `<div class="field"><div class="label">Como você vai aparecer no MEI Robô</div><div>${t(atividadeLabel)}</div></div>`,
         `<div class="field" style="margin-top:8px"><div class="label">Segmento</div><div>${t(segmentoLabel)}</div></div>`,
+        descricaoPublica
+          ? `<div class="field" style="margin-top:8px"><div class="label">Mensagem para seus clientes</div><div>${t(descricaoPublica)}</div></div>`
+          : '',
         `<p class="muted" style="margin-top:8px">`,
-          `É assim que o MEI Robô vai enxergar você e como seus clientes verão seus serviços, agenda e orçamentos.`,
+          `Essas informações são a vitrine do seu negócio dentro do MEI Robô: é como os clientes vão ver você em agenda, orçamentos e histórico.`,
         `</p>`
       ]);
 
@@ -242,9 +284,9 @@
       const loc = [endereco.municipio, endereco.uf].filter(Boolean).map(esc).join(' / ');
 
       const pills = html([
-        emp.cnpj ? `<span class="pill mono">${t(emp.cnpj)}</span>` : '',
+        emp.cnpj ? `<span class="pill mono">${t(cnpjFormatado || emp.cnpj)}</span>` : '',
         segmentoLabel ? `<span class="pill">${t(segmentoLabel)}</span>` : '',
-        (cnae.descricao || cnae.codigo) ? `<span class="pill">${t(cnae.descricao || cnae.codigo)}</span>` : ''
+        cnaeLabel ? `<span class="pill">${t(cnaeLabel)}</span>` : ''
       ]);
 
       // Card de dados fiscais / CNPJ
@@ -259,8 +301,8 @@
         `<div class="grid" style="margin-top:4px">`,
           `<div class="field"><div class="label">Razão social</div><div>${t(emp.razaoSocial)}</div></div>`,
           `<div class="field"><div class="label">Nome fantasia</div><div>${t(emp.nomeFantasia)}</div></div>`,
-          `<div class="field"><div class="label">CNPJ</div><div>${t(emp.cnpj)}</div></div>`,
-          `<div class="field"><div class="label">CNAE principal</div><div>${t(emp.cnaeOficialDescricao)}</div></div>`,
+          `<div class="field"><div class="label">CNPJ</div><div>${t(cnpjFormatado || emp.cnpj)}</div></div>`,
+          `<div class="field"><div class="label">CNAE principal</div><div>${t(cnaeLabel)}</div></div>`,
           `<div class="field"><div class="label">Município/UF</div><div>${loc || "<span class='muted'>—</span>"}</div></div>`,
         `</div>`,
         pills ? `<div style="margin-top:10px">${pills}</div>` : '',
