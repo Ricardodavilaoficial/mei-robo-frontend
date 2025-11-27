@@ -28,7 +28,9 @@
     .muted { color:#b6c9c3; }
     .pill { display:inline-block; padding:2px 8px; border-radius:999px; background:#0f1413; border:1px solid #23302e; font-size:12px; margin-right:6px }
     .badge { padding:2px 8px; border:1px solid #23302e; border-radius:999px; font-size:12px; }
-    .ok { border-color:#2f6; } .warn { border-color:#fd6; } .err { border-color:#f88; }
+    .ok { border-color:#2f6; }
+    .warn { border-color:#fd6; }
+    .err { border-color:#f88; }
     .grid { display:grid; gap:10px; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); }
     .field { background:#0c1211; border:1px solid #23302e; border-radius:10px; padding:10px; }
     .field .label { font-size:12px; color:#b6c9c3; margin-bottom:4px }
@@ -86,427 +88,445 @@
   <div id="app-footer"></div>
 
   <script>
-  (function(){
-    const API_BASE = "https://mei-robo-prod.onrender.com";
-    const API = {
-      status:  API_BASE + "/api/conta/status",
-      vinculo: API_BASE + "/api/verificacao/autoridade/status",
-      config:  API_BASE + "/api/configuracao"
-    };
-
-    const $status   = document.getElementById('status');
-    const $perfil   = document.getElementById('perfil');
-    const $empresa  = document.getElementById('empresa');
-    const $docsHint = document.getElementById('docsHint');
-
-    // MOCK de preview: ?mock=ok | missing | error
-    const qs = new URLSearchParams(location.search);
-    const mock = (qs.get('mock')||'').toLowerCase();
-    const isFree = qs.get('free') === '1';
-    const hasStripeSession = qs.has('session_id');
-    let arrivedMsg = null;
-
-    function pill(text, cls){ $status.textContent = text; $status.className = 'badge ' + (cls || 'muted'); }
-    function html(parts){ return parts.filter(Boolean).join(''); }
-
-    // Escapa HTML para evitar XSS em dados vindos do backend
-    function esc(s){
-      return String(s)
-        .replace(/&/g,'&amp;')
-        .replace(/</g,'&lt;')
-        .replace(/>/g,'&gt;')
-        .replace(/"/g,'&quot;')
-        .replace(/'/g,'&#39;');
-    }
-    // Texto com placeholder seguro
-    function t(v){ return (v===null||v===undefined||v==='') ? "<span class='muted'>—</span>" : esc(String(v)); }
-
-    function fmtCnpj(raw){
-      const d = String(raw || '').replace(/\D+/g,'');
-      if (d.length !== 14) return raw || '';
-      return d.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, "$1.$2.$3/$4-$5");
-    }
-
-    // 🔑 Auth: pega uid + idToken do Firebase (se logado)
-    async function getAuthContext(){
-      let idToken = null;
-      let uid = null;
-      try{
-        if (window.firebase && firebase.auth && firebase.auth().currentUser) {
-          const user = firebase.auth().currentUser;
-          uid = user.uid;
-          idToken = await user.getIdToken(true);
-        }
-      } catch(e){
-        console.warn('[ativar-config] falha ao obter idToken:', e);
-      }
-      return { uid, idToken };
-    }
-
-    // Normaliza formatos alternativos de resposta
-    function normalizeConta(body){
-      if (!body || typeof body !== 'object') {
-        return { empresa:{}, vinculo:{}, publico:{} };
-      }
-
-      // ---- Empresa (jurídica / CNPJ) ----
-      const beEmp = body.empresa || {};
-      const empresa = body.empresa ? {
-        cnpj: beEmp.cnpj || beEmp.cnpjNumero || beEmp.cnpj_numero || beEmp.cnpjFormatado || null,
-        razaoSocial: beEmp.razaoSocial || beEmp.razao_social || beEmp.legal_name || null,
-        nomeFantasia: beEmp.nomeFantasia || beEmp.nome_fantasia || beEmp.trade_name || null,
-        endereco: beEmp.endereco || {
-          municipio: beEmp.municipio || beEmp.municipioDescricao || null,
-          uf: beEmp.uf || beEmp.estado || null
-        },
-        cnaePrincipal: beEmp.cnaePrincipal || beEmp.cnae_principal || {
-          codigo: beEmp.cnaePrincipalCodigo || beEmp.cnae_principal_codigo || null,
-          descricao: beEmp.cnaePrincipalDescricao || beEmp.cnae_principal_descricao || null
-        }
-      } : {
-        // Fallback antigo (body "flat")
-        cnpj: body.cnpj || body.CNPJ || null,
-        razaoSocial: body.razaoSocial || body.razao || null,
-        nomeFantasia: body.nomeFantasia || body.fantasia || null,
-        endereco: body.endereco || null,
-        cnaePrincipal: body.cnaePrincipal || body.cnae_principal || body.CNAE || null
+    (function(){
+      const API_BASE = "https://mei-robo-prod.onrender.com";
+      const API = {
+        status:  API_BASE + "/api/conta/status",
+        vinculo: API_BASE + "/api/verificacao/autoridade/status",
+        config:  API_BASE + "/api/configuracao"
       };
 
-      // ---- Perfil público (o que o cliente vê) ----
-      const bePub = body.publico || body.perfil_publico || {};
-      const publico = {
-        nomePublico:
-          bePub.nomePublico ||
-          bePub.nome_publico ||
-          bePub.displayName ||
-          bePub.nomeNegocio ||
-          bePub.nome_negocio ||
-          null,
-        segmentoPublico:
-          bePub.segmentoPublico ||
-          bePub.segmento_publico ||
-          bePub.nicho ||
-          bePub.atividade ||
-          null,
-        descricaoPublica:
-          bePub.descricaoPublica ||
-          bePub.descricao_publica ||
-          bePub.mensagemBoasVindas ||
-          bePub.headline ||
-          null,
-      };
+      const $status   = document.getElementById('status');
+      const $perfil   = document.getElementById('perfil');
+      const $empresa  = document.getElementById('empresa');
+      const $docsHint = document.getElementById('docsHint');
 
-      const vinculo = body.vinculo || {
-        stripe_enabled: !!(body.stripe_enabled || body.stripeEnabled || body.assinatura_ativa),
-        needs_docs: !!(body.needs_docs || body.needsDocs || body.docs_pendentes),
-        pending_review: !!(body.pending_review || body.revisao_pendente)
-      };
+      // MOCK de preview: ?mock=ok | missing | error
+      const qs = new URLSearchParams(location.search);
+      const mock = (qs.get('mock')||'').toLowerCase();
+      const isFree = qs.get('free') === '1';
+      const hasStripeSession = qs.has('session_id');
+      let arrivedMsg = null;
 
-      return { empresa, vinculo, publico };
-    }
-
-    // Mapeia um CNAE (código/descrição) para um rótulo amigável
-    function mapSegmento(cnae){
-      const base = cnae || {};
-      const txt = String(base.descricao || base.codigo || '').toLowerCase();
-      if (!txt) return { segmento: null, cnae: base };
-
-      const M = [
-        { key: /cabeleire|est(é|e)t(ica|ético)|manicure|sal(ã|a)o/, seg: "Beleza e estética" },
-        { key: /restaurante|lanchonete|bar|pizzaria|food|delivery|sandu/i, seg: "Alimentação" },
-        { key: /constr|reforma|obras|pedreiro|pintor|hidra|el[eé]tric/i, seg: "Construção e serviços" },
-        { key: /com[eé]rcio|varejo|loja|e-?commerce|market/i, seg: "Comércio e e-commerce" },
-        { key: /saúde|cl[ií]nica|odont|fisiot|psic|nutri/i, seg: "Saúde e bem-estar" },
-        { key: /auto|mec[aâ]n|oficina|detailing|lava/i, seg: "Automotivo" },
-        { key: /educa|curso|aula|treina|coach/i, seg: "Educação e cursos" },
-      ];
-      const f = M.find(m => m.key.test(txt));
-      return { segmento: f ? f.seg : "Outros", cnae: base };
-    }
-
-    function setArrivalHeader(){
-      const h2 = document.querySelector('h2');
-      const p  = document.getElementById('introText');
-
-      if (isFree) {
-        if (h2) h2.textContent = 'Boas-vindas! Seu cupom foi aplicado.';
-        if (p)  p.innerHTML = 'Seu número de WhatsApp com o MEI Robô chega em até 7 dias úteis. '
-          + 'Cupom validado e licença ativada. Confira os dados da sua empresa e avance para as configurações iniciais.';
-        arrivedMsg = 'cupom aplicado';
-      } else if (hasStripeSession) {
-        if (h2) h2.textContent = 'Boas-vindas! Pagamento confirmado.';
-        if (p)  p.innerHTML = 'Seu número de WhatsApp com o MEI Robô chega em até 7 dias úteis. '
-          + 'Confira os dados da sua empresa e avance para as configurações iniciais.';
-        arrivedMsg = 'pagamento confirmado';
+      function pill(text, cls){
+        $status.textContent = text;
+        $status.className = 'badge ' + (cls || 'muted');
       }
-    }
 
-    function renderEmpresa(data){
-      const norm = normalizeConta(data);
-      const emp  = norm.empresa || {};
-      const vinc = norm.vinculo || {};
-      const pub  = norm.publico || {};
-      const cnae = emp.cnaePrincipal || {};
-      const seg  = mapSegmento(cnae);
-
-      // Nome/segmento público (o que o cliente vê)
-      const atividadeLabel =
-        pub.nomePublico ||
-        emp.comoAparecer ||
-        cnae.descricao ||
-        cnae.codigo ||
-        seg.segmento ||
-        null;
-
-      const segmentoLabel =
-        pub.segmentoPublico ||
-        emp.segmentoEscolhido ||
-        seg.segmento ||
-        null;
-
-      const descricaoPublica = pub.descricaoPublica || null;
-      const cnpjFormatado = emp.cnpj ? fmtCnpj(emp.cnpj) : null;
-      const cnaeLabel = cnae.descricao || cnae.codigo || emp.cnaeOficialDescricao || null;
-
-      // Card "Como você vai aparecer..."
-      $perfil.innerHTML = html([
-        `<div class="field"><div class="label">Como você vai aparecer no MEI Robô</div><div>${t(atividadeLabel)}</div></div>`,
-        `<div class="field" style="margin-top:8px"><div class="label">Segmento</div><div>${t(segmentoLabel)}</div></div>`,
-        descricaoPublica
-          ? `<div class="field" style="margin-top:8px"><div class="label">Mensagem para seus clientes</div><div>${t(descricaoPublica)}</div></div>`
-          : '',
-        `<p class="muted" style="margin-top:8px">`,
-          `Essas informações são a vitrine do seu negócio dentro do MEI Robô: é como os clientes vão ver você em agenda, orçamentos e histórico.`,
-        `</p>`
-      ]);
-
-      const endereco = emp.endereco || {};
-      const loc = [endereco.municipio, endereco.uf].filter(Boolean).map(esc).join(' / ');
-
-      const pills = html([
-        emp.cnpj ? `<span class="pill mono">${t(cnpjFormatado || emp.cnpj)}</span>` : '',
-        segmentoLabel ? `<span class="pill">${t(segmentoLabel)}</span>` : '',
-        cnaeLabel ? `<span class="pill">${t(cnaeLabel)}</span>` : ''
-      ]);
-
-      // Card de dados fiscais / CNPJ
-      $empresa.innerHTML = html([
-        `<div class="field" style="margin-bottom:10px">`,
-          `<div class="label">Status da conta</div>`,
-          `<div>`,
-            `<span class="pill ok">dados carregados ✔</span>`,
-            vinc.stripe_enabled ? `<span class="pill ok">assinatura ativa ✔</span>` : '',
-          `</div>`,
-        `</div>`,
-        `<div class="grid" style="margin-top:4px">`,
-          `<div class="field"><div class="label">Razão social</div><div>${t(emp.razaoSocial)}</div></div>`,
-          `<div class="field"><div class="label">Nome fantasia</div><div>${t(emp.nomeFantasia)}</div></div>`,
-          `<div class="field"><div class="label">CNPJ</div><div>${t(cnpjFormatado || emp.cnpj)}</div></div>`,
-          `<div class="field"><div class="label">CNAE principal</div><div>${t(cnaeLabel)}</div></div>`,
-          `<div class="field"><div class="label">Município/UF</div><div>${loc || "<span class='muted'>—</span>"}</div></div>`,
-        `</div>`,
-        pills ? `<div style="margin-top:10px">${pills}</div>` : '',
-        `<p class="muted" style="margin:10px 0 0">`,
-          `Esses dados vêm do seu CNPJ e são usados apenas para cobrança, documentos e verificação da empresa. `,
-          `Seus clientes não veem o CNAE nem essa descrição fiscal.`,
-        `</p>`
-      ]);
-
-      if (vinc.needs_docs) {
-        $docsHint.style.display = 'block';
+      function html(parts){
+        return parts.filter(Boolean).join('');
       }
-    }
 
-    // MOCK objects
-    function mockData(){
-      if (mock === 'ok') {
-        return {
-          empresa: {
-            cnpj: "12.345.678/0001-90",
-            razaoSocial: "Exemplo Serviços Ltda",
-            nomeFantasia: "Exemplo",
-            endereco: { municipio: "Porto Alegre", uf: "RS" },
-            cnaePrincipal: { codigo: "9602-5/01", descricao: "Cabeleireiros, manicure e pedicure" }
-          },
-          vinculo: { stripe_enabled: true, needs_docs: false, pending_review: false }
-        };
+      // Escapa HTML para evitar XSS em dados vindos do backend
+      function esc(s){
+        return String(s)
+          .replace(/&/g,'&amp;')
+          .replace(/</g,'&lt;')
+          .replace(/>/g,'&gt;')
+          .replace(/"/g,'&quot;')
+          .replace(/'/g,'&#39;');
       }
-      if (mock === 'missing') { return { empresa: {}, vinculo: { stripe_enabled: true } }; }
-      if (mock === 'error') return null;
-      return null;
-    }
 
-    // Hidrata os dados de "como você quer aparecer" a partir de /api/configuracao
-    async function hydratePerfilFromConfig(data, auth){
-      try{
-        const { idToken } = auth || {};
-        const headers = {};
-        if (idToken) headers['Authorization'] = 'Bearer ' + idToken;
-
-        const r = await fetchJSON(API.config, { headers });
-        if (!r || !r.ok || !r.body) return data;
-
-        const body = r.body || {};
-        const empresa = data.empresa || {};
-
-        // Tentamos achar o perfil em alguns formatos comuns
-        const perfil = body.perfil || body.profile || body.dadosPerfil || body || {};
-
-        const atividade =
-          perfil.atividade ||
-          perfil.atividade_principal ||
-          perfil.comoAparecer ||
-          perfil.como_aparecer ||
-          body.comoAparecer ||
-          body.atividadePrincipal ||
-          body.atividade_principal;
-
-        const segmento =
-          perfil.segmento ||
-          perfil.segmento_principal ||
-          body.segmento ||
-          body.area ||
-          body.areaAtuacao;
-
-        if (atividade) empresa.comoAparecer = atividade;
-        if (segmento) empresa.segmentoEscolhido = segmento;
-
-        data.empresa = empresa;
-
-        console.debug('[ativar-config] perfil aplicado a partir de /api/configuracao:', {
-          comoAparecer: empresa.comoAparecer,
-          segmentoEscolhido: empresa.segmentoEscolhido,
-        });
-
-        return data;
-      } catch(e){
-        console.warn('[ativar-config] hydratePerfilFromConfig erro:', e);
-        return data;
+      // Texto com placeholder seguro
+      function t(v){
+        return (v===null||v===undefined||v==='') ? "<span class='muted'>—</span>" : esc(String(v));
       }
-    }
 
-    async function fetchJSON(url, options){
-      const r = await fetch(url, Object.assign({ credentials:'include' }, options || {}));
-      const ct = r.headers.get('content-type') || '';
-      const body = ct.includes('application/json') ? await r.json() : await r.text();
-      return { ok: r.ok, status: r.status, body };
-    }
+      function fmtCnpj(raw){
+        const d = String(raw || '').replace(/\D+/g,'');
+        if (d.length !== 14) return raw || '';
+        return d.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, "$1.$2.$3/$4-$5");
+      }
 
-    async function load(){
-      setArrivalHeader(); // atualiza header conforme origem (cupom/stripe)
-      try{
-        // mock shortcut
-        const mk = mockData();
-        if (mk) {
-          pill('dados carregados ✔', 'ok');
-          renderEmpresa(mk);
-          safeCheckDocs();
-          return;
-        }
-
-        pill('carregando…', 'muted');
-
-        // 🔑 tenta pegar uid + token pra chamar /api/conta/status?uid=...
-        const auth = await getAuthContext();
-        const { uid, idToken } = auth;
-        let url = API.status;
-        const headers = {};
-
-        if (idToken) {
-          headers['Authorization'] = 'Bearer ' + idToken;
-          if (uid && !url.includes('uid=')) {
-            url = url + '?uid=' + encodeURIComponent(uid);
+      // 🔑 Auth: pega uid + idToken do Firebase (se logado)
+      async function getAuthContext(){
+        let idToken = null;
+        let uid = null;
+        try{
+          if (window.firebase && firebase.auth && firebase.auth().currentUser) {
+            const user = firebase.auth().currentUser;
+            uid = user.uid;
+            idToken = await user.getIdToken(true);
           }
+        } catch(e){
+          console.warn('[ativar-config] falha ao obter idToken:', e);
+        }
+        return { uid, idToken };
+      }
+
+      // Normaliza formatos alternativos de resposta
+      function normalizeConta(body){
+        if (!body || typeof body !== 'object') {
+          return { empresa:{}, vinculo:{}, publico:{} };
         }
 
-        let r = await fetchJSON(url, { headers }).catch(()=>null);
+        // ---- Empresa (jurídica / CNPJ) ----
+        const beEmp = body.empresa || {};
+        const empresa = body.empresa ? {
+          cnpj: beEmp.cnpj || beEmp.cnpjNumero || beEmp.cnpj_numero || beEmp.cnpjFormatado || null,
+          razaoSocial: beEmp.razaoSocial || beEmp.razao_social || beEmp.legal_name || null,
+          nomeFantasia: beEmp.nomeFantasia || beEmp.nome_fantasia || beEmp.trade_name || null,
+          endereco: beEmp.endereco || {
+            municipio: beEmp.municipio || beEmp.municipioDescricao || null,
+            uf: beEmp.uf || beEmp.estado || null
+          },
+          cnaePrincipal: beEmp.cnaePrincipal || beEmp.cnae_principal || {
+            codigo: beEmp.cnaePrincipalCodigo || beEmp.cnae_principal_codigo || null,
+            descricao: beEmp.cnaePrincipalDescricao || beEmp.cnae_principal_descricao || null
+          }
+        } : {
+          // Fallback antigo (body "flat")
+          cnpj: body.cnpj || body.CNPJ || null,
+          razaoSocial: body.razaoSocial || body.razao || null,
+          nomeFantasia: body.nomeFantasia || body.fantasia || null,
+          endereco: body.endereco || null,
+          cnaePrincipal: body.cnaePrincipal || body.cnae_principal || body.CNAE || null
+        };
 
-        if (!r || !r.ok || !r.body) {
-          if (r && r.status === 401) {
-            pill('entre para continuar', 'warn');
-            $perfil.innerHTML = '';
-            $empresa.innerHTML = '<p class="muted">Faça login para ver seus dados.</p><p><a class="btn-secondary" href="/pages/login.html">Entrar</a></p>';
-          } else {
-            // no pós-pagamento/cupom, não assusta o usuário com "erro"
-            if (hasStripeSession || isFree) {
-              pill('dados pendentes', 'muted');
-              $perfil.innerHTML = '';
-              $empresa.innerHTML = '<p class="muted">Você pode seguir com as configurações iniciais; os dados da empresa serão carregados em breve.</p>';
-            } else {
-              pill('não foi possível carregar agora', 'err');
-              $perfil.innerHTML = '';
-              $empresa.innerHTML = '<p class="muted">Tente novamente em alguns instantes. Se persistir, fale com o suporte.</p>';
+        // ---- Perfil público (o que o cliente vê) ----
+        const bePub = body.publico || body.perfil_publico || {};
+        const publico = {
+          nomePublico:
+            bePub.nomePublico ||
+            bePub.nome_publico ||
+            bePub.displayName ||
+            bePub.nomeNegocio ||
+            bePub.nome_negocio ||
+            null,
+          segmentoPublico:
+            bePub.segmentoPublico ||
+            bePub.segmento_publico ||
+            bePub.nicho ||
+            bePub.atividade ||
+            null,
+          descricaoPublica:
+            bePub.descricaoPublica ||
+            bePub.descricao_publica ||
+            bePub.mensagemBoasVindas ||
+            bePub.headline ||
+            null,
+        };
+
+        const vinculo = body.vinculo || {
+          stripe_enabled: !!(body.stripe_enabled || body.stripeEnabled || body.assinatura_ativa),
+          needs_docs: !!(body.needs_docs || body.needsDocs || body.docs_pendentes),
+          pending_review: !!(body.pending_review || body.revisao_pendente)
+        };
+
+        return { empresa, vinculo, publico };
+      }
+
+      // Mapeia um CNAE (código/descrição) para um rótulo amigável
+      function mapSegmento(cnae){
+        const base = cnae || {};
+        const txt = String(base.descricao || base.codigo || '').toLowerCase();
+        if (!txt) return { segmento: null, cnae: base };
+
+        const M = [
+          { key: /cabeleire|est(é|e)t(ica|ético)|manicure|sal(ã|a)o/, seg: "Beleza e estética" },
+          { key: /restaurante|lanchonete|bar|pizzaria|food|delivery|sandu/i, seg: "Alimentação" },
+          { key: /constr|reforma|obras|pedreiro|pintor|hidra|el[eé]tric/i, seg: "Construção e serviços" },
+          { key: /com[eé]rcio|varejo|loja|e-?commerce|market/i, seg: "Comércio e e-commerce" },
+          { key: /saúde|cl[ií]nica|odont|fisiot|psic|nutri/i, seg: "Saúde e bem-estar" },
+          { key: /auto|mec[aâ]n|oficina|detailing|lava/i, seg: "Automotivo" },
+          { key: /educa|curso|aula|treina|coach/i, seg: "Educação e cursos" },
+        ];
+        const f = M.find(m => m.key.test(txt));
+        return { segmento: f ? f.seg : "Outros", cnae: base };
+      }
+
+      function setArrivalHeader(){
+        const h2 = document.querySelector('h2');
+        const p  = document.getElementById('introText');
+
+        if (isFree) {
+          if (h2) h2.textContent = 'Boas-vindas! Seu cupom foi aplicado.';
+          if (p)  p.innerHTML = 'Seu número de WhatsApp com o MEI Robô chega em até 7 dias úteis. '
+            + 'Cupom validado e licença ativada. Confira os dados da sua empresa e avance para as configurações iniciais.';
+          arrivedMsg = 'cupom aplicado';
+        } else if (hasStripeSession) {
+          if (h2) h2.textContent = 'Boas-vindas! Pagamento confirmado.';
+          if (p)  p.innerHTML = 'Seu número de WhatsApp com o MEI Robô chega em até 7 dias úteis. '
+            + 'Confira os dados da sua empresa e avance para as configurações iniciais.';
+          arrivedMsg = 'pagamento confirmado';
+        }
+      }
+
+      function renderEmpresa(data){
+        const norm = normalizeConta(data);
+        const emp  = norm.empresa || {};
+        const vinc = norm.vinculo || {};
+        const pub  = norm.publico || {};
+        const cnae = emp.cnaePrincipal || {};
+        const seg  = mapSegmento(cnae);
+
+        // Nome/segmento público (o que o cliente vê)
+        const atividadeLabel =
+          pub.nomePublico ||
+          emp.comoAparecer ||
+          cnae.descricao ||
+          cnae.codigo ||
+          seg.segmento ||
+          null;
+
+        const segmentoLabel =
+          pub.segmentoPublico ||
+          emp.segmentoEscolhido ||
+          seg.segmento ||
+          null;
+
+        const descricaoPublica = pub.descricaoPublica || null;
+        const cnpjFormatado = emp.cnpj ? fmtCnpj(emp.cnpj) : null;
+        const cnaeLabel = cnae.descricao || cnae.codigo || emp.cnaeOficialDescricao || null;
+
+        // Card "Como você vai aparecer..."
+        $perfil.innerHTML = html([
+          `<div class="field"><div class="label">Como você vai aparecer no MEI Robô</div><div>${t(atividadeLabel)}</div></div>`,
+          `<div class="field" style="margin-top:8px"><div class="label">Segmento</div><div>${t(segmentoLabel)}</div></div>`,
+          descricaoPublica
+            ? `<div class="field" style="margin-top:8px"><div class="label">Mensagem para seus clientes</div><div>${t(descricaoPublica)}</div></div>`
+            : '',
+          `<p class="muted" style="margin-top:8px">` +
+            `Essas informações são a vitrine do seu negócio dentro do MEI Robô: é como os clientes vão ver você em agenda, orçamentos e histórico.` +
+          `</p>`
+        ]);
+
+        const endereco = emp.endereco || {};
+        const loc = [endereco.municipio, endereco.uf].filter(Boolean).map(esc).join(' / ');
+
+        const pills = html([
+          emp.cnpj ? `<span class="pill mono">${t(cnpjFormatado || emp.cnpj)}</span>` : '',
+          segmentoLabel ? `<span class="pill">${t(segmentoLabel)}</span>` : '',
+          cnaeLabel ? `<span class="pill">${t(cnaeLabel)}</span>` : ''
+        ]);
+
+        // Card de dados fiscais / CNPJ
+        $empresa.innerHTML = html([
+          `<div class="field" style="margin-bottom:10px">`,
+            `<div class="label">Status da conta</div>`,
+            `<div>`,
+              `<span class="pill ok">dados carregados ✔</span>`,
+              vinc.stripe_enabled ? `<span class="pill ok">assinatura ativa ✔</span>` : '',
+            `</div>`,
+          `</div>`,
+          `<div class="grid" style="margin-top:4px">`,
+            `<div class="field"><div class="label">Razão social</div><div>${t(emp.razaoSocial)}</div></div>`,
+            `<div class="field"><div class="label">Nome fantasia</div><div>${t(emp.nomeFantasia)}</div></div>`,
+            `<div class="field"><div class="label">CNPJ</div><div>${t(cnpjFormatado || emp.cnpj)}</div></div>`,
+            `<div class="field"><div class="label">CNAE principal</div><div>${t(cnaeLabel)}</div></div>`,
+            `<div class="field"><div class="label">Município/UF</div><div>${loc || "<span class='muted'>—</span>"}</div></div>`,
+          `</div>`,
+          pills ? `<div style="margin-top:10px">${pills}</div>` : '',
+          `<p class="muted" style="margin:10px 0 0">` +
+            `Esses dados vêm do seu CNPJ e são usados apenas para cobrança, documentos e verificação da empresa. ` +
+            `Seus clientes não veem o CNAE nem essa descrição fiscal.` +
+          `</p>`
+        ]);
+
+        if (vinc.needs_docs) {
+          $docsHint.style.display = 'block';
+        }
+      }
+
+      // MOCK objects
+      function mockData(){
+        if (mock === 'ok') {
+          return {
+            empresa: {
+              cnpj: "12.345.678/0001-90",
+              razaoSocial: "Exemplo Serviços Ltda",
+              nomeFantasia: "Exemplo",
+              endereco: { municipio: "Porto Alegre", uf: "RS" },
+              cnaePrincipal: { codigo: "9602-5/01", descricao: "Cabeleireiros, manicure e pedicure" }
+            },
+            vinculo: { stripe_enabled: true, needs_docs: false, pending_review: false }
+          };
+        }
+        if (mock === 'missing') {
+          return { empresa: {}, vinculo: { stripe_enabled: true } };
+        }
+        if (mock === 'error') return null;
+        return null;
+      }
+
+      // Hidrata os dados de "como você quer aparecer" a partir de /api/configuracao (formato flat atual)
+      async function hydratePerfilFromConfig(data, auth){
+        try{
+          const { idToken } = auth || {};
+          const headers = {};
+          if (idToken) headers['Authorization'] = 'Bearer ' + idToken;
+
+          const r = await fetchJSON(API.config, { headers });
+          if (!r || !r.ok || !r.body) return data;
+
+          // /api/configuracao hoje devolve: { ok: true, data: { ...flat... } }
+          const raw  = r.body || {};
+          const flat = raw.data || raw || {};
+          const empresa = data.empresa || {};
+
+          // Regra de prioridade:
+          // 1) public_brand (nome público) escolhido na configuracao.html
+          // 2) display_name (jeito que você se apresenta)
+          // 3) trade_name / legal_name / nome
+          const atividade =
+            flat.public_brand ||
+            flat.display_name ||
+            flat.trade_name ||
+            flat.legal_name ||
+            flat.nome ||
+            null;
+
+          // Segmento MEI escolhido na configuracao.html
+          const segmento =
+            flat.segmento ||
+            flat.segmento_publico ||
+            null;
+
+          if (atividade) empresa.comoAparecer = atividade;
+          if (segmento)  empresa.segmentoEscolhido = segmento;
+
+          data.empresa = empresa;
+
+          console.debug('[ativar-config] perfil aplicado a partir de /api/configuracao:', {
+            comoAparecer: empresa.comoAparecer,
+            segmentoEscolhido: empresa.segmentoEscolhido,
+          });
+
+          return data;
+        } catch(e){
+          console.warn('[ativar-config] hydratePerfilFromConfig erro:', e);
+          return data;
+        }
+      }
+
+      async function fetchJSON(url, options){
+        const r = await fetch(url, Object.assign({ credentials:'include' }, options || {}));
+        const ct = r.headers.get('content-type') || '';
+        const body = ct.includes('application/json') ? await r.json() : await r.text();
+        return { ok: r.ok, status: r.status, body };
+      }
+
+      async function load(){
+        setArrivalHeader(); // atualiza header conforme origem (cupom/stripe)
+        try{
+          // mock shortcut
+          const mk = mockData();
+          if (mk) {
+            pill('dados carregados ✔', 'ok');
+            renderEmpresa(mk);
+            safeCheckDocs();
+            return;
+          }
+
+          pill('carregando…', 'muted');
+
+          // 🔑 tenta pegar uid + token pra chamar /api/conta/status?uid=...
+          const auth = await getAuthContext();
+          const { uid, idToken } = auth;
+          let url = API.status;
+          const headers = {};
+
+          if (idToken) {
+            headers['Authorization'] = 'Bearer ' + idToken;
+            if (uid && !url.includes('uid=')) {
+              url = url + '?uid=' + encodeURIComponent(uid);
             }
           }
-          return;
-        }
 
-        // 💡 Aqui hidrata com o que o MEI escolheu na configuração
-        let body = r.body;
-        body = await hydratePerfilFromConfig(body, auth);
+          let r = await fetchJSON(url, { headers }).catch(()=>null);
 
-        pill('dados carregados ✔', 'ok');
-        renderEmpresa(body);
-        safeCheckDocs();
-      } catch (e){
-        console.error('[ativar-config] erro em load:', e);
-        // no pós-pagamento/cupom, mantemos a jornada "feliz"
-        if (hasStripeSession || isFree) {
-          pill('dados pendentes', 'muted');
-          $perfil.innerHTML = '';
-          $empresa.innerHTML = '<p class="muted">Você pode seguir com as configurações iniciais; os dados da empresa serão carregados em breve.</p>';
-        } else {
-          pill('não foi possível carregar agora', 'err');
-          $perfil.innerHTML = '';
-          $empresa.innerHTML = '<p class="muted">Tente novamente em alguns instantes. Se persistir, fale com o suporte.</p>';
-        }
-      }
-    }
-
-    async function safeCheckDocs(){
-      try{
-        const { idToken } = await getAuthContext();
-        const headers = {};
-        if (idToken) headers['Authorization'] = 'Bearer ' + idToken;
-
-        const r = await fetchJSON(API.vinculo, { headers });
-        if (r && r.ok && r.body) {
-          const needs = !!(r.body.needs_docs || r.body.needsDocs || r.body.docs_pendentes);
-          if (needs) $docsHint.style.display = 'block';
-        }
-      } catch(e){
-        // opcional, não quebra jornada
-        console.warn('[ativar-config] erro em safeCheckDocs:', e);
-      }
-    }
-
-    document.addEventListener('DOMContentLoaded', () => {
-      try {
-        if (window.firebase && firebase.auth) {
-          firebase.auth().onAuthStateChanged((user) => {
-            if (user) {
-              // Só chama load quando já temos currentUser/uid/idToken
-              load();
-            } else {
-              // Mesmo tratamento de "não logado" que você já tinha
+          if (!r || !r.ok || !r.body) {
+            if (r && r.status === 401) {
               pill('entre para continuar', 'warn');
               $perfil.innerHTML = '';
               $empresa.innerHTML =
                 '<p class="muted">Faça login para ver seus dados.</p>' +
                 '<p><a class="btn-secondary" href="/pages/login.html">Entrar</a></p>';
+            } else {
+              // no pós-pagamento/cupom, não assusta o usuário com "erro"
+              if (hasStripeSession || isFree) {
+                pill('dados pendentes', 'muted');
+                $perfil.innerHTML = '';
+                $empresa.innerHTML =
+                  '<p class="muted">Você pode seguir com as configurações iniciais; os dados da empresa serão carregados em breve.</p>';
+              } else {
+                pill('não foi possível carregar agora', 'err');
+                $perfil.innerHTML = '';
+                $empresa.innerHTML =
+                  '<p class="muted">Tente novamente em alguns instantes. Se persistir, fale com o suporte.</p>';
+              }
             }
-          });
-        } else {
-          // Fallback: se por algum motivo o Firebase não estiver carregado,
-          // mantém o comportamento antigo.
+            return;
+          }
+
+          // 💡 Aqui hidrata com o que o MEI escolheu na configuração
+          let body = r.body;
+          body = await hydratePerfilFromConfig(body, auth);
+
+          pill('dados carregados ✔', 'ok');
+          renderEmpresa(body);
+          safeCheckDocs();
+        } catch (e){
+          console.error('[ativar-config] erro em load:', e);
+          // no pós-pagamento/cupom, mantemos a jornada "feliz"
+          if (hasStripeSession || isFree) {
+            pill('dados pendentes', 'muted');
+            $perfil.innerHTML = '';
+            $empresa.innerHTML =
+              '<p class="muted">Você pode seguir com as configurações iniciais; os dados da empresa serão carregados em breve.</p>';
+          } else {
+            pill('não foi possível carregar agora', 'err');
+            $perfil.innerHTML = '';
+            $empresa.innerHTML =
+              '<p class="muted">Tente novamente em alguns instantes. Se persistir, fale com o suporte.</p>';
+          }
+        }
+      }
+
+      async function safeCheckDocs(){
+        try{
+          const { idToken } = await getAuthContext();
+          const headers = {};
+          if (idToken) headers['Authorization'] = 'Bearer ' + idToken;
+
+          const r = await fetchJSON(API.vinculo, { headers });
+          if (r && r.ok && r.body) {
+            const needs = !!(r.body.needs_docs || r.body.needsDocs || r.body.docs_pendentes);
+            if (needs) $docsHint.style.display = 'block';
+          }
+        } catch(e){
+          // opcional, não quebra jornada
+          console.warn('[ativar-config] erro em safeCheckDocs:', e);
+        }
+      }
+
+      document.addEventListener('DOMContentLoaded', () => {
+        try {
+          if (window.firebase && firebase.auth) {
+            firebase.auth().onAuthStateChanged((user) => {
+              if (user) {
+                // Só chama load quando já temos currentUser/uid/idToken
+                load();
+              } else {
+                // Mesmo tratamento de "não logado" que você já tinha
+                pill('entre para continuar', 'warn');
+                $perfil.innerHTML = '';
+                $empresa.innerHTML =
+                  '<p class="muted">Faça login para ver seus dados.</p>' +
+                  '<p><a class="btn-secondary" href="/pages/login.html">Entrar</a></p>';
+              }
+            });
+          } else {
+            // Fallback: se por algum motivo o Firebase não estiver carregado,
+            // mantém o comportamento antigo.
+            load();
+          }
+        } catch (e) {
+          console.warn('[ativar-config] falha ao registrar onAuthStateChanged, usando fallback:', e);
           load();
         }
-      } catch (e) {
-        console.warn('[ativar-config] falha ao registrar onAuthStateChanged, usando fallback:', e);
-        load();
-      }
-    });
-  })();
+      });
+    })();
   </script>
 </body>
 </html>
