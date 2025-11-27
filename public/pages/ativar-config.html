@@ -372,8 +372,34 @@
       }
     }
 
-    document.addEventListener('DOMContentLoaded', load);
+    document.addEventListener('DOMContentLoaded', () => {
+      try {
+        if (window.firebase && firebase.auth) {
+          firebase.auth().onAuthStateChanged((user) => {
+            if (user) {
+              // Só chama load quando já temos currentUser/uid/idToken
+              load();
+            } else {
+              // Mesmo tratamento de "não logado" que você já tinha
+              pill('entre para continuar', 'warn');
+              $perfil.innerHTML = '';
+              $empresa.innerHTML =
+                '<p class="muted">Faça login para ver seus dados.</p>' +
+                '<p><a class="btn-secondary" href="/pages/login.html">Entrar</a></p>';
+            }
+          });
+        } else {
+          // Fallback: se por algum motivo o Firebase não estiver carregado,
+          // mantém o comportamento antigo.
+          load();
+        }
+      } catch (e) {
+        console.warn('[ativar-config] falha ao registrar onAuthStateChanged, usando fallback:', e);
+        load();
+      }
+    });
   })();
   </script>
 </body>
 </html>
+
