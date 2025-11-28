@@ -419,6 +419,23 @@
         Você pode voltar aqui e ajustar a agenda a qualquer momento.
       </p>
     </section>
+
+    <!-- PATCH 3: CTA para voltar ao painel (aparece só depois da configuração inicial concluída) -->
+    <section id="config-done-panel" class="card" style="margin-top:14px; display:none;">
+      <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:12px; flex-wrap:wrap;">
+        <div>
+          <strong>Tudo certo com a sua configuração.</strong>
+          <p class="hint mt-6">
+            Se você só queria ajustar alguma coisa, pode voltar para o painel do MEI Robô quando quiser.
+          </p>
+        </div>
+        <div>
+          <button id="btn-go-dashboard" type="button" class="btn primary">
+            Ir para o painel do MEI Robô
+          </button>
+        </div>
+      </div>
+    </section>
   </main>
 
   <div id="app-footer"></div>
@@ -572,7 +589,11 @@
     let currentAgendaConfig = null;
     let agendaSavedOk = false; // ✅ usamos isso para saber se a agenda já foi salva nesta jornada
 
-    // Botão de retorno ao painel (só aparece quando tudo estiver redondo)
+    // PATCH 3 — CTA de voltar ao painel
+    const panelDoneEl = document.getElementById('config-done-panel');
+    const btnGoDashboard = document.getElementById('btn-go-dashboard');
+
+    // Botão de retorno ao painel (versão antiga, hoje não é mais usada)
     const dashCta = document.getElementById('dashboard-cta');
     const dashBtn = document.getElementById('btn-dashboard');
 
@@ -672,8 +693,8 @@
       }
       voiceEls.btnEnviar.disabled = !voiceEls.aceite.checked;
 
-      // sempre que o estado de voz muda, podemos reavaliar o botão de painel
-      updateDashboardCta();
+      // sempre que o estado de voz muda, podemos reavaliar o CTA do painel
+      updateDashboardCTAVisibility();
     }
 
     function updateSalvarStateAfterVoiceChange(){
@@ -682,7 +703,7 @@
         btnSalvar.disabled = false;
       }
 
-      updateDashboardCta();
+      updateDashboardCTAVisibility();
     }
 
     /* === Gravação opcional (mantida) === */
@@ -729,7 +750,7 @@
           }
           voiceState.ready = true;
           updateSalvarStateAfterVoiceChange();
-          updateDashboardCta();
+          updateDashboardCTAVisibility();
 
           return true;
         }
@@ -826,9 +847,10 @@
       (async ()=>{
         const ok = await refreshPlayer(uid, idToken);
         if (ok){
+          voiceState.ready = true;
           btnSalvar.disabled = false;
           setVoiceMsg('✅ Sua voz já está pronta para uso.');
-          updateDashboardCta();
+          updateDashboardCTAVisibility(); // PATCH 3 — reavalia CTA do painel
         }
       })();
     }
@@ -1040,35 +1062,29 @@
       return null;
     }
 
-    // ===== Helpers para mostrar/ocultar o botão "Ir para o painel" =====
-    function canShowDashboardCta() {
-      // Configuração mínima da conta (nome, e-mail, CNPJ)
-      const msgCfg = validarConfigObrigatoria();
-      const configOk = !msgCfg;
+    // PATCH 3 — lógica da "configuração inicial concluída"
+    function isConfigInicialConcluida() {
+      // 1) Voz: já pronta (player/voz no backend) ou upload iniciado nesta jornada
+      const okVoz = !!(voiceState.ready || voiceState.started);
 
-      // Voz: já pronta ou pelo menos upload iniciado
-      const vozOk = voiceState.ready || voiceState.started;
+      // 2) Agenda: já salva no backend (carregada ou recém-salva)
+      const okAgenda = !!agendaSavedOk;
 
-      // Agenda: já temos uma configuração salva no servidor
-      const agendaOk = !!agendaSavedOk;
+      // 3) Config mínima de conta: CNPJ + Nome + Email
+      const msgObrig = validarConfigObrigatoria();
+      const okConfig = !msgObrig;
 
-      return configOk && vozOk && agendaOk;
+      return okVoz && okAgenda && okConfig;
     }
 
-    function updateDashboardCta() {
-      if (!dashCta || !dashBtn) return;
-      if (canShowDashboardCta()) {
-        dashCta.style.display = 'block';
+    function updateDashboardCTAVisibility() {
+      if (!panelDoneEl || !btnGoDashboard) return;
+
+      if (isConfigInicialConcluida()) {
+        panelDoneEl.style.display = 'block';
       } else {
-        dashCta.style.display = 'none';
+        panelDoneEl.style.display = 'none';
       }
-    }
-
-    if (dashBtn) {
-      dashBtn.addEventListener('click', () => {
-        // Ajuste o caminho abaixo se o seu painel tiver outro URL
-        window.location.href = '/pages/dashboard.html';
-      });
     }
 
     function atualizarAgendaResumo(cfg){
@@ -1250,6 +1266,8 @@
 
         currentAgendaConfig = payload;
         atualizarAgendaResumo(currentAgendaConfig);
+        agendaSavedOk = true; // garantir que marcamos como salva nesta jornada
+        updateDashboardCTAVisibility(); // PATCH 3 — reavalia CTA do painel
         setAgendaMessage('Configuração de agenda salva com sucesso. Indo para a próxima etapa…', 'success');
 
         // 4.3. Agora sim, avança a jornada
@@ -1276,8 +1294,7 @@
       if (agendaSaveBtn) {
         agendaSaveBtn.textContent = 'Salvar e continuar'; // ✅ botão final da página
       }
-      // Depois de carregar a agenda, reavalia se já podemos mostrar o botão de painel
-      updateDashboardCta();
+      updateDashboardCTAVisibility(); // PATCH 3 — decide se mostra o CTA ao carregar a página
     }
 
     /* ===== Inicialização ===== */
@@ -1288,8 +1305,19 @@
     })();
 
     async function init() {
+      // PATCH 3 — ação do botão "Ir para o painel do MEI Robô"
+      if (btnGoDashboard) {
+        btnGoDashboard.addEventListener('click', () => {
+          // Se o seu painel tiver outro caminho, troque a URL abaixo.
+          window.location.href = '/pages/dashboard.html';
+        });
+      }
+
       const { uid, idToken } = await getAuthContext();
-      if (!uid) { location.href = '/pages/login.html?next=' + encodeURIComponent('/pages/configuracao.html'); return; }
+      if (!uid) {
+        location.href = '/pages/login.html?next=' + encodeURIComponent('/pages/configuracao.html');
+        return;
+      }
 
       // 1) Preenche via /api/conta/status
       await loadEmpresaFromContaStatus(uid, idToken);
@@ -1406,8 +1434,8 @@
         // Agenda (nova): carregamento + form
         await setupAgendaConfig();
 
-        // Avalia se a configuração inicial já permite aparecer o botão de painel
-        updateDashboardCta();
+        // PATCH 3 — última checagem ao terminar o carregamento inicial
+        updateDashboardCTAVisibility();
 
         // ===== Se ainda não há CNPJ, exibir bloco inline =====
         if (!hCnpj.value) {
@@ -1596,6 +1624,7 @@
 
       console.log("[configuracao] salvo:", payload);
       cfgFeedback.textContent = '✅ Dados de comunicação salvos.';
+      updateDashboardCTAVisibility(); // PATCH 3 — talvez agora já tenha tudo para liberar o painel
       return { ok:true, status:resp.status, payload };
     }
 
