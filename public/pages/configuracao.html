@@ -329,7 +329,7 @@
             <audio id="vozPlayer" controls style="display:none; margin-top:10px; width:100%"></audio>
 
             <label class="inline mt-8" style="gap:8px">
-              <input type="checkbox" id="aceiteVoz" />
+              <input type="checkbox" id="aceiteVoz" name="aceiteVoz" />
               <span class="hint">
                 Autorizo o uso da minha voz <strong>somente</strong> na minha conta,
                 conforme o <a href="/consentimento-voz.html" target="_blank" rel="noopener noreferrer">Consentimento de Voz</a>,
@@ -401,6 +401,15 @@
       </form>
 
       <hr style="margin:16px 0; border-color:rgba(255,255,255,0.08);" />
+
+      <div id="dashboard-cta" class="mt-16" style="display:none;">
+        <p class="hint" style="margin-bottom:6px;">
+          Configuração inicial concluída. Quando quiser, você pode voltar para o painel principal por aqui.
+        </p>
+        <button id="btn-dashboard" type="button" class="btn primary">
+          Ir para o painel
+        </button>
+      </div>
 
       <ul class="list muted" id="agendaConfigResumo">
         <li>Carregando configuração da agenda…</li>
@@ -493,7 +502,7 @@
     function isValidCNPJ(cnpj){
       cnpj = onlyDigits(cnpj||'');
       if (cnpj.length !== 14) return false;
-      if (/^(\d)\1{13}$/.test(cnpj)) return false;
+      if (/^(\d){13}$/.test(cnpj)) return false;
       let t = 12, d1 = 0, d2 = 0, p1 = 5, p2 = 6;
       for (let i = 0; i < t; i++) {
         const n = parseInt(cnpj[i],10);
@@ -562,6 +571,10 @@
     const agendaSaveBtn = document.getElementById('agenda-save-btn');
     let currentAgendaConfig = null;
     let agendaSavedOk = false; // ✅ usamos isso para saber se a agenda já foi salva nesta jornada
+
+    // Botão de retorno ao painel (só aparece quando tudo estiver redondo)
+    const dashCta = document.getElementById('dashboard-cta');
+    const dashBtn = document.getElementById('btn-dashboard');
 
     fJanela.addEventListener('change', () => {
       wrapCustom.style.display = (fJanela.value === 'custom') ? 'block' : 'none';
@@ -658,6 +671,9 @@
         return;
       }
       voiceEls.btnEnviar.disabled = !voiceEls.aceite.checked;
+
+      // sempre que o estado de voz muda, podemos reavaliar o botão de painel
+      updateDashboardCta();
     }
 
     function updateSalvarStateAfterVoiceChange(){
@@ -665,6 +681,8 @@
       if (voiceState.ready || voiceState.started) {
         btnSalvar.disabled = false;
       }
+
+      updateDashboardCta();
     }
 
     /* === Gravação opcional (mantida) === */
@@ -704,6 +722,15 @@
         if (url){
           voiceEls.player.src = url;
           voiceEls.player.style.display='block';
+
+          // 🔹 Se já há voz pronta, consideramos aceiteVoz = true e habilitamos o fluxo
+          if (voiceEls.aceite) {
+            voiceEls.aceite.checked = true;
+          }
+          voiceState.ready = true;
+          updateSalvarStateAfterVoiceChange();
+          updateDashboardCta();
+
           return true;
         }
       }catch(_){}
@@ -799,9 +826,9 @@
       (async ()=>{
         const ok = await refreshPlayer(uid, idToken);
         if (ok){
-          voiceState.ready = true;
           btnSalvar.disabled = false;
           setVoiceMsg('✅ Sua voz já está pronta para uso.');
+          updateDashboardCta();
         }
       })();
     }
@@ -1013,6 +1040,37 @@
       return null;
     }
 
+    // ===== Helpers para mostrar/ocultar o botão "Ir para o painel" =====
+    function canShowDashboardCta() {
+      // Configuração mínima da conta (nome, e-mail, CNPJ)
+      const msgCfg = validarConfigObrigatoria();
+      const configOk = !msgCfg;
+
+      // Voz: já pronta ou pelo menos upload iniciado
+      const vozOk = voiceState.ready || voiceState.started;
+
+      // Agenda: já temos uma configuração salva no servidor
+      const agendaOk = !!agendaSavedOk;
+
+      return configOk && vozOk && agendaOk;
+    }
+
+    function updateDashboardCta() {
+      if (!dashCta || !dashBtn) return;
+      if (canShowDashboardCta()) {
+        dashCta.style.display = 'block';
+      } else {
+        dashCta.style.display = 'none';
+      }
+    }
+
+    if (dashBtn) {
+      dashBtn.addEventListener('click', () => {
+        // Ajuste o caminho abaixo se o seu painel tiver outro URL
+        window.location.href = '/pages/dashboard.html';
+      });
+    }
+
     function atualizarAgendaResumo(cfg){
       if (!agendaResumoEl) return;
       agendaResumoEl.innerHTML = '';
@@ -1218,6 +1276,8 @@
       if (agendaSaveBtn) {
         agendaSaveBtn.textContent = 'Salvar e continuar'; // ✅ botão final da página
       }
+      // Depois de carregar a agenda, reavalia se já podemos mostrar o botão de painel
+      updateDashboardCta();
     }
 
     /* ===== Inicialização ===== */
@@ -1273,6 +1333,31 @@
         if (legalCfg) { dLegal.textContent = legalCfg; hLegal.value = legalCfg; }
         if (tradeCfg) { dTrade.textContent = tradeCfg; hTrade.value = tradeCfg; }
 
+        // Fallback para situação, abertura e endereço vindos da própria /api/configuracao
+        if (data.situacao && (dSitu.textContent === '—' || !dSitu.textContent.trim())) {
+          dSitu.textContent = data.situacao;
+          hSitu.value = data.situacao;
+        }
+
+        const abCfg = data.abertura || data.dataAbertura || data.data_inicio_atividade;
+        if (abCfg && (dAber.textContent === '—' || !dAber.textContent.trim())) {
+          dAber.textContent = String(abCfg).includes('-') ? formatDateBR(abCfg) : abCfg;
+          hAber.value = abCfg;
+        }
+
+        if (data.endereco && (dEnd.textContent === '—' || !dEnd.textContent.trim())) {
+          let endStr = '';
+          if (typeof data.endereco === 'string') {
+            endStr = data.endereco;
+          } else {
+            endStr = formatEnderecoFrom({ endereco: data.endereco });
+          }
+          if (endStr) {
+            dEnd.textContent = endStr;
+            hEnd.value = endStr;
+          }
+        }
+
         if (data.telefone) fTel.value = data.telefone;
         if (data.esp1) fEsp1.value = data.esp1;
         if (data.esp2) fEsp2.value = data.esp2;
@@ -1320,6 +1405,9 @@
 
         // Agenda (nova): carregamento + form
         await setupAgendaConfig();
+
+        // Avalia se a configuração inicial já permite aparecer o botão de painel
+        updateDashboardCta();
 
         // ===== Se ainda não há CNPJ, exibir bloco inline =====
         if (!hCnpj.value) {
@@ -1528,3 +1616,4 @@
   </script>
 </body>
 </html>
+
