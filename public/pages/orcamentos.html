@@ -306,8 +306,8 @@
       <header>
         <h1>Orçamentos do MEI Robô</h1>
         <p class="subtitle">
-          Aqui você acompanha os orçamentos timbrados que o MEI Robô envia por você.
-          Se precisar, também dá pra montar um orçamento manual em casos especiais.
+          No dia a dia, o MEI Robô manda os orçamentos direto nas conversas de WhatsApp com seus clientes.
+          Aqui você acompanha e monta orçamentos timbrados em PDF ou documento, para quando o cliente pedir algo mais formal.
         </p>
       </header>
 
@@ -315,8 +315,8 @@
       <section class="card no-print">
         <h2 class="section-title">Orçamentos enviados automaticamente</h2>
         <p class="kicker">
-          Em breve, esta lista vai mostrar os orçamentos que o MEI Robô enviou direto pelo WhatsApp.
-          Você vai poder filtrar por data e ver o total de cada um.
+          Este é o fluxo padrão: o MEI Robô monta e envia o orçamento direto nas conversas de WhatsApp com seus clientes.
+          Em breve, esta lista vai mostrar esses orçamentos automáticos, para você consultar por data e valor sempre que precisar.
         </p>
         <div class="row" style="margin-top:4px;justify-content:space-between;">
           <div class="row">
@@ -370,6 +370,14 @@
             <div class="kicker" id="dataHoje"></div>
           </div>
         </div>
+        <div class="row no-print" style="margin-top:10px;justify-content:space-between;align-items:center;">
+          <p class="kicker" style="margin:0;max-width:70%;">
+            Este é o modelo timbrado do seu orçamento. Ele usa o CNPJ da sua conta e, se você quiser, o nome, logo, cidade, condições de pagamento e texto jurídico que você configurar.
+          </p>
+          <button class="btn" id="btn-config-timbrado">
+            Configurar modelo de orçamento
+          </button>
+        </div>
       </section>
 
       <!-- Seção de toggle do formulário manual -->
@@ -378,8 +386,8 @@
           <div>
             <h2 class="section-title" style="margin-bottom:2px;">Criar orçamento manual (opcional)</h2>
             <p class="kicker">
-              No dia a dia o MEI Robô cuida dos orçamentos. Use o modo manual só quando quiser montar algo especial
-              ou testar o seu timbrado.
+              No dia a dia o MEI Robô cuida dos orçamentos nas conversas de WhatsApp.
+              Use o modo manual quando quiser gerar um orçamento timbrado em PDF ou documento, ou quando quiser testar o seu modelo.
             </p>
           </div>
           <div>
@@ -1201,6 +1209,17 @@ ${infoExtra}`;
         });
       }
 
+      const btnConfigTimbrado = el('btn-config-timbrado');
+      if (btnConfigTimbrado) {
+        btnConfigTimbrado.addEventListener('click', () => {
+          let url = '/pages/configuracao.html?tab=orcamentos';
+          if (isValidate) {
+            url += '&validate=1';
+          }
+          window.location.href = url;
+        });
+      }
+
       const btnVoltar = el('btn-voltar-dashboard');
       if(btnVoltar){
         btnVoltar.addEventListener('click', ()=>{
@@ -1233,4 +1252,3 @@ ${infoExtra}`;
   </script>
 </body>
 </html>
-
