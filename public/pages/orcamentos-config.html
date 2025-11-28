@@ -181,32 +181,39 @@
       </p>
     </header>
 
-    <!-- Como o MEI aparece no orçamento -->
+        <!-- Como o MEI aparece no orçamento -->
     <section class="card">
       <h2>Como você aparece no orçamento</h2>
       <p class="kicker">
         Estes dados aparecem como quem está mandando o orçamento (no topo ou rodapé). Não são os dados do cliente,
-        são os seus dados.
+        são os seus dados. O <strong>CNPJ/CPF</strong> fica gravado aqui uma vez e o MEI Robô usa automaticamente
+        em todos os orçamentos formais.
       </p>
       <div class="grid-2">
         <div>
-          <label for="nomeEmpresa">Nome do MEI / Empresa</label>
+          <label for="nomeEmpresa">Nome do MEI / Empresa (opcional)</label>
           <input id="nomeEmpresa" type="text" placeholder="Ex.: ED BARBA / João da Silva MEI" />
           <label for="slogan">Frase de destaque (opcional)</label>
           <input id="slogan" type="text" placeholder="Ex.: Cuidando do seu visual desde 2015" />
+          <p class="kicker">
+            Aqui você pode usar o nome fantasia que fizer mais sentido pro cliente, mesmo que o CNPJ seja de outra
+            atividade. O importante é o documento abaixo.
+          </p>
         </div>
         <div>
-          <label for="documento">Documento (CPF/CNPJ)</label>
-          <input id="documento" type="text" placeholder="Ex.: 12.345.678/0001-90" />
+          <label for="documento">CNPJ / CPF para o orçamento (somente números)</label>
+          <input id="documento" type="text" placeholder="Ex.: 12345678000190" />
           <label for="cidadeUf">Cidade / UF</label>
           <input id="cidadeUf" type="text" placeholder="Ex.: Porto Alegre / RS" />
-        </div>
-      </div>
-      <div class="grid-2">
-        <div>
           <label for="telefone">Telefone / WhatsApp de contato</label>
           <input id="telefone" type="text" placeholder="Ex.: (51) 99999-9999" />
+          <p class="kicker">
+            O documento é obrigatório para orçamentos mais formais (condomínios, empresas, disputas de preço).
+            Você preenche aqui uma vez e o sistema reaproveita nos próximos orçamentos.
+          </p>
         </div>
+      </div>
+      <div class="grid-2" style="margin-top:6px;">
         <div>
           <label>Foto ou ícone de perfil (opcional)</label>
           <div class="row" style="align-items:center; gap:12px; margin-top:4px;">
@@ -510,7 +517,7 @@
       return { path, url };
     }
 
-    async function salvarConfig(){
+        async function salvarConfig(){
       if(isValidate){
         alert('Modo de validação: não salva configuração.');
         return;
@@ -528,31 +535,51 @@
         }
 
         setStatus('Salvando configuração...');
+
         const payload = {};
 
-        payload.nomeEmpresa = el('nomeEmpresa').value.trim() || '';
-        payload.slogan      = el('slogan').value.trim() || '';
-        payload.documento   = el('documento').value.trim() || '';
-        payload.telefone    = el('telefone').value.trim() || '';
-        payload.cidadeUf    = el('cidadeUf').value.trim() || '';
+        // ---------------- Documento (CNPJ/CPF) obrigatório e só dígitos ----------------
+        const rawDoc = el('documento').value || '';
+        const docDigits = rawDoc.replace(/\D/g, ''); // mantém só números
+
+        if(!docDigits){
+          setStatus('Preencha o CNPJ/CPF para salvar.');
+          alert('Informe seu CNPJ ou CPF (somente números) para aparecer nos orçamentos.');
+          return;
+        }
+
+        payload.documento   = docDigits;
+
+        // ---------------- Demais campos de identificação (opcionais) ----------------
+        payload.nomeEmpresa = (el('nomeEmpresa').value || '').trim();
+        payload.slogan      = (el('slogan').value || '').trim();
+        payload.telefone    = (el('telefone').value || '').trim();
+        payload.cidadeUf    = (el('cidadeUf').value || '').trim();
+
+        // ---------------- Cor principal ----------------
         payload.corPrincipal = el('corPrincipal').value || '#238636';
 
+        // ---------------- Validade / aviso ----------------
         const vdRaw = el('validadeDias').value;
         const vd = vdRaw === '' ? null : Number(vdRaw);
         if(vd !== null && !Number.isNaN(vd)) payload.validadeDias = vd;
         payload.mostrarValidade = !!el('mostrarValidade').checked;
-        payload.textoJuridico = el('textoJuridico').value.trim() || '';
+        payload.textoJuridico = (el('textoJuridico').value || '').trim();
 
-        payload.condicoesPagamento = el('condicoesPagamento').value.trim() || '';
+        // ---------------- Condições de pagamento ----------------
+        payload.condicoesPagamento = (el('condicoesPagamento').value || '').trim();
 
-        payload.msgEnvio = el('msgEnvio').value.trim() || '';
-        payload.usarMsgAuto = !!el('usarMsgAuto').checked;
+        // ---------------- Mensagem de envio padrão ----------------
+        payload.msgEnvio = (el('msgEnvio').value || '').trim();
+        payload.usarMsgAuto   = !!el('usarMsgAuto').checked;
         payload.usarMsgManual = !!el('usarMsgManual').checked;
 
+        // ---------------- Canal preferencial ----------------
         let canal = 'whatsapp';
         if(el('canalPdf').checked) canal = 'pdf_link';
         payload.canalPreferencial = canal;
 
+        // ---------------- Uploads (logo / assinatura / carimbo / avatar) ----------------
         const logoFile   = el('inLogo').files && el('inLogo').files[0];
         const assFile    = el('inAssinatura').files && el('inAssinatura').files[0];
         const carFile    = el('inCarimbo').files && el('inCarimbo').files[0];
@@ -655,3 +682,4 @@
   </script>
 </body>
 </html>
+
