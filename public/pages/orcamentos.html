@@ -360,7 +360,7 @@
           </div>
           <div class="avatar-box" id="avatarTopo"><span>Foto</span></div>
           <div class="info-mei">
-            <div><strong>CNPJ/CPF:</strong> <span id="orcDocumentoTopo">—</span></div>
+            <div><strong>CNPJ:</strong> <span id="orcDocumentoTopo">—</span></div>
             <div><strong>WhatsApp:</strong> <span id="orcTelefoneTopo">—</span></div>
             <div><strong>Cidade/UF:</strong> <span id="orcCidadeTopo">—</span></div>
             <div style="margin-top:4px;">
@@ -1212,9 +1212,9 @@ ${infoExtra}`;
       const btnConfigTimbrado = el('btn-config-timbrado');
       if (btnConfigTimbrado) {
         btnConfigTimbrado.addEventListener('click', () => {
-          let url = '/pages/configuracao.html?tab=orcamentos';
+          let url = '/pages/orcamentos-config.html';
           if (isValidate) {
-            url += '&validate=1';
+            url += '?validate=1';
           }
           window.location.href = url;
         });

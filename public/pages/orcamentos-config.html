@@ -201,8 +201,8 @@
           </p>
         </div>
         <div>
-          <label for="documento">CNPJ / CPF para o orçamento (somente números)</label>
-          <input id="documento" type="text" placeholder="Ex.: 12345678000190" />
+          <label for="documento">CNPJ</label>
+          <input id="documento" type="text" placeholder="Ex.: 12.345.678/0001-90" />
           <label for="cidadeUf">Cidade / UF</label>
           <input id="cidadeUf" type="text" placeholder="Ex.: Porto Alegre / RS" />
           <label for="telefone">Telefone / WhatsApp de contato</label>
@@ -336,27 +336,6 @@
       </p>
     </section>
 
-    <!-- Preferências de envio -->
-    <section class="card">
-      <h2>Preferências de envio</h2>
-      <p class="kicker">
-        Como o MEI Robô deve enviar o orçamento quando o cliente pedir “por escrito”.
-      </p>
-      <div class="row" style="margin-top:6px;">
-        <div class="pill">
-          <input type="radio" name="canal" id="canalWhats" value="whatsapp" />
-          <label for="canalWhats" style="margin-top:0;font-weight:500;">WhatsApp (recomendado)</label>
-        </div>
-        <div class="pill">
-          <input type="radio" name="canal" id="canalPdf" value="pdf_link" />
-          <label for="canalPdf" style="margin-top:0;font-weight:500;">Link de PDF (quando estiver disponível)</label>
-        </div>
-      </div>
-      <p class="kicker danger-text">
-        Na v1.0 o MEI Robô usa <strong>WhatsApp</strong>. O PDF por link entra numa versão futura, mas já respeita esta preferência.
-      </p>
-    </section>
-
     <!-- Ações -->
     <section class="card">
       <div class="row" style="justify-content:space-between;">
@@ -457,7 +436,6 @@
           el('mostrarValidade').checked = true;
           el('usarMsgAuto').checked = true;
           el('usarMsgManual').checked = true;
-          el('canalWhats').checked = true;
           el('corPrincipal').value = '#238636';
           return;
         }
@@ -483,12 +461,6 @@
         if(data.msgEnvio) el('msgEnvio').value = data.msgEnvio;
         el('usarMsgAuto').checked   = data.usarMsgAuto   !== false;
         el('usarMsgManual').checked = data.usarMsgManual !== false;
-
-        if(data.canalPreferencial === 'pdf_link'){
-          el('canalPdf').checked = true;
-        } else {
-          el('canalWhats').checked = true;
-        }
 
         if(data.logoUrl) setPreviewBox('prevLogo', data.logoUrl, 'Logo');
         if(data.assinaturaUrl) setPreviewBox('prevAssinatura', data.assinaturaUrl, 'Assinatura');
@@ -573,11 +545,6 @@
         payload.msgEnvio = (el('msgEnvio').value || '').trim();
         payload.usarMsgAuto   = !!el('usarMsgAuto').checked;
         payload.usarMsgManual = !!el('usarMsgManual').checked;
-
-        // ---------------- Canal preferencial ----------------
-        let canal = 'whatsapp';
-        if(el('canalPdf').checked) canal = 'pdf_link';
-        payload.canalPreferencial = canal;
 
         // ---------------- Uploads (logo / assinatura / carimbo / avatar) ----------------
         const logoFile   = el('inLogo').files && el('inLogo').files[0];
