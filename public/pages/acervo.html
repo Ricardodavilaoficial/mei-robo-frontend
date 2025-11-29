@@ -1,0 +1,713 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Acervo de conhecimento — MEI Robô</title>
+
+  <link rel="canonical" href="https://www.meirobo.com.br/pages/acervo.html" />
+
+  <!-- Reforços padrão das telas logadas -->
+  <meta http-equiv="Cache-Control" content="no-store, max-age=0, must-revalidate" />
+  <meta name="robots" content="noindex, nofollow" />
+
+  <link rel="stylesheet" href="/assets/styles.css" />
+  <script src="/assets/layout.js" defer></script>
+
+  <!-- Firebase compat (mesmo padrão das outras telas logadas) -->
+  <script defer src="/__/firebase/9.22.2/firebase-app-compat.js"></script>
+  <script defer src="/__/firebase/9.22.2/firebase-auth-compat.js"></script>
+  <script defer src="/__/firebase/9.22.2/firebase-firestore-compat.js"></script>
+  <script defer src="/__/firebase/init.js"></script>
+
+  <!-- Helper que injeta Authorization: Bearer quando necessário (já usado em outras telas) -->
+  <script src="/assets/firebase-init.js"></script>
+  <script src="/assets/backend-patch.js"></script>
+
+  <!-- Script específico do Acervo -->
+  <script defer src="/assets/acervo.js"></script>
+
+  <style>
+    /* Ajustes leves específicos da página, reaproveitando o tema existente */
+    :root {
+      --acervo-card-bg: rgba(15, 23, 42, 0.9);
+      --acervo-border-subtle: rgba(148, 163, 184, 0.3);
+      --acervo-accent: #22c55e;
+      --acervo-accent-soft: rgba(34, 197, 94, 0.16);
+      --acervo-danger-soft: rgba(239, 68, 68, 0.16);
+    }
+
+    .acervo-page {
+      max-width: 1120px;
+      margin: 0 auto;
+      padding: 1.5rem 1rem 2rem;
+    }
+
+    .acervo-header {
+      margin-bottom: 1.5rem;
+    }
+
+    .acervo-header h1 {
+      font-size: 1.5rem;
+      font-weight: 600;
+      margin-bottom: 0.25rem;
+    }
+
+    .acervo-header p {
+      font-size: 0.95rem;
+      color: #9ca3af;
+      max-width: 640px;
+    }
+
+    .acervo-banner-validate {
+      border-radius: 0.75rem;
+      padding: 0.75rem 1rem;
+      margin-bottom: 1rem;
+      font-size: 0.9rem;
+      border: 1px dashed var(--acervo-border-subtle);
+      background: rgba(15, 23, 42, 0.8);
+      color: #e5e7eb;
+    }
+
+    .acervo-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
+      gap: 1rem;
+      margin-bottom: 1.5rem;
+    }
+
+    @media (max-width: 900px) {
+      .acervo-grid {
+        grid-template-columns: minmax(0, 1fr);
+      }
+    }
+
+    .acervo-card {
+      background: var(--acervo-card-bg);
+      border-radius: 0.75rem;
+      border: 1px solid var(--acervo-border-subtle);
+      padding: 1rem 1.25rem;
+      box-shadow: 0 18px 40px rgba(15, 23, 42, 0.45);
+    }
+
+    .acervo-card h2 {
+      font-size: 1rem;
+      font-weight: 600;
+      margin-bottom: 0.5rem;
+    }
+
+    .acervo-card p {
+      font-size: 0.9rem;
+      color: #9ca3af;
+      margin-bottom: 0.5rem;
+    }
+
+    .acervo-meta-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      gap: 0.75rem;
+      margin-top: 0.75rem;
+      margin-bottom: 0.5rem;
+    }
+
+    .acervo-meta-row strong {
+      font-weight: 500;
+      color: #e5e7eb;
+    }
+
+    .acervo-progress {
+      width: 100%;
+      height: 0.5rem;
+      border-radius: 999px;
+      background: rgba(31, 41, 55, 0.9);
+      overflow: hidden;
+      margin-top: 0.4rem;
+    }
+
+    .acervo-progress-bar {
+      height: 100%;
+      background: linear-gradient(90deg, var(--acervo-accent), #16a34a);
+      width: 0%;
+      transition: width 200ms ease-out;
+    }
+
+    .acervo-meta-note {
+      font-size: 0.8rem;
+      color: #6b7280;
+    }
+
+    .acervo-tabs {
+      display: inline-flex;
+      padding: 0.2rem;
+      border-radius: 999px;
+      background: rgba(15, 23, 42, 0.7);
+      border: 1px solid rgba(55, 65, 81, 0.8);
+      margin-bottom: 0.75rem;
+    }
+
+    .acervo-tab-btn {
+      border: none;
+      background: transparent;
+      color: #9ca3af;
+      padding: 0.3rem 0.8rem;
+      font-size: 0.85rem;
+      border-radius: 999px;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+
+    .acervo-tab-btn.active {
+      background: var(--acervo-accent-soft);
+      color: #bbf7d0;
+    }
+
+    .acervo-form-group {
+      display: flex;
+      flex-direction: column;
+      gap: 0.25rem;
+      margin-bottom: 0.6rem;
+    }
+
+    .acervo-form-group label {
+      font-size: 0.8rem;
+      color: #9ca3af;
+    }
+
+    .acervo-form-group input[type="text"],
+    .acervo-form-group input[type="number"],
+    .acervo-form-group textarea,
+    .acervo-form-group select {
+      border-radius: 0.5rem;
+      border: 1px solid rgba(55, 65, 81, 0.9);
+      background: rgba(15, 23, 42, 0.9);
+      padding: 0.45rem 0.6rem;
+      font-size: 0.9rem;
+      color: #e5e7eb;
+    }
+
+    .acervo-form-group textarea {
+      min-height: 120px;
+      resize: vertical;
+    }
+
+    .acervo-form-inline {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.75rem;
+      align-items: center;
+      margin-bottom: 0.5rem;
+    }
+
+    .acervo-checkbox-label {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      font-size: 0.8rem;
+      color: #9ca3af;
+    }
+
+    .acervo-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.4rem;
+      border-radius: 999px;
+      border: none;
+      cursor: pointer;
+      font-size: 0.85rem;
+      font-weight: 500;
+      padding: 0.45rem 0.9rem;
+    }
+
+    .acervo-btn-primary {
+      background: var(--acervo-accent);
+      color: #022c22;
+    }
+
+    .acervo-btn-secondary {
+      background: rgba(31, 41, 55, 0.9);
+      color: #e5e7eb;
+    }
+
+    .acervo-btn-ghost {
+      background: transparent;
+      color: #9ca3af;
+    }
+
+    .acervo-btn[disabled] {
+      opacity: 0.55;
+      cursor: not-allowed;
+    }
+
+    .acervo-alert {
+      margin-bottom: 1rem;
+      font-size: 0.85rem;
+      border-radius: 0.75rem;
+      padding: 0.6rem 0.75rem;
+      border: 1px solid transparent;
+    }
+
+    .acervo-alert.info {
+      border-color: rgba(59, 130, 246, 0.4);
+      background: rgba(37, 99, 235, 0.12);
+      color: #bfdbfe;
+    }
+
+    .acervo-alert.success {
+      border-color: rgba(34, 197, 94, 0.4);
+      background: rgba(22, 163, 74, 0.14);
+      color: #bbf7d0;
+    }
+
+    .acervo-alert.error {
+      border-color: rgba(248, 113, 113, 0.75);
+      background: var(--acervo-danger-soft);
+      color: #fecaca;
+    }
+
+    .acervo-table-wrapper {
+      max-height: 420px;
+      overflow: auto;
+      margin-top: 0.75rem;
+      border-radius: 0.75rem;
+      border: 1px solid rgba(31, 41, 55, 0.9);
+      background: rgba(15, 23, 42, 0.9);
+    }
+
+    table.acervo-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.8rem;
+    }
+
+    .acervo-table th,
+    .acervo-table td {
+      padding: 0.45rem 0.6rem;
+      border-bottom: 1px solid rgba(31, 41, 55, 0.8);
+      white-space: nowrap;
+    }
+
+    .acervo-table th {
+      text-align: left;
+      position: sticky;
+      top: 0;
+      background: rgba(15, 23, 42, 0.98);
+      z-index: 1;
+      font-weight: 500;
+      color: #9ca3af;
+    }
+
+    .acervo-table td {
+      color: #e5e7eb;
+    }
+
+    .acervo-tag-pill {
+      display: inline-flex;
+      align-items: center;
+      padding: 0.1rem 0.4rem;
+      border-radius: 999px;
+      background: rgba(15, 23, 42, 0.9);
+      border: 1px solid rgba(55, 65, 81, 0.9);
+      font-size: 0.7rem;
+      margin-right: 0.15rem;
+      margin-bottom: 0.15rem;
+    }
+
+    .acervo-badge-enabled {
+      display: inline-flex;
+      align-items: center;
+      padding: 0.1rem 0.4rem;
+      border-radius: 999px;
+      font-size: 0.7rem;
+      background: rgba(22, 163, 74, 0.15);
+      color: #bbf7d0;
+    }
+
+    .acervo-badge-disabled {
+      display: inline-flex;
+      align-items: center;
+      padding: 0.1rem 0.4rem;
+      border-radius: 999px;
+      font-size: 0.7rem;
+      background: rgba(75, 85, 99, 0.4);
+      color: #e5e7eb;
+    }
+
+    .acervo-muted {
+      color: #6b7280;
+    }
+
+    .acervo-section-title-line {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 0.5rem;
+      margin-bottom: 0.25rem;
+    }
+
+    .acervo-section-title-line small {
+      font-size: 0.75rem;
+      color: #6b7280;
+    }
+
+    .acervo-edit-card {
+      margin-top: 1rem;
+    }
+  </style>
+</head>
+<body>
+  <main class="acervo-page" id="acervo-root">
+    <header class="acervo-header">
+      <h1>Acervo de conhecimento</h1>
+      <p>
+        Aqui você guarda seus materiais importantes (textos, PDFs, documentos)
+        para o MEI Robô consultar quando precisar responder algo técnico ou específico
+        sobre o seu trabalho. Comece pequeno: 1 ou 2 arquivos já fazem diferença.
+      </p>
+    </header>
+
+    <div id="acervo-validate-banner" class="acervo-banner-validate" style="display:none;">
+      <strong>Modo de validação:</strong>
+      esta tela está em modo somente leitura (<code>?validate=1</code>).
+      Os botões de envio e edição ficam desabilitados para não gravar nada de verdade.
+    </div>
+
+    <div id="acervo-alert" class="acervo-alert info" style="display:none;"></div>
+
+    <!-- Resumo + quota + criação -->
+    <section class="acervo-grid">
+      <!-- Resumo e quota -->
+      <section class="acervo-card" aria-labelledby="acervo-quota-title">
+        <div class="acervo-section-title-line">
+          <h2 id="acervo-quota-title">Resumo do acervo</h2>
+          <button type="button" class="acervo-btn acervo-btn-ghost" id="acervo-reload-btn">
+            Recarregar
+          </button>
+        </div>
+        <p>
+          Este é o espaço reservado para os seus conhecimentos e experiências.
+          O MEI Robô usa esse acervo para responder melhor, sem misturar conteúdo de outros clientes.
+        </p>
+
+        <div class="acervo-meta-row">
+          <div>
+            <span class="acervo-muted">Uso atual da sua quota</span><br />
+            <strong id="acervo-quota-usage">–</strong>
+          </div>
+          <div>
+            <span class="acervo-muted">Disponível no seu plano</span><br />
+            <strong id="acervo-quota-max">–</strong>
+          </div>
+        </div>
+
+        <div class="acervo-progress" aria-hidden="true">
+          <div class="acervo-progress-bar" id="acervo-quota-bar"></div>
+        </div>
+
+        <p class="acervo-meta-note">
+          Dica: em vez de subir tudo de uma vez, priorize documentos que você realmente usaria
+          para responder clientes (contratos modelo, orientações técnicas, perguntas frequentes).
+        </p>
+      </section>
+
+      <!-- Criação rápida -->
+      <section class="acervo-card" aria-labelledby="acervo-create-title">
+        <h2 id="acervo-create-title">Adicionar ao acervo</h2>
+        <p>
+          Você pode cadastrar um texto rápido ou enviar um arquivo. Use tags para encontrar depois
+          e controlar o que o robô pode usar.
+        </p>
+
+        <div class="acervo-tabs" role="tablist" aria-label="Modo de criação de item">
+          <button
+            type="button"
+            class="acervo-tab-btn active"
+            id="acervo-tab-texto"
+            data-target="acervo-pane-texto"
+            role="tab"
+            aria-selected="true"
+          >
+            Texto rápido
+          </button>
+          <button
+            type="button"
+            class="acervo-tab-btn"
+            id="acervo-tab-upload"
+            data-target="acervo-pane-upload"
+            role="tab"
+            aria-selected="false"
+          >
+            Upload de arquivo
+          </button>
+        </div>
+
+        <!-- Form: texto rápido -->
+        <form id="acervo-form-texto" autocomplete="off">
+          <div id="acervo-pane-texto" role="tabpanel">
+            <div class="acervo-form-group">
+              <label for="acervo-texto-titulo">Título *</label>
+              <input id="acervo-texto-titulo" name="titulo" type="text" required />
+            </div>
+
+            <div class="acervo-form-group">
+              <label for="acervo-texto-tags">
+                Tags (separe por vírgula ou ponto-e-vírgula)
+              </label>
+              <input
+                id="acervo-texto-tags"
+                name="tags"
+                type="text"
+                placeholder="ex.: contrato, barbeiro, barba curta"
+              />
+            </div>
+
+            <div class="acervo-form-inline">
+              <div class="acervo-form-group" style="min-width: 120px;">
+                <label for="acervo-texto-prioridade">Prioridade</label>
+                <select id="acervo-texto-prioridade" name="prioridade">
+                  <option value="">Padrão</option>
+                  <option value="3">Alta</option>
+                  <option value="2">Normal</option>
+                  <option value="1">Baixa</option>
+                </select>
+              </div>
+
+              <label class="acervo-checkbox-label">
+                <input
+                  type="checkbox"
+                  id="acervo-texto-habilitado"
+                  name="habilitado"
+                  checked
+                />
+                Habilitado para uso pelo robô
+              </label>
+            </div>
+
+            <div class="acervo-form-group">
+              <label for="acervo-texto-corpo">Texto / conteúdo *</label>
+              <textarea
+                id="acervo-texto-corpo"
+                name="texto"
+                required
+                placeholder="Cole aqui o texto que você quer que o MEI Robô use (markdown opcional)."
+              ></textarea>
+            </div>
+
+            <button
+              type="submit"
+              class="acervo-btn acervo-btn-primary"
+              id="acervo-texto-submit"
+            >
+              Salvar no acervo
+            </button>
+          </div>
+        </form>
+
+        <!-- Form: upload de arquivo -->
+        <form id="acervo-form-upload" autocomplete="off" style="display:none;">
+          <div id="acervo-pane-upload" role="tabpanel">
+            <div class="acervo-form-group">
+              <label for="acervo-upload-arquivo">Arquivo *</label>
+              <input id="acervo-upload-arquivo" name="arquivo" type="file" required />
+            </div>
+
+            <div class="acervo-form-group">
+              <label for="acervo-upload-titulo">Título (opcional)</label>
+              <input
+                id="acervo-upload-titulo"
+                name="titulo"
+                type="text"
+                placeholder="Se deixar vazio, usamos o nome do arquivo."
+              />
+            </div>
+
+            <div class="acervo-form-group">
+              <label for="acervo-upload-tags">
+                Tags (separe por vírgula ou ponto-e-vírgula)
+              </label>
+              <input
+                id="acervo-upload-tags"
+                name="tags"
+                type="text"
+                placeholder="ex.: tabela de preços, orientação interna"
+              />
+            </div>
+
+            <div class="acervo-form-inline">
+              <div class="acervo-form-group" style="min-width: 120px;">
+                <label for="acervo-upload-prioridade">Prioridade</label>
+                <select id="acervo-upload-prioridade" name="prioridade">
+                  <option value="">Padrão</option>
+                  <option value="3">Alta</option>
+                  <option value="2">Normal</option>
+                  <option value="1">Baixa</option>
+                </select>
+              </div>
+
+              <label class="acervo-checkbox-label">
+                <input
+                  type="checkbox"
+                  id="acervo-upload-habilitado"
+                  name="habilitado"
+                  checked
+                />
+                Habilitado para uso pelo robô
+              </label>
+            </div>
+
+            <button
+              type="submit"
+              class="acervo-btn acervo-btn-primary"
+              id="acervo-upload-submit"
+            >
+              Enviar arquivo
+            </button>
+          </div>
+        </form>
+      </section>
+    </section>
+
+    <!-- Lista de itens do acervo -->
+    <section class="acervo-card" aria-labelledby="acervo-list-title">
+      <div class="acervo-section-title-line">
+        <div>
+          <h2 id="acervo-list-title">Itens do acervo</h2>
+          <small id="acervo-list-subtitle">
+            Carregando itens...
+          </small>
+        </div>
+      </div>
+
+      <div class="acervo-table-wrapper" aria-live="polite">
+        <table class="acervo-table" id="acervo-table">
+          <thead>
+            <tr>
+              <th>Título</th>
+              <th>Tipo</th>
+              <th>Tags</th>
+              <th>Tamanho</th>
+              <th>Fonte</th>
+              <th>Habilitado</th>
+              <th>Atualizado em</th>
+              <th>Ações</th>
+            </tr>
+          </thead>
+          <tbody id="acervo-tbody">
+            <tr>
+              <td colspan="8" class="acervo-muted">
+                Nenhum item carregado ainda.
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- Edição de metadados -->
+    <section
+      class="acervo-card acervo-edit-card"
+      id="acervo-edit-card"
+      aria-labelledby="acervo-edit-title"
+      style="display:none;"
+    >
+      <div class="acervo-section-title-line">
+        <h2 id="acervo-edit-title">Editar item do acervo</h2>
+        <button
+          type="button"
+          class="acervo-btn acervo-btn-ghost"
+          id="acervo-edit-cancel"
+        >
+          Limpar seleção
+        </button>
+      </div>
+      <p class="acervo-meta-note" id="acervo-edit-meta">
+        Você está editando um item selecionado na lista.
+      </p>
+
+      <form id="acervo-form-edit" autocomplete="off">
+        <div class="acervo-form-group">
+          <label for="acervo-edit-titulo">Título</label>
+          <input id="acervo-edit-titulo" name="titulo" type="text" />
+        </div>
+
+        <div class="acervo-form-group">
+          <label for="acervo-edit-tags">
+            Tags (separe por vírgula ou ponto-e-vírgula)
+          </label>
+          <input id="acervo-edit-tags" name="tags" type="text" />
+        </div>
+
+        <div class="acervo-form-inline">
+          <div class="acervo-form-group" style="min-width: 120px;">
+            <label for="acervo-edit-prioridade">Prioridade</label>
+            <select id="acervo-edit-prioridade" name="prioridade">
+              <option value="">Padrão</option>
+              <option value="3">Alta</option>
+              <option value="2">Normal</option>
+              <option value="1">Baixa</option>
+            </select>
+          </div>
+
+          <label class="acervo-checkbox-label">
+            <input
+              type="checkbox"
+              id="acervo-edit-habilitado"
+              name="habilitado"
+            />
+            Habilitado para uso pelo robô
+          </label>
+        </div>
+
+        <div class="acervo-form-group">
+          <label for="acervo-edit-resumo">
+            Resumo curto (opcional)
+          </label>
+          <textarea
+            id="acervo-edit-resumo"
+            name="resumoCurto"
+            placeholder="Um resumo em 1–3 frases para ajudar a IA a entender rapidamente este material."
+          ></textarea>
+        </div>
+
+        <button
+          type="submit"
+          class="acervo-btn acervo-btn-primary"
+          id="acervo-edit-submit"
+        >
+          Salvar alterações
+        </button>
+      </form>
+    </section>
+
+    <!-- Área futura: teste de pergunta no acervo -->
+    <section class="acervo-card" aria-labelledby="acervo-query-title">
+      <h2 id="acervo-query-title">Testar pergunta no seu acervo (em breve)</h2>
+      <p>
+        Em uma próxima etapa, você poderá fazer perguntas aqui e ver como o MEI Robô
+        responde usando apenas o seu acervo de conhecimento.
+      </p>
+
+      <div class="acervo-form-group">
+        <label for="acervo-query-text">
+          Pergunta para o seu acervo
+        </label>
+        <textarea
+          id="acervo-query-text"
+          placeholder="ex.: Quais são as principais orientações para o pré-atendimento do cliente?"
+          disabled
+        ></textarea>
+      </div>
+
+      <button
+        type="button"
+        class="acervo-btn acervo-btn-secondary"
+        id="acervo-query-submit"
+        disabled
+      >
+        Perguntar ao meu acervo (em breve)
+      </button>
+    </section>
+  </main>
+</body>
+</html>
