@@ -576,7 +576,7 @@
 
           try {
             if (svc.fotoPath) {
-              const viewUrl = await getViewUrlForPath(s.fotoPath);
+              const viewUrl = await getViewUrlForPath(svc.fotoPath);
               window.open(viewUrl, '_blank', 'noopener');
             } else if (svc.fotoUrlLegacy) {
               window.open(svc.fotoUrlLegacy, '_blank', 'noopener');
@@ -626,9 +626,12 @@
           if (!res.ok || json.ok === false) {
             alert(json.error || ('Não foi possível enviar a foto agora. (HTTP ' + res.status + ')'));
           } else {
-            if (json.fotoUrl) {
+            if (json.fotoUrl || json.fotoPath) {
               const svc = dataAll.find(s => s.id === photoSvcId);
-              if (svc) svc.fotoUrl = json.fotoUrl;
+              if (svc) {
+                if (json.fotoUrl) svc.fotoUrlLegacy = json.fotoUrl;
+                if (json.fotoPath) svc.fotoPath = json.fotoPath;
+              }
             }
             await loadServices();
             alert('Foto atualizada com sucesso.');
