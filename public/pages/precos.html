@@ -80,7 +80,6 @@
       <div class="mt-4 card">
         <div class="badge">Adicionar serviço</div>
         <div class="row mt-2">
-          <!-- NOVO: campo Código (opcional) -->
           <div class="col">
             <label for="f-cod">Código (opcional)</label>
             <input id="f-cod" class="input" placeholder="Ex.: BARB01" maxlength="24" />
@@ -116,7 +115,7 @@
         <div id="add-msg" class="mt-2 msg hidden"></div>
       </div>
 
-      <!-- 2) Seus serviços (lista + busca + paginação) -->
+      <!-- 2) Seus serviços -->
       <div class="mt-4 card">
         <div class="toolbar">
           <div class="badge">Seus serviços</div>
@@ -128,7 +127,6 @@
           <table class="table" id="svc-table" aria-label="Tabela de serviços">
             <thead>
               <tr>
-                <!-- NOVO: coluna Código -->
                 <th class="nowrap">Código</th>
                 <th>Serviço</th>
                 <th class="nowrap">Preço (R$)</th>
@@ -149,11 +147,10 @@
           Você pode anexar 1 foto por serviço (até 2 MB). O MEI Robô usa essas fotos quando fizer sentido para explicar melhor o serviço ao seu cliente.
         </div>
 
-        <!-- Input de upload de foto (1 por página, acionado por linha) -->
         <input id="photo-input" type="file" accept="image/*" class="hidden" />
       </div>
 
-      <!-- 3) Importar planilha (opcional) -->
+      <!-- 3) Importar planilha -->
       <div class="mt-4 card">
         <div class="badge">Importar planilha (opcional)</div>
         <div class="help mt-1">
@@ -185,7 +182,6 @@
         </div>
       </div>
 
-      <!-- Navegação -->
       <div class="mt-6 row">
         <div class="col" style="text-align:left;">
           <button id="btn-back-dashboard" class="button">← Voltar para o painel</button>
@@ -194,16 +190,10 @@
     </section>
   </main>
 
-  <!-- Footer dinâmico -->
   <footer id="app-footer"></footer>
-
-  <!-- Loader de header/footer -->
   <script src="/assets/layout.js"></script>
-
-  <!-- Helpers do app (rotas/token etc.) -->
   <script src="/assets/backend-patch.js"></script>
 
-  <!-- Lógica da página -->
   <script>
     (function(){
       const log = (...a) => console.log('[precos]', ...a);
@@ -212,9 +202,8 @@
       const params = new URLSearchParams(location.search);
       let REDIRECTING_TO_LOGIN = false;
 
-      const MAX_PHOTO_BYTES = 2 * 1024 * 1024; // 2 MB por foto
+      const MAX_PHOTO_BYTES = 2 * 1024 * 1024;
 
-      // ===== Fallback header/footer =====
       async function ensureHeaderFooter() {
         try {
           const hdr = document.querySelector('header.app-header');
@@ -229,7 +218,6 @@
         } catch(e) { console.warn('[precos] fallback header/footer falhou', e); }
       }
 
-      // ===== Estado global =====
       let currentUser = null;
       let isVerified = false;
       let uid = null;
@@ -239,13 +227,10 @@
       let dataView = [];
       let page = 0;
 
-      // para upload de foto
       let photoSvcId = null;
 
-      // ===== Navegação =====
       byId('btn-back-dashboard').onclick = () => location.href = '/pages/dashboard.html';
 
-      // ===== Sessão de validação opcional =====
       async function maybeCleanSession() {
         if (params.get('validate') === '1') {
           log('Sessão limpa por validate=1');
@@ -254,7 +239,6 @@
         }
       }
 
-      // ===== Helpers UI =====
       function setMsg(el, type, text) {
         el.classList.remove('hidden','ok','err'); el.classList.add('msg');
         el.classList.add(type === 'error' ? 'err' : 'ok');
@@ -262,7 +246,6 @@
       }
       function clearMsg(el){ el.classList.add('hidden'); el.textContent=''; }
 
-      // ===== Slugify (gerado automaticamente a partir do nome) =====
       function slugify(str){
         return String(str || '')
           .normalize('NFD').replace(/[̀-ͯ]/g,'')
@@ -272,7 +255,6 @@
           .slice(0, 80);
       }
 
-      // ===== Parse de preço BRL ("45,00" ou "45.00") =====
       function parsePriceBRL(s){
         if (!s) return NaN;
         let x = String(s).trim().replace(/\s+/g,'');
@@ -280,17 +262,15 @@
         return Number(x);
       }
 
-      // ===== Normalizador de lista (vírgulas e ";") =====
       function splitTags(s) {
         if (!s) return [];
         return String(s)
-          .split(/[;,]/)               // aceita vírgula e ";"
+          .split(/[;,]/)
           .map(v => v.trim())
           .filter(Boolean)
-          .slice(0, 15);               // limite saudável
+          .slice(0, 15);
       }
 
-      // ===== Signed URL de visualização da foto (usa /media/signed-url) =====
       async function getViewUrlForPath(gcsPath) {
         if (!gcsPath) throw new Error('path vazio');
         const token = await currentUser.getIdToken(true);
@@ -303,7 +283,7 @@
             'Content-Type': 'application/json'
           },
           body: JSON.stringify({
-            contentType: 'image/jpeg', // GET não usa isso; é só para bater na allowlist
+            contentType: 'image/jpeg',
             path: gcsPath
           })
         });
@@ -321,7 +301,6 @@
         return json.downloadUrl;
       }
 
-      // ===== Formulário Adicionar Serviço =====
       byId('btn-clear').onclick = () => {
         byId('f-cod').value=''; byId('f-nome').value=''; byId('f-preco').value=''; byId('f-dur').value=''; byId('f-info').value='';
         clearMsg(byId('add-msg'));
@@ -338,7 +317,6 @@
         const durStr = byId('f-dur').value.trim();
         const infoStr = byId('f-info').value.trim();
 
-        // NOVO: validação do Código (opcional)
         if (codigo) {
           codigo = codigo.toUpperCase();
           if (!/^[A-Z0-9-]{1,24}$/.test(codigo)) {
@@ -364,7 +342,6 @@
           const db = firebase.firestore();
           const col = db.collection('profissionais').doc(uid).collection('produtosEServicos');
 
-          // Unicidade (nome/slug) mantida; NOVO: unicidade do código, se informado
           const dup = await col.where('slug','==',slug).limit(1).get();
           if (!dup.empty) { setMsg(byId('add-msg'),'error','Este serviço já existe na sua lista.'); return; }
           if (codigo) {
@@ -374,12 +351,12 @@
 
           const now = firebase.firestore.FieldValue.serverTimestamp();
           await col.add({
-            codigo: codigo || null,   // NOVO
+            codigo: codigo || null,
             slug,
             nome,
             precoBase: Number(preco.toFixed(2)),
             duracaoMin: dur,
-            sinonimos: outrasInfo, // compatível com versões anteriores
+            sinonimos: outrasInfo,
             createdAt: now,
             updatedAt: now
           });
@@ -393,9 +370,7 @@
         }
       };
 
-      // ===== Amostra de planilha (CSV) — linguagem MEI =====
       function getSampleCsvBlob() {
-        // NOVO: inclui coluna "codigo" como primeira coluna
         const rows = [
           'codigo,nome do servico,preco (R$),tempo (min),outras informacoes',
           'BARB01,Corte masculino,45,30,"corte, pezinho, maquina"',
@@ -416,7 +391,6 @@
         setTimeout(()=>URL.revokeObjectURL(url), 1500);
       };
 
-      // ===== Upload de planilha (CSV) =====
       const drop = byId('dropzone');
       const finput = byId('file-input');
       drop.addEventListener('click', ()=>finput.click());
@@ -445,7 +419,6 @@
         reader.readAsText(f, 'UTF-8');
       }
 
-      // ===== Parser simples =====
       function parseCsvBasic(text){
         const lines = text.split(/\r?\n/).map(l=>l.trim()).filter(Boolean);
         if (!lines.length) return { header:[], rows:[] };
@@ -466,7 +439,6 @@
         return { headerRaw, header, rows };
       }
 
-      // mapeamento flexível de nomes de coluna
       const colMap = {
         codigo: ['codigo','código','cod','cód'],
         nome: ['nome do servico','nome','servico','descrição','descricao'],
@@ -483,7 +455,6 @@
         return header.filter(h => !known.has(h));
       }
 
-      // ===== Prévia da planilha =====
       byId('btn-preview').onclick = ()=>{
         clearMsg(byId('import-msg'));
         const { headerRaw, header, rows } = parseCsvBasic(csvText);
@@ -491,7 +462,6 @@
         const t = byId('preview-table');
         t.innerHTML = '';
         const thead = document.createElement('thead'), trh = document.createElement('tr');
-        // Mantemos 4 colunas na prévia (simples), mesmo aceitando "codigo" — menos ruído para o MEI
         ['nome do servico','preco (R$)','tempo (min)','outras informacoes'].forEach(n=>{ const th=document.createElement('th'); th.textContent=n; trh.appendChild(th); });
         thead.appendChild(trh); t.appendChild(thead);
 
@@ -510,7 +480,6 @@
         });
         t.appendChild(tbody);
 
-        // Nota sobre colunas extra
         const extras = findExtras(header);
         const note = byId('preview-note');
         if (extras.length) {
@@ -524,7 +493,6 @@
         byId('preview-wrap').classList.remove('hidden');
       };
 
-      // ===== Importar planilha (v1.0 mantém formato canônico sem "codigo") =====
       const BACKEND_BASE = window.BACKEND_BASE || 'https://mei-robo-prod.onrender.com';
       byId('btn-import').onclick = async ()=>{
         clearMsg(byId('import-msg'));
@@ -578,7 +546,6 @@
         }
       };
 
-      // ===== Upload de foto por serviço =====
       const photoInput = byId('photo-input');
       const svcBody = byId('svc-body');
 
@@ -586,7 +553,6 @@
         const btnUpload = e.target.closest('button[data-photo-svc]');
         const btnView = e.target.closest('button[data-view-photo]');
 
-        // Clique em "Anexar/Trocar foto"
         if (btnUpload) {
           if (!currentUser) {
             alert('Sessão expirada. Faça login novamente.');
@@ -599,7 +565,6 @@
           return;
         }
 
-        // Clique em "Ver" (gera Signed URL nova na hora)
         if (btnView) {
           if (!currentUser) {
             alert('Sessão expirada. Faça login novamente.');
@@ -610,12 +575,10 @@
           if (!svc) return;
 
           try {
-            // Preferimos fotoPath (estável). Se não tiver, cai no legado (fotoUrlLegacy).
             if (svc.fotoPath) {
               const viewUrl = await getViewUrlForPath(s.fotoPath);
               window.open(viewUrl, '_blank', 'noopener');
             } else if (svc.fotoUrlLegacy) {
-              // fallback: URL antiga salva no doc (pode expirar)
               window.open(svc.fotoUrlLegacy, '_blank', 'noopener');
             } else {
               alert('Este serviço ainda não tem foto salva.');
@@ -646,7 +609,6 @@
           const fd = new FormData();
           fd.append('file', file);
           fd.append('servicoId', photoSvcId);
-          // 👇 NOVO: tipo MIME da foto (ex.: image/png, image/jpeg)
           fd.append('contentType', file.type || 'image/png');
 
           const res = await fetch(url, {
@@ -664,7 +626,6 @@
           if (!res.ok || json.ok === false) {
             alert(json.error || ('Não foi possível enviar a foto agora. (HTTP ' + res.status + ')'));
           } else {
-            // Atualiza em memória se veio fotoUrl
             if (json.fotoUrl) {
               const svc = dataAll.find(s => s.id === photoSvcId);
               if (svc) svc.fotoUrl = json.fotoUrl;
@@ -681,7 +642,6 @@
         }
       });
 
-      // ===== Lista de serviços (Firestore) =====
       async function loadServices(){
         const db = firebase.firestore();
         const col = db.collection('profissionais').doc(uid).collection('produtosEServicos');
@@ -690,7 +650,7 @@
           const v = d.data() || {};
           return {
             id: d.id,
-            codigo: v.codigo || '', // NOVO
+            codigo: v.codigo || '',
             nome: v.nome || '',
             precoBase: typeof v.precoBase === 'number' ? v.precoBase : parseFloat(v.precoBase || '0') || 0,
             duracaoMin: typeof v.duracaoMin === 'number' ? v.duracaoMin : parseInt(v.duracaoMin || '0') || 0,
@@ -716,7 +676,7 @@
       function applyFilter(){
         const q = normalize(byId('search').value || '');
         dataView = !q ? dataAll.slice() : dataAll.filter(s =>
-          normalize(s.codigo).includes(q) ||   // NOVO
+          normalize(s.codigo).includes(q) ||
           normalize(s.nome).includes(q) ||
           normalize((s.sinonimos||[]).join(' ')).includes(q)
         );
@@ -725,45 +685,58 @@
       }
       byId('search').addEventListener('input', applyFilter);
 
+      /* ===============================
+         PATCH — renderTable() corrigido
+         =============================== */
       function renderTable(){
         const body = byId('svc-body');
         body.innerHTML = '';
         if (!dataView.length) {
-          const tr=document.createElement('tr'); const td=document.createElement('td');
-          td.colSpan=6; td.textContent='Nenhum serviço cadastrado ainda.'; tr.appendChild(td); body.appendChild(tr);
+          const tr = document.createElement('tr');
+          const td = document.createElement('td');
+          td.colSpan = 6;
+          td.textContent = 'Nenhum serviço cadastrado ainda.';
+          tr.appendChild(td);
+          body.appendChild(tr);
         } else {
-          const start = page * PAGE_SIZE, end = Math.min(start + PAGE_SIZE, dataView.length);
-          dataView.slice(start, end).forEach(s=>{
+          const start = page * PAGE_SIZE;
+          const end = Math.min(start + PAGE_SIZE, dataView.length);
+
+          dataView.slice(start, end).forEach(s => {
             const hasFoto = !!(s.fotoPath || s.fotoUrlLegacy);
+
+            // HTML do botão "Ver" sem template string dentro de template string
+            const viewBtnHtml = hasFoto
+              ? ' · <button class="button button-sm" data-view-photo="' + s.id + '">Ver</button>'
+              : '';
 
             const tr = document.createElement('tr');
             tr.innerHTML = `
-            <td class="nowrap">${s.codigo || '-'}</td>
-            <td>${s.nome}</td>
-            <td class="nowrap">${s.precoBase.toFixed(2)}</td>
-            <td class="nowrap">${s.duracaoMin}</td>
-            <td>${(s.sinonimos||[]).join(', ')}</td>
-            <td class="nowrap">
-              <span class="help">
-                ${hasFoto ? '1 foto' : 'Sem foto'}
-                ${hasFoto ? \` · <button class="button button-sm" data-view-photo="\${s.id}">Ver</button>\` : ''}
-              </span>
-              <button class="button button-sm" data-photo-svc="${s.id}">
-                ${hasFoto ? 'Trocar foto' : 'Anexar foto'}
-              </button>
-            </td>
-          `;
+              <td class="nowrap">${s.codigo || '-'}</td>
+              <td>${s.nome}</td>
+              <td class="nowrap">${s.precoBase.toFixed(2)}</td>
+              <td class="nowrap">${s.duracaoMin}</td>
+              <td>${(s.sinonimos || []).join(', ')}</td>
+              <td class="nowrap">
+                <span class="help">
+                  ${hasFoto ? '1 foto' : 'Sem foto'}${viewBtnHtml}
+                </span>
+                <button class="button button-sm" data-photo-svc="${s.id}">
+                  ${hasFoto ? 'Trocar foto' : 'Anexar foto'}
+                </button>
+              </td>
+            `;
             body.appendChild(tr);
           });
         }
         byId('count').textContent = String(dataView.length);
-        byId('prev').disabled = page<=0;
-        byId('next').disabled = (page+1)*PAGE_SIZE >= dataView.length;
+        byId('prev').disabled = page <= 0;
+        byId('next').disabled = (page + 1) * PAGE_SIZE >= dataView.length;
       }
+
       byId('prev').onclick = ()=>{ if(page>0){ page--; renderTable(); } };
       byId('next').onclick = ()=>{ if((page+1)*PAGE_SIZE < dataView.length){ page++; renderTable(); } };
 
-      // ===== Gate de sessão =====
       async function ensureAuth(){
         await maybeCleanSession();
         await ensureHeaderFooter();
@@ -780,7 +753,6 @@
             uid = u.uid;
             isVerified = !!u.emailVerified;
 
-            // status curto no bloco de importação
             const ready = byId('import-ready');
             if (isVerified) {
               ready.textContent = '✅ Pronto para importar';
@@ -788,14 +760,12 @@
               ready.innerHTML = '⚠️ Para importar, confirme seu e-mail. <a href="/verify-email.html">Verificar agora</a>';
             }
 
-            // habilita botões conforme estado
             byId('btn-import').disabled = !(finput.files?.[0] && isVerified);
             resolve();
           });
         });
       }
 
-      // ===== Init =====
       (async function init(){
         try {
           await ensureAuth();
@@ -814,4 +784,3 @@
   </script>
 </body>
 </html>
-
