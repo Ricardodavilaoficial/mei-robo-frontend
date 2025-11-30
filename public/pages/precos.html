@@ -282,6 +282,7 @@
       };
 
       byId('btn-add').onclick = async () => {
+        log('btn-add clicked'); // 🔍 diagnóstico mínimo
         clearMsg(byId('add-msg'));
         if (!currentUser) { setMsg(byId('add-msg'),'error','Sessão expirada. Faça login novamente.'); return; }
 
@@ -340,6 +341,7 @@
           setMsg(byId('add-msg'),'ok','Serviço salvo com sucesso.');
           byId('btn-clear').click();
           await loadServices();
+          log('service saved and list reloaded'); // 🔍 extra
         } catch(e) {
           console.error('[precos] add error', e);
           setMsg(byId('add-msg'),'error','Não foi possível salvar agora. Tente novamente.');
