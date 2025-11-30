@@ -640,10 +640,10 @@
       }
 
       function normalize(t) {
-        return String(t||'')
+        return String(t || '')
           .toLowerCase()
           .normalize('NFD')
-          .replace(/[\u0300-\u036f]/g,'');
+          .replace(/[\u0300-\u036f]/g, '');
       }
 
       function applyFilter(){
@@ -667,6 +667,10 @@
         } else {
           const start = page * PAGE_SIZE, end = Math.min(start + PAGE_SIZE, dataView.length);
           dataView.slice(start, end).forEach(s=>{
+            const fotoHtml = s.fotoUrl
+              ? `<span class="help">1 foto · <a href="${s.fotoUrl}" target="_blank" rel="noopener noreferrer">Ver</a></span>`
+              : `<span class="help">Sem foto</span>`;
+
             const tr = document.createElement('tr');
             tr.innerHTML = `
               <td class="nowrap">${s.codigo || '-'}</td>
@@ -675,7 +679,7 @@
               <td class="nowrap">${s.duracaoMin}</td>
               <td>${(s.sinonimos||[]).join(', ')}</td>
               <td class="nowrap">
-                <span class="help">${s.fotoUrl ? '1 foto' : 'Sem foto'}</span>
+                ${fotoHtml}
                 <button class="button button-sm" data-photo-svc="${s.id}">${s.fotoUrl ? 'Trocar foto' : 'Anexar foto'}</button>
               </td>
             `;
@@ -740,3 +744,4 @@
   </script>
 </body>
 </html>
+
