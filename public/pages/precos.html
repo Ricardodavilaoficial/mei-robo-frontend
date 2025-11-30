@@ -265,7 +265,7 @@
       // ===== Slugify (gerado automaticamente a partir do nome) =====
       function slugify(str){
         return String(str || '')
-          .normalize('NFD').replace(/[\u0300-\u036f]/g,'')
+          .normalize('NFD').replace(/[̀-ͯ]/g,'')
           .toLowerCase()
           .replace(/[^a-z0-9]+/g,'-')
           .replace(/^-+|-+$/g,'')
@@ -288,6 +288,37 @@
           .map(v => v.trim())
           .filter(Boolean)
           .slice(0, 15);               // limite saudável
+      }
+
+      // ===== Signed URL de visualização da foto (usa /media/signed-url) =====
+      async function getViewUrlForPath(gcsPath) {
+        if (!gcsPath) throw new Error('path vazio');
+        const token = await currentUser.getIdToken(true);
+        const url = BACKEND_BASE.replace(/\/$/,'') + '/media/signed-url';
+
+        const res = await fetch(url, {
+          method: 'POST',
+          headers: {
+            'Authorization': 'Bearer ' + token,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            contentType: 'image/jpeg', // GET não usa isso; é só para bater na allowlist
+            path: gcsPath
+          })
+        });
+
+        const text = await res.text();
+        let json;
+        try { json = JSON.parse(text); } catch { json = null; }
+
+        if (!res.ok || !json || json.ok === false) {
+          throw new Error((json && json.error) || ('Falha HTTP ' + res.status));
+        }
+        if (!json.downloadUrl) {
+          throw new Error('downloadUrl ausente na resposta');
+        }
+        return json.downloadUrl;
       }
 
       // ===== Formulário Adicionar Serviço =====
@@ -551,18 +582,49 @@
       const photoInput = byId('photo-input');
       const svcBody = byId('svc-body');
 
-      // clique no botão "Anexar/Trocar foto"
-      svcBody.addEventListener('click', (e) => {
-        const btn = e.target.closest('button[data-photo-svc]');
-        if (!btn) return;
-        if (!currentUser) {
-          alert('Sessão expirada. Faça login novamente.');
+      svcBody.addEventListener('click', async (e) => {
+        const btnUpload = e.target.closest('button[data-photo-svc]');
+        const btnView = e.target.closest('button[data-view-photo]');
+
+        // Clique em "Anexar/Trocar foto"
+        if (btnUpload) {
+          if (!currentUser) {
+            alert('Sessão expirada. Faça login novamente.');
+            return;
+          }
+          photoSvcId = btnUpload.getAttribute('data-photo-svc');
+          if (!photoSvcId) return;
+          photoInput.value = '';
+          photoInput.click();
           return;
         }
-        photoSvcId = btn.getAttribute('data-photo-svc');
-        if (!photoSvcId) return;
-        photoInput.value = '';
-        photoInput.click();
+
+        // Clique em "Ver" (gera Signed URL nova na hora)
+        if (btnView) {
+          if (!currentUser) {
+            alert('Sessão expirada. Faça login novamente.');
+            return;
+          }
+          const svcId = btnView.getAttribute('data-view-photo');
+          const svc = dataAll.find(s => s.id === svcId);
+          if (!svc) return;
+
+          try {
+            // Preferimos fotoPath (estável). Se não tiver, cai no legado (fotoUrlLegacy).
+            if (svc.fotoPath) {
+              const viewUrl = await getViewUrlForPath(s.fotoPath);
+              window.open(viewUrl, '_blank', 'noopener');
+            } else if (svc.fotoUrlLegacy) {
+              // fallback: URL antiga salva no doc (pode expirar)
+              window.open(svc.fotoUrlLegacy, '_blank', 'noopener');
+            } else {
+              alert('Este serviço ainda não tem foto salva.');
+            }
+          } catch (err) {
+            console.error('[precos] ver foto error', err);
+            alert('Não foi possível abrir a foto agora. Tente reenviar a foto ou recarregar a página.');
+          }
+        }
       });
 
       photoInput.addEventListener('change', async (e) => {
@@ -632,8 +694,13 @@
             nome: v.nome || '',
             precoBase: typeof v.precoBase === 'number' ? v.precoBase : parseFloat(v.precoBase || '0') || 0,
             duracaoMin: typeof v.duracaoMin === 'number' ? v.duracaoMin : parseInt(v.duracaoMin || '0') || 0,
-            sinonimos: Array.isArray(v.sinonimos) ? v.sinonimos : (typeof v.sinonimos === 'string' ? v.sinonimos.split(';').map(s=>s.trim()).filter(Boolean) : []),
-            fotoUrl: typeof v.fotoUrl === 'string' ? v.fotoUrl : '' // NOVO: flag simples de foto
+            sinonimos: Array.isArray(v.sinonimos)
+              ? v.sinonimos
+              : (typeof v.sinonimos === 'string'
+                  ? v.sinonimos.split(';').map(s=>s.trim()).filter(Boolean)
+                  : []),
+            fotoPath: typeof v.fotoPath === 'string' ? v.fotoPath : '',
+            fotoUrlLegacy: typeof v.fotoUrl === 'string' ? v.fotoUrl : ''
           };
         });
         applyFilter();
@@ -667,22 +734,25 @@
         } else {
           const start = page * PAGE_SIZE, end = Math.min(start + PAGE_SIZE, dataView.length);
           dataView.slice(start, end).forEach(s=>{
-            const fotoHtml = s.fotoUrl
-              ? `<span class="help">1 foto · <a href="${s.fotoUrl}" target="_blank" rel="noopener noreferrer">Ver</a></span>`
-              : `<span class="help">Sem foto</span>`;
+            const hasFoto = !!(s.fotoPath || s.fotoUrlLegacy);
 
             const tr = document.createElement('tr');
             tr.innerHTML = `
-              <td class="nowrap">${s.codigo || '-'}</td>
-              <td>${s.nome}</td>
-              <td class="nowrap">${s.precoBase.toFixed(2)}</td>
-              <td class="nowrap">${s.duracaoMin}</td>
-              <td>${(s.sinonimos||[]).join(', ')}</td>
-              <td class="nowrap">
-                ${fotoHtml}
-                <button class="button button-sm" data-photo-svc="${s.id}">${s.fotoUrl ? 'Trocar foto' : 'Anexar foto'}</button>
-              </td>
-            `;
+            <td class="nowrap">${s.codigo || '-'}</td>
+            <td>${s.nome}</td>
+            <td class="nowrap">${s.precoBase.toFixed(2)}</td>
+            <td class="nowrap">${s.duracaoMin}</td>
+            <td>${(s.sinonimos||[]).join(', ')}</td>
+            <td class="nowrap">
+              <span class="help">
+                ${hasFoto ? '1 foto' : 'Sem foto'}
+                ${hasFoto ? \` · <button class="button button-sm" data-view-photo="\${s.id}">Ver</button>\` : ''}
+              </span>
+              <button class="button button-sm" data-photo-svc="${s.id}">
+                ${hasFoto ? 'Trocar foto' : 'Anexar foto'}
+              </button>
+            </td>
+          `;
             body.appendChild(tr);
           });
         }
