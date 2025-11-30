@@ -584,6 +584,8 @@
           const fd = new FormData();
           fd.append('file', file);
           fd.append('servicoId', photoSvcId);
+          // 👇 NOVO: tipo MIME da foto (ex.: image/png, image/jpeg)
+          fd.append('contentType', file.type || 'image/png');
 
           const res = await fetch(url, {
             method: 'POST',
