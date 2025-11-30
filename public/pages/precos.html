@@ -38,6 +38,14 @@
     .button { border-radius:10px; padding:10px 12px; font-size:1rem; font-weight:700; cursor:pointer; }
     .button:disabled { opacity:.55; cursor:not-allowed; }
 
+    /* Botão pequeno para ações na tabela */
+    .button-sm {
+      padding: 4px 8px;
+      font-size: .8rem;
+      border-radius: 999px;
+      margin-left: 4px;
+    }
+
     /* Tabela */
     .table { width:100%; border-collapse:collapse; }
     .table th, .table td { padding:10px; text-align:left; font-size:.95rem; vertical-align:top; }
@@ -126,7 +134,7 @@
                 <th class="nowrap">Preço (R$)</th>
                 <th class="nowrap">Tempo (min)</th>
                 <th>Outras informações</th>
-                <th class="nowrap">Anexos</th>
+                <th class="nowrap">Foto</th>
               </tr>
             </thead>
             <tbody id="svc-body"><tr><td colspan="6">Carregando…</td></tr></tbody>
@@ -138,8 +146,11 @@
         </div>
 
         <div class="mt-2 help">
-          Em breve: você poderá anexar fotos, panfletos e PDFs de cada serviço direto por aqui.
+          Você pode anexar 1 foto por serviço (até 2 MB). O MEI Robô usa essas fotos quando fizer sentido para explicar melhor o serviço ao seu cliente.
         </div>
+
+        <!-- Input de upload de foto (1 por página, acionado por linha) -->
+        <input id="photo-input" type="file" accept="image/*" class="hidden" />
       </div>
 
       <!-- 3) Importar planilha (opcional) -->
@@ -201,6 +212,8 @@
       const params = new URLSearchParams(location.search);
       let REDIRECTING_TO_LOGIN = false;
 
+      const MAX_PHOTO_BYTES = 2 * 1024 * 1024; // 2 MB por foto
+
       // ===== Fallback header/footer =====
       async function ensureHeaderFooter() {
         try {
@@ -225,6 +238,9 @@
       let dataAll = [];
       let dataView = [];
       let page = 0;
+
+      // para upload de foto
+      let photoSvcId = null;
 
       // ===== Navegação =====
       byId('btn-back-dashboard').onclick = () => location.href = '/pages/dashboard.html';
@@ -282,7 +298,6 @@
       };
 
       byId('btn-add').onclick = async () => {
-        log('btn-add clicked'); // 🔍 diagnóstico mínimo
         clearMsg(byId('add-msg'));
         if (!currentUser) { setMsg(byId('add-msg'),'error','Sessão expirada. Faça login novamente.'); return; }
 
@@ -341,7 +356,6 @@
           setMsg(byId('add-msg'),'ok','Serviço salvo com sucesso.');
           byId('btn-clear').click();
           await loadServices();
-          log('service saved and list reloaded'); // 🔍 extra
         } catch(e) {
           console.error('[precos] add error', e);
           setMsg(byId('add-msg'),'error','Não foi possível salvar agora. Tente novamente.');
@@ -533,6 +547,76 @@
         }
       };
 
+      // ===== Upload de foto por serviço =====
+      const photoInput = byId('photo-input');
+      const svcBody = byId('svc-body');
+
+      // clique no botão "Anexar/Trocar foto"
+      svcBody.addEventListener('click', (e) => {
+        const btn = e.target.closest('button[data-photo-svc]');
+        if (!btn) return;
+        if (!currentUser) {
+          alert('Sessão expirada. Faça login novamente.');
+          return;
+        }
+        photoSvcId = btn.getAttribute('data-photo-svc');
+        if (!photoSvcId) return;
+        photoInput.value = '';
+        photoInput.click();
+      });
+
+      photoInput.addEventListener('change', async (e) => {
+        const file = e.target.files?.[0];
+        if (!file || !photoSvcId) {
+          photoSvcId = null;
+          return;
+        }
+        if (file.size > MAX_PHOTO_BYTES) {
+          alert('Arquivo muito grande. Use uma foto de até 2 MB.');
+          photoInput.value = '';
+          photoSvcId = null;
+          return;
+        }
+
+        try {
+          const token = await currentUser.getIdToken(true);
+          const url = BACKEND_BASE.replace(/\/$/,'') + '/api/servicos/foto';
+          const fd = new FormData();
+          fd.append('file', file);
+          fd.append('servicoId', photoSvcId);
+
+          const res = await fetch(url, {
+            method: 'POST',
+            headers: {
+              'Authorization': 'Bearer ' + token
+            },
+            body: fd
+          });
+
+          const text = await res.text();
+          let json;
+          try { json = JSON.parse(text); } catch { json = {}; }
+
+          if (!res.ok || json.ok === false) {
+            alert(json.error || ('Não foi possível enviar a foto agora. (HTTP ' + res.status + ')'));
+          } else {
+            // Atualiza em memória se veio fotoUrl
+            if (json.fotoUrl) {
+              const svc = dataAll.find(s => s.id === photoSvcId);
+              if (svc) svc.fotoUrl = json.fotoUrl;
+            }
+            await loadServices();
+            alert('Foto atualizada com sucesso.');
+          }
+        } catch (err) {
+          console.error('[precos] foto upload error', err);
+          alert('Não foi possível enviar a foto agora. Verifique sua conexão e tente de novo.');
+        } finally {
+          photoSvcId = null;
+          photoInput.value = '';
+        }
+      });
+
       // ===== Lista de serviços (Firestore) =====
       async function loadServices(){
         const db = firebase.firestore();
@@ -546,7 +630,8 @@
             nome: v.nome || '',
             precoBase: typeof v.precoBase === 'number' ? v.precoBase : parseFloat(v.precoBase || '0') || 0,
             duracaoMin: typeof v.duracaoMin === 'number' ? v.duracaoMin : parseInt(v.duracaoMin || '0') || 0,
-            sinonimos: Array.isArray(v.sinonimos) ? v.sinonimos : (typeof v.sinonimos === 'string' ? v.sinonimos.split(';').map(s=>s.trim()).filter(Boolean) : [])
+            sinonimos: Array.isArray(v.sinonimos) ? v.sinonimos : (typeof v.sinonimos === 'string' ? v.sinonimos.split(';').map(s=>s.trim()).filter(Boolean) : []),
+            fotoUrl: typeof v.fotoUrl === 'string' ? v.fotoUrl : '' // NOVO: flag simples de foto
           };
         });
         applyFilter();
@@ -587,7 +672,10 @@
               <td class="nowrap">${s.precoBase.toFixed(2)}</td>
               <td class="nowrap">${s.duracaoMin}</td>
               <td>${(s.sinonimos||[]).join(', ')}</td>
-              <td class="nowrap"><span class="help">Em breve</span></td>
+              <td class="nowrap">
+                <span class="help">${s.fotoUrl ? '1 foto' : 'Sem foto'}</span>
+                <button class="button button-sm" data-photo-svc="${s.id}">${s.fotoUrl ? 'Trocar foto' : 'Anexar foto'}</button>
+              </td>
             `;
             body.appendChild(tr);
           });
