@@ -57,6 +57,7 @@
     <!-- Ações (visitante / logado) -->
     <div class="actions" style="display:flex;gap:10px;align-items:center;margin-left:8px;">
       <!-- Visitante -->
+      <!-- PATCH: ajustar rota de login para a tela personalizada -->
       <a href="/pages/login.html" id="link-entrar" style="color:#cfe8dd;text-decoration:none;font-size:14px;line-height:40px;padding:0 10px;border-radius:8px;display:inline-block;">Entrar</a>
       <a href="/cadastro.html" class="cta" style="background:#22c55e;color:#0b1f17;text-decoration:none;font-weight:600;font-size:14px;padding:9px 14px;border-radius:12px;display:inline-block;line-height:1;">Começar agora</a>
 
@@ -82,6 +83,8 @@
 
     <!-- Mobile menu button -->
     <button id="btn-menu" aria-label="Abrir menu" style="display:none;margin-left:8px;background:transparent;border:1px solid rgba(255,255,255,.18);color:#cfe8dd;padding:8px 10px;border-radius:10px;cursor:pointer;line-height:1;">☰</button>
+
+    <!-- Controle global de Entrar/Sair/saudação no header -->
+    <script defer src="/assets/header-auth.js"></script>
   </div>
 </header>
-
