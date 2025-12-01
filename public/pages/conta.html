@@ -1,0 +1,261 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Sua conta — MEI Robô</title>
+
+  <link rel="canonical" href="https://www.meirobo.com.br/pages/conta.html" />
+  <meta property="og:url" content="https://www.meirobo.com.br/pages/conta.html" />
+  <meta name="twitter:url" content="https://www.meirobo.com.br/pages/conta.html" />
+
+  <meta name="robots" content="noindex,nofollow,noarchive" />
+
+  <meta property="og:type" content="website" />
+  <meta property="og:title" content="Sua conta — MEI Robô" />
+  <meta property="og:description" content="Veja seus dados de login e acesso ao painel do MEI Robô." />
+
+  <link rel="stylesheet" href="/assets/styles.css" />
+  <link rel="icon" href="data:,">
+
+  <!-- Layout canônico (header/footer dinâmicos) -->
+  <script defer src="/assets/layout.js"></script>
+
+  <!-- Firebase compat (mesmo padrão das telas logadas) -->
+  <script defer src="/__/firebase/9.22.2/firebase-app-compat.js"></script>
+  <script defer src="/__/firebase/9.22.2/firebase-auth-compat.js"></script>
+  <script defer src="/__/firebase/init.js"></script>
+
+  <style>
+    .account-page {
+      min-height: 82svh;
+      background: var(--page-bg,#020617);
+      padding: 24px 16px 40px;
+    }
+    .account-container {
+      max-width: 960px;
+      margin: 0 auto;
+    }
+    .account-grid {
+      display: grid;
+      grid-template-columns: minmax(0,2fr) minmax(0,1.2fr);
+      gap: 16px;
+    }
+    @media (max-width: 800px) {
+      .account-grid {
+        grid-template-columns: minmax(0,1fr);
+      }
+    }
+    .card {
+      background: var(--card,#0b1220);
+      border-radius: 16px;
+      padding: 18px 18px 16px;
+      border: 1px solid rgba(148,163,184,.25);
+      box-shadow: 0 12px 30px rgba(15,23,42,.35);
+    }
+    .card h2 {
+      margin: 0 0 8px;
+      font-size: 18px;
+      color: #e5f5eb;
+    }
+    .card p.desc {
+      margin: 0 0 16px;
+      font-size: 14px;
+      color: #9ca3af;
+    }
+    .field-label {
+      font-size: 13px;
+      text-transform: uppercase;
+      letter-spacing: .06em;
+      color: #9ca3af;
+      margin-bottom: 4px;
+    }
+    .field-value {
+      font-size: 15px;
+      color: #e5e7eb;
+      font-weight: 500;
+      word-break: break-all;
+    }
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      border-radius: 999px;
+      padding: 4px 9px;
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: .08em;
+      background: rgba(34,197,94,.12);
+      color: #bbf7d0;
+      border: 1px solid rgba(34,197,94,.35);
+    }
+    .pill span.dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 999px;
+      background: #22c55e;
+    }
+    .hint {
+      font-size: 13px;
+      color: #9ca3af;
+      margin-top: 10px;
+      line-height: 1.5;
+    }
+    .btn-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 13px;
+      padding: 6px 0;
+      color: #a5f3fc;
+      text-decoration: none;
+    }
+    .btn-link:hover {
+      text-decoration: underline;
+    }
+    .badge-coming {
+      display: inline-flex;
+      align-items: center;
+      padding: 2px 7px;
+      border-radius: 999px;
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: .08em;
+      background: rgba(148,163,184,.15);
+      color: #e5e7eb;
+    }
+  </style>
+</head>
+<body>
+  <div id="app-header"></div>
+
+  <main class="account-page">
+    <div class="account-container">
+      <header style="margin-bottom: 18px;">
+        <div style="display:flex;justify-content:space-between;align-items:flex-end;gap:8px;flex-wrap:wrap;">
+          <div>
+            <h1 style="margin:0 0 4px;font-size:22px;color:#e5f5eb;">Sua conta</h1>
+            <p style="margin:0;font-size:14px;color:#9ca3af;">
+              Veja como o MEI Robô enxerga seu acesso. No futuro, você vai poder ajustar aqui mais detalhes do seu perfil.
+            </p>
+          </div>
+          <div>
+            <span class="pill"><span class="dot"></span> Logado no painel</span>
+          </div>
+        </div>
+      </header>
+
+      <section class="account-grid">
+        <article class="card">
+          <h2>Dados de login</h2>
+          <p class="desc">Essas informações vêm direto do seu cadastro de acesso ao MEI Robô.</p>
+
+          <div style="display:flex;flex-direction:column;gap:10px;">
+            <div>
+              <div class="field-label">Nome de exibição</div>
+              <div class="field-value" id="account-name">—</div>
+            </div>
+            <div>
+              <div class="field-label">E-mail</div>
+              <div class="field-value" id="account-email">—</div>
+            </div>
+            <div>
+              <div class="field-label">ID interno</div>
+              <div class="field-value" id="account-uid" style="font-size:12px;opacity:.8;">—</div>
+            </div>
+          </div>
+
+          <p class="hint">
+            Para alterar sua senha, use a opção
+            <strong>“Esqueci minha senha”</strong> na tela de login.
+          </p>
+          <a href="/pages/login.html" class="btn-link" id="go-login">Ir para a tela de login</a>
+        </article>
+
+        <article class="card">
+          <h2>Perfil do MEI</h2>
+          <p class="desc">
+            Aqui em breve você vai poder ajustar como o MEI Robô se apresenta para seus clientes:
+            nome curto, jeito de falar e outros detalhes.
+          </p>
+
+          <span class="badge-coming">Em breve</span>
+
+          <p class="hint">
+            Por enquanto, essas configurações estão concentradas na tela
+            <strong>Configuração de comunicação</strong>.
+          </p>
+
+          <a href="/pages/configuracao.html" class="btn-link">Abrir configuração de comunicação</a>
+        </article>
+      </section>
+    </div>
+  </main>
+
+  <div id="app-footer"></div>
+
+  <script>
+    (function(){
+      'use strict';
+
+      function onReady(fn){
+        if(document.readyState === 'loading'){
+          document.addEventListener('DOMContentLoaded', fn);
+        }else{
+          fn();
+        }
+      }
+
+      onReady(function(){
+        function getAuthSafe(){
+          try{
+            if(!(window.firebase && firebase.app)) return null;
+            var app = firebase.app();
+            if(app && app.auth) return app.auth();
+          }catch(e){
+            console.warn('[conta] auth não disponível:', e);
+          }
+          return null;
+        }
+
+        var $name  = document.getElementById('account-name');
+        var $email = document.getElementById('account-email');
+        var $uid   = document.getElementById('account-uid');
+        var $goLogin = document.getElementById('go-login');
+
+        var auth = getAuthSafe();
+        if(!auth){
+          // Se não tiver Firebase, só mostra os placeholders
+          return;
+        }
+
+        auth.onAuthStateChanged(function(user){
+          if(!user){
+            // Sem login → leva pra tela de login com retorno
+            var next = encodeURIComponent('/pages/conta.html');
+            window.location.href = '/pages/login.html?next=' + next;
+            return;
+          }
+
+          var nome = user.displayName || '';
+          if(nome && nome.indexOf('@') > 0){
+            nome = nome.split('@')[0];
+          }
+          nome = (nome || 'MEI').trim();
+
+          if($name)  $name.textContent  = nome;
+          if($email) $email.textContent = user.email || '—';
+          if($uid)   $uid.textContent   = user.uid || '—';
+        });
+
+        if($goLogin){
+          $goLogin.addEventListener('click', function(e){
+            e.preventDefault();
+            window.location.href = '/pages/login.html';
+          });
+        }
+      });
+    })();
+  </script>
+</body>
+</html>
