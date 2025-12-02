@@ -984,51 +984,97 @@ try {
       } catch(_){ }
     });
 
-   /* ====== ENVIO DA VERIFICAÇÃO VIA FIREBASE (ponte 15 dias) ====== */
-  async function sendVerificationViaBackend(user) {
-    if (!user) {
-      console.error('[cadastro][sendVerificationViaBackend] chamado sem usuário autenticado');
-      throw new Error('Usuário não autenticado.');
-    }
+    /* ====== ENVIO DA VERIFICAÇÃO PELO BACKEND (SendGrid) ====== */
+    async function sendVerificationViaBackend(user) {
+      if (!user) {
+        console.error('[cadastro][sendVerificationViaBackend] chamado sem usuário autenticado');
+        throw new Error('Usuário não autenticado.');
+      }
+      const email = user.email || '(sem e-mail)';
+      console.log('[cadastro][sendVerificationViaBackend] iniciando envio de verificação para', email);
 
-    const email = user.email || '(sem e-mail)';
-    console.log('[cadastro][sendVerificationViaBackend] enviando verificação via Firebase para', email);
-
-    try {
-      // Ponte de 15 dias: usar o próprio Firebase Auth
-      // (sem passar pelo backend nem pelo SendGrid)
-      if (typeof user.sendEmailVerification === 'function') {
-        await user.sendEmailVerification({
-          // opcional: para onde levar depois de verificar
-          url: 'https://www.meirobo.com.br/pages/configuracao.html',
-          handleCodeInApp: false
-        });
-      } else {
-        console.warn('[cadastro][sendVerificationViaBackend] user.sendEmailVerification indisponível; tentando fallback simples.');
-        await user.sendEmailVerification();
+      let idToken;
+      try {
+        idToken = await user.getIdToken(true);
+      } catch(err) {
+        console.error('[cadastro][sendVerificationViaBackend] falha ao obter ID token', err);
+        try {
+          if (formMsg) {
+            formMsg.className = 'error';
+            formMsg.textContent = 'Não foi possível preparar o envio do e-mail de verificação. Tente novamente em alguns instantes.';
+          }
+        } catch(_) {}
+        throw err;
       }
 
+      let resp;
+      try {
+        resp = await fetch(API.sendVerificationEmail, {
+          method: 'POST',
+          headers: {
+            'Authorization': 'Bearer ' + idToken,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({})
+        });
+      } catch(err) {
+        console.error('[cadastro][sendVerificationViaBackend] erro de rede ao chamar backend', err);
+        try {
+          if (formMsg) {
+            formMsg.className = 'error';
+            formMsg.textContent = 'Não foi possível enviar o e-mail de verificação agora (rede). Tente novamente em alguns instantes.';
+          }
+        } catch(_) {}
+        throw err;
+      }
+
+      if (resp.status === 401 || resp.status === 403) {
+        console.warn('[cadastro][sendVerificationViaBackend] 401/403, tentando refresh do token');
+        try {
+          idToken = await user.getIdToken(true);
+          resp = await fetch(API.sendVerificationEmail, {
+            method: 'POST',
+            headers: {
+              'Authorization': 'Bearer ' + idToken,
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({})
+
+          });
+        } catch(err) {
+          console.error('[cadastro][sendVerificationViaBackend] erro ao repetir envio após 401/403', err);
+          try {
+            if (formMsg) {
+              formMsg.className = 'error';
+              formMsg.textContent = 'Não foi possível enviar o e-mail de verificação agora (autenticação). Tente novamente em alguns instantes.';
+            }
+          } catch(_) {}
+          throw err;
+        }
+      }
+
+      if (!resp.ok) {
+        const txt = await resp.text().catch(()=> '');
+        console.error('[cadastro][sendVerificationViaBackend] falha HTTP', resp.status, txt);
+        try {
+          if (formMsg) {
+            formMsg.className = 'error';
+            formMsg.textContent = 'Não foi possível enviar o e-mail de verificação agora. Tente novamente em alguns minutos.';
+          }
+        } catch(_) {}
+        throw new Error('Falha ao enviar verificação (HTTP ' + resp.status + '): ' + txt);
+      }
+
+      console.log('[cadastro][sendVerificationViaBackend] e-mail de verificação enviado com sucesso para', email);
       try {
         if (formMsg && (!formMsg.textContent || formMsg.className !== 'hint')) {
           formMsg.className = 'hint';
-          formMsg.textContent =
-            'Enviamos o e-mail de verificação. Confira sua caixa de entrada e volte para esta aba.';
+          formMsg.textContent = 'Enviamos o e-mail de verificação. Confira sua caixa de entrada e volte para esta aba.';
         }
-      } catch (_) {}
-
+      } catch(_) {}
       return true;
-    } catch (err) {
-      console.error('[cadastro][sendVerificationViaBackend] erro ao enviar verificação via Firebase', err);
-      try {
-        if (formMsg) {
-          formMsg.className = 'error';
-          formMsg.textContent =
-            'Não foi possível enviar o e-mail de verificação agora. Tente novamente em alguns instantes.';
-        }
-      } catch (_) {}
-      throw err;
     }
-    
+
     /* ====== Submit (com Turnstile obrigatório, preservando backend) ====== */
     async function proceedSubmit(){
       formMsg.className='hint';
@@ -1203,25 +1249,26 @@ try {
         document.getElementById("psgResendBtn").onclick = async function () {
           psgMsg.textContent = "Reenviando…";
 
-          const authInst =
-            (window.firebase && firebase.auth && firebase.auth()) || null;
-          const curUser = authInst && authInst.currentUser;
-
-          if (!curUser) {
-            psgMsg.textContent =
-              "Abra a aba original onde você fez o cadastro e entre com seu e-mail e senha.";
+          if (!firebase.auth().currentUser) {
+            psgMsg.textContent = "Abra a aba original onde você fez o cadastro.";
             return;
           }
 
           try {
-            await sendVerificationViaBackend(curUser);
-            psgMsg.textContent = "Pronto! Verifique sua caixa de entrada.";
-          } catch (e) {
-            console.warn('[cadastro][psgResendBtn] erro ao reenviar verificação via Firebase', e);
-            if (!psgMsg.textContent) {
-              psgMsg.textContent =
-                "Não foi possível reenviar agora. Tente novamente em alguns instantes.";
+            const token = await firebase.auth().currentUser.getIdToken(true);
+            const r = await fetch(API_BASE + "/api/auth/send-verification-email", {
+              method: "POST",
+              headers: { "Authorization": "Bearer " + token }
+            });
+
+            const txt = await r.text();
+            if (r.ok) {
+              psgMsg.textContent = "Pronto! Verifique sua caixa de entrada.";
+            } else {
+              psgMsg.textContent = "Falha no reenvio: " + txt;
             }
+          } catch (e) {
+            psgMsg.textContent = "Erro ao reenviar.";
           }
         };
 
@@ -1444,13 +1491,26 @@ try {
 
   <!-- Guard anti Firebase nativo (robustez) -->
 
-    <!-- Guard anti Firebase nativo (temporariamente DESATIVADO: modo Firebase direto por 15 dias) -->
   <script>
   (function(){
-    console.log('[guard] desativado temporariamente (modo Firebase nativo para verificacao de email).');
+    try{
+      const iv=setInterval(()=>{try{
+        const u=firebase?.auth?.().currentUser;
+        const P=(firebase?.User?.prototype)||(u&&Object.getPrototypeOf(u));
+        if(P?.sendEmailVerification){
+          P.sendEmailVerification=function(){
+            console.warn('[guard] bloqueado sendEmailVerification');
+            return Promise.reject(new Error('Use backend SendGrid'));
+          }
+          console.log('[guard] ativo');
+          clearInterval(iv);
+        }
+      }catch{}},150);
+    
+      setTimeout(()=>clearInterval(iv),8000);
+    }catch(e){console.warn('[guard] falhou',e);}
   })();
   </script>
-
 
   <!-- Watchdog canônico DESATIVADO:
        qualquer redirect para /pages/configuracao.html agora acontece
@@ -1463,3 +1523,4 @@ try {
 
 </body>
 </html>
+
