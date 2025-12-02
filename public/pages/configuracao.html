@@ -193,7 +193,7 @@
             </div>
           </div>
 
-          <div class="mt-12">
+                    <div class="mt-12">
             <label>Endereço</label>
             <span id="disp-endereco" class="display-value">—</span>
             <input type="hidden" id="hid-endereco" />
@@ -206,6 +206,32 @@
           </p>
 
           <p id="cnpj-vinculo-hint" class="hint mt-8"></p>
+
+          <!-- Bloco extra: só aparece quando houver dúvida de vínculo -->
+          <div id="vinculo-extra-wrapper" class="mt-8" hidden>
+            <div class="mt-4">
+              <label for="cpf-responsavel">CPF de quem declara autorização</label>
+              <input
+                id="cpf-responsavel"
+                class="input"
+                inputmode="numeric"
+                autocomplete="off"
+                placeholder="Digite apenas números"
+                maxlength="14"
+              />
+              <p class="hint">
+                Usamos apenas para registrar quem declarou estar autorizado(a) a contratar o MEI Robô em nome da empresa.
+                Não compartilhamos este dado com terceiros.
+              </p>
+            </div>
+
+            <label class="mt-4" style="display:flex;gap:8px;align-items:flex-start;">
+              <input type="checkbox" id="chk-vinculo-autorizado" />
+              <span>Sou autorizado(a) pela empresa a prosseguir.</span>
+            </label>
+
+            <p id="vinculo-extra-erro" class="hint" style="color:#ffbdbd;display:none;"></p>
+          </div>
         </section>
 
         <section>
@@ -1682,6 +1708,64 @@
       });
     }
   </script>
+    <script>
+  (function(){
+    const hintEl = document.getElementById('cnpj-vinculo-hint');
+    const wrapper = document.getElementById('vinculo-extra-wrapper');
+    const cpfInput = document.getElementById('cpf-responsavel');
+    const chkAut = document.getElementById('chk-vinculo-autorizado');
+    const erroEl = document.getElementById('vinculo-extra-erro');
+
+    if (!hintEl || !wrapper) {
+      console.warn('[configuracao] vinculo-extra-wrapper não inicializado (sem CNPJ hint).');
+      return;
+    }
+
+    function apenasNumeros(str){
+      return String(str || '').replace(/\D+/g, '');
+    }
+
+    function atualizarVisibilidade(){
+      const texto = (hintEl.textContent || '').trim();
+      const hasWarning = texto.length > 0;
+      wrapper.hidden = !hasWarning;
+      if (!hasWarning) {
+        // zera campos se o vínculo voltar a ficar OK
+        if (cpfInput) cpfInput.value = '';
+        if (chkAut) chkAut.checked = false;
+        if (erroEl) { erroEl.style.display = 'none'; erroEl.textContent = ''; }
+      }
+    }
+
+    // Roda uma vez na carga
+    atualizarVisibilidade();
+
+    // Observa mudanças no hint para ligar/desligar o bloco
+    const obs = new MutationObserver(function(){
+      atualizarVisibilidade();
+    });
+
+    obs.observe(hintEl, { childList:true, characterData:true, subtree:true });
+
+    // Validação leve no blur do CPF (opcional, não bloqueia fluxo)
+    if (cpfInput) {
+      cpfInput.addEventListener('blur', function(){
+        if (wrapper.hidden) return;
+        const v = apenasNumeros(cpfInput.value);
+        if (v && v.length > 0 && v.length < 11) {
+          if (erroEl) {
+            erroEl.textContent = 'CPF parece incompleto. Se possível, revise antes de seguir.';
+            erroEl.style.display = 'block';
+          }
+        } else if (erroEl) {
+          erroEl.style.display = 'none';
+          erroEl.textContent = '';
+        }
+      });
+    }
+  })();
+  </script>
+
 </body>
 </html>
 
