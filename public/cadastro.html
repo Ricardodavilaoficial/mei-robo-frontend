@@ -84,7 +84,7 @@
 </head>
 <body>
   <div id="app-header"></div>
-  <div id="header"></"></div>
+  <div id="header"></div>
 
   <main class="section">
     <div class="container form-wrap">
@@ -161,6 +161,10 @@
               Podemos checar disponibilidade agora, mas a validação final é na próxima etapa.
             </span>
             <div id="cnpjStatus" class="hint" aria-live="polite" style="margin-top:6px"></div>
+
+            <!-- NOVO: status da verificação de autoridade (QSA) -->
+            <div id="autoridadeStatus" class="hint" aria-live="polite" style="margin-top:4px"></div>
+
             <div id="microVinculo" class="hint" style="margin-top:8px">
               Pagamento e cupom serão liberados <strong>depois</strong> que confirmarmos seu vínculo com o CNPJ.
             </div>
@@ -305,7 +309,9 @@
       cadastro:     API_BASE + "/api/cadastro",
       checkVerification: API_BASE + "/api/auth/check-verification",
       authReclaim:  API_BASE + "/api/auth/reclaim-email",
-      sendVerificationEmail: API_BASE + "/api/auth/send-verification-email"
+      sendVerificationEmail: API_BASE + "/api/auth/send-verification-email",
+      // NOVO: verificação de CNPJ + autoridade (ReceitaWS)
+      cnpjVerificar: API_BASE + "/api/cnpj/verificar"
     };
 
     /* ====== UI refs ====== */
@@ -314,6 +320,9 @@
     const formMsg = document.getElementById('formMsg');
     const cnpjInput = document.getElementById('cnpj');
     const cnpjStatus = document.getElementById('cnpjStatus');
+    // NOVO: status de autoridade (QSA) + nome do responsável
+    const autoridadeStatus = document.getElementById('autoridadeStatus');
+    const nomeInput = document.getElementById('nome');
     const emailInput = document.getElementById('email');
     const email2Input = document.getElementById('email2');
     const phoneInput = document.getElementById('telefone');
@@ -533,7 +542,7 @@
     function validateCNPJ(cnpj){
       cnpj = normalizeCNPJ(cnpj);
       if (cnpj.length !== 14) return false;
-      if (/^(\d){13}$/.test(cnpj)) return false;
+      if (/^(\d)\1{13}$/.test(cnpj)) return false;
       let length = cnpj.length - 2;
       let numbers = cnpj.substring(0, length);
       const digits = cnpj.substring(length);
@@ -553,6 +562,78 @@
       return result === parseInt(digits.charAt(1), 10);
     }
     function debounce(fn,ms){ let t; return (...args)=>{ clearTimeout(t); t=setTimeout(()=>fn(...args),ms); }; }
+
+    // ====== Verificação de autoridade/Vínculo (ReceitaWS) ======
+    async function verificarCnpjAutoridade(cnpjDigits){
+      if (!autoridadeStatus) return;
+      autoridadeStatus.className = 'hint';
+
+      const nomeResp = (nomeInput?.value || '').trim();
+      if (!nomeResp) {
+        autoridadeStatus.textContent = 'Você poderá confirmar seu vínculo com o CNPJ na próxima etapa.';
+        return;
+      }
+
+      autoridadeStatus.textContent = 'Confirmando vínculo com o CNPJ...';
+
+      try{
+        const res = await fetch(API.cnpjVerificar, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json'
+          },
+          body: JSON.stringify({
+            cnpj: cnpjDigits,
+            nomeUsuario: nomeResp
+          })
+        });
+
+        let data = {};
+        try { data = await res.json(); } catch(_) { data = {}; }
+
+        // Falha HTTP → não bloqueia, só mensagem neutra
+        if (!res.ok) {
+          autoridadeStatus.textContent = 'Não foi possível checar seu vínculo com o CNPJ agora. Vamos revisar na próxima etapa.';
+          autoridadeStatus.className = 'hint';
+          return;
+        }
+
+        // Casos principais conforme backend já implementado
+        if (data && data.ok && data.autoridade) {
+          const aut = data.autoridade || {};
+          if (aut.autoridade === 'valido') {
+            autoridadeStatus.textContent = 'Você consta como responsável pela empresa, podemos seguir.';
+            autoridadeStatus.className = 'ok';
+            return;
+          }
+          if (aut.autoridade === 'nao_encontrado_no_qsa') {
+            autoridadeStatus.textContent = 'Não achei seu nome no quadro de sócios — na próxima etapa vou pedir um documento simples da empresa.';
+            autoridadeStatus.className = 'hint';
+            return;
+          }
+          // Outro código qualquer → neutro
+          autoridadeStatus.textContent = 'CNPJ válido. Seu vínculo será confirmado na próxima etapa, se necessário.';
+          autoridadeStatus.className = 'hint';
+          return;
+        }
+
+        // Ex.: ok:false, motivo: nao_encontrado_no_cache
+        if (data && data.motivo === 'nao_encontrado_no_cache') {
+          autoridadeStatus.textContent = 'Não consegui consultar seu CNPJ automaticamente — na próxima etapa vou pedir o Cartão CNPJ.';
+          autoridadeStatus.className = 'hint';
+          return;
+        }
+
+        // Fallback genérico
+        autoridadeStatus.textContent = 'CNPJ válido. Seu vínculo será revisado na próxima etapa, se necessário.';
+        autoridadeStatus.className = 'hint';
+      } catch (err) {
+        console.warn('[cadastro][autoridade] erro', err);
+        autoridadeStatus.textContent = 'Não foi possível checar seu vínculo com o CNPJ agora. Vamos revisar depois, se precisar.';
+        autoridadeStatus.className = 'hint';
+      }
+    }
 
     // ====== Gate do botão com todos critérios ====== 
     function passwordRulesOk(s){
@@ -598,6 +679,11 @@
       cnpjAvailability = 'unknown';
       cnpjStatus.className = 'hint';
       cnpjStatus.textContent = '';
+      // NOVO: limpa status de autoridade ao mudar o CNPJ
+      if (autoridadeStatus) {
+        autoridadeStatus.className = 'hint';
+        autoridadeStatus.textContent = '';
+      }
       if (!validateCNPJ(digits)) {
         cnpjStatus.textContent = 'Revise o CNPJ: os números não formam um CNPJ válido.';
         cnpjStatus.className = 'error';
@@ -614,6 +700,11 @@
           cnpjAvailability = 'available';
           cnpjStatus.textContent = 'CNPJ disponível para cadastro.';
           cnpjStatus.className = 'ok';
+
+          // NOVO: tenta checar vínculo com o CNPJ (telecom light), sem bloquear o fluxo
+          try {
+            await verificarCnpjAutoridade(digits);
+          } catch (_) {}
         } else {
           cnpjAvailability = 'unavailable';
           cnpjStatus.textContent = 'Este CNPJ já tem conta. Você pode recuperar o acesso ou usar outro.';

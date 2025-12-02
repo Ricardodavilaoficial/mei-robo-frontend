@@ -515,11 +515,12 @@
     function formatDateBR(iso){ try { const d=new Date(iso); return `${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}/${d.getFullYear()}` } catch(_){ return iso; } }
     function onlyDigits(s){ return String(s||'').replace(/\D+/g,''); }
 
-    // === Validação simples de CNPJ ===
+        // === Validação simples de CNPJ ===
     function isValidCNPJ(cnpj){
       cnpj = onlyDigits(cnpj||'');
       if (cnpj.length !== 14) return false;
-      if (/^(\d){13}$/.test(cnpj)) return false;
+      // rejeita CNPJs com todos os dígitos iguais (000..., 111..., etc.)
+      if (/^(\d)\1{13}$/.test(cnpj)) return false;
       let t = 12, d1 = 0, d2 = 0, p1 = 5, p2 = 6;
       for (let i = 0; i < t; i++) {
         const n = parseInt(cnpj[i],10);
@@ -823,30 +824,62 @@
     });
 
     /* === Setup de UI === */
-    function setupVoice(uid, idToken){
-      voiceEls.btnChoose.addEventListener('click',()=> voiceEls.input.click());
-      voiceEls.input.addEventListener('change',(e)=>{ const files=e.target?.files; if(files) addFiles(files); voiceEls.input.value=''; });
-      voiceEls.btnClear.addEventListener('click',()=>{
-        voiceState.files = [];
-        voiceState.uploading = false;
-        voiceState.ready = false;
-        voiceState.started = false;
-        renderFileList();
-        validateVoiceReady();
-        setUploadPct(0);
-        setVoiceMsg('');
-        btnSalvar.disabled = true; // volta a exigir nova ação
-      });
-      voiceEls.recStart.addEventListener('click', startRec);
-      voiceEls.recStop.addEventListener('click', stopRec);
-      voiceEls.aceite.addEventListener('change', validateVoiceReady);
-      voiceEls.btnEnviar.addEventListener('click', ()=> uploadSingle(uid, idToken));
-      renderFileList(); validateVoiceReady();
+        function setupVoice(uid, idToken){
+      // Blindagem: se a seção de voz não existir (HTML alterado), não quebra a tela inteira.
+      if (!voiceEls.area || !voiceEls.btnChoose || !voiceEls.input) {
+        console.warn('[configuracao] seção de voz não encontrada; pulando setupVoice.');
+        return;
+      }
+
+      if (voiceEls.btnChoose) {
+        voiceEls.btnChoose.addEventListener('click', () => voiceEls.input.click());
+      }
+
+      if (voiceEls.input) {
+        voiceEls.input.addEventListener('change', (e) => {
+          const files = e.target?.files;
+          if (files) addFiles(files);
+          voiceEls.input.value = '';
+        });
+      }
+
+      if (voiceEls.btnClear) {
+        voiceEls.btnClear.addEventListener('click', () => {
+          voiceState.files = [];
+          voiceState.uploading = false;
+          voiceState.ready = false;
+          voiceState.started = false;
+          renderFileList();
+          validateVoiceReady();
+          setUploadPct(0);
+          setVoiceMsg('');
+          btnSalvar.disabled = true; // volta a exigir nova ação
+        });
+      }
+
+      if (voiceEls.recStart) {
+        voiceEls.recStart.addEventListener('click', startRec);
+      }
+
+      if (voiceEls.recStop) {
+        voiceEls.recStop.addEventListener('click', stopRec);
+      }
+
+      if (voiceEls.aceite) {
+        voiceEls.aceite.addEventListener('change', validateVoiceReady);
+      }
+
+      if (voiceEls.btnEnviar) {
+        voiceEls.btnEnviar.addEventListener('click', () => uploadSingle(uid, idToken));
+      }
+
+      renderFileList();
+      validateVoiceReady();
 
       // Se já houver voz pronta no backend, habilita o botão salvar e mostra player
-      (async ()=>{
+      (async () => {
         const ok = await refreshPlayer(uid, idToken);
-        if (ok){
+        if (ok) {
           voiceState.ready = true;
           btnSalvar.disabled = false;
           setVoiceMsg('✅ Sua voz já está pronta para uso.');
@@ -1645,4 +1678,5 @@
   </script>
 </body>
 </html>
+
 
