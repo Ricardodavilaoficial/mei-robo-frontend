@@ -396,16 +396,33 @@
         clearMsg(byId('import-msg'));
         byId('preview-wrap').classList.add('hidden');
         csvText = '';
-        const f = finput.files?.[0];
-        if (!f) { byId('btn-preview').disabled = true; byId('btn-import').disabled = true; return; }
-        if (f.size > 1024*1024) { setMsg(byId('import-msg'), 'error', 'Arquivo muito grande (máx. 1MB).'); finput.value = ''; return; }
+
+        const f = finput.files && finput.files[0];
+        if (!f) {
+          byId('btn-preview').disabled = true;
+          byId('btn-import').disabled = true;
+          return;
+        }
+
+        // Limite de 1 MB
+        if (f.size > 1024 * 1024) {
+          setMsg(byId('import-msg'), 'error', 'Arquivo muito grande (máx. 1MB).');
+          finput.value = '';
+          byId('btn-preview').disabled = true;
+          byId('btn-import').disabled = true;
+          return;
+        }
+
         const reader = new FileReader();
         reader.onload = () => {
           csvText = String(reader.result || '');
-          byId('btn-preview').disabled = !csvText;
-          byId('btn-import').disabled = !csvText;
+          console.log('[precos] CSV carregado, tamanho chars =', csvText.length);
         };
         reader.readAsText(f, 'UTF-8');
+
+        // 👉 Habilita os botões assim que o arquivo for aceito
+        byId('btn-preview').disabled = false;
+        byId('btn-import').disabled = false;
       }
 
       function parseCsvBasic(text){
@@ -872,3 +889,4 @@
   </script>
 </body>
 </html>
+
