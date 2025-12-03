@@ -604,6 +604,9 @@ Olá, segue conforme combinado o orçamento detalhado. Ele ainda não é propost
     }
     renderTabela(); renderTotal();
 
+    // Catálogo de serviços (Preços) carregado do Firestore
+    let servicosCatalog = [];
+
     // Histórico vindo do backend
     let orcamentosHistorico = [];
 
@@ -912,6 +915,81 @@ Olá, segue conforme combinado o orçamento detalhado. Ele ainda não é propost
       }
     }
 
+    // ---------------- Catálogo de serviços (Preços) ----------------
+    function normalizeText(t){
+      return String(t || '')
+        .toLowerCase()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g,'');
+    }
+
+    function encontrarServicoPorEntrada(texto){
+      if(!texto) return null;
+      const raw = String(texto).trim();
+      if(!raw) return null;
+
+      let codigoBusca = '';
+      let nomeBusca = '';
+
+      if(raw.startsWith('#')){
+        codigoBusca = raw.slice(1).toUpperCase();
+      }else{
+        nomeBusca = normalizeText(raw);
+      }
+
+      if(codigoBusca){
+        const foundByCode = servicosCatalog.find(s => (s.codigo || '').toUpperCase() === codigoBusca);
+        if(foundByCode) return foundByCode;
+      }
+
+      if(nomeBusca){
+        const byNome = servicosCatalog.find(s => {
+          const n = normalizeText(s.nome || '');
+          const cod = normalizeText(s.codigo || '');
+          const sin = normalizeText((s.sinonimos || []).join(' '));
+          return n.includes(nomeBusca) || sin.includes(nomeBusca) || cod === nomeBusca;
+        });
+        if(byNome) return byNome;
+      }
+
+      return null;
+    }
+
+    async function loadServicosCatalog(){
+      try{
+        if(!hasFirebaseCompat()){
+          console.log('[orcamentos] sem Firebase compat → sem catálogo de serviços');
+          return;
+        }
+        const uid = await getUid();
+        if(!uid){
+          console.log('[orcamentos] usuário não logado → sem catálogo de serviços');
+          return;
+        }
+        const db = firebase.firestore();
+        const col = db.collection('profissionais').doc(uid).collection('produtosEServicos');
+        const snap = await col.orderBy('nome').get();
+        servicosCatalog = snap.docs.map(d => {
+          const v = d.data() || {};
+          return {
+            id: d.id,
+            codigo: v.codigo || '',
+            nome: v.nome || '',
+            precoBase: typeof v.precoBase === 'number' ? v.precoBase : parseFloat(v.precoBase || '0') || 0,
+            duracaoMin: typeof v.duracaoMin === 'number' ? v.duracaoMin : parseInt(v.duracaoMin || '0') || 0,
+            sinonimos: Array.isArray(v.sinonimos)
+              ? v.sinonimos
+              : (typeof v.sinonimos === 'string'
+                  ? v.sinonimos.split(';').map(s=>s.trim()).filter(Boolean)
+                  : [])
+          };
+        });
+        console.log('[orcamentos] catálogo de serviços carregado:', servicosCatalog.length);
+      }catch(err){
+        console.warn('[orcamentos] erro ao carregar catálogo de serviços:', err);
+      }
+    }
+
     // ---------------- Lógica de itens ----------------
     function rowHasValue(it){
       return (it.nome && it.nome.trim()!=='') || (it.codigo && it.codigo.trim()!=='') || (Number(it.preco)>0);
@@ -1087,17 +1165,35 @@ Olá, segue conforme combinado o orçamento detalhado. Ele ainda não é propost
         btnBusca.addEventListener('click', ()=>{
           const tEl = el('busca');
           if(!tEl) return;
-          const t = tEl.value.trim();
-          if(!t) return;
-          let cod = ''; let nome = '';
-          if(t.startsWith('#')) cod = t.replace('#','').toUpperCase();
-          else nome = t;
-          const idx = itens.findIndex(x => !x.nome && !x.codigo);
+          const entrada = tEl.value.trim();
+          if(!entrada) return;
+
+          // Decide em qual linha cair
+          const idx = itens.findIndex(x => !x.nome && !x.codigo && !(Number(x.preco)>0));
           const target = idx>=0 ? itens[idx] : (itens.push({codigo:'', nome:'', preco:0, qtd:1, duracao:''}), itens[itens.length-1]);
-          if(cod) target.codigo = cod;
-          if(nome) target.nome = nome;
+
+          // Tenta achar serviço cadastrado
+          const svc = encontrarServicoPorEntrada(entrada);
+
+          if(svc){
+            // Preenche com dados do catálogo de serviços
+            target.codigo  = svc.codigo || '';
+            target.nome    = svc.nome || entrada;
+            target.preco   = typeof svc.precoBase === 'number' ? svc.precoBase : (parseFloat(svc.precoBase || '0') || 0);
+            target.qtd     = 1;
+            target.duracao = typeof svc.duracaoMin === 'number' ? svc.duracaoMin : (parseInt(svc.duracaoMin || '0') || 0);
+          }else{
+            // Fallback: comportamento antigo – só joga texto na linha
+            if(entrada.startsWith('#')){
+              target.codigo = entrada.replace('#','').toUpperCase();
+            }else{
+              target.nome = entrada;
+            }
+          }
+
           tEl.value='';
-          renderTabela(); renderTotal();
+          renderTabela(); 
+          renderTotal();
         });
       }
 
@@ -1247,6 +1343,7 @@ ${infoExtra}`;
       carregarHistoricoDoBackend();    // busca real no /api/orcamentos
       loadLocalDefaults();             // texto local de info adicionais
       loadOrcamentoVisualConfig();     // timbrado + textos padrão
+      loadServicosCatalog();           // catálogo de serviços para preencher preço/duração
       bindAcoes();                     // eventos de botões
     });
   </script>
