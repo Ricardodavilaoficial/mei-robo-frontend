@@ -61,6 +61,9 @@
 
     /* Badge simples */
     .badge { display:inline-flex; align-items:center; gap:6px; font-weight:700; font-size:.85rem; padding:4px 10px; border-radius:999px; border:1px solid currentColor; opacity:.9; }
+
+    /* Pager invisível (mantemos a lógica, escondemos na UI) */
+    .nav-pager { display:none; }
   </style>
 </head>
 <body class="app-shell">
@@ -133,11 +136,12 @@
                 <th class="nowrap">Tempo (min)</th>
                 <th>Outras informações</th>
                 <th class="nowrap">Foto</th>
+                <th class="nowrap">Ações</th>
               </tr>
             </thead>
-            <tbody id="svc-body"><tr><td colspan="6">Carregando…</td></tr></tbody>
+            <tbody id="svc-body"><tr><td colspan="7">Carregando…</td></tr></tbody>
           </table>
-          <div class="mt-2 text-right">
+          <div class="mt-2 text-right nav-pager">
             <button id="prev" class="button" disabled>Anterior</button>
             <button id="next" class="button" disabled>Próximo</button>
           </div>
@@ -154,7 +158,7 @@
       <div class="mt-4 card">
         <div class="badge">Importar planilha (opcional)</div>
         <div class="help mt-1">
-          Se você já tem sua tabela, pode importar para acelerar. Aceita planilha <b>.csv</b>. Em breve: Excel / PDF.
+          Se você já tem sua tabela, pode importar para acelerar. Nesta versão aceitamos planilha <b>.csv</b>.
         </div>
 
         <div id="import-ready" class="mt-2 help"></div>
@@ -171,7 +175,6 @@
           <button id="btn-preview" class="button" disabled>Ver prévia</button>
           <button id="btn-import" class="button" disabled>Importar</button>
           <button id="btn-sample" class="button" title="Baixar exemplo">Baixar exemplo de planilha</button>
-          <button id="btn-excel" class="button" disabled title="Em breve: Excel/PDF com ajuda de IA">Importar Excel/PDF (em breve)</button>
         </div>
 
         <div id="import-msg" class="mt-2 msg hidden"></div>
@@ -203,31 +206,6 @@
       let REDIRECTING_TO_LOGIN = false;
 
       const MAX_PHOTO_BYTES = 2 * 1024 * 1024;
-
-      async function ensureHeaderFooter() {
-        try {
-          const hdr = document.querySelector('header.app-header');
-          const ftr = document.querySelector('footer.app-footer');
-          if (!hdr && byId('app-header')) {
-            const h = await fetch('/partials/header.html'); byId('app-header').innerHTML = await h.text();
-          }
-          if (!ftr && byId('app-footer')) {
-            const f = await fetch('/partials/footer.html'); byId('app-footer').innerHTML = await f.text();
-          }
-          log('OK: header/footer');
-        } catch(e) { console.warn('[precos] fallback header/footer falhou', e); }
-      }
-
-      let currentUser = null;
-      let isVerified = false;
-      let uid = null;
-
-      const PAGE_SIZE = 10;
-      let dataAll = [];
-      let dataView = [];
-      let page = 0;
-
-      let photoSvcId = null;
 
       byId('btn-back-dashboard').onclick = () => location.href = '/pages/dashboard.html';
 
@@ -306,6 +284,17 @@
         clearMsg(byId('add-msg'));
         byId('f-cod').focus();
       };
+
+      let currentUser = null;
+      let isVerified = false;
+      let uid = null;
+
+      const PAGE_SIZE = 10;
+      let dataAll = [];
+      let dataView = [];
+      let page = 0;
+
+      let photoSvcId = null;
 
       byId('btn-add').onclick = async () => {
         clearMsg(byId('add-msg'));
@@ -414,7 +403,7 @@
         reader.onload = () => {
           csvText = String(reader.result || '');
           byId('btn-preview').disabled = !csvText;
-          byId('btn-import').disabled = !csvText || !isVerified;
+          byId('btn-import').disabled = !csvText;
         };
         reader.readAsText(f, 'UTF-8');
       }
@@ -497,7 +486,6 @@
       byId('btn-import').onclick = async ()=>{
         clearMsg(byId('import-msg'));
         if (!currentUser) { setMsg(byId('import-msg'),'error','Sessão expirada. Faça login novamente.'); return; }
-        if (!isVerified) { setMsg(byId('import-msg'),'error','⚠️ Confirme seu e-mail para importar.'); return; }
         if (!finput.files?.[0]) { setMsg(byId('import-msg'),'error','Escolha um arquivo primeiro.'); return; }
 
         try {
@@ -516,10 +504,13 @@
             const tempo = parseInt(String(tempoRaw).replace(/\D/g,''), 10);
             const tags = splitTags(outrasRaw).join(';');
 
-            out.push([slug, '"' + nome.replace(/"/g,'""') + '"',
-                      (isFinite(preco)?preco.toFixed(2):'0.00'),
-                      (isFinite(tempo)?tempo:0),
-                      '"' + tags.replace(/"/g,'""') + '"'].join(','));
+            out.push([
+              slug,
+              '"' + nome.replace(/"/g,'""') + '"',
+              (isFinite(preco)?preco.toFixed(2):'0.00'),
+              (isFinite(tempo)?tempo:0),
+              '"' + tags.replace(/"/g,'""') + '"'
+            ].join(','));
           });
           const canonicalBlob = new Blob([out.join('\n')], {type:'text/csv;charset=utf-8'});
           const canonicalFile = new File([canonicalBlob], 'importado.csv', { type: 'text/csv' });
@@ -552,6 +543,7 @@
       svcBody.addEventListener('click', async (e) => {
         const btnUpload = e.target.closest('button[data-photo-svc]');
         const btnView = e.target.closest('button[data-view-photo]');
+        const btnEdit = e.target.closest('button[data-edit-svc]');
 
         if (btnUpload) {
           if (!currentUser) {
@@ -586,6 +578,102 @@
           } catch (err) {
             console.error('[precos] ver foto error', err);
             alert('Não foi possível abrir a foto agora. Tente reenviar a foto ou recarregar a página.');
+          }
+          return;
+        }
+
+        if (btnEdit) {
+          if (!currentUser) {
+            alert('Sessão expirada. Faça login novamente.');
+            return;
+          }
+          const svcId = btnEdit.getAttribute('data-edit-svc');
+          const svc = dataAll.find(s => s.id === svcId);
+          if (!svc) return;
+
+          const codAtual = svc.codigo || '';
+          const nomeAtual = svc.nome || '';
+          const precoAtualStr = String((svc.precoBase || 0).toFixed(2)).replace('.', ',');
+          const durAtualStr = svc.duracaoMin ? String(svc.duracaoMin) : '';
+          const outrasAtualStr = (svc.sinonimos || []).join(', ');
+
+          const novoCod = prompt('Código (opcional)', codAtual);
+          if (novoCod === null) return;
+
+          const novoNome = prompt('Nome do serviço', nomeAtual);
+          if (novoNome === null) return;
+
+          const novoPrecoStr = prompt('Preço (R$)', precoAtualStr);
+          if (novoPrecoStr === null) return;
+
+          const novoDurStr = prompt('Tempo (minutos)', durAtualStr);
+          if (novoDurStr === null) return;
+
+          const novasOutrasStr = prompt('Outras informações (separe por vírgula)', outrasAtualStr);
+          if (novasOutrasStr === null) return;
+
+          let codigoTrim = (novoCod || '').trim();
+          if (codigoTrim) {
+            codigoTrim = codigoTrim.toUpperCase();
+            if (!/^[A-Z0-9-]{1,24}$/.test(codigoTrim)) {
+              alert('Código inválido. Use apenas letras, números e "-" (até 24).');
+              return;
+            }
+          } else {
+            codigoTrim = '';
+          }
+
+          const nomeTrim = (novoNome || '').trim();
+          if (!nomeTrim) {
+            alert('O nome do serviço não pode ficar vazio.');
+            return;
+          }
+
+          const precoNum = parsePriceBRL(novoPrecoStr);
+          if (!(precoNum >= 0)) {
+            alert('Preço inválido. Use formato 45,00.');
+            return;
+          }
+          if (precoNum > 99999.99) {
+            alert('Preço muito alto.');
+            return;
+          }
+
+          const durNum = parseInt(String(novoDurStr).replace(/\D/g, ''), 10);
+          if (!(durNum >= 1 && durNum <= 360)) {
+            alert('Tempo inválido. Use de 1 a 360 minutos.');
+            return;
+          }
+
+          const novasTags = splitTags(novasOutrasStr);
+
+          try {
+            const db = firebase.firestore();
+            const col = db.collection('profissionais').doc(uid).collection('produtosEServicos');
+
+            if (codigoTrim && codigoTrim !== (svc.codigo || '')) {
+              const dupCod = await col.where('codigo', '==', codigoTrim).limit(1).get();
+              if (!dupCod.empty && dupCod.docs[0].id !== svc.id) {
+                alert('Este CÓDIGO já está em uso nos seus serviços.');
+                return;
+              }
+            }
+
+            const now = firebase.firestore.FieldValue.serverTimestamp();
+            await col.doc(svc.id).update({
+              codigo: codigoTrim || null,
+              nome: nomeTrim,
+              precoBase: Number(precoNum.toFixed(2)),
+              duracaoMin: durNum,
+              sinonimos: novasTags,
+              updatedAt: now
+            });
+
+            await loadServices();
+            alert('Serviço atualizado com sucesso.');
+          } catch (err) {
+            console.error('[precos] edit error', err);
+            alert('Não foi possível salvar as alterações agora. Tente novamente.');
           }
         }
       });
@@ -688,16 +776,13 @@
       }
       byId('search').addEventListener('input', applyFilter);
 
-      /* ===============================
-         PATCH — renderTable() corrigido
-         =============================== */
       function renderTable(){
         const body = byId('svc-body');
         body.innerHTML = '';
         if (!dataView.length) {
           const tr = document.createElement('tr');
           const td = document.createElement('td');
-          td.colSpan = 6;
+          td.colSpan = 7;
           td.textContent = 'Nenhum serviço cadastrado ainda.';
           tr.appendChild(td);
           body.appendChild(tr);
@@ -708,7 +793,6 @@
           dataView.slice(start, end).forEach(s => {
             const hasFoto = !!(s.fotoPath || s.fotoUrlLegacy);
 
-            // HTML do botão "Ver" sem template string dentro de template string
             const viewBtnHtml = hasFoto
               ? ' · <button class="button button-sm" data-view-photo="' + s.id + '">Ver</button>'
               : '';
@@ -728,6 +812,9 @@
                   ${hasFoto ? 'Trocar foto' : 'Anexar foto'}
                 </button>
               </td>
+              <td class="nowrap">
+                <button class="button button-sm" data-edit-svc="${s.id}">Editar</button>
+              </td>
             `;
             body.appendChild(tr);
           });
@@ -742,7 +829,7 @@
 
       async function ensureAuth(){
         await maybeCleanSession();
-        await ensureHeaderFooter();
+        // Header/footer agora vêm só pelo layout.js (parciais canônicas)
 
         return new Promise((resolve)=>{
           firebase.auth().onAuthStateChanged(async (u)=>{
@@ -757,13 +844,11 @@
             isVerified = !!u.emailVerified;
 
             const ready = byId('import-ready');
-            if (isVerified) {
-              ready.textContent = '✅ Pronto para importar';
-            } else {
-              ready.innerHTML = '⚠️ Para importar, confirme seu e-mail. <a href="/verify-email.html">Verificar agora</a>';
+            if (ready) {
+              ready.textContent = 'Você está logado. Pode importar sua planilha .csv.';
             }
 
-            byId('btn-import').disabled = !(finput.files?.[0] && isVerified);
+            byId('btn-import').disabled = !(finput.files?.[0]);
             resolve();
           });
         });
@@ -779,7 +864,7 @@
           console.error('[precos] init error', e);
           if (!REDIRECTING_TO_LOGIN) {
             const tb = byId('svc-body');
-            tb.innerHTML = '<tr><td colspan="6" class="msg err">Falha ao carregar a página. Recarregue e verifique sua conexão.</td></tr>';
+            tb.innerHTML = '<tr><td colspan="7" class="msg err">Falha ao carregar a página. Recarregue e verifique sua conexão.</td></tr>';
           }
         }
       })();
