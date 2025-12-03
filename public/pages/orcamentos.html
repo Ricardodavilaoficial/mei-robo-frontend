@@ -27,7 +27,7 @@
       --muted:#9fb0aa;
       --txt:#e6edf3;
       --danger:#ff6961;
-      --accent:#238636; /* será sobrescrito pela corPrincipal do MEI */
+      --orc-accent:#238636; /* será sobrescrito pela corPrincipal do MEI, só aqui */
     }
     html,body{
       background:var(--bg);
@@ -110,7 +110,7 @@
     .brand-text h2{
       margin:0;
       font-size:1.1rem;
-      color:var(--accent);
+      color:var(--orc-accent);
     }
     .brand-text .slogan{
       margin:2px 0 0;
@@ -195,7 +195,7 @@
     }
     .right{text-align:right;}
     .btn{
-      background:var(--accent);
+      background:var(--orc-accent);
       color:#fff;
       border:none;
       border-radius:10px;
@@ -296,6 +296,11 @@
         border:none;
       }
       table th,table td{border-color:#ddd;}
+
+      /* OPCIONAL: timbrado preto no papel */
+      .brand-text h2{
+        color:#000 !important;
+      }
     }
   </style>
 </head>
@@ -564,6 +569,20 @@ Olá, segue conforme combinado o orçamento detalhado. Ele ainda não é propost
               <button class="btn" id="btn-imprimir">Imprimir</button>
               <button class="btn btn-ghost" id="btn-email">Exportar p/ E-mail</button>
               <button class="btn btn-ghost" id="btn-whats">Exportar p/ WhatsApp</button>
+            </div>
+          </div>
+        </section>
+
+        <!-- Assinatura e carimbo no rodapé do impresso -->
+        <section class="only-print" style="margin-top:12px;">
+          <div class="row" style="justify-content:space-between;align-items:flex-end;">
+            <div>
+              <div class="logo-box" id="assinaturaRodape"><span>Assinatura</span></div>
+              <div class="kicker">Assinatura</div>
+            </div>
+            <div>
+              <div class="logo-box" id="carimboRodape" style="width:80px;height:80px;"><span>Carimbo</span></div>
+              <div class="kicker right">Carimbo</div>
             </div>
           </div>
         </section>
@@ -856,7 +875,7 @@ Olá, segue conforme combinado o orçamento detalhado. Ele ainda não é propost
 
         // Cor principal
         const cor = (typeof data.corPrincipal === 'string' && data.corPrincipal.trim()) ? data.corPrincipal : '#238636';
-        document.documentElement.style.setProperty('--accent', cor);
+        document.documentElement.style.setProperty('--orc-accent', cor);
 
         // Topo MEI
         if(el('orcNomeEmpresaTopo')) el('orcNomeEmpresaTopo').textContent = data.nomeEmpresa || 'Seu nome / MEI aqui';
@@ -867,6 +886,8 @@ Olá, segue conforme combinado o orçamento detalhado. Ele ainda não é propost
 
         if(data.logoUrl) setBoxBackground('logoBoxTopo', data.logoUrl, 'Logo');
         if(data.avatarUrl) setBoxBackground('avatarTopo', data.avatarUrl, 'Foto');
+        if(data.assinaturaUrl) setBoxBackground('assinaturaRodape', data.assinaturaUrl, 'Assinatura');
+        if(data.carimboUrl) setBoxBackground('carimboRodape', data.carimboUrl, 'Carimbo');
 
         // Validade
         const valSpan = el('validadeResumo');
@@ -1025,7 +1046,7 @@ Olá, segue conforme combinado o orçamento detalhado. Ele ainda não é propost
           let v = e.target.value;
           if(['preco','qtd','duracao'].includes(k)) v = Number(v||0);
           itens[i][k] = v;
-          renderTotal();
+          renderTabela();
         });
       });
       tbody.querySelectorAll('button[data-rem]').forEach(btn=>{
