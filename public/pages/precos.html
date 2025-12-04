@@ -398,6 +398,8 @@
         csvText = '';
 
         const f = finput.files && finput.files[0];
+        console.log('[precos] onFileSelected, file =', f && f.name, 'size =', f && f.size);
+
         if (!f) {
           byId('btn-preview').disabled = true;
           byId('btn-import').disabled = true;
@@ -413,14 +415,20 @@
           return;
         }
 
+        // 👉 A partir daqui o arquivo foi aceito: já libera os botões
+        byId('btn-preview').disabled = false;
+        byId('btn-import').disabled = false;
+
         const reader = new FileReader();
         reader.onload = () => {
           csvText = String(reader.result || '');
           console.log('[precos] CSV carregado, tamanho chars =', csvText.length);
 
-          const hasText = !!csvText.trim();
-          byId('btn-preview').disabled = !hasText;
-          byId('btn-import').disabled = !hasText;
+          // Se por algum motivo vier vazio, re-desabilita
+          if (!csvText.trim()) {
+            byId('btn-preview').disabled = true;
+            byId('btn-import').disabled = true;
+          }
         };
         reader.onerror = (err) => {
           console.error('[precos] erro ao ler CSV', err);
@@ -895,4 +903,3 @@
   </script>
 </body>
 </html>
-
