@@ -56,7 +56,11 @@
     .acervo-header p {
       font-size: 0.95rem;
       color: #9ca3af;
-      max-width: 640px;
+      max-width: 720px;
+    }
+
+    .acervo-header p + p {
+      margin-top: 0.4rem;
     }
 
     .acervo-banner-validate {
@@ -361,16 +365,20 @@
     <header class="acervo-header">
       <h1>Acervo de conhecimento</h1>
       <p>
-        Aqui você guarda seus materiais importantes (textos, PDFs, documentos)
-        para o MEI Robô consultar quando precisar responder algo técnico ou específico
-        sobre o seu trabalho. Comece pequeno: 1 ou 2 arquivos já fazem diferença.
+        Aqui é o seu <strong>Acervo do MEI</strong>. É o lugar para guardar suas experiências,
+        materiais de curso, fotos, vídeos e áudios importantes para você.
+      </p>
+      <p>
+        O MEI Robô usa esse acervo para responder seus clientes, amigos ou família no WhatsApp,
+        do seu jeito. O acervo de cada contato (na tela de Contatos) guarda coisas específicas daquela
+        pessoa; aqui é o seu “baú geral”.
       </p>
     </header>
 
     <div id="acervo-validate-banner" class="acervo-banner-validate" style="display:none;">
       <strong>Modo de validação:</strong>
-      esta tela está em modo somente leitura (<code>?validate=1</code>).
-      Os botões de envio e edição ficam desabilitados para não gravar nada de verdade.
+      esta tela está em modo demonstração (<code>?validate=1</code>).
+      Os envios e edições ficam desabilitados para não gravar nada de verdade.
     </div>
 
     <div id="acervo-alert" class="acervo-alert info" style="display:none;"></div>
@@ -386,13 +394,14 @@
           </button>
         </div>
         <p>
-          Este é o espaço reservado para os seus conhecimentos e experiências.
-          O MEI Robô usa esse acervo para responder melhor, sem misturar conteúdo de outros clientes.
+          Este é o espaço reservado para os seus conhecimentos e experiências dentro do MEI Robô.
+          Ele é compartilhado entre o seu Acervo do MEI, os acervos dos seus contatos e outros arquivos
+          do sistema.
         </p>
 
         <div class="acervo-meta-row">
           <div>
-            <span class="acervo-muted">Uso atual da sua quota</span><br />
+            <span class="acervo-muted">Uso atual do seu espaço</span><br />
             <strong id="acervo-quota-usage">–</strong>
           </div>
           <div>
@@ -406,8 +415,9 @@
         </div>
 
         <p class="acervo-meta-note">
-          Dica: em vez de subir tudo de uma vez, priorize documentos que você realmente usaria
-          para responder clientes (contratos modelo, orientações técnicas, perguntas frequentes).
+          Seu plano atual pode oferecer até 2 GB de espaço para conhecimento. Comece pelos arquivos
+          que você realmente usaria no dia a dia para responder clientes (orientações, perguntas
+          frequentes, materiais de curso, etc.).
         </p>
       </section>
 
@@ -415,8 +425,8 @@
       <section class="acervo-card" aria-labelledby="acervo-create-title">
         <h2 id="acervo-create-title">Adicionar ao acervo</h2>
         <p>
-          Você pode cadastrar um texto rápido ou enviar um arquivo. Use tags para encontrar depois
-          e controlar o que o robô pode usar.
+          Você pode cadastrar um texto rápido ou enviar um arquivo. Use tags e o campo
+          “Quem pode usar” para organizar seu acervo e controlar o que o robô pode usar nas respostas.
         </p>
 
         <div class="acervo-tabs" role="tablist" aria-label="Modo de criação de item">
@@ -458,7 +468,7 @@
                 id="acervo-texto-tags"
                 name="tags"
                 type="text"
-                placeholder="ex.: contrato, barbeiro, barba curta"
+                placeholder="ex.: curso, pré-atendimento, barbeiro, família"
               />
             </div>
 
@@ -485,12 +495,24 @@
             </div>
 
             <div class="acervo-form-group">
+              <label for="acervo-texto-nivelUso">
+                Quem pode usar esse conteúdo nas respostas?
+              </label>
+              <select id="acervo-texto-nivelUso" name="nivelUso">
+                <option value="todos">Qualquer pessoa</option>
+                <option value="clientes">Só clientes</option>
+                <option value="familia_amigos">Família e amigos</option>
+                <option value="interno">Só eu (não usar nas respostas)</option>
+              </select>
+            </div>
+
+            <div class="acervo-form-group">
               <label for="acervo-texto-corpo">Texto / conteúdo *</label>
               <textarea
                 id="acervo-texto-corpo"
                 name="texto"
                 required
-                placeholder="Cole aqui o texto que você quer que o MEI Robô use (markdown opcional)."
+                placeholder="Cole aqui o texto que você quer que o MEI Robô use (pode ser um textão, roteiro ou explicação)."
               ></textarea>
             </div>
 
@@ -530,7 +552,7 @@
                 id="acervo-upload-tags"
                 name="tags"
                 type="text"
-                placeholder="ex.: tabela de preços, orientação interna"
+                placeholder="ex.: tabela de preços, orientação interna, exame, contrato"
               />
             </div>
 
@@ -554,6 +576,18 @@
                 />
                 Habilitado para uso pelo robô
               </label>
+            </div>
+
+            <div class="acervo-form-group">
+              <label for="acervo-upload-nivelUso">
+                Quem pode usar esse conteúdo nas respostas?
+              </label>
+              <select id="acervo-upload-nivelUso" name="nivelUso">
+                <option value="todos">Qualquer pessoa</option>
+                <option value="clientes">Só clientes</option>
+                <option value="familia_amigos">Família e amigos</option>
+                <option value="interno">Só eu (não usar nas respostas)</option>
+              </select>
             </div>
 
             <button
@@ -589,13 +623,14 @@
               <th>Tamanho</th>
               <th>Fonte</th>
               <th>Habilitado</th>
+              <th>Para quem?</th>
               <th>Atualizado em</th>
               <th>Ações</th>
             </tr>
           </thead>
           <tbody id="acervo-tbody">
             <tr>
-              <td colspan="8" class="acervo-muted">
+              <td colspan="9" class="acervo-muted">
                 Nenhum item carregado ainda.
               </td>
             </tr>
@@ -657,6 +692,18 @@
             />
             Habilitado para uso pelo robô
           </label>
+        </div>
+
+        <div class="acervo-form-group">
+          <label for="acervo-edit-nivelUso">
+            Quem pode usar esse conteúdo nas respostas?
+          </label>
+          <select id="acervo-edit-nivelUso" name="nivelUso">
+            <option value="todos">Qualquer pessoa</option>
+            <option value="clientes">Só clientes</option>
+            <option value="familia_amigos">Família e amigos</option>
+            <option value="interno">Só eu (não usar nas respostas)</option>
+          </select>
         </div>
 
         <div class="acervo-form-group">

@@ -71,6 +71,20 @@
     }
   }
 
+  function labelNivelUso(nivel) {
+    switch (nivel) {
+      case "clientes":
+        return "Só clientes";
+      case "familia_amigos":
+        return "Família e amigos";
+      case "interno":
+        return "Só eu";
+      case "todos":
+      default:
+        return "Qualquer pessoa";
+    }
+  }
+
   function apiFetch(path, options = {}) {
     // Usa backend-patch.js se existir, senão cai no fetch normal com Authorization.
     const url = path.startsWith("http") ? path : `/api${path.startsWith("/") ? "" : "/"}${path}`;
@@ -114,6 +128,13 @@
         Math.min(100, (totalBytes / Math.max(1, maxBytes)) * 100)
       );
       barEl.style.width = `${pct.toFixed(1)}%`;
+
+      if (!state.isValidateMode && pct >= 80) {
+        showAlert(
+          "Você está chegando perto do limite de espaço do seu plano. Se precisar guardar mais coisas, fale com a gente para aumentar o espaço.",
+          "info"
+        );
+      }
     }
   }
 
@@ -127,7 +148,7 @@
     if (!state.items || state.items.length === 0) {
       const tr = document.createElement("tr");
       const td = document.createElement("td");
-      td.colSpan = 8;
+      td.colSpan = 9;
       td.className = "acervo-muted";
       td.textContent = "Ainda não há itens no seu acervo.";
       tr.appendChild(td);
@@ -185,6 +206,9 @@
       spanHab.textContent = enabled ? "Sim" : "Não";
       tdHabilitado.appendChild(spanHab);
 
+      const tdParaQuem = document.createElement("td");
+      tdParaQuem.textContent = labelNivelUso(item.nivelUso);
+
       const tdAtualizado = document.createElement("td");
       tdAtualizado.textContent =
         formatDate(item.updatedAt || item.createdAt) || "–";
@@ -212,6 +236,7 @@
       tr.appendChild(tdTamanho);
       tr.appendChild(tdFonte);
       tr.appendChild(tdHabilitado);
+      tr.appendChild(tdParaQuem);
       tr.appendChild(tdAtualizado);
       tr.appendChild(tdAcoes);
 
@@ -257,6 +282,11 @@
       prioridadeInput.value = prior;
     }
     $("#acervo-edit-habilitado").checked = !!item.habilitado;
+
+    const nivelSelect = $("#acervo-edit-nivelUso");
+    if (nivelSelect) {
+      nivelSelect.value = item.nivelUso || "todos";
+    }
 
     if (meta) {
       meta.textContent = `Editando: ${
@@ -334,6 +364,8 @@
     const tagsRaw = $("#acervo-texto-tags").value.trim();
     const prioridade = $("#acervo-texto-prioridade").value;
     const habilitado = $("#acervo-texto-habilitado").checked;
+    const nivelUsoSelect = $("#acervo-texto-nivelUso");
+    const nivelUso = nivelUsoSelect ? nivelUsoSelect.value : "todos";
 
     if (!titulo || !corpo) {
       showAlert("Preencha pelo menos o título e o texto.", "error");
@@ -345,6 +377,7 @@
       corpo,
       tags: parseTags(tagsRaw),
       habilitado,
+      nivelUso: nivelUso || "todos",
     };
 
     if (prioridade) {
@@ -406,11 +439,14 @@
     const tagsRaw = $("#acervo-upload-tags").value.trim();
     const prioridade = $("#acervo-upload-prioridade").value;
     const habilitado = $("#acervo-upload-habilitado").checked;
+    const nivelUsoSelect = $("#acervo-upload-nivelUso");
+    const nivelUso = nivelUsoSelect ? nivelUsoSelect.value : "todos";
 
     if (titulo) formData.append("titulo", titulo);
     if (tagsRaw) formData.append("tags", tagsRaw);
     if (prioridade) formData.append("prioridade", prioridade);
     formData.append("habilitado", habilitado ? "true" : "false");
+    formData.append("nivelUso", nivelUso || "todos");
 
     showAlert("Enviando arquivo para o acervo...", "info");
     $("#acervo-upload-submit").disabled = true;
@@ -462,6 +498,8 @@
     const prioridade = $("#acervo-edit-prioridade").value;
     const habilitado = $("#acervo-edit-habilitado").checked;
     const resumoCurto = $("#acervo-edit-resumo").value.trim();
+    const nivelSelect = $("#acervo-edit-nivelUso");
+    const nivelUso = nivelSelect ? nivelSelect.value : "";
 
     const payload = {};
     if (titulo) payload.titulo = titulo;
@@ -469,6 +507,7 @@
     if (prioridade) payload.prioridade = Number(prioridade);
     payload.habilitado = habilitado;
     payload.resumoCurto = resumoCurto || null;
+    if (nivelUso) payload.nivelUso = nivelUso;
 
     showAlert("Salvando alterações do item...", "info");
     $("#acervo-edit-submit").disabled = true;
@@ -589,6 +628,52 @@
     });
   }
 
+  function fillFakeDataForValidate() {
+    // Meta fake
+    state.meta = {
+      totalBytes: Math.round(8.5 * 1024 * 1024),
+      maxBytes: 2 * 1024 * 1024 * 1024,
+    };
+
+    const now = Date.now();
+
+    state.items = [
+      {
+        id: "demo-1",
+        titulo: "Orientações de pré-atendimento",
+        tipo: "texto",
+        tags: ["técnico", "pré-atendimento", "clientes"],
+        tamanhoBytes: 12 * 1024,
+        fonte: "Texto aqui na tela",
+        habilitado: true,
+        nivelUso: "clientes",
+        updatedAt: now - 3600 * 1000,
+      },
+      {
+        id: "demo-2",
+        titulo: "Curso de corte masculino avançado (PDF)",
+        tipo: "pdf",
+        tags: ["curso", "corte masculino"],
+        tamanhoBytes: 2.5 * 1024 * 1024,
+        fonte: "Arquivo enviado",
+        habilitado: true,
+        nivelUso: "todos",
+        updatedAt: now - 2 * 24 * 3600 * 1000,
+      },
+      {
+        id: "demo-3",
+        titulo: "Nascimento do meu filho (mensagem do Dr. João)",
+        tipo: "nota",
+        tags: ["pessoal", "família", "Dr João"],
+        tamanhoBytes: 4 * 1024,
+        fonte: "Conversa WhatsApp",
+        habilitado: true,
+        nivelUso: "interno",
+        updatedAt: now - 5 * 24 * 3600 * 1000,
+      },
+    ];
+  }
+
   function initAuthAndLoad() {
     if (!window.firebase || !firebase.auth) {
       console.error("[acervo] Firebase não disponível.");
@@ -637,7 +722,13 @@
     if (formEdit) formEdit.addEventListener("submit", handleEditSubmit);
     if (btnReload)
       btnReload.addEventListener("click", () => {
-        loadAcervo();
+        if (state.isValidateMode) {
+          fillFakeDataForValidate();
+          renderQuota();
+          renderItems();
+        } else {
+          loadAcervo();
+        }
       });
     if (btnEditCancel)
       btnEditCancel.addEventListener("click", () => {
@@ -649,7 +740,19 @@
     state.isValidateMode = getValidateMode();
     setupTabs();
     wireEvents();
-    applyValidateMode();
+
+    if (state.isValidateMode) {
+      applyValidateMode();
+      fillFakeDataForValidate();
+      renderQuota();
+      renderItems();
+      showAlert(
+        "Modo demonstração: estes dados são apenas de exemplo. Nada será gravado de verdade.",
+        "info"
+      );
+      return;
+    }
+
     initAuthAndLoad();
   });
 })();
