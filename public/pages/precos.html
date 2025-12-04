@@ -158,13 +158,16 @@
       <div class="mt-4 card">
         <div class="badge">Importar planilha (opcional)</div>
         <div class="help mt-1">
-          Se você já tem sua tabela, pode importar para acelerar. Nesta versão aceitamos planilha <b>.csv</b>.
+          Para puxar sua tabela pra cá, siga estes passos:
+          <br>1) Clique em <b>Escolher arquivo</b> (ou arraste a planilha <b>.csv</b>).
+          <br>2) Se quiser conferir, use <b>Ver prévia</b>.
+          <br>3) Clique em <b>Importar</b> para mandar tudo para a sua lista.
         </div>
 
         <div id="import-ready" class="mt-2 help"></div>
 
         <div class="mt-2 upload-area" id="dropzone" tabindex="0" role="button" aria-label="Escolher arquivo de planilha">
-          <div><b>Escolher arquivo</b> ou arraste aqui.</div>
+          <div><b>Passo 1 — clique aqui</b> para escolher o arquivo .csv (ou arraste a planilha).</div>
           <div class="help mt-1">
             Colunas esperadas: <b>código (opcional)</b>, <b>nome do serviço</b>, <b>preço (R$)</b>, <b>tempo (min)</b>, <b>outras informações (opcional)</b>.
           </div>
@@ -476,8 +479,20 @@
         return header.filter(h => !known.has(h));
       }
 
-      byId('btn-preview').onclick = ()=>{
+      byId('btn-preview').onclick = () => {
         clearMsg(byId('import-msg'));
+
+        // Se ainda não tem arquivo escolhido, ajudamos abrindo o seletor
+        if (!finput.files || !finput.files[0]) {
+          finput.click();
+          return;
+        }
+
+        if (!csvText.trim()) {
+          setMsg(byId('import-msg'), 'error', 'Não foi possível ler o arquivo. Escolha novamente o .csv.');
+          return;
+        }
+
         const { headerRaw, header, rows } = parseCsvBasic(csvText);
 
         const t = byId('preview-table');
