@@ -1,0 +1,282 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Autorização para uso em nome da empresa — MEI Robô</title>
+
+  <link rel="canonical" href="https://www.meirobo.com.br/pages/autorizacao.html" />
+
+  <link rel="stylesheet" href="/assets/styles.css" />
+  <script src="/assets/layout.js" defer></script>
+
+  <style>
+    body{
+      background:#0f1115;
+      color:#e6e6e6;
+      font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Helvetica,Arial,sans-serif;
+      margin:0;
+      padding:0;
+    }
+    main{
+      max-width:900px;
+      margin:0 auto;
+      padding:24px 16px 40px;
+    }
+    h1,h2,h3{
+      color:#eafcf0;
+      margin:16px 0 8px;
+    }
+    p{
+      margin:6px 0 10px;
+    }
+    a{
+      color:#36d07f;
+      text-decoration:none;
+    }
+    a:hover{
+      text-decoration:underline;
+    }
+    .card{
+      background:#141820;
+      border:1px solid #1e2430;
+      border-radius:12px;
+      padding:16px 18px;
+      margin:12px 0;
+    }
+    .muted{
+      color:#a7b0b3;
+      font-size:.92rem;
+    }
+    .chips{
+      display:flex;
+      flex-wrap:wrap;
+      gap:8px;
+      margin-top:8px;
+    }
+    .chip{
+      background:#182028;
+      border:1px solid #243041;
+      color:#bfd6c8;
+      border-radius:999px;
+      padding:4px 10px;
+      font-size:12px;
+    }
+    .label{
+      font-size:.85rem;
+      text-transform:uppercase;
+      letter-spacing:.06em;
+      color:#9fa9ad;
+      margin-bottom:4px;
+    }
+    .card-grid{
+      display:grid;
+      grid-template-columns:1fr 1fr;
+      gap:12px;
+    }
+    @media (max-width:768px){
+      main{padding:16px 12px 32px;}
+      .card-grid{grid-template-columns:1fr;}
+    }
+    .field{
+      margin-bottom:8px;
+    }
+    .field span.value{
+      display:block;
+      font-weight:600;
+      color:#eafcf0;
+    }
+    .btn{
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
+      gap:6px;
+      padding:10px 16px;
+      border-radius:999px;
+      border:0;
+      cursor:pointer;
+      font-weight:600;
+      font-size:.95rem;
+    }
+    .btn-primary{
+      background:#25d366;
+      color:#041007;
+    }
+    .btn-outline{
+      background:transparent;
+      border:1px solid #374151;
+      color:#e6e6e6;
+    }
+    .btn[disabled]{
+      opacity:.6;
+      cursor:not-allowed;
+    }
+    .hint{
+      font-size:.9rem;
+      color:#a7b0b3;
+    }
+    ol{
+      padding-left:20px;
+      margin:8px 0;
+    }
+    blockquote{
+      margin:10px 0;
+      padding:10px 14px;
+      border-left:3px solid #25d366;
+      background:#141820;
+      border-radius:8px;
+      font-size:.95rem;
+      color:#d4dde0;
+    }
+  </style>
+</head>
+<body>
+  <div id="app-header"></div>
+
+  <main>
+    <header class="card">
+      <h1>Autorização para uso do MEI Robô em nome da empresa</h1>
+      <p class="muted">
+        Esta etapa existe para garantir que a pessoa que está configurando o MEI Robô
+        pode falar em nome da empresa dona do CNPJ.
+      </p>
+      <div class="chips">
+        <span class="chip">Vínculo com CNPJ</span>
+        <span class="chip">Autorização formal</span>
+        <span class="chip">WhatsApp Business / Meta</span>
+      </div>
+    </header>
+
+    <section class="card">
+      <h2>Antes de seguir</h2>
+      <p>
+        O número de WhatsApp do MEI Robô será ativado em nome da empresa cadastrada
+        (CNPJ). Para ficar tudo correto:
+      </p>
+      <ol>
+        <li>O CNPJ precisa estar correto e ativo.</li>
+        <li>A pessoa que está configurando o MEI Robô deve ser titular, sócio(a)
+            ou alguém autorizado pela empresa.</li>
+        <li>Essa autorização vale para contratar e operar o MEI Robô em nome da empresa.</li>
+      </ol>
+      <p class="hint">
+        No futuro, esta etapa poderá ser complementada com assinatura eletrônica
+        (por exemplo, gov.br ou outro provedor de assinatura digital).
+      </p>
+    </section>
+
+    <section class="card">
+      <h2>Dados que serão usados na autorização</h2>
+      <p class="hint">
+        Estes dados são preenchidos a partir do cadastro e da consulta ao CNPJ.
+        Caso veja alguma divergência, volte e corrija antes de confirmar.
+      </p>
+
+      <div class="card-grid">
+        <div>
+          <div class="field">
+            <div class="label">Empresa (CNPJ)</div>
+            <span class="value">{{RAZAO_SOCIAL_DA_EMPRESA}}</span>
+          </div>
+          <div class="field">
+            <div class="label">Nome fantasia</div>
+            <span class="value">{{NOME_FANTASIA}}</span>
+          </div>
+          <div class="field">
+            <div class="label">CNPJ</div>
+            <span class="value">{{CNPJ}}</span>
+          </div>
+        </div>
+        <div>
+          <div class="field">
+            <div class="label">Pessoa que está configurando</div>
+            <span class="value">{{NOME_USUARIO}}</span>
+          </div>
+          <div class="field">
+            <div class="label">E-mail de acesso</div>
+            <span class="value">{{EMAIL_USUARIO}}</span>
+          </div>
+          <div class="field">
+            <div class="label">Cargo ou relação com a empresa</div>
+            <span class="value">{{CARGO_OU_VINCULO}}</span>
+          </div>
+        </div>
+      </div>
+
+      <p class="hint" style="margin-top:10px;">
+        As chaves entre chaves <code>{{...}}</code> serão preenchidas pela aplicação
+        (etapa de implementação). Por enquanto, este é o modelo do documento.
+      </p>
+    </section>
+
+    <section class="card">
+      <h2>Termo de autorização</h2>
+      <p class="muted">
+        Leia com calma. Este é o texto que você estará aceitando em nome da empresa.
+      </p>
+
+      <blockquote>
+        Eu, <strong>{{NOME_USUARIO}}</strong>, inscrito(a) no CPF sob o nº <strong>{{CPF_USUARIO}}</strong>,
+        declaro, para todos os fins de direito, que:
+      </blockquote>
+
+      <ol>
+        <li>
+          Estou autorizado(a) pela empresa <strong>{{RAZAO_SOCIAL_DA_EMPRESA}}</strong>,
+          inscrita no CNPJ sob o nº <strong>{{CNPJ}}</strong>, a contratar, configurar e
+          operar o serviço <strong>MEI Robô</strong> em nome da empresa.
+        </li>
+        <li>
+          Autorizo o uso dos canais de mensageria (incluindo WhatsApp Business) em nome da empresa,
+          observando os <a href="/termos.html" target="_blank" rel="noopener noreferrer">Termos de Uso</a>,
+          a <a href="/privacidade.html" target="_blank" rel="noopener noreferrer">Política de Privacidade</a>
+          e as políticas do WhatsApp Business/Meta.
+        </li>
+        <li>
+          Comprometo-me a utilizar o MEI Robô somente para fins lícitos e em conformidade com a legislação brasileira,
+          bem como com as políticas dos provedores de mensageria e infraestrutura utilizados.
+        </li>
+        <li>
+          Estou ciente de que a ativação do número de WhatsApp do MEI Robô depende de análise técnica e de políticas
+          dos provedores, e que a taxa de implantação/configuração poderá não ser reembolsável quando a ativação
+          não ocorrer por falta de vínculo ou autorização adequada com o CNPJ ou por não atendimento aos requisitos mínimos,
+          conforme indicado nos Termos de Uso e na tela de pagamento.
+        </li>
+        <li>
+          Confirmo que as informações fornecidas são verdadeiras e que comunicarei qualquer alteração relevante
+          (por exemplo, saída da empresa ou mudança de poderes de representação).
+        </li>
+      </ol>
+
+      <p class="hint">
+        Este termo não substitui aconselhamento jurídico. Em caso de dúvidas sobre poderes de representação,
+        consulte o responsável legal da empresa ou um profissional habilitado.
+      </p>
+    </section>
+
+    <section class="card">
+      <h2>Confirmação</h2>
+      <p>
+        Para seguir com a jornada (pagamento e ativação do número), confirme que você está
+        autorizado(a) pela empresa a concluir esta contratação.
+      </p>
+
+      <div style="display:flex;flex-wrap:wrap;gap:10px;margin-top:8px;">
+        <button type="button" class="btn btn-primary">
+          Confirmo que estou autorizado(a)
+        </button>
+        <button type="button" class="btn btn-outline">
+          Voltar para configuração da conta
+        </button>
+      </div>
+
+      <p class="hint" style="margin-top:10px;">
+        Na implementação, este botão irá registrar o aceite (data, hora, IP e usuário) e,
+        em uma fase seguinte, poderá disparar o fluxo de assinatura eletrônica (ex.: gov.br).
+      </p>
+    </section>
+  </main>
+
+  <div id="app-footer"></div>
+</body>
+</html>
