@@ -417,12 +417,19 @@
         reader.onload = () => {
           csvText = String(reader.result || '');
           console.log('[precos] CSV carregado, tamanho chars =', csvText.length);
+
+          const hasText = !!csvText.trim();
+          byId('btn-preview').disabled = !hasText;
+          byId('btn-import').disabled = !hasText;
+        };
+        reader.onerror = (err) => {
+          console.error('[precos] erro ao ler CSV', err);
+          setMsg(byId('import-msg'), 'error', 'Não foi possível ler o arquivo. Tente novamente.');
+          csvText = '';
+          byId('btn-preview').disabled = true;
+          byId('btn-import').disabled = true;
         };
         reader.readAsText(f, 'UTF-8');
-
-        // 👉 Habilita os botões assim que o arquivo for aceito
-        byId('btn-preview').disabled = false;
-        byId('btn-import').disabled = false;
       }
 
       function parseCsvBasic(text){
@@ -865,7 +872,6 @@
               ready.textContent = 'Você está logado. Pode importar sua planilha .csv.';
             }
 
-            byId('btn-import').disabled = !(finput.files?.[0]);
             resolve();
           });
         });
