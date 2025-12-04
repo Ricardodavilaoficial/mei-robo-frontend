@@ -20,9 +20,8 @@
   <script defer src="/__/firebase/9.22.2/firebase-firestore-compat.js"></script>
   <script defer src="/__/firebase/init.js"></script>
 
-  <!-- Helper que injeta Authorization: Bearer quando necessário (já usado em outras telas) -->
-  <script src="/assets/firebase-init.js"></script>
-  <script src="/assets/backend-patch.js"></script>
+  <!-- Helper de backend: usa firebase.auth() fornecido pelo init do Hosting -->
+  <script src="/assets/backend-patch.js" defer></script>
 
   <!-- Script específico do Acervo -->
   <script defer src="/assets/acervo.js"></script>
