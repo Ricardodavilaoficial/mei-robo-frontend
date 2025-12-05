@@ -11,6 +11,7 @@
     items: [],
     meta: null,
     selectedId: null,
+    filterQuery: "",
   };
 
   function getValidateMode() {
@@ -87,7 +88,9 @@
 
   function apiFetch(path, options = {}) {
     // Usa backend-patch.js se existir, senão cai no fetch normal com Authorization.
-    const url = path.startsWith("http") ? path : `/api${path.startsWith("/") ? "" : "/"}${path}`;
+    const url = path.startsWith("http")
+      ? path
+      : `/api${path.startsWith("/") ? "" : "/"}${path}`;
 
     if (window.backendFetch) {
       return window.backendFetch(url, options);
@@ -118,9 +121,14 @@
       meta.maxBytes ??
       meta.max ??
       2 * 1024 * 1024 * 1024; // fallback 2GB
+    const freeBytes = Math.max(0, maxBytes - totalBytes);
 
-    if (usageEl) usageEl.textContent = formatBytes(totalBytes);
-    if (maxEl) maxEl.textContent = formatBytes(maxBytes);
+    if (usageEl)
+      usageEl.textContent = `${formatBytes(totalBytes)} usado`;
+    if (maxEl)
+      maxEl.textContent = `${formatBytes(
+        maxBytes
+      )} total — ${formatBytes(freeBytes)} livre`;
 
     if (barEl) {
       const pct = Math.max(
@@ -138,6 +146,33 @@
     }
   }
 
+  function getFilteredItems() {
+    const q = (state.filterQuery || "").trim().toLowerCase();
+    if (!q) return state.items || [];
+
+    return (state.items || []).filter((item) => {
+      const titulo = (item.titulo || "").toLowerCase();
+      const tipo = (item.tipo || item.fonte || "").toLowerCase();
+      const fonte = (item.fonte || "").toLowerCase();
+      const nivel = labelNivelUso(item.nivelUso).toLowerCase();
+
+      let tagsText = "";
+      if (Array.isArray(item.tags)) {
+        tagsText = item.tags.join(", ").toLowerCase();
+      } else if (typeof item.tags === "string") {
+        tagsText = item.tags.toLowerCase();
+      }
+
+      return (
+        titulo.includes(q) ||
+        tipo.includes(q) ||
+        fonte.includes(q) ||
+        tagsText.includes(q) ||
+        nivel.includes(q)
+      );
+    });
+  }
+
   function renderItems() {
     const tbody = $("#acervo-tbody");
     const subtitle = $("#acervo-list-subtitle");
@@ -145,23 +180,32 @@
 
     tbody.innerHTML = "";
 
-    if (!state.items || state.items.length === 0) {
+    const filtered = getFilteredItems();
+    const total = state.items ? state.items.length : 0;
+
+    if (!filtered || filtered.length === 0) {
       const tr = document.createElement("tr");
       const td = document.createElement("td");
       td.colSpan = 9;
       td.className = "acervo-muted";
-      td.textContent = "Ainda não há itens no seu acervo.";
+      td.textContent = state.filterQuery
+        ? "Nenhum item encontrado com esse filtro."
+        : "Ainda não há itens no seu acervo.";
       tr.appendChild(td);
       tbody.appendChild(tr);
 
       if (subtitle) {
-        subtitle.textContent =
-          "Seu acervo ainda está vazio. Comece adicionando um texto ou arquivo ao lado.";
+        if (state.filterQuery) {
+          subtitle.textContent = "Nenhum item encontrado para o filtro digitado.";
+        } else {
+          subtitle.textContent =
+            "Seu acervo ainda está vazio. Comece adicionando um texto ou arquivo ao lado.";
+        }
       }
       return;
     }
 
-    state.items.forEach((item) => {
+    filtered.forEach((item) => {
       const tr = document.createElement("tr");
 
       const tdTitulo = document.createElement("td");
@@ -210,8 +254,12 @@
       tdParaQuem.textContent = labelNivelUso(item.nivelUso);
 
       const tdAtualizado = document.createElement("td");
-      tdAtualizado.textContent =
-        formatDate(item.updatedAt || item.createdAt) || "–";
+      const rawDate =
+        item.atualizadoEm ||
+        item.updatedAt ||
+        item.criadoEm ||
+        item.createdAt;
+      tdAtualizado.textContent = formatDate(rawDate) || "–";
 
       const tdAcoes = document.createElement("td");
       const btn = document.createElement("button");
@@ -244,7 +292,11 @@
     });
 
     if (subtitle) {
-      subtitle.textContent = `${state.items.length} item(ns) carregado(s) do seu acervo.`;
+      if (state.filterQuery) {
+        subtitle.textContent = `${filtered.length} item(ns) exibido(s) de ${total} no seu acervo.`;
+      } else {
+        subtitle.textContent = `${filtered.length} item(ns) carregado(s) do seu acervo.`;
+      }
     }
   }
 
@@ -337,6 +389,11 @@
       state.items = items || [];
       state.meta = meta;
 
+      // reset de filtro sempre que recarregar do backend
+      state.filterQuery = "";
+      const filterInput = $("#acervo-filter-query");
+      if (filterInput) filterInput.value = "";
+
       renderQuota();
       renderItems();
       showAlert("", "info");
@@ -384,8 +441,13 @@
       payload.prioridade = Number(prioridade);
     }
 
+    const btn = $("#acervo-texto-submit");
     showAlert("Salvando texto no acervo...", "info");
-    $("#acervo-texto-submit").disabled = true;
+    if (btn) {
+      btn.disabled = true;
+      btn.dataset.label = btn.textContent;
+      btn.textContent = "Salvando...";
+    }
 
     try {
       const res = await apiFetch("/acervo/texto", {
@@ -412,7 +474,10 @@
         "error"
       );
     } finally {
-      $("#acervo-texto-submit").disabled = false;
+      if (btn) {
+        btn.disabled = false;
+        btn.textContent = btn.dataset.label || "Salvar no acervo";
+      }
     }
   }
 
@@ -448,8 +513,13 @@
     formData.append("habilitado", habilitado ? "true" : "false");
     formData.append("nivelUso", nivelUso || "todos");
 
+    const btn = $("#acervo-upload-submit");
     showAlert("Enviando arquivo para o acervo...", "info");
-    $("#acervo-upload-submit").disabled = true;
+    if (btn) {
+      btn.disabled = true;
+      btn.dataset.label = btn.textContent;
+      btn.textContent = "Enviando...";
+    }
 
     try {
       const res = await apiFetch("/acervo/upload", {
@@ -475,7 +545,10 @@
         "error"
       );
     } finally {
-      $("#acervo-upload-submit").disabled = false;
+      if (btn) {
+        btn.disabled = false;
+        btn.textContent = btn.dataset.label || "Enviar arquivo";
+      }
     }
   }
 
@@ -509,14 +582,22 @@
     payload.resumoCurto = resumoCurto || null;
     if (nivelUso) payload.nivelUso = nivelUso;
 
+    const btn = $("#acervo-edit-submit");
     showAlert("Salvando alterações do item...", "info");
-    $("#acervo-edit-submit").disabled = true;
+    if (btn) {
+      btn.disabled = true;
+      btn.dataset.label = btn.textContent;
+      btn.textContent = "Salvando...";
+    }
 
     try {
-      const res = await apiFetch(`/acervo/${encodeURIComponent(state.selectedId)}`, {
-        method: "PATCH",
-        body: JSON.stringify(payload),
-      });
+      const res = await apiFetch(
+        `/acervo/${encodeURIComponent(state.selectedId)}`,
+        {
+          method: "PATCH",
+          body: JSON.stringify(payload),
+        }
+      );
 
       const data = await res.json().catch(() => ({}));
 
@@ -536,7 +617,10 @@
         "error"
       );
     } finally {
-      $("#acervo-edit-submit").disabled = false;
+      if (btn) {
+        btn.disabled = false;
+        btn.textContent = btn.dataset.label || "Salvar alterações";
+      }
     }
   }
 
@@ -622,7 +706,11 @@
       if (el.type === "button" || el.type === "submit" || el.tagName === "BUTTON") {
         el.disabled = true;
       }
-      if (el.tagName === "INPUT" || el.tagName === "TEXTAREA" || el.tagName === "SELECT") {
+      if (
+        el.tagName === "INPUT" ||
+        el.tagName === "TEXTAREA" ||
+        el.tagName === "SELECT"
+      ) {
         el.setAttribute("readonly", "readonly");
       }
     });
@@ -672,6 +760,10 @@
         updatedAt: now - 5 * 24 * 3600 * 1000,
       },
     ];
+
+    state.filterQuery = "";
+    const filterInput = $("#acervo-filter-query");
+    if (filterInput) filterInput.value = "";
   }
 
   function initAuthAndLoad() {
@@ -716,10 +808,12 @@
     const formEdit = $("#acervo-form-edit");
     const btnReload = $("#acervo-reload-btn");
     const btnEditCancel = $("#acervo-edit-cancel");
+    const filterInput = $("#acervo-filter-query");
 
     if (formTexto) formTexto.addEventListener("submit", handleCreateTexto);
     if (formUpload) formUpload.addEventListener("submit", handleUploadArquivo);
     if (formEdit) formEdit.addEventListener("submit", handleEditSubmit);
+
     if (btnReload)
       btnReload.addEventListener("click", () => {
         if (state.isValidateMode) {
@@ -730,10 +824,21 @@
           loadAcervo();
         }
       });
+
     if (btnEditCancel)
       btnEditCancel.addEventListener("click", () => {
         clearEditSelection();
       });
+
+    if (filterInput) {
+      filterInput.addEventListener("input", (e) => {
+        const val = e.target && typeof e.target.value === "string"
+          ? e.target.value
+          : "";
+        state.filterQuery = val;
+        renderItems();
+      });
+    }
   }
 
   document.addEventListener("DOMContentLoaded", () => {
