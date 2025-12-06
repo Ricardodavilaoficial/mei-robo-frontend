@@ -1,0 +1,436 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Mais espaço no MEI Robô — Starter+ (10 GB)</title>
+
+  <link rel="canonical" href="https://www.meirobo.com.br/pages/upgrade.html" />
+
+  <!-- Reforços padrão das telas logadas -->
+  <meta http-equiv="Cache-Control" content="no-store, max-age=0, must-revalidate" />
+  <meta name="robots" content="noindex, nofollow" />
+
+  <link rel="stylesheet" href="/assets/styles.css" />
+  <script src="/assets/layout.js" defer></script>
+
+  <!-- Firebase compat (mesmo padrão das outras telas logadas) -->
+  <script defer src="/__/firebase/9.22.2/firebase-app-compat.js"></script>
+  <script defer src="/__/firebase/9.22.2/firebase-auth-compat.js"></script>
+  <script defer src="/__/firebase/9.22.2/firebase-firestore-compat.js"></script>
+  <script defer src="/__/firebase/init.js"></script>
+
+  <!-- Script da página de upgrade -->
+  <script defer src="/assets/upgrade.js"></script>
+
+  <style>
+    :root {
+      --upgrade-accent: #36d07f;
+      --upgrade-bg: #020617;
+      --upgrade-card: #020617;
+      --upgrade-card-soft: #020617;
+    }
+
+    body {
+      background: var(--upgrade-bg);
+    }
+
+    .app-main {
+      min-height: 82vh;
+    }
+
+    .upgrade-shell {
+      max-width: 960px;
+      margin: 0 auto;
+      padding: 24px 16px 40px;
+    }
+
+    .upgrade-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
+      gap: 24px;
+    }
+
+    @media (max-width: 768px) {
+      .upgrade-grid {
+        grid-template-columns: minmax(0, 1fr);
+      }
+    }
+
+    .upgrade-card {
+      background: #020617;
+      border-radius: 16px;
+      border: 1px solid rgba(148, 163, 184, 0.4);
+      padding: 20px 18px;
+      box-shadow: 0 18px 45px rgba(15, 23, 42, 0.9);
+    }
+
+    .upgrade-tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 10px;
+      border-radius: 999px;
+      background: rgba(54, 208, 127, 0.12);
+      color: #bbf7d0;
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      margin-bottom: 10px;
+    }
+
+    .upgrade-tag-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 999px;
+      background: var(--upgrade-accent);
+      box-shadow: 0 0 0 4px rgba(54, 208, 127, 0.25);
+    }
+
+    .upgrade-title {
+      font-size: 1.6rem;
+      font-weight: 600;
+      color: #e5e7eb;
+      margin: 0 0 8px;
+    }
+
+    .upgrade-subtitle {
+      font-size: 0.95rem;
+      color: #9ca3af;
+      margin: 0 0 16px;
+    }
+
+    .upgrade-list {
+      list-style: none;
+      padding: 0;
+      margin: 0 0 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .upgrade-list li {
+      display: flex;
+      align-items: flex-start;
+      gap: 8px;
+      font-size: 0.95rem;
+      color: #e5e7eb;
+    }
+
+    .upgrade-list li span.bullet {
+      width: 18px;
+      height: 18px;
+      border-radius: 999px;
+      border: 1px solid rgba(148, 163, 184, 0.6);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 11px;
+      color: var(--upgrade-accent);
+      flex-shrink: 0;
+      margin-top: 2px;
+    }
+
+    .upgrade-small {
+      font-size: 0.8rem;
+      color: #9ca3af;
+      margin-top: 8px;
+    }
+
+    .upgrade-cta-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      align-items: center;
+      margin-top: 16px;
+    }
+
+    .btn-upgrade-main {
+      border: none;
+      border-radius: 999px;
+      padding: 10px 18px;
+      font-size: 0.95rem;
+      font-weight: 600;
+      background: var(--upgrade-accent);
+      color: #022c22;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      cursor: pointer;
+      transition: transform 0.12s ease, box-shadow 0.12s ease, background 0.12s ease;
+      box-shadow: 0 14px 30px rgba(22, 163, 74, 0.4);
+    }
+
+    .btn-upgrade-main:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 18px 40px rgba(22, 163, 74, 0.6);
+      background: #22c55e;
+    }
+
+    .btn-upgrade-main:disabled {
+      opacity: 0.6;
+      cursor: default;
+      transform: none;
+      box-shadow: none;
+    }
+
+    .btn-upgrade-secondary {
+      border: 1px solid rgba(148, 163, 184, 0.7);
+      border-radius: 999px;
+      padding: 8px 16px;
+      font-size: 0.9rem;
+      background: transparent;
+      color: #e5e7eb;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .btn-upgrade-secondary:hover {
+      background: rgba(15, 23, 42, 0.9);
+    }
+
+    .upgrade-price-card {
+      background: radial-gradient(circle at top left, rgba(56, 189, 248, 0.15), transparent),
+                  radial-gradient(circle at bottom right, rgba(34, 197, 94, 0.18), #020617);
+      border-radius: 16px;
+      border: 1px solid rgba(148, 163, 184, 0.6);
+      padding: 18px 16px 18px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .upgrade-price-title {
+      font-size: 0.9rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: #bfdbfe;
+    }
+
+    .upgrade-price-main {
+      display: flex;
+      align-items: baseline;
+      gap: 4px;
+      color: #e5e7eb;
+      margin-top: 4px;
+    }
+
+    .upgrade-price-main .value {
+      font-size: 2rem;
+      font-weight: 600;
+    }
+
+    .upgrade-price-main .suffix {
+      font-size: 0.9rem;
+      color: #9ca3af;
+    }
+
+    .upgrade-price-note {
+      font-size: 0.8rem;
+      color: #cbd5f5;
+    }
+
+    .upgrade-divider {
+      border: 0;
+      border-top: 1px dashed rgba(148, 163, 184, 0.6);
+      margin: 8px 0;
+    }
+
+    .upgrade-meta-list {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      font-size: 0.8rem;
+      color: #e5e7eb;
+    }
+
+    .upgrade-meta-list li {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .upgrade-meta-pill {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 999px;
+      padding: 2px 8px;
+      font-size: 0.7rem;
+      border: 1px solid rgba(148, 163, 184, 0.6);
+      color: #e5e7eb;
+    }
+
+    .upgrade-alert {
+      margin-top: 12px;
+      font-size: 0.8rem;
+      color: #fbbf24;
+    }
+
+    .upgrade-status {
+      margin-top: 10px;
+      font-size: 0.85rem;
+      color: #9ca3af;
+    }
+
+    .upgrade-status strong {
+      color: #e5e7eb;
+    }
+
+    .upgrade-alert-error {
+      margin-top: 12px;
+      padding: 8px 10px;
+      border-radius: 8px;
+      border: 1px solid rgba(248, 113, 113, 0.8);
+      background: rgba(127, 29, 29, 0.6);
+      color: #fee2e2;
+      font-size: 0.85rem;
+    }
+
+    .upgrade-alert-info {
+      margin-top: 12px;
+      padding: 8px 10px;
+      border-radius: 8px;
+      border: 1px solid rgba(59, 130, 246, 0.8);
+      background: rgba(30, 64, 175, 0.8);
+      color: #dbeafe;
+      font-size: 0.85rem;
+    }
+
+    .upgrade-pill-plan {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      border-radius: 999px;
+      padding: 4px 10px;
+      border: 1px solid rgba(148, 163, 184, 0.7);
+      font-size: 0.8rem;
+      color: #e5e7eb;
+      margin-top: 6px;
+    }
+
+    .upgrade-pill-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 999px;
+      background: #38bdf8;
+    }
+
+    .text-muted {
+      color: #9ca3af;
+    }
+  </style>
+</head>
+<body>
+  <header id="site-header-fallback" class="site-header-fallback" hidden></header>
+
+  <main class="app-main">
+    <section class="upgrade-shell">
+      <div class="upgrade-grid">
+        <!-- Coluna texto/benefícios -->
+        <article class="upgrade-card">
+          <div class="upgrade-tag">
+            <span class="upgrade-tag-dot"></span>
+            Mais espaço no MEI Robô
+          </div>
+
+          <h1 class="upgrade-title">Starter+ — 10 GB para o seu acervo</h1>
+          <p class="upgrade-subtitle">
+            Guarde mais contratos, fotos, apostilas, modelos e tudo que você usa no dia a dia
+            do seu trabalho. Tudo num lugar só, junto com o seu MEI Robô.
+          </p>
+
+          <ul class="upgrade-list">
+            <li>
+              <span class="bullet">1</span>
+              <span>Mais espaço para PDFs, imagens e arquivos importantes do seu negócio.</span>
+            </li>
+            <li>
+              <span class="bullet">2</span>
+              <span>Seu robô continua respondendo os clientes usando esse material como base.</span>
+            </li>
+            <li>
+              <span class="bullet">3</span>
+              <span>Pagamento online, em poucos cliques. Quando for confirmado, seu espaço sobe pra 10 GB.</span>
+            </li>
+          </ul>
+
+          <p class="upgrade-small">
+            Esse upgrade é pensado para quem já está usando o acervo no dia a dia
+            e quer ficar tranquilo para guardar mais conteúdo sem medo de lotar.
+          </p>
+
+          <div class="upgrade-cta-row">
+            <button id="btn-upgrade-starter-plus" class="btn-upgrade-main">
+              <span>Fazer upgrade para 10 GB</span>
+              <span aria-hidden="true">↗</span>
+            </button>
+
+            <button id="btn-voltar-acervo" class="btn-upgrade-secondary" type="button">
+              <span aria-hidden="true">←</span>
+              <span>Voltar para o acervo</span>
+            </button>
+          </div>
+
+          <p class="upgrade-small">
+            <strong>Atenção:</strong> o pagamento e a liberação do espaço são feitos
+            para o titular da conta. Se você tiver qualquer dúvida, é só falar com a gente
+            pelo suporte.
+          </p>
+
+          <div id="upgrade-status" class="upgrade-status">
+            <strong>Situação:</strong> pronto para fazer o upgrade.
+          </div>
+
+          <div id="upgrade-alert" class="upgrade-alert-error" style="display:none;"></div>
+        </article>
+
+        <!-- Coluna preço / resumo -->
+        <aside class="upgrade-price-card">
+          <div class="upgrade-price-title">Plano Starter+ (acervo)</div>
+
+          <div class="upgrade-price-main">
+            <span class="value">10&nbsp;GB</span>
+            <span class="suffix">de espaço para o seu acervo</span>
+          </div>
+
+          <p class="upgrade-price-note">
+            Espaço total para guardar seus arquivos dentro do MEI Robô.
+          </p>
+
+          <hr class="upgrade-divider" />
+
+          <ul class="upgrade-meta-list">
+            <li>
+              <span class="upgrade-meta-pill">Upgrade único</span>
+              <span>Você paga uma vez e o limite do acervo sobe para 10 GB.</span>
+            </li>
+            <li>
+              <span class="upgrade-meta-pill">Conta logada</span>
+              <span>O upgrade vale para o MEI que estiver logado na hora do pagamento.</span>
+            </li>
+            <li>
+              <span class="upgrade-meta-pill">Segurança</span>
+              <span>Pagamento processado pela Stripe, parceira global de cobrança online.</span>
+            </li>
+          </ul>
+
+          <div class="upgrade-pill-plan">
+            <span class="upgrade-pill-dot"></span>
+            <span>Starter+ — 10 GB de acervo</span>
+          </div>
+
+          <div id="upgrade-info" class="upgrade-alert-info" style="display:none;"></div>
+        </aside>
+      </div>
+    </section>
+  </main>
+
+  <footer id="site-footer-fallback" class="site-footer-fallback" hidden></footer>
+</body>
+</html>
