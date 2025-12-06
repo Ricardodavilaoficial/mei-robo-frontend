@@ -5,6 +5,9 @@
 (function () {
   const $ = (sel) => document.querySelector(sel);
 
+  // Mesmo padrão das outras telas: base da API apontando para o backend (Render)
+  const apiBase = (window.__API_BASE || "").replace(/\/+$/, "");
+
   const state = {
     isValidateMode: false,
     loading: false,
@@ -124,7 +127,9 @@
 
       setStatus("Preparando a tela de pagamento...");
 
-      const res = await fetch("/api/upgrade/checkout", {
+      const url = (apiBase || "") + "/api/upgrade/checkout";
+
+      const res = await fetch(url, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
