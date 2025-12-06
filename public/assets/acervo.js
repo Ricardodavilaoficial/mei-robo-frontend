@@ -35,6 +35,7 @@
     box.style.display = "block";
   }
 
+  // Formato "genérico" usado na tabela de itens
   function formatBytes(bytes) {
     if (typeof bytes !== "number" || isNaN(bytes)) return "–";
     if (bytes === 0) return "0 B";
@@ -45,6 +46,39 @@
     );
     const value = bytes / Math.pow(1024, i);
     return `${value.toFixed(value >= 10 ? 0 : 1)} ${units[i]}`;
+  }
+
+  // Formato específico para QUOTA (pt-BR, com vírgula e foco em KB/MB/GB)
+  function formatBytesPTBRQuota(bytes) {
+    if (!Number.isFinite(bytes) || bytes < 0) bytes = 0;
+
+    const KB = 1024;
+    const MB = KB * 1024;
+    const GB = MB * 1024;
+
+    let value;
+    let suffix;
+
+    if (bytes < KB) {
+      return `${bytes} B`;
+    }
+
+    if (bytes < MB) {
+      value = bytes / KB;
+      suffix = "KB";
+      return `${value.toFixed(1).replace(".", ",")} ${suffix}`;
+    }
+
+    if (bytes < GB) {
+      value = bytes / MB;
+      suffix = "MB";
+      return `${value.toFixed(1).replace(".", ",")} ${suffix}`;
+    }
+
+    value = bytes / GB;
+    suffix = "GB";
+    // 2 casas em GB pra ficar estável: 2,00 GB
+    return `${value.toFixed(2).replace(".", ",")} ${suffix}`;
   }
 
   function formatDate(val) {
@@ -116,27 +150,52 @@
     const barEl = $("#acervo-quota-bar");
 
     const meta = state.meta || {};
-    const totalBytes = meta.totalBytes ?? meta.total ?? 0;
-    const maxBytes =
+    const items = state.items || [];
+
+    // Soma “de verdade” dos itens carregados
+    const itensBytes = items.reduce((acc, item) => {
+      const val = Number(item.tamanhoBytes);
+      return acc + (Number.isFinite(val) && val > 0 ? val : 0);
+    }, 0);
+
+    // Valor vindo do backend
+    let totalBytes = meta.totalBytes ?? meta.total;
+
+    // Se o backend não mandou nada, ou mandou menos do que a soma dos itens,
+    // usamos a soma dos itens como base.
+    if (!Number.isFinite(totalBytes) || totalBytes < itensBytes) {
+      totalBytes = itensBytes;
+    }
+
+    // Máximo do plano (meta.maxBytes/meta.max ou fallback 2 GB)
+    let maxBytes =
       meta.maxBytes ??
       meta.max ??
       2 * 1024 * 1024 * 1024; // fallback 2GB
 
-    const safeMax = Math.max(1, maxBytes);
-    const usedPct = Math.max(0, Math.min(100, (totalBytes / safeMax) * 100));
-    const freePct = 100 - usedPct;
-    const livreBytes = Math.max(0, maxBytes - totalBytes);
-
-    // Exibe uso em bytes + sufixo "usado"
-    if (usageEl) {
-      usageEl.textContent = `${formatBytes(totalBytes)} usado`;
+    if (!Number.isFinite(maxBytes) || maxBytes <= 0) {
+      maxBytes = 2 * 1024 * 1024 * 1024;
     }
 
-    // Exibe total em bytes + % livre (evita esse 2.0 GB vs 2.0 GB enganoso)
+    const safeMax = Math.max(1, maxBytes);
+    const usedPctRaw = (totalBytes / safeMax) * 100;
+    const usedPct = Math.max(0, Math.min(100, usedPctRaw));
+    const freePct = 100 - usedPct;
+    const livreBytes = Math.max(0, safeMax - totalBytes);
+
+    // Exibe uso: bytes + porcentagem usada
+    if (usageEl) {
+      usageEl.textContent =
+        `${formatBytes(totalBytes)} usados ` +
+        `(${usedPct.toFixed(1)}% do plano)`;
+    }
+
+    // Exibe total: total + livres + porcentagem livre
     if (maxEl) {
-      maxEl.textContent = `${formatBytes(maxBytes)} total — ${freePct.toFixed(
-        1
-      )}% livre`;
+      maxEl.textContent =
+        `${formatBytes(maxBytes)} total — ` +
+        `${formatBytes(livreBytes)} livres ` +
+        `(${freePct.toFixed(1)}% livre)`;
     }
 
     // Barra visual de uso
@@ -838,9 +897,10 @@
 
     if (filterInput) {
       filterInput.addEventListener("input", (e) => {
-        const val = e.target && typeof e.target.value === "string"
-          ? e.target.value
-          : "";
+        const val =
+          e.target && typeof e.target.value === "string"
+            ? e.target.value
+            : "";
         state.filterQuery = val;
         renderItems();
       });
