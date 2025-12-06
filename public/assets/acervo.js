@@ -121,23 +121,29 @@
       meta.maxBytes ??
       meta.max ??
       2 * 1024 * 1024 * 1024; // fallback 2GB
-    const freeBytes = Math.max(0, maxBytes - totalBytes);
 
-    if (usageEl)
+    const safeMax = Math.max(1, maxBytes);
+    const usedPct = Math.max(0, Math.min(100, (totalBytes / safeMax) * 100));
+    const freePct = 100 - usedPct;
+    const livreBytes = Math.max(0, maxBytes - totalBytes);
+
+    // Exibe uso em bytes + sufixo "usado"
+    if (usageEl) {
       usageEl.textContent = `${formatBytes(totalBytes)} usado`;
-    if (maxEl)
-      maxEl.textContent = `${formatBytes(
-        maxBytes
-      )} total — ${formatBytes(freeBytes)} livre`;
+    }
 
+    // Exibe total em bytes + % livre (evita esse 2.0 GB vs 2.0 GB enganoso)
+    if (maxEl) {
+      maxEl.textContent = `${formatBytes(maxBytes)} total — ${freePct.toFixed(
+        1
+      )}% livre`;
+    }
+
+    // Barra visual de uso
     if (barEl) {
-      const pct = Math.max(
-        0,
-        Math.min(100, (totalBytes / Math.max(1, maxBytes)) * 100)
-      );
-      barEl.style.width = `${pct.toFixed(1)}%`;
+      barEl.style.width = `${usedPct.toFixed(1)}%`;
 
-      if (!state.isValidateMode && pct >= 80) {
+      if (!state.isValidateMode && usedPct >= 80) {
         showAlert(
           "Você está chegando perto do limite de espaço do seu plano. Se precisar guardar mais coisas, fale com a gente para aumentar o espaço.",
           "info"
