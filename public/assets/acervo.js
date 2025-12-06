@@ -35,6 +35,51 @@
     box.style.display = "block";
   }
 
+  // Helpers de progresso de upload (safe mesmo sem HTML correspondente)
+  function showUploadProgress(percent) {
+    const row = $("#acervo-upload-progress");
+    const text = $("#acervo-upload-progress-text");
+    const barWrapper = $("#acervo-upload-progress-bar-wrapper");
+    const bar = $("#acervo-upload-progress-bar");
+
+    if (row) {
+      row.style.display = "block";
+    }
+    if (typeof percent === "number" && text) {
+      const safe = Math.max(0, Math.min(100, Math.round(percent)));
+      text.textContent = `${safe}%`;
+    }
+    if (barWrapper && bar) {
+      barWrapper.style.display = "block";
+      if (typeof percent === "number") {
+        const safe = Math.max(0, Math.min(100, percent));
+        bar.style.width = `${safe}%`;
+      } else {
+        bar.style.width = "0%";
+      }
+    }
+  }
+
+  function resetUploadProgress() {
+    const row = $("#acervo-upload-progress");
+    const text = $("#acervo-upload-progress-text");
+    const barWrapper = $("#acervo-upload-progress-bar-wrapper");
+    const bar = $("#acervo-upload-progress-bar");
+
+    if (row) {
+      row.style.display = "none";
+    }
+    if (barWrapper) {
+      barWrapper.style.display = "none";
+    }
+    if (text) {
+      text.textContent = "0%";
+    }
+    if (bar) {
+      bar.style.width = "0%";
+    }
+  }
+
   // Formato "genérico" usado na tabela de itens
   function formatBytes(bytes) {
     if (typeof bytes !== "number" || isNaN(bytes)) return "–";
@@ -562,8 +607,10 @@
       return;
     }
 
+    const file = inputFile.files[0];
+
     const formData = new FormData();
-    formData.append("file", inputFile.files[0]);
+    formData.append("file", file);
 
     const titulo = $("#acervo-upload-titulo").value.trim();
     const tagsRaw = $("#acervo-upload-tags").value.trim();
@@ -586,30 +633,81 @@
       btn.textContent = "Enviando...";
     }
 
+    resetUploadProgress();
+    showUploadProgress(0);
+
+    // Monta URL da mesma forma que apiFetch
+    const path = "/acervo/upload";
+    const url = path.startsWith("http")
+      ? path
+      : `/api${path.startsWith("/") ? "" : "/"}${path}`;
+
     try {
-      const res = await apiFetch("/acervo/upload", {
-        method: "POST",
-        body: formData,
-      });
+      const xhr = new XMLHttpRequest();
+      xhr.open("POST", url, true);
+      xhr.withCredentials = true;
 
-      const data = await res.json().catch(() => ({}));
-
-      if (!res.ok) {
-        const code = data.error || data.code || "internal_error";
-        handleBackendError(code, data);
-        return;
+      if (state.token) {
+        xhr.setRequestHeader("Authorization", `Bearer ${state.token}`);
       }
 
-      showAlert("Arquivo enviado e salvo no acervo.", "success");
-      inputFile.value = "";
-      await loadAcervo();
+      xhr.responseType = "json";
+
+      xhr.upload.onprogress = (evt) => {
+        if (!evt.lengthComputable) {
+          showUploadProgress(null);
+          return;
+        }
+        const percent = (evt.loaded / evt.total) * 100;
+        showUploadProgress(percent);
+      };
+
+      xhr.onerror = () => {
+        console.error("[acervo] erro de rede no upload de arquivo");
+        showAlert(
+          "Não consegui enviar este arquivo agora. Verifique sua conexão e tente novamente.",
+          "error"
+        );
+        resetUploadProgress();
+        if (btn) {
+          btn.disabled = false;
+          btn.textContent = btn.dataset.label || "Enviar arquivo";
+        }
+      };
+
+      xhr.onload = async () => {
+        const status = xhr.status;
+        const data = xhr.response || {};
+
+        if (status < 200 || status >= 300) {
+          const code = data.error || data.code || "internal_error";
+          handleBackendError(code, data);
+          resetUploadProgress();
+          if (btn) {
+            btn.disabled = false;
+            btn.textContent = btn.dataset.label || "Enviar arquivo";
+          }
+          return;
+        }
+
+        showAlert("Arquivo enviado e salvo no acervo.", "success");
+        resetUploadProgress();
+        inputFile.value = "";
+        await loadAcervo();
+        if (btn) {
+          btn.disabled = false;
+          btn.textContent = btn.dataset.label || "Enviar arquivo";
+        }
+      };
+
+      xhr.send(formData);
     } catch (err) {
       console.error("[acervo] erro no upload de arquivo:", err);
       showAlert(
         "Não consegui enviar este arquivo agora. Tente novamente em alguns instantes.",
         "error"
       );
-    } finally {
+      resetUploadProgress();
       if (btn) {
         btn.disabled = false;
         btn.textContent = btn.dataset.label || "Enviar arquivo";
@@ -627,7 +725,7 @@
       return;
     }
     if (!state.selectedId) {
-      showAlert("Nenhum item selecionado para edição.", "error");
+      showAlert("Nenhum item selecionado para edição.", "error";
       return;
     }
 
@@ -776,7 +874,7 @@
         el.tagName === "TEXTAREA" ||
         el.tagName === "SELECT"
       ) {
-        el.setAttribute("readonly", "readonly");
+        el.setAttribute("readonly", "readonly";
       }
     });
   }

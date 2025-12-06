@@ -371,16 +371,13 @@
         </a>
       </div>
       <p>
-        Aqui é o seu <strong>Acervo do MEI</strong>. É o lugar para guardar suas experiências,
-        materiais de curso, fotos, vídeos e áudios importantes para você.
+        Aqui é o seu espaço de conhecimento dentro do MEI Robô. É o lugar para guardar
+        materiais, fotos, vídeos, áudios e textos importantes para o seu trabalho.
       </p>
       <p>
-        Pense nele como o seu caderno de anotações digital: aqui você guarda
-        textos de cursos e especializações que fez, explicações que você sempre
-        manda para os clientes, fotos de serviços bem feitos (antes e depois) e
-        orientações importantes (preparo, garantia, cuidados depois do serviço).
-        O MEI Robô usa esse material para responder seus clientes do seu jeito,
-        sem inventar moda.
+        Use este acervo para concentrar o que você sempre usa com os clientes:
+        explicações, materiais de curso, orientações de preparo e cuidados depois do serviço.
+        O MEI Robô usa esse conteúdo para responder seus clientes do seu jeito, sem inventar moda.
       </p>
     </header>
 
@@ -403,9 +400,9 @@
           </button>
         </div>
         <p>
-          Este é o espaço reservado para os seus conhecimentos e experiências dentro do MEI Robô.
-          Ele é compartilhado entre o seu Acervo do MEI, os acervos dos seus contatos e outros arquivos
-          do sistema.
+          Este é o espaço reservado para os arquivos da sua conta no MEI Robô.
+          Ele é compartilhado entre o seu acervo pessoal, os acervos dos seus contatos
+          e outros arquivos do sistema.
         </p>
 
         <div class="acervo-meta-row">
@@ -424,10 +421,19 @@
         </div>
 
         <p class="acervo-meta-note">
-          Seu plano atual pode oferecer até 2 GB de espaço para conhecimento. Comece pelos arquivos
-          que você realmente usaria no dia a dia para responder clientes (orientações, perguntas
-          frequentes, materiais de curso, etc.).
+          Seu plano atual oferece até 2 GB de espaço para a sua conta
+          (acervo pessoal, acervos dos contatos e outros arquivos).
         </p>
+
+        <div style="margin-top:0.5rem;display:flex;flex-wrap:wrap;gap:0.5rem;align-items:center;justify-content:space-between;">
+          <p class="acervo-meta-note" style="margin:0;">
+            Quando você precisar de mais espaço, vai poder migrar para o plano
+            <strong>Starter+ (10 GB)</strong>.
+          </p>
+          <a href="/pages/upgrade.html" class="acervo-btn acervo-btn-secondary">
+            Saber mais
+          </a>
+        </div>
       </section>
 
       <!-- Criação rápida -->
@@ -435,11 +441,9 @@
         <h2 id="acervo-create-title">Adicionar ao acervo</h2>
         <p>
           Use esta área para guardar o que realmente te ajuda no dia a dia:
-          textos de cursos e especializações que você fez, explicações que você
-          sempre manda para os clientes, fotos de serviços bem feitos (antes e
-          depois) e orientações importantes (preparo, garantia, cuidados depois
-          do serviço). O MEI Robô vai usar esse material para responder seus
-          clientes do seu jeito, sem inventar moda.
+          textos que você sempre manda para clientes, materiais de curso,
+          orientações de preparo e fotos de serviços bem feitos.
+          Depois o MEI Robô usa isso como base para responder seus clientes.
         </p>
 
         <div class="acervo-tabs" role="tablist" aria-label="Modo de criação de item">
@@ -602,6 +606,31 @@
                 <option value="interno">Só eu (não usar nas respostas)</option>
               </select>
             </div>
+
+            <p
+              id="acervo-upload-progress"
+              class="acervo-meta-note"
+              style="display:none;"
+            >
+              Enviando arquivo... <span id="acervo-upload-progress-text">0%</span>
+            </p>
+            <div
+              id="acervo-upload-progress-bar-wrapper"
+              class="acervo-progress"
+              style="display:none;margin-top:0.25rem;"
+            >
+              <div
+                class="acervo-progress-bar"
+                id="acervo-upload-progress-bar"
+                style="width:0%;"
+              ></div>
+            </div>
+
+            <p class="acervo-meta-note">
+              Cada arquivo pode ter até <strong>15 MB</strong>.
+              Se tiver um vídeo de curso muito longo, vale dividir em partes,
+              por exemplo: “Curso de cabeleireiro – Módulo 1”, “Módulo 2”, “Módulo 3”.
+            </p>
 
             <button
               type="submit"
