@@ -1,15 +1,15 @@
 // assets/upgrade.js
-// Fluxo de upgrade de espaço (Starter+ 10 GB) no MEI Robô.
-// Chama o backend em /api/upgrade/checkout e redireciona para o pagamento.
+// Upgrade de espaço (Starter+ 10 GB) via Portal do Cliente Stripe.
+// Fase 1: tudo de pagamento é resolvido direto no Stripe.
 
 (function () {
   const $ = (sel) => document.querySelector(sel);
 
   const state = {
     isValidateMode: false,
-    loading: false,
   };
 
+  // Mesmo padrão das outras telas: ?validate=1 = modo vitrine
   function getValidateMode() {
     try {
       const params = new URLSearchParams(window.location.search);
@@ -18,31 +18,6 @@
       return false;
     }
   }
-
-  function getApiBase() {
-    let base = "";
-
-    try {
-      const fromWindow = (window.API_BASE || window.APP_API_BASE || "").trim();
-      if (fromWindow) {
-        base = fromWindow;
-      } else if (window.localStorage) {
-        const stored = (window.localStorage.getItem("apiBase") || "").trim();
-        if (stored) base = stored;
-      }
-    } catch (e) {
-      console.warn("[upgrade] Erro ao ler API_BASE:", e);
-    }
-
-    // 🔥 Fallback definitivo: backend em produção no Render
-    if (!base) {
-      base = "https://mei-robo-prod.onrender.com";
-    }
-
-    return base.replace(/\/$/, "");
-  }
-
-  const API_BASE = getApiBase();
 
   function setStatus(message) {
     const box = $("#upgrade-status");
@@ -74,18 +49,9 @@
     box.textContent = message;
   }
 
-  function setLoading(isLoading) {
-    state.loading = isLoading;
-    const btn = $("#btn-upgrade-starter-plus");
-    if (!btn) return;
-    btn.disabled = !!isLoading;
-    if (isLoading) {
-      btn.dataset.originalLabel = btn.textContent;
-      btn.textContent = "Abrindo tela de pagamento...";
-    } else if (btn.dataset.originalLabel) {
-      btn.textContent = btn.dataset.originalLabel;
-    }
-  }
+  // 🔗 Link oficial do Portal do Cliente (Stripe)
+  // Se mudar no painel da Stripe, é só trocar AQUI.
+  const STRIPE_PORTAL_URL = "https://billing.stripe.com/p/login/eVq3cu9ez2Qp7C67Zz6EU00";
 
   async function ensureLoggedIn() {
     return new Promise((resolve) => {
@@ -105,99 +71,43 @@
     });
   }
 
-  async function getIdToken(user) {
-    if (!user) return null;
-    try {
-      return await user.getIdToken(/* forceRefresh */ true);
-    } catch (e) {
-      console.error("Erro ao pegar idToken:", e);
-      return null;
-    }
-  }
-
   async function handleUpgradeClick() {
     if (state.isValidateMode) {
-      showInfo("Modo visual ligado (?validate=1). Aqui, o botão só mostra o fluxo — não chama o pagamento de verdade.");
+      showInfo(
+        "Modo visual ligado (?validate=1). No uso real, esse botão abre o portal seguro da Stripe " +
+        "para você atualizar sua assinatura (trocar para Starter+ 10 GB, ajustar pagamento, etc.)."
+      );
       return;
     }
 
-    if (state.loading) return;
-
-    setLoading(true);
     showError("");
     showInfo("");
-    setStatus("Confirmando sua conta...");
+    setStatus("Confirmando seu login...");
 
     try {
       const user = await ensureLoggedIn();
       if (!user) {
         setStatus("Você precisa estar logado para fazer o upgrade.");
         showError("Faça login e volte para esta tela para concluir o upgrade.");
-        setLoading(false);
-        window.location.href = "/pages/login.html";
-        return;
-      }
 
-      const idToken = await getIdToken(user);
-      if (!idToken) {
-        setStatus("Não consegui confirmar seu login.");
-        showError("Tente sair e entrar de novo na sua conta, depois volte aqui.");
-        setLoading(false);
-        return;
-      }
-
-      const base = API_BASE;
-      console.log("[upgrade] Usando API_BASE:", base);
-
-      setStatus("Preparando a tela de pagamento...");
-
-      const url = base + "/api/upgrade/checkout";
-
-      const res = await fetch(url, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": "Bearer " + idToken,
-        },
-        body: JSON.stringify({
-          plan: "starter_plus_10gb",
-        }),
-      });
-
-      if (!res.ok) {
-        let msg = "Não consegui abrir o pagamento agora. Tente de novo em alguns minutos.";
         try {
-          const data = await res.json();
-          if (data && data.error && data.error.message) {
-            msg = data.error.message;
-          } else if (data && data.error && typeof data.error === "string") {
-            msg = data.error;
-          }
+          const next = encodeURIComponent("/pages/upgrade.html");
+          window.location.href = "/pages/login.html?next=" + next;
         } catch (_) {
-          // ignora
+          window.location.href = "/pages/login.html";
         }
-        console.error("Erro ao criar checkout de upgrade:", res.status, msg);
-        setStatus("Algo não deu certo ao preparar o upgrade.");
-        showError(msg);
-        setLoading(false);
+
         return;
       }
 
-      const data = await res.json();
-      if (!data || !data.checkoutUrl) {
-        setStatus("Resposta inesperada do servidor.");
-        showError("Não consegui abrir a tela de pagamento. Tente de novo em alguns minutos.");
-        setLoading(false);
-        return;
-      }
+      setStatus("Abrindo a tela segura de pagamento (Stripe)...");
 
-      setStatus("Redirecionando para o pagamento...");
-      window.location.href = data.checkoutUrl;
+      // Fase 1: deixamos o Stripe cuidar de tudo.
+      window.location.href = STRIPE_PORTAL_URL;
     } catch (e) {
-      console.error("Erro geral no fluxo de upgrade:", e);
-      setStatus("Algo não deu certo ao preparar o upgrade.");
-      showError("Tente novamente em alguns minutos. Se continuar, fale com o suporte.");
-      setLoading(false);
+      console.error("[upgrade] Erro ao redirecionar para o portal Stripe:", e);
+      setStatus("Não consegui abrir o portal agora.");
+      showError("Tente de novo em alguns minutos. Se continuar, fale com o suporte.");
     }
   }
 
@@ -214,7 +124,10 @@
     if (btnUpgrade) {
       btnUpgrade.addEventListener("click", handleUpgradeClick);
       if (state.isValidateMode) {
-        showInfo("Modo visual ligado (?validate=1). O botão mostra o fluxo, mas não chama o pagamento de verdade.");
+        showInfo(
+          "Modo visual ligado (?validate=1). Aqui você só vê o layout. " +
+          "No uso real, o botão leva para o portal de cobrança da Stripe."
+        );
       }
     }
 
