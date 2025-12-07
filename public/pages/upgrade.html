@@ -326,8 +326,13 @@
     }
   </style>
 </head>
-<body class="app-body">
-  <header id="site-header"></header>
+<body class="app-shell">
+  <noscript>
+    <div class="banner" role="alert">Ative o JavaScript para usar esta tela.</div>
+  </noscript>
+
+  <!-- Mesmo padrão do dashboard: header/footer dinâmicos -->
+  <div id="app-header"></div>
 
   <main class="app-main">
     <section class="upgrade-shell">
@@ -431,6 +436,28 @@
     </section>
   </main>
 
-  <footer id="site-footer"></footer>
+  <div id="app-footer"></div>
+
+  <!-- Fallback leve para header/footer, igual ao dashboard -->
+  <script>
+    (function () {
+      function inject(elId, url) {
+        const host = document.getElementById(elId);
+        if (!host) return;
+        fetch(url, { cache: "no-store" })
+          .then(r => r.ok ? r.text() : Promise.reject())
+          .then(html => { if (!host.children.length) host.innerHTML = html; })
+          .catch(() => { });
+      }
+      window.addEventListener("load", function () {
+        setTimeout(function () {
+          const headerOK = document.getElementById("app-header")?.children?.length > 0;
+          const footerOK = document.getElementById("app-footer")?.children?.length > 0;
+          if (!headerOK) inject("app-header", "/assets/partials/header.html");
+          if (!footerOK) inject("app-footer", "/assets/partials/footer.html");
+        }, 600);
+      });
+    })();
+  </script>
 </body>
 </html>
