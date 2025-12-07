@@ -20,19 +20,26 @@
   }
 
   function getApiBase() {
-    try {
-      // Mesmo padrão das outras telas logadas (acervo, orçamentos, etc.)
-      const fromWindow = (window.API_BASE || window.APP_API_BASE || "").trim();
-      if (fromWindow) return fromWindow.replace(/\/$/, "");
+    let base = "";
 
-      if (window.localStorage) {
+    try {
+      const fromWindow = (window.API_BASE || window.APP_API_BASE || "").trim();
+      if (fromWindow) {
+        base = fromWindow;
+      } else if (window.localStorage) {
         const stored = (window.localStorage.getItem("apiBase") || "").trim();
-        if (stored) return stored.replace(/\/$/, "");
+        if (stored) base = stored;
       }
     } catch (e) {
       console.warn("[upgrade] Erro ao ler API_BASE:", e);
     }
-    return "";
+
+    // 🔥 Fallback definitivo: backend em produção no Render
+    if (!base) {
+      base = "https://mei-robo-prod.onrender.com";
+    }
+
+    return base.replace(/\/$/, "");
   }
 
   const API_BASE = getApiBase();
@@ -127,7 +134,6 @@
         setStatus("Você precisa estar logado para fazer o upgrade.");
         showError("Faça login e volte para esta tela para concluir o upgrade.");
         setLoading(false);
-        // Opcional: mandar direto para login
         window.location.href = "/pages/login.html";
         return;
       }
@@ -140,12 +146,8 @@
         return;
       }
 
-      const base = API_BASE || "";
-      if (!base) {
-        console.warn("[upgrade] API_BASE vazio, usando mesma origem para chamada /api/upgrade/checkout.");
-      } else {
-        console.log("[upgrade] Usando API_BASE:", base);
-      }
+      const base = API_BASE;
+      console.log("[upgrade] Usando API_BASE:", base);
 
       setStatus("Preparando a tela de pagamento...");
 
@@ -203,7 +205,6 @@
     window.location.href = "/pages/acervo.html";
   }
 
-  // Bootstrap
   document.addEventListener("DOMContentLoaded", () => {
     state.isValidateMode = getValidateMode();
 
