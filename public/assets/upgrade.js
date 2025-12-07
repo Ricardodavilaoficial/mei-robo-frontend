@@ -19,23 +19,23 @@
     }
   }
 
-  // 🔧 NOVO: resolve sempre um API_BASE válido em produção
   function getApiBase() {
     try {
-      // Se o layout.js ou outro script já definiu __API_BASE, usamos ele
-      const base = (window.__API_BASE || "").trim();
-      if (base) {
-        return base.replace(/\/$/, "");
+      // Mesmo padrão das outras telas logadas (acervo, orçamentos, etc.)
+      const fromWindow = (window.API_BASE || window.APP_API_BASE || "").trim();
+      if (fromWindow) return fromWindow.replace(/\/$/, "");
+
+      if (window.localStorage) {
+        const stored = (window.localStorage.getItem("apiBase") || "").trim();
+        if (stored) return stored.replace(/\/$/, "");
       }
     } catch (e) {
-      // ignora e cai no fallback
+      console.warn("[upgrade] Erro ao ler API_BASE:", e);
     }
-
-    // Fallback seguro para produção (Render)
-    // Se estiver em dev/local e quiser outro backend,
-    // é só definir window.__API_BASE antes de carregar este script.
-    return "https://mei-robo-prod.onrender.com";
+    return "";
   }
+
+  const API_BASE = getApiBase();
 
   function setStatus(message) {
     const box = $("#upgrade-status");
@@ -140,10 +140,16 @@
         return;
       }
 
+      const base = API_BASE || "";
+      if (!base) {
+        console.warn("[upgrade] API_BASE vazio, usando mesma origem para chamada /api/upgrade/checkout.");
+      } else {
+        console.log("[upgrade] Usando API_BASE:", base);
+      }
+
       setStatus("Preparando a tela de pagamento...");
 
-      const apiBase = getApiBase();
-      const url = apiBase + "/api/upgrade/checkout";
+      const url = base + "/api/upgrade/checkout";
 
       const res = await fetch(url, {
         method: "POST",
@@ -162,6 +168,8 @@
           const data = await res.json();
           if (data && data.error && data.error.message) {
             msg = data.error.message;
+          } else if (data && data.error && typeof data.error === "string") {
+            msg = data.error;
           }
         } catch (_) {
           // ignora
