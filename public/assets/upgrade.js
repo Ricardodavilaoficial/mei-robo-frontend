@@ -5,13 +5,22 @@
 (function () {
   const $ = (sel) => document.querySelector(sel);
 
-  // Mesmo padrão das outras telas: base da API apontando para o backend (Render)
-  const apiBase = (window.__API_BASE || "").replace(/\/+$/, "");
-
   const state = {
     isValidateMode: false,
     loading: false,
   };
+
+  // Base do backend (Render). Se __API_BASE não estiver set, cai para relativo (dev/local).
+  function getApiBase() {
+    try {
+      const raw = (window.__API_BASE || "").trim();
+      if (!raw) return "";
+      // tira barras duplicadas no final
+      return raw.replace(/\/+$/, "");
+    } catch (e) {
+      return "";
+    }
+  }
 
   function getValidateMode() {
     try {
@@ -58,7 +67,9 @@
     if (!btn) return;
     btn.disabled = !!isLoading;
     if (isLoading) {
-      btn.dataset.originalLabel = btn.textContent;
+      if (!btn.dataset.originalLabel) {
+        btn.dataset.originalLabel = btn.textContent;
+      }
       btn.textContent = "Abrindo tela de pagamento...";
     } else if (btn.dataset.originalLabel) {
       btn.textContent = btn.dataset.originalLabel;
@@ -112,7 +123,6 @@
         setStatus("Você precisa estar logado para fazer o upgrade.");
         showError("Faça login e volte para esta tela para concluir o upgrade.");
         setLoading(false);
-        // Opcional: mandar direto para login
         window.location.href = "/pages/login.html";
         return;
       }
@@ -127,7 +137,10 @@
 
       setStatus("Preparando a tela de pagamento...");
 
-      const url = (apiBase || "") + "/api/upgrade/checkout";
+      const apiBase = getApiBase();
+      const url = apiBase
+        ? apiBase + "/api/upgrade/checkout"
+        : "/api/upgrade/checkout"; // fallback dev/localhost
 
       const res = await fetch(url, {
         method: "POST",
@@ -146,9 +159,11 @@
           const data = await res.json();
           if (data && data.error && data.error.message) {
             msg = data.error.message;
+          } else if (data && data.error && typeof data.error === "string") {
+            msg = data.error;
           }
         } catch (_) {
-          // ignora
+          // ignora parse de erro
         }
         console.error("Erro ao criar checkout de upgrade:", res.status, msg);
         setStatus("Algo não deu certo ao preparar o upgrade.");
