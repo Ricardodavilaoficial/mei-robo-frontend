@@ -652,13 +652,92 @@
       const turnstileOk = !!CF_TOKEN;
       const cnpjNotBlocked = cnpjAvailability !== 'unavailable';
 
-      const allOk = !!(e1 && e2 && e1 === e2 &&
-                       phoneDigits.length >= 10 && phoneDigits.length <= 11 &&
-                       cnpjOk && cnpjNotBlocked &&
-                       senhaOk && confirmOk &&
-                       termsOk && turnstileOk);
+      const allOk = !!(
+        e1 && e2 && e1 === e2 &&
+        phoneDigits.length >= 10 && phoneDigits.length <= 11 &&
+        cnpjOk && cnpjNotBlocked &&
+        senhaOk && confirmOk &&
+        termsOk && turnstileOk
+      );
 
-      if (allOk) enableSubmit(); else disableSubmit();
+      if (allOk) {
+        enableSubmit();
+        // Se a mensagem atual for só dica leve, podemos limpar
+        if (formMsg && (formMsg.className === 'hint' || !formMsg.textContent)) {
+          formMsg.textContent = '';
+        }
+        return;
+      }
+
+      // Não passou no gate → garante botão bloqueado
+      disableSubmit();
+
+      // Só começamos a orientar se o usuário já mexeu em algo
+      const hasInteraction =
+        e1 || e2 ||
+        phoneDigits ||
+        cnpjRaw ||
+        (pwd.value || '') ||
+        (pwd2.value || '') ||
+        aceite.checked ||
+        CF_TOKEN;
+
+      if (!hasInteraction) {
+        // Tela recém aberta, não mostra erro
+        return;
+      }
+
+      if (!formMsg) return;
+
+      // Se já existe erro de backend, não sobrescreve
+      if (formMsg.textContent && formMsg.className === 'error') {
+        return;
+      }
+
+      const issues = [];
+
+      if (!e1 || !e2) {
+        issues.push('preencha os dois e-mails');
+      } else if (e1 !== e2) {
+        issues.push('os dois e-mails precisam ser iguais');
+      }
+
+      if (!phoneDigits || phoneDigits.length < 10 || phoneDigits.length > 11) {
+        issues.push('telefone com DDD (10 ou 11 dígitos)');
+      }
+
+      if (!cnpjOk) {
+        issues.push('CNPJ válido (14 dígitos)');
+      } else if (!cnpjNotBlocked) {
+        issues.push('use um CNPJ que ainda não tenha conta');
+      }
+
+      if (!senhaOk) {
+        issues.push('senha com letras e números (mínimo 8 caracteres)');
+      }
+
+      if (!confirmOk) {
+        issues.push('confirme a senha igual à primeira');
+      }
+
+      if (!termsOk) {
+        issues.push('marque que leu e concorda com os Termos');
+      }
+
+      if (!turnstileOk) {
+        issues.push('clique na caixinha de segurança');
+      }
+
+      if (issues.length) {
+        formMsg.className = 'error';
+        formMsg.textContent =
+          'Para liberar o botão “Avançar”, ajuste: ' + issues.join(' · ') + '.';
+      } else {
+        // fallback genérico
+        formMsg.className = 'error';
+        formMsg.textContent =
+          'Revise os campos acima para liberar o botão “Avançar”.';
+      }
     }
 
     ['input','blur','change'].forEach(evt => {
@@ -1523,4 +1602,5 @@ try {
 
 </body>
 </html>
+
 
