@@ -608,7 +608,21 @@
     function showEmpty(b){ emptyState.style.display = b ? "block":"none"; }
 
     function fs(){ return (window.firebase?.firestore) ? firebase.firestore(): null; }
-    function st(){ return (window.firebase?.storage) ? firebase.storage(): null; }
+    function st() {
+      try {
+        if (!(window.firebase && firebase.app)) return null;
+
+        // Pega o app DEFAULT
+        var app = firebase.app();
+        if (!app || typeof app.storage !== "function") return null;
+
+        // FORÇA o uso do bucket real do projeto (GCS)
+        return app.storage("gs://mei-robo-prod.firebasestorage.app");
+     } catch (e) {
+       console.warn("[contatos] storage indisponível:", e);
+       return null;
+     }
+    }
 
     // UID usado para dados: em produção, o UID real; em vitrine, o SANDBOX_UID
     function dataUid(){

@@ -999,7 +999,7 @@
       }
     }
 
-    // ======= configuração/CNPJ inline (como estava) =======
+    // ======= configuração/CNPJ inline (como estava) =======>
     async function fetchConfig(tok){
       const r = await fetch(`${API_BASE}/api/configuracao`, { headers: { "Authorization": tok ? ("Bearer " + tok) : "", "Accept":"application/json" } });
       if (!r.ok) throw new Error("config_fetch_failed");
@@ -1397,7 +1397,10 @@
         if (resp.status === 404) {
           payload = {};
         } else if (resp.status === 401) {
-          location.href = '/pages/login.html?next=' + encodeURIComponent('/pages/configuracao.html'); return;
+          // Sessão pode estar em transição (token ainda não veio).
+          // Não redireciona à força; só mostra uma mensagem leve.
+          setAuthMsg('Sessão em atualização. Recarregue a página se o problema continuar.');
+          payload = {};
         } else if (resp.status === 403 || resp.status === 428) {
           // 🔧 Antes redirecionava para verify-email.html, causando "volta" indesejada.
           // Agora mantemos o usuário no fluxo principal (cadastro controla verificação).
@@ -1416,13 +1419,17 @@
         const authName = user?.displayName || (data.nome || '');
 
         // Decide destino pós-configuração com base no statusAtivacao
-        const statusAtivacao = (data.statusAtivacao || '').trim();
-        // Regra simples: se já houver algum status diferente de "aguardando-voz",
-        // consideramos que o MEI já passou pelo onboarding e deve voltar ao painel.
-        if (statusAtivacao && statusAtivacao !== 'aguardando-voz') {
-          destinoPosConfig = '/pages/dashboard.html';
-        } else {
+        const rawStatus = (data.statusAtivacao || '').trim().toLowerCase();
+
+        // Estados que ainda estão “no meio” do onboarding
+        const estadosOnboarding = ['aguardando-voz', 'aguardando-config', 'aguardando-pagamento'];
+        // Regra definitiva:
+        // - se estiver explicitamente num desses estados → mandar para concluir assinatura
+        // - em qualquer outro caso (inclusive vazio) → volta para o painel
+        if (estadosOnboarding.includes(rawStatus)) {
           destinoPosConfig = '/pages/ativar-cliente.html';
+        } else {
+          destinoPosConfig = '/pages/dashboard.html';
         }
 
         if (authName)  { dNome.textContent = authName; hNome.value = authName; }
@@ -1779,3 +1786,4 @@
 
 </body>
 </html>
+

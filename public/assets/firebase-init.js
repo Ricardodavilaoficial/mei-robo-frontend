@@ -12,7 +12,7 @@
     authDomain: "mei-robo-prod.firebaseapp.com",
     projectId: "mei-robo-prod",
     // OBS: storageBucket correto para uso de Storage: *.appspot.com
-    storageBucket: "mei-robo-prod.appspot.com",
+    storageBucket: "mei-robo-prod.firebasestorage.app",
     messagingSenderId: "161054994911",
     appId: "1:161054994911:web:4a57ad4337d8edf0b5146a"
   };
