@@ -999,18 +999,38 @@
         try {
           const lic = j && j.licenca ? j.licenca : null;
           if (lic) {
-            const origem = String(lic.origem || '').toLowerCase();
-            const status = String(lic.status || '').toLowerCase();
+            const origemRaw = String(lic.origem || '').toLowerCase();
+            const statusRaw = String(lic.status || '').toLowerCase();
 
-            // Critérios conservadores: ativa, trial ou origem cupom contam como "ok"
-            if (
-              origem === 'cupom' ||
-              status === 'ativa' ||
-              status === 'active' ||
-              status === 'trial'
-            ) {
+            const origemEhCupom = origemRaw.startsWith('cupom'); // ex.: "cupom", "cupom_ativacao", etc.
+            const statusAtivo =
+              statusRaw === 'ativa' ||
+              statusRaw === 'active' ||
+              statusRaw === 'trial' ||
+              statusRaw === 'trialing';
+
+            if (origemEhCupom || statusAtivo) {
               contaAtiva = true;
               console.log('[configuracao] contaAtiva=true (licenca)', lic);
+            }
+          }
+
+          // fallback: alguns backends podem mandar status/origem soltos
+          const licencaStatusSolto = String(j?.licencaStatus || '').toLowerCase();
+          const licencaOrigemSolta = String(j?.licencaOrigem || '').toLowerCase();
+          if (!contaAtiva) {
+            const origemCupomSolta = licencaOrigemSolta.startsWith('cupom');
+            const statusAtivoSolto =
+              licencaStatusSolto === 'ativa' ||
+              licencaStatusSolto === 'active' ||
+              licencaStatusSolto === 'trial' ||
+              licencaStatusSolto === 'trialing';
+            if (origemCupomSolta || statusAtivoSolto) {
+              contaAtiva = true;
+              console.log('[configuracao] contaAtiva=true (licenca solta)', {
+                licencaStatusSolto,
+                licencaOrigemSolta,
+              });
             }
           }
         } catch (e) {
@@ -1443,19 +1463,41 @@
         const authEmail = user?.email || '';
         const authName = user?.displayName || (data.nome || '');
 
-        // Decide destino pós-configuração com base na licença real da conta
-        const statusAtivacao = (data.statusAtivacao || '').trim();
+        // Decide destino pós-configuração com base na licença e, em último caso, no statusAtivacao
+        const statusAtivacao = String(data.statusAtivacao || '').trim();
 
-        // 🔴 Regra de produção:
-        // - Se a conta já está ativa/licenciada (cupom, ativa, trial) → volta para o painel.
-        // - Caso contrário → segue para a tela de conclusão de assinatura.
-        if (contaAtiva) {
+        // Dados de licença vindos da própria /api/configuracao
+        const licCfg = data.licenca || {};
+        const licStatusCfg = String(licCfg.status || data.licencaStatus || '').toLowerCase();
+        const licOrigemCfg = String(licCfg.origem || data.licencaOrigem || '').toLowerCase();
+
+        const origemEhCupomCfg = licOrigemCfg.startsWith('cupom');
+        const statusAtivoCfg =
+          licStatusCfg === 'ativa' ||
+          licStatusCfg === 'active' ||
+          licStatusCfg === 'trial' ||
+          licStatusCfg === 'trialing';
+
+        // 🔴 Regra de produção FINAL:
+        // 1) Se tiver licença ativa OU origem cupom (configuração) → painel
+        // 2) Senão, se contaAtiva==true via /api/conta/status → painel
+        // 3) Senão, se statusAtivacao tiver algum valor diferente de "aguardando-voz" → painel (fallback legado)
+        // 4) Caso contrário → tela de conclusão de assinatura
+        if (origemEhCupomCfg || statusAtivoCfg) {
+          destinoPosConfig = '/pages/dashboard.html';
+        } else if (contaAtiva) {
+          destinoPosConfig = '/pages/dashboard.html';
+        } else if (statusAtivacao && statusAtivacao.toLowerCase() !== 'aguardando-voz') {
           destinoPosConfig = '/pages/dashboard.html';
         } else {
           destinoPosConfig = '/pages/ativar-cliente.html';
         }
 
-        console.log('[configuracao] statusAtivacao=', statusAtivacao, 'contaAtiva=', contaAtiva, 'destinoPosConfig=', destinoPosConfig);
+        console.log('[configuracao] statusAtivacao=', statusAtivacao,
+                    'licStatusCfg=', licStatusCfg,
+                    'licOrigemCfg=', licOrigemCfg,
+                    'contaAtiva=', contaAtiva,
+                    'destinoPosConfig=', destinoPosConfig);
 
         if (authName)  { dNome.textContent = authName; hNome.value = authName; }
         if (authEmail) { dEmail.textContent = authEmail; hEmail.value = authEmail; }
@@ -1527,7 +1569,7 @@
 
         tryCheckCnpjVinculo(hCnpj.value || '', authName || '');
 
-        // ===== Se já temos CNPJ, buscar DETALHES públicos e sobrepor exibição
+        // ===== Se já temos CNPJ, buscar DETALHES públicos e sobrepor exibição =====
         if (hCnpj.value){
           try {
             const emp = await fetchEmpresaDetalhes(hCnpj.value);
@@ -1811,5 +1853,3 @@
 
 </body>
 </html>
-
-
