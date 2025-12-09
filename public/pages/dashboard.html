@@ -266,6 +266,7 @@
     })();
   </script>
 
+  <!-- SCRIPT DO DASHBOARD (trocado conforme instrução) -->
   <script>
   (function(){
     const $ = s=>document.querySelector(s);
@@ -279,23 +280,43 @@
     const arrivalBanner=$("#arrivalBanner");
     const loginNotice=$("#loginNotice");
 
-    function isValidateMode(){ try{ return new URLSearchParams(location.search).has('validate'); }catch{ return false; } }
-    function fs(){ return (window.firebase?.firestore) ? firebase.firestore(): null; }
-    function format(ts){ try{ return new Date(ts).toLocaleString(); }catch{ return "—"; } }
+    function isValidateMode(){ 
+      try{ 
+        return new URLSearchParams(location.search).has('validate'); 
+      }catch{ 
+        return false; 
+      } 
+    }
+
+    function fs(){ 
+      return (window.firebase?.firestore) ? firebase.firestore(): null; 
+    }
+
+    function format(ts){ 
+      try{ 
+        return new Date(ts).toLocaleString(); 
+      }catch{ 
+        return "—"; 
+      } 
+    }
+
     function setChip(el, state){
       const span = el.querySelector('.chip');
       span.className = 'chip ' + (state==='ok'?'ok':state==='warn'?'warn':state==='bad'?'bad':'');
       span.textContent = state==='ok'?'OK':(state==='warn'?'Ajustar':'Falta');
     }
+
     function businessPhone(){
       return (window.APP?.businessPhone || window.APP?.wabaPhone || "").replace(/\D/g,'');
     }
+
     function buildWaLink(){
       const phone = businessPhone();
       const base = phone ? `https://wa.me/${phone}` : `https://wa.me/`;
       const text = encodeURIComponent("Oi");
       return `${base}?text=${text}`;
     }
+
     function showArrivalBanner(){
       try{
         const qp = new URLSearchParams(location.search);
@@ -306,12 +327,39 @@
           arrivalBanner.textContent = hasFree
             ? 'Ativação concluída via cupom. Bem-vindo!'
             : 'Pagamento confirmado. Sua conta foi atualizada.';
-          try{ if(typeof window.setArrivalHeader==='function'){ window.setArrivalHeader({free:hasFree, session_id:sessionId}); } }catch{}
+          try{ 
+            if(typeof window.setArrivalHeader==='function'){ 
+              window.setArrivalHeader({free:hasFree, session_id:sessionId}); 
+            } 
+          }catch{}
           const url = new URL(location.href);
-          url.searchParams.delete('free'); url.searchParams.delete('session_id');
+          url.searchParams.delete('free'); 
+          url.searchParams.delete('session_id');
           history.replaceState({}, '', url.toString());
         }
       }catch{}
+    }
+
+    // NOVO: helper para consultar o status da conta no backend
+    async function fetchContaStatus(user){
+      try{
+        if(!user || !user.getIdToken) return null;
+        const token = await user.getIdToken();
+        const res = await fetch('/api/conta/status', {
+          method: 'GET',
+          headers: {
+            'Authorization': 'Bearer ' + token
+          }
+        });
+        if(!res.ok){
+          console.warn('[dashboard] conta/status HTTP', res.status);
+          return null;
+        }
+        return await res.json();
+      }catch(e){
+        console.error('[dashboard] conta/status error', e);
+        return null;
+      }
     }
 
     function demo(){
@@ -344,11 +392,16 @@
       setChip(chkConsent,'warn');
       agendaList.innerHTML = '';
       ['09:30 · Corte masculino — Pedro','14:00 · Manutenção — Carla','17:15 · Barba rápida — João'].forEach(t=>{
-        const li=document.createElement('li'); li.textContent=t; agendaList.appendChild(li);
+        const li=document.createElement('li'); 
+        li.textContent=t; 
+        agendaList.appendChild(li);
       });
       catalogoStats.innerHTML = '';
       ['Total: 12','Sem preço: 3','Sem duração: 2','Sem código: 1'].forEach(t=>{
-        const b=document.createElement('span'); b.className='badge'; b.textContent=t; catalogoStats.appendChild(b);
+        const b=document.createElement('span'); 
+        b.className='badge'; 
+        b.textContent=t; 
+        catalogoStats.appendChild(b);
       });
       showArrivalBanner();
     }
@@ -356,8 +409,12 @@
     async function loadReal(){
       envChip.style.display='inline-block';
       envChip.textContent='Conectado';
+
       try{
-        if(!window.firebase || !firebase?.auth){ demo(); return; }
+        if(!window.firebase || !firebase?.auth){ 
+          demo(); 
+          return; 
+        }
 
         const user = await new Promise(r=>{
           const off=firebase.auth().onAuthStateChanged(u=>{off(); r(u||null);});
@@ -368,6 +425,42 @@
           const next = encodeURIComponent(location.pathname + location.search);
           location.href = '/pages/login.html?next=' + next;
           return;
+        }
+
+        // NOVO: GATE DE LICENÇA (ativa/trial)
+        let contaStatus = null;
+        try{
+          contaStatus = await fetchContaStatus(user);
+        }catch(e){
+          console.error('[dashboard] erro ao obter conta/status', e);
+        }
+
+        const licencaObj = (contaStatus && (contaStatus.licenca || contaStatus.license || {})) || {};
+        const licencaStatus = String(
+          licencaObj.status || contaStatus?.licencaStatus || ''
+        ).toLowerCase();
+        const licencaOrigem = String(
+          licencaObj.origem || contaStatus?.licencaOrigem || ''
+        ).toLowerCase();
+
+        const isAtiva = (licencaStatus === 'ativa' || licencaStatus === 'trial');
+
+        if(!isAtiva){
+          if(loginNotice){
+            loginNotice.style.display = 'block';
+            loginNotice.textContent = 'Sua conta ainda não está ativada. Finalize a ativação para usar o dashboard.';
+          }
+          const url = new URL('/pages/ativar-cliente.html', location.origin);
+          url.searchParams.set('from', 'dashboard');
+          location.href = url.toString();
+          return;
+        }
+
+        // Se chegou aqui, conta está ativa/trial → ajusta chip de ambiente
+        if(licencaOrigem){
+          envChip.textContent = 'Conta ativa — ' + (licencaOrigem === 'cupom' ? 'via cupom' : licencaOrigem);
+        }else{
+          envChip.textContent = 'Conta ativa';
         }
 
         // Pós-checkout/cupom
@@ -393,8 +486,10 @@
           }
 
           // Enviadas hoje (se existir coleção audits)
-          const start = new Date(); start.setHours(0,0,0,0);
-          const end = new Date(); end.setHours(23,59,59,999);
+          const start = new Date(); 
+          start.setHours(0,0,0,0);
+          const end = new Date(); 
+          end.setHours(23,59,59,999);
           await db.collection('audits')
             .where('uid','==',user.uid)
             .where('createdAt','>=',firebase.firestore.Timestamp.fromDate(start))
@@ -464,9 +559,13 @@
             .then(s=>{
               agendaList.innerHTML='';
               if(s.empty){
-                const li=document.createElement('li'); li.className='note'; li.textContent='Nenhum compromisso para hoje.'; agendaList.appendChild(li);
+                const li=document.createElement('li'); 
+                li.className='note'; 
+                li.textContent='Nenhum compromisso para hoje.'; 
+                agendaList.appendChild(li);
               } else {
-                const items=[]; s.forEach(d=>items.push(d.data()||{}));
+                const items=[]; 
+                s.forEach(d=>items.push(d.data()||{}));
                 items.sort((a,b)=>String(a.hora||'').localeCompare(String(b.hora||'')));
                 items.slice(0,3).forEach(d=>{
                   const li=document.createElement('li');
@@ -500,7 +599,10 @@
                 `Sem duração: ${semDur}`,
                 `Sem código: ${semCodigo}`
               ].forEach(txt=>{
-                const b=document.createElement('span'); b.className='badge'; b.textContent=txt; catalogoStats.appendChild(b);
+                const b=document.createElement('span'); 
+                b.className='badge'; 
+                b.textContent=txt; 
+                catalogoStats.appendChild(b);
               });
             })
             .catch(()=>{
@@ -523,13 +625,18 @@
         alert('Configure seu número comercial para abrir direto com o seu WhatsApp. Por enquanto, o link abre o WhatsApp para você começar o “Oi”.');
       }
     });
+
     btnCopyLink?.addEventListener('click', async ()=>{
       try{
         const oldText = btnCopyLink.textContent;
-        btnCopyLink.disabled = true; btnCopyLink.textContent = 'Copiando...';
+        btnCopyLink.disabled = true; 
+        btnCopyLink.textContent = 'Copiando...';
         await navigator.clipboard.writeText(waLink.href);
         btnCopyLink.textContent = 'Copiado!';
-        setTimeout(()=>{ btnCopyLink.textContent = oldText; btnCopyLink.disabled = false; }, 900);
+        setTimeout(()=>{ 
+          btnCopyLink.textContent = oldText; 
+          btnCopyLink.disabled = false; 
+        }, 900);
       }catch{
         btnCopyLink.disabled = false;
         alert('Não foi possível copiar.');

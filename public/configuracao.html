@@ -625,6 +625,30 @@
     let destinoPosConfig = '/pages/ativar-cliente.html'; // default: onboarding ainda em andamento
     let contaAtiva = false; // 🔴 NOVO: será preenchido com base em /api/conta/status
 
+    // Indica se o usuário chegou aqui vindo do dashboard
+    let veioDoDashboard = false;
+
+    function detectarOrigemDashboard() {
+      // 1) Querystring: ?from=dashboard ou ?origem=dashboard
+      try {
+        const params = new URLSearchParams(window.location.search || '');
+        const from = (params.get('from') || params.get('origem') || '').toLowerCase();
+        if (from === 'dashboard') {
+          return true;
+        }
+      } catch (_) {}
+
+      // 2) Fallback: referrer contendo /pages/dashboard.html
+      try {
+        const ref = document.referrer || '';
+        if (ref.includes('/pages/dashboard.html')) {
+          return true;
+        }
+      } catch (_) {}
+
+      return false;
+    }
+
     // PATCH 3 — CTA de voltar ao painel
     const panelDoneEl = document.getElementById('config-done-panel');
     const btnGoDashboard = document.getElementById('btn-go-dashboard');
@@ -1084,6 +1108,12 @@
     /* ===== Stripe Gate: usar o que o backend já sabe sobre pagamento/cupom ===== */
     async function aplicarHeuristicaStripeGate(idToken) {
       try {
+        // Se veio do dashboard, não deixamos o Stripe mudar o destino
+        if (veioDoDashboard) {
+          console.log('[configuracao] origem=dashboard → ignorando stripe/gate, destinoPosConfig=', destinoPosConfig);
+          return;
+        }
+
         const headers = {};
         if (idToken) {
           headers['Authorization'] = 'Bearer ' + idToken;
@@ -1499,6 +1529,13 @@
         return;
       }
 
+      // Detecta se o usuário veio do dashboard; se sim, o destino padrão já é voltar pra lá
+      veioDoDashboard = detectarOrigemDashboard();
+      if (veioDoDashboard) {
+        destinoPosConfig = '/pages/dashboard.html';
+        console.log('[configuracao] origem=dashboard → destinoPosConfig inicial =', destinoPosConfig);
+      }
+
       // 1) Preenche via /api/conta/status
       await loadEmpresaFromContaStatus(uid, idToken);
 
@@ -1547,25 +1584,28 @@
           licStatusCfg === 'trial' ||
           licStatusCfg === 'trialing';
 
-        // 🔴 Regra de produção FINAL:
+        // 🔴 Regra de produção FINAL (respeitando origem=dashboard):
         // 1) Se tiver licença ativa OU origem cupom (configuração) → painel
         // 2) Senão, se contaAtiva==true via /api/conta/status → painel
         // 3) Senão, se statusAtivacao tiver algum valor diferente de "aguardando-voz" → painel (fallback legado)
         // 4) Caso contrário → tela de conclusão de assinatura
-        if (origemEhCupomCfg || statusAtivoCfg) {
-          destinoPosConfig = '/pages/dashboard.html';
-        } else if (contaAtiva) {
-          destinoPosConfig = '/pages/dashboard.html';
-        } else if (statusAtivacao && statusAtivacao.toLowerCase() !== 'aguardando-voz') {
-          destinoPosConfig = '/pages/dashboard.html';
-        } else {
-          destinoPosConfig = '/pages/ativar-cliente.html';
+        if (!veioDoDashboard) {
+          if (origemEhCupomCfg || statusAtivoCfg) {
+            destinoPosConfig = '/pages/dashboard.html';
+          } else if (contaAtiva) {
+            destinoPosConfig = '/pages/dashboard.html';
+          } else if (statusAtivacao && statusAtivacao.toLowerCase() !== 'aguardando-voz') {
+            destinoPosConfig = '/pages/dashboard.html';
+          } else {
+            destinoPosConfig = '/pages/ativar-cliente.html';
+          }
         }
 
         console.log('[configuracao] (pré-gate) statusAtivacao=', statusAtivacao,
                     'licStatusCfg=', licStatusCfg,
                     'licOrigemCfg=', licOrigemCfg,
                     'contaAtiva=', contaAtiva,
+                    'veioDoDashboard=', veioDoDashboard,
                     'destinoPosConfig=', destinoPosConfig);
 
         // 🔁 Passo extra: deixar o stripe/gate ter a palavra final, se ele souber que a conta já está liberada
