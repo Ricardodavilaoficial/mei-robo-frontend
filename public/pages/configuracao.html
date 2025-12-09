@@ -621,6 +621,7 @@
     const agendaSaveBtn = document.getElementById('agenda-save-btn');
     let currentAgendaConfig = null;
     let agendaSavedOk = false; // ✅ usamos isso para saber se a agenda já foi salva nesta jornada
+    let destinoPosConfig = '/pages/ativar-cliente.html'; // default: onboarding ainda em andamento
 
     // PATCH 3 — CTA de voltar ao painel
     const panelDoneEl = document.getElementById('config-done-panel');
@@ -1337,7 +1338,7 @@
 
         // 4.3. Agora sim, avança a jornada
         setTimeout(() => {
-          window.location.href = '/pages/ativar-cliente.html';
+          window.location.href = destinoPosConfig;
         }, 800);
 
       } catch (e) {
@@ -1413,6 +1414,16 @@
         try { await user?.reload(); } catch(_){}
         const authEmail = user?.email || '';
         const authName = user?.displayName || (data.nome || '');
+
+        // Decide destino pós-configuração com base no statusAtivacao
+        const statusAtivacao = (data.statusAtivacao || '').trim();
+        // Regra simples: se já houver algum status diferente de "aguardando-voz",
+        // consideramos que o MEI já passou pelo onboarding e deve voltar ao painel.
+        if (statusAtivacao && statusAtivacao !== 'aguardando-voz') {
+          destinoPosConfig = '/pages/dashboard.html';
+        } else {
+          destinoPosConfig = '/pages/ativar-cliente.html';
+        }
 
         if (authName)  { dNome.textContent = authName; hNome.value = authName; }
         if (authEmail) { dEmail.textContent = authEmail; hEmail.value = authEmail; }
@@ -1768,4 +1779,3 @@
 
 </body>
 </html>
-
