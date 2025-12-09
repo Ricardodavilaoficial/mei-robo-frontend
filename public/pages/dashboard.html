@@ -443,7 +443,12 @@
           licencaObj.origem || contaStatus?.licencaOrigem || ''
         ).toLowerCase();
 
-        const isAtiva = (licencaStatus === 'ativa' || licencaStatus === 'trial');
+        const isAtiva = 
+          licencaStatus === 'ativa' ||       
+          licencaStatus === 'active' ||
+          licencaStatus === 'trial' ||
+          licencaStatus === 'trialing' ||
+          licencaOrigem.startsWith('cupom')
 
         if(!isAtiva){
           if(loginNotice){
@@ -452,7 +457,8 @@
           }
           const url = new URL('/pages/ativar-cliente.html', location.origin);
           url.searchParams.set('from', 'dashboard');
-          location.href = url.toString();
+          console.log('[dashboard] conta não parece ativa, mas temporariamente NÃO vamos redirecionar automaticamente.');
+          // location.href = url.toString();
           return;
         }
 
