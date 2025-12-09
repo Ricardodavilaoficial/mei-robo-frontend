@@ -474,6 +474,7 @@
 
   <script>
     // 🔧 Ajuste: prioriza window.API_BASE (se já definido) e mantém fallback para localStorage/config padrão
+    console.log('[configuracao] v2025-12-09-b (com stripe gate heuristico)');
     const API_BASE = (window.API_BASE || localStorage.getItem('apiBase') || 'https://mei-robo-prod.onrender.com').replace(/\/+$/, '');
 
     // === REMOVIDO: enforceVerifiedEmail baseado em check-verification, para evitar ping-pong com outras telas ===
@@ -1080,6 +1081,74 @@
       return null;
     }
 
+    /* ===== Stripe Gate: usar o que o backend já sabe sobre pagamento/cupom ===== */
+    async function aplicarHeuristicaStripeGate(idToken) {
+      try {
+        const headers = {};
+        if (idToken) {
+          headers['Authorization'] = 'Bearer ' + idToken;
+        }
+
+        const resp = await fetch(`${API_BASE}/api/stripe/gate`, {
+          method: 'GET',
+          headers,
+          cache: 'no-store'
+        });
+
+        if (!resp.ok) {
+          console.warn('[configuracao] stripe/gate não-ok:', resp.status);
+          return;
+        }
+
+        const j = await resp.json().catch(() => null);
+        if (!j || typeof j !== 'object') {
+          console.warn('[configuracao] stripe/gate retornou payload inesperado:', j);
+          return;
+        }
+
+        // Vários nomes possíveis, para não depender de um único contrato.
+        const requiresPayment =
+          (typeof j.requiresPayment === 'boolean') ? j.requiresPayment : null;
+        const canSkipPayment =
+          (typeof j.canSkipPayment === 'boolean') ? j.canSkipPayment : null;
+
+        const statusRaw =
+          String(j.status || j.licencaStatus || '').toLowerCase();
+        const origemRaw =
+          String(j.origem || j.licencaOrigem || '').toLowerCase();
+
+        let liberarPainel = false;
+
+        // 1) Sinal direto
+        if (canSkipPayment === true) liberarPainel = true;
+        if (requiresPayment === false) liberarPainel = true;
+
+        // 2) Origem baseada em cupom
+        if (origemRaw.startsWith('cupom')) {
+          liberarPainel = true;
+        }
+
+        // 3) Status de licença "ativa"
+        if (
+          statusRaw === 'ativa' ||
+          statusRaw === 'active' ||
+          statusRaw === 'trial' ||
+          statusRaw === 'trialing'
+        ) {
+          liberarPainel = true;
+        }
+
+        if (liberarPainel) {
+          destinoPosConfig = '/pages/dashboard.html';
+          console.log('[configuracao] stripe/gate liberou painel; destinoPosConfig ajustado para dashboard', j);
+        } else {
+          console.log('[configuracao] stripe/gate não liberou painel explicitamente; mantendo destinoPosConfig=', destinoPosConfig, j);
+        }
+      } catch (e) {
+        console.warn('[configuracao] erro ao consultar stripe/gate:', e);
+      }
+    }
+
     /* ===== AGENDA: helpers ===== */
     function normalizeAgendaConfig(raw){
       const cfg = (raw && typeof raw === 'object') ? raw : {};
@@ -1493,11 +1562,16 @@
           destinoPosConfig = '/pages/ativar-cliente.html';
         }
 
-        console.log('[configuracao] statusAtivacao=', statusAtivacao,
+        console.log('[configuracao] (pré-gate) statusAtivacao=', statusAtivacao,
                     'licStatusCfg=', licStatusCfg,
                     'licOrigemCfg=', licOrigemCfg,
                     'contaAtiva=', contaAtiva,
                     'destinoPosConfig=', destinoPosConfig);
+
+        // 🔁 Passo extra: deixar o stripe/gate ter a palavra final, se ele souber que a conta já está liberada
+        await aplicarHeuristicaStripeGate(idToken);
+
+        console.log('[configuracao] (pós-gate) destinoPosConfig FINAL=', destinoPosConfig);
 
         if (authName)  { dNome.textContent = authName; hNome.value = authName; }
         if (authEmail) { dEmail.textContent = authEmail; hEmail.value = authEmail; }
