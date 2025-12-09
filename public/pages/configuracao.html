@@ -193,7 +193,7 @@
             </div>
           </div>
 
-                    <div class="mt-12">
+          <div class="mt-12">
             <label>Endereço</label>
             <span id="disp-endereco" class="display-value">—</span>
             <input type="hidden" id="hid-endereco" />
@@ -547,7 +547,7 @@
     function formatDateBR(iso){ try { const d=new Date(iso); return `${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}/${d.getFullYear()}` } catch(_){ return iso; } }
     function onlyDigits(s){ return String(s||'').replace(/\D+/g,''); }
 
-        // === Validação simples de CNPJ ===
+    // === Validação simples de CNPJ ===
     function isValidCNPJ(cnpj){
       cnpj = onlyDigits(cnpj||'');
       if (cnpj.length !== 14) return false;
@@ -858,7 +858,7 @@
     });
 
     /* === Setup de UI === */
-        function setupVoice(uid, idToken){
+    function setupVoice(uid, idToken){
       // Blindagem: se a seção de voz não existir (HTML alterado), não quebra a tela inteira.
       if (!voiceEls.area || !voiceEls.btnChoose || !voiceEls.input) {
         console.warn('[configuracao] seção de voz não encontrada; pulando setupVoice.');
@@ -1793,62 +1793,63 @@
       });
     }
   </script>
-    <script>
-  (function(){
-    const hintEl = document.getElementById('cnpj-vinculo-hint');
-    const wrapper = document.getElementById('vinculo-extra-wrapper');
-    const cpfInput = document.getElementById('cpf-responsavel');
-    const chkAut = document.getElementById('chk-vinculo-autorizado');
-    const erroEl = document.getElementById('vinculo-extra-erro');
 
-    if (!hintEl || !wrapper) {
-      console.warn('[configuracao] vinculo-extra-wrapper não inicializado (sem CNPJ hint).');
-      return;
-    }
+  <script>
+    (function(){
+      const hintEl = document.getElementById('cnpj-vinculo-hint');
+      const wrapper = document.getElementById('vinculo-extra-wrapper');
+      const cpfInput = document.getElementById('cpf-responsavel');
+      const chkAut = document.getElementById('chk-vinculo-autorizado');
+      const erroEl = document.getElementById('vinculo-extra-erro');
 
-    function apenasNumeros(str){
-      return String(str || '').replace(/\D+/g, '');
-    }
-
-    function atualizarVisibilidade(){
-      const texto = (hintEl.textContent || '').trim();
-      const hasWarning = texto.length > 0;
-      wrapper.hidden = !hasWarning;
-      if (!hasWarning) {
-        // zera campos se o vínculo voltar a ficar OK
-        if (cpfInput) cpfInput.value = '';
-        if (chkAut) chkAut.checked = false;
-        if (erroEl) { erroEl.style.display = 'none'; erroEl.textContent = ''; }
+      if (!hintEl || !wrapper) {
+        console.warn('[configuracao] vinculo-extra-wrapper não inicializado (sem CNPJ hint).');
+        return;
       }
-    }
 
-    // Roda uma vez na carga
-    atualizarVisibilidade();
+      function apenasNumeros(str){
+        return String(str || '').replace(/\D+/g, '');
+      }
 
-    // Observa mudanças no hint para ligar/desligar o bloco
-    const obs = new MutationObserver(function(){
-      atualizarVisibilidade();
-    });
-
-    obs.observe(hintEl, { childList:true, characterData:true, subtree:true });
-
-    // Validação leve no blur do CPF (opcional, não bloqueia fluxo)
-    if (cpfInput) {
-      cpfInput.addEventListener('blur', function(){
-        if (wrapper.hidden) return;
-        const v = apenasNumeros(cpfInput.value);
-        if (v && v.length > 0 && v.length < 11) {
-          if (erroEl) {
-            erroEl.textContent = 'CPF parece incompleto. Se possível, revise antes de seguir.';
-            erroEl.style.display = 'block';
-          }
-        } else if (erroEl) {
-          erroEl.style.display = 'none';
-          erroEl.textContent = '';
+      function atualizarVisibilidade(){
+        const texto = (hintEl.textContent || '').trim();
+        const hasWarning = texto.length > 0;
+        wrapper.hidden = !hasWarning;
+        if (!hasWarning) {
+          // zera campos se o vínculo voltar a ficar OK
+          if (cpfInput) cpfInput.value = '';
+          if (chkAut) chkAut.checked = false;
+          if (erroEl) { erroEl.style.display = 'none'; erroEl.textContent = ''; }
         }
+      }
+
+      // Roda uma vez na carga
+      atualizarVisibilidade();
+
+      // Observa mudanças no hint para ligar/desligar o bloco
+      const obs = new MutationObserver(function(){
+        atualizarVisibilidade();
       });
-    }
-  })();
+
+      obs.observe(hintEl, { childList:true, characterData:true, subtree:true });
+
+      // Validação leve no blur do CPF (opcional, não bloqueia fluxo)
+      if (cpfInput) {
+        cpfInput.addEventListener('blur', function(){
+          if (wrapper.hidden) return;
+          const v = apenasNumeros(cpfInput.value);
+          if (v && v.length > 0 && v.length < 11) {
+            if (erroEl) {
+              erroEl.textContent = 'CPF parece incompleto. Se possível, revise antes de seguir.';
+              erroEl.style.display = 'block';
+            }
+          } else if (erroEl) {
+            erroEl.style.display = 'none';
+            erroEl.textContent = '';
+          }
+        });
+      }
+    })();
   </script>
 
 </body>
