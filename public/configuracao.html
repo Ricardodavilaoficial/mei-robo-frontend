@@ -622,6 +622,7 @@
     let currentAgendaConfig = null;
     let agendaSavedOk = false; // ✅ usamos isso para saber se a agenda já foi salva nesta jornada
     let destinoPosConfig = '/pages/ativar-cliente.html'; // default: onboarding ainda em andamento
+    let contaAtiva = false; // 🔴 NOVO: será preenchido com base em /api/conta/status
 
     // PATCH 3 — CTA de voltar ao painel
     const panelDoneEl = document.getElementById('config-done-panel');
@@ -993,7 +994,31 @@
             cnpjVinculoHint.textContent = `✅ CNPJ OK: ${municipio}${uf ? ' / ' + uf : ''}.`;
           }
         }
+        
+        // 🔴 NOVO: detectar se a conta já está ativa/licenciada
+        try {
+          const lic = j && j.licenca ? j.licenca : null;
+          if (lic) {
+            const origem = String(lic.origem || '').toLowerCase();
+            const status = String(lic.status || '').toLowerCase();
+
+            // Critérios conservadores: ativa, trial ou origem cupom contam como "ok"
+            if (
+              origem === 'cupom' ||
+              status === 'ativa' ||
+              status === 'active' ||
+              status === 'trial'
+            ) {
+              contaAtiva = true;
+              console.log('[configuracao] contaAtiva=true (licenca)', lic);
+            }
+          }
+        } catch (e) {
+          console.warn('[configuracao] falha ao interpretar licenca em /api/conta/status', e);
+        }
+
         return j;
+
       } catch (_) {
         return null;
       }
@@ -1418,19 +1443,19 @@
         const authEmail = user?.email || '';
         const authName = user?.displayName || (data.nome || '');
 
-        // Decide destino pós-configuração com base no statusAtivacao
-        const rawStatus = (data.statusAtivacao || '').trim().toLowerCase();
+        // Decide destino pós-configuração com base na licença real da conta
+        const statusAtivacao = (data.statusAtivacao || '').trim();
 
-        // Estados que ainda estão “no meio” do onboarding
-        const estadosOnboarding = ['aguardando-voz', 'aguardando-config', 'aguardando-pagamento'];
-        // Regra definitiva:
-        // - se estiver explicitamente num desses estados → mandar para concluir assinatura
-        // - em qualquer outro caso (inclusive vazio) → volta para o painel
-        if (estadosOnboarding.includes(rawStatus)) {
-          destinoPosConfig = '/pages/ativar-cliente.html';
-        } else {
+        // 🔴 Regra de produção:
+        // - Se a conta já está ativa/licenciada (cupom, ativa, trial) → volta para o painel.
+        // - Caso contrário → segue para a tela de conclusão de assinatura.
+        if (contaAtiva) {
           destinoPosConfig = '/pages/dashboard.html';
+        } else {
+          destinoPosConfig = '/pages/ativar-cliente.html';
         }
+
+        console.log('[configuracao] statusAtivacao=', statusAtivacao, 'contaAtiva=', contaAtiva, 'destinoPosConfig=', destinoPosConfig);
 
         if (authName)  { dNome.textContent = authName; hNome.value = authName; }
         if (authEmail) { dEmail.textContent = authEmail; hEmail.value = authEmail; }
@@ -1786,3 +1811,5 @@
 
 </body>
 </html>
+
+
