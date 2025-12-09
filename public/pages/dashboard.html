@@ -427,46 +427,37 @@
           return;
         }
 
-        // NOVO: GATE DE LICENÇA (ativa/trial)
-        let contaStatus = null;
+        // LICENÇA: por enquanto, só informativa (não bloqueia o dashboard)
+        let licencaOrigem = '';
         try{
-          contaStatus = await fetchContaStatus(user);
-        }catch(e){
-          console.error('[dashboard] erro ao obter conta/status', e);
-        }
+          const contaStatus = await fetchContaStatus(user);
+          const licencaObj = (contaStatus && (contaStatus.licenca || contaStatus.license || {})) || {};
 
-        const licencaObj = (contaStatus && (contaStatus.licenca || contaStatus.license || {})) || {};
-        const licencaStatus = String(
-          licencaObj.status || contaStatus?.licencaStatus || ''
-        ).toLowerCase();
-        const licencaOrigem = String(
-          licencaObj.origem || contaStatus?.licencaOrigem || ''
-        ).toLowerCase();
+          const licencaStatus = String(
+            licencaObj.status || contaStatus?.licencaStatus || ''
+          ).toLowerCase();
 
-        const isAtiva = 
-          licencaStatus === 'ativa' ||       
-          licencaStatus === 'active' ||
-          licencaStatus === 'trial' ||
-          licencaStatus === 'trialing' ||
-          licencaOrigem.startsWith('cupom')
+          licencaOrigem = String(
+            licencaObj.origem || contaStatus?.licencaOrigem || ''
+          ).toLowerCase();
 
-        if(!isAtiva){
-          if(loginNotice){
-            loginNotice.style.display = 'block';
-            loginNotice.textContent = 'Sua conta ainda não está ativada. Finalize a ativação para usar o dashboard.';
+          // Se vier algo diferente de ativa/trial, só avisa, mas NÃO dá return
+          if (licencaStatus && licencaStatus !== 'ativa' && licencaStatus !== 'trial') {
+            if (loginNotice) {
+              loginNotice.style.display = 'block';
+              loginNotice.textContent = 'Sua conta ainda está em ativação. Alguns recursos podem ficar limitados.';
+            }
           }
-          const url = new URL('/pages/ativar-cliente.html', location.origin);
-          url.searchParams.set('from', 'dashboard');
-          console.log('[dashboard] conta não parece ativa, mas temporariamente NÃO vamos redirecionar automaticamente.');
-          // location.href = url.toString();
-          return;
+        } catch(e) {
+          console.error('[dashboard] conta/status error (não bloqueia)', e);
         }
 
-        // Se chegou aqui, conta está ativa/trial → ajusta chip de ambiente
-        if(licencaOrigem){
+        // Ajuste do chip de ambiente (sem gate rígido)
+        if (licencaOrigem) {
           envChip.textContent = 'Conta ativa — ' + (licencaOrigem === 'cupom' ? 'via cupom' : licencaOrigem);
-        }else{
-          envChip.textContent = 'Conta ativa';
+        } else {
+          // mantém pelo menos "Conectado" se não souber origem
+          envChip.textContent = 'Conectado';
         }
 
         // Pós-checkout/cupom
