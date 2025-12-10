@@ -79,6 +79,15 @@
     #successBox .actions { display:flex; gap:8px; margin-top:10px; flex-wrap:wrap; }
     #successBox .actions a { text-decoration:none; }
     .footer-note { margin-top:14px; opacity:.9 }
+
+    /* Destaque visual de erro por campo (safe, só UI) */
+    #signupForm .input.input-error {
+      border-color: #ff6b6b;
+      box-shadow: 0 0 0 1px rgba(255, 107, 107, 0.6);
+    }
+    #signupForm .field-hint-error {
+      color: #ffb3b3;
+    }
   </style>
 
 </head>
@@ -641,6 +650,13 @@
       return /[A-Za-z]/.test(s) && /[0-9]/.test(s);
     }
     function updateButtonState(){
+      // Limpa estados visuais de erro por campo (não mexe em erros de backend no formMsg)
+      [emailInput, email2Input, phoneInput, cnpjInput, pwd, pwd2].forEach(el => {
+        if (!el) return;
+        el.classList.remove('input-error');
+        el.removeAttribute('aria-invalid');
+      });
+
       const e1 = (emailInput.value || '').trim().toLowerCase();
       const e2 = (email2Input.value || '').trim().toLowerCase();
       const phoneDigits = normalizeDigits(phoneInput.value || '');
@@ -726,6 +742,34 @@
 
       if (!turnstileOk) {
         issues.push('clique na caixinha de segurança');
+      }
+
+      // Marcar campos com erro (apenas visual)
+      if (!e1 || !e2 || e1 !== e2) {
+        emailInput.classList.add('input-error');
+        email2Input.classList.add('input-error');
+        emailInput.setAttribute('aria-invalid', 'true');
+        email2Input.setAttribute('aria-invalid', 'true');
+      }
+
+      if (!phoneDigits || phoneDigits.length < 10 || phoneDigits.length > 11) {
+        phoneInput.classList.add('input-error');
+        phoneInput.setAttribute('aria-invalid', 'true');
+      }
+
+      if (!cnpjOk || !cnpjNotBlocked) {
+        cnpjInput.classList.add('input-error');
+        cnpjInput.setAttribute('aria-invalid', 'true');
+      }
+
+      if (!senhaOk) {
+        pwd.classList.add('input-error');
+        pwd.setAttribute('aria-invalid', 'true');
+      }
+
+      if (!confirmOk) {
+        pwd2.classList.add('input-error');
+        pwd2.setAttribute('aria-invalid', 'true');
       }
 
       if (issues.length) {
@@ -941,7 +985,7 @@ try {
         }
 
         // 3) Fluxo normal do check-verification (GET)
-        const data = await res.json().catch(()=>({}));
+        const data = await res.json().catch(()=>({})).catch(()=>({}));
         if (res.ok && data && data.verified === true) {
           markVerifiedAndGo();
           return true;
