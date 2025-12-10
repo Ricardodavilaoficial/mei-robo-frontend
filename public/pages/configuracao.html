@@ -374,14 +374,29 @@
           </div>
         </section>
 
-        <!-- PATCH 1: esconder botão antigo de salvar/continuar -->
+                <!-- PATCH 1: esconder botão antigo de salvar/continuar -->
         <div class="mt-24">
           <!-- Botão antigo de avançar foi desativado; a jornada segue agora pela agenda. -->
           <button id="btn-salvar" type="button" class="btn primary" style="display:none" disabled>Salvar e continuar</button>
           <span id="config-feedback" class="hint mt-8" style="margin-left:8px;"></span>
         </div>
+
+        <!-- 🔒 Declaração de Autorização (leve, estilo MEI) -->
+        <div id="autorizacao-container" style="margin-top: 20px;">
+          <label style="display:flex;align-items:flex-start;gap:8px;cursor:pointer;">
+            <input id="autorizacaoCNPJ" name="autorizacaoCNPJ" type="checkbox" style="margin-top:4px;" />
+            <span style="font-size:14px;color:#ddd;">
+              Se você não for o dono(a) ou sócio(a) do CNPJ, precisa estar autorizado(a)
+              pela empresa para usar o MEI Robô.
+              Confirme que você está autorizado(a) a seguir com este CNPJ.
+            </span>
+          </label>
+          <div id="autorizacaoErro" style="color:#ff6b6b;font-size:13px;display:none;margin-top:6px;">
+            Para continuar, confirme que você está autorizado(a) pela empresa.
+          </div>
+        </div>
       </form>
-    </div>
+
 
     <!-- Configuração da agenda (form + resumo) -->
     <section class="card" style="margin-top:14px;">
@@ -612,6 +627,10 @@
 
     const cnpjVinculoHint = document.getElementById('cnpj-vinculo-hint');
 
+    // Autorização leve quando não conseguimos confirmar o vínculo pelo nome
+    const autorizacaoCheckbox = document.getElementById('autorizacaoCNPJ');
+    const autorizacaoErro = document.getElementById('autorizacaoErro')
+    
     const cnpjForm = document.getElementById('cnpjInlineForm');
     const cnpjInput = document.getElementById('cnpjInput');
     const btnSalvarCnpj = document.getElementById('btnSalvarCnpj');
@@ -1278,6 +1297,14 @@
       return null;
     }
 
+    // Se a pessoa marcar a autorização, some o erro embaixo do texto
+    if (autorizacaoCheckbox) {
+      autorizacaoCheckbox.addEventListener('change', () => {
+        if (autorizacaoErro) {
+          autorizacaoErro.style.display = autorizacaoCheckbox.checked ? 'none' : 'block';
+        }
+      });
+    }
     // PATCH 3 — lógica da "configuração inicial concluída"
     function isConfigInicialConcluida() {
       // 1) Voz: já pronta (player/voz no backend) ou upload iniciado nesta jornada
@@ -1432,7 +1459,32 @@
         } catch (_) {}
         return;
       }
+  
+      // 2.1) Autorização quando não conseguimos confirmar o vínculo pelo nome
+      // Só bloqueia se:
+      // - o hint tiver um aviso (⚠) E
+      // - a pessoa ainda não marcou que está autorizada pela empresa
+      const hintTexto = (cnpjVinculoHint && cnpjVinculoHint.textContent || '').trim();
+      const temAlertaVinculo = /⚠/.test(hintTexto);
 
+      if (temAlertaVinculo && autorizacaoCheckbox && !autorizacaoCheckbox.checked) {
+        setAgendaMessage('Para seguir, confirme que você está autorizado(a) pela empresa a usar este CNPJ.', 'error');
+        if (autorizacaoErro) {
+          autorizacaoErro.style.display = 'block';
+          autorizacaoErro.textContent = 'Para continuar, confirme que você está autorizado(a) pela empresa.';
+        }
+        try {
+          // rola até o bloco de autorização pra ficar bem na cara
+          const boxTop = document.getElementById('autorizacao-container')?.offsetTop || form.offsetTop || 0;
+          window.scrollTo({ top: Math.max(boxTop - 40, 0), behavior: 'smooth' });
+        } catch (_) {}
+        return;
+      } else if (autorizacaoErro) {
+        // Se não tiver alerta ou se já marcou, some com o erro
+        autorizacaoErro.style.display = 'none';
+        autorizacaoErro.textContent = '';
+      }
+      
       // 3) Validação da agenda (dias/horários/antecedência)
       const payload = lerAgendaDoForm();
       const err = validarAgendaCfg(payload);
@@ -1981,3 +2033,5 @@
           if (v && v.length > 0 && v.length < 11) {
             if (erroEl) {
               erroEl.textContent = 'CPF parece incompleto.
+
+
