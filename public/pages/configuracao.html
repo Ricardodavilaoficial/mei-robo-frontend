@@ -199,10 +199,12 @@
             <input type="hidden" id="hid-endereco" />
           </div>
           
+          <!-- PATCH 1 – parágrafo substituído -->
           <p class="hint mt-8">
             A aprovação do número de WhatsApp do MEI Robô depende de você estar vinculado(a) ao CNPJ informado e,
-            quando não for titular ou sócio(a), ter autorização formal da empresa. A taxa de adesão e análise é cobrada
-            apenas na etapa de pagamento, depois que você revisar esses dados.
+            quando não for titular ou sócio(a), ter autorização formal da empresa. Usamos os dados públicos da Receita Federal
+            para conferir o CNPJ e, durante a implantação (até 7 dias úteis), podemos confirmar automaticamente o vínculo do responsável
+            e bloquear a conta em caso de indícios de uso indevido.
           </p>
 
           <p id="cnpj-vinculo-hint" class="hint mt-8"></p>
@@ -1009,14 +1011,18 @@
           const municipio = j.empresa?.endereco?.municipio || j.empresa?.municipio || '';
           const uf = j.empresa?.endereco?.uf || j.empresa?.uf || '';
           if (cnpjVinculoHint && (municipio || uf)) {
-            cnpjVinculoHint.textContent = `✅ CNPJ OK: ${municipio}${uf ? ' / ' + uf : ''}.`;
+            cnpjVinculoHint.textContent =
+              `CNPJ encontrado na Receita Federal (${municipio}${uf ? ' / ' + uf : ''}). ` +
+              `Isso confirma apenas os dados da empresa. O vínculo do responsável será verificado durante a ativação do número.`;
           }
         } else if (j && typeof j === 'object') {
           populateFromEmpresa(j);
           const municipio = j?.endereco?.municipio || j?.municipio || '';
           const uf = j?.endereco?.uf || j?.uf || '';
           if (cnpjVinculoHint && (municipio || uf)) {
-            cnpjVinculoHint.textContent = `✅ CNPJ OK: ${municipio}${uf ? ' / ' + uf : ''}.`;
+            cnpjVinculoHint.textContent =
+              `CNPJ encontrado na Receita Federal (${municipio}${uf ? ' / ' + uf : ''}). ` +
+              `Isso confirma apenas os dados da empresa. O vínculo do responsável será verificado durante a ativação do número.`;
           }
         }
         
@@ -1673,10 +1679,26 @@
             const u = `${API_BASE}/integracoes/cnpj/${encodeURIComponent(cnpj14)}?nome=${encodeURIComponent(nomeBusca||'')}`;
             const r = await fetch(u, { credentials: "include" });
             if (!r.ok) return;
+
             const j = await r.json();
             const v = j && j.vinculoNome && j.vinculoNome.avaliacao;
-            if (v === 'EXATO' || v === 'PROVAVEL') {
-              cnpjVinculoHint.textContent = '✅ Vínculo ao CNPJ: ok.';
+
+            if (!cnpjVinculoHint) return;
+
+            if (v === 'EXATO') {
+              // vínculo forte: nome bate como responsável/empresário
+              cnpjVinculoHint.textContent =
+                '✅ Vínculo confirmado automaticamente: seu nome consta como responsável pelo CNPJ na base consultada.';
+            } else if (v === 'PROVAVEL') {
+              // vínculo provável, mas não perfeito
+              cnpjVinculoHint.textContent =
+                '✅ Vínculo provavelmente correto: seu nome é muito parecido com o responsável pelo CNPJ. ' +
+                'Se houver alguma divergência, podemos pedir confirmação depois.';
+            } else {
+              // qualquer outro caso (não encontrado, divergente etc.)
+              cnpjVinculoHint.textContent =
+                '⚠ Não conseguimos confirmar automaticamente seu nome como responsável por este CNPJ. ' +
+                'Você pode seguir normalmente, mas poderemos pedir documentos ou confirmação adicional durante a ativação.';
             }
           } catch(_){}
         }
@@ -1925,12 +1947,16 @@
         return String(str || '').replace(/\D+/g, '');
       }
 
+      // PATCH 4 – só mostra quando houver ⚠ no hint
       function atualizarVisibilidade(){
         const texto = (hintEl.textContent || '').trim();
-        const hasWarning = texto.length > 0;
+
+        // Só considera "warning" quando houver o símbolo ⚠ no texto do hint
+        const hasWarning = /⚠/.test(texto);
+
         wrapper.hidden = !hasWarning;
         if (!hasWarning) {
-          // zera campos se o vínculo voltar a ficar OK
+          // zera campos se o vínculo voltar a ficar totalmente OK
           if (cpfInput) cpfInput.value = '';
           if (chkAut) chkAut.checked = false;
           if (erroEl) { erroEl.style.display = 'none'; erroEl.textContent = ''; }
@@ -1954,17 +1980,4 @@
           const v = apenasNumeros(cpfInput.value);
           if (v && v.length > 0 && v.length < 11) {
             if (erroEl) {
-              erroEl.textContent = 'CPF parece incompleto. Se possível, revise antes de seguir.';
-              erroEl.style.display = 'block';
-            }
-          } else if (erroEl) {
-            erroEl.style.display = 'none';
-            erroEl.textContent = '';
-          }
-        });
-      }
-    })();
-  </script>
-
-</body>
-</html>
+              erroEl.textContent = 'CPF parece incompleto.
