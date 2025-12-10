@@ -209,6 +209,22 @@
 
           <p id="cnpj-vinculo-hint" class="hint mt-8"></p>
 
+          <!-- 🔒 Declaração de Autorização (colada no aviso de vínculo do CNPJ) -->
+          <div id="autorizacao-container" style="margin-top: 12px;">
+            <label style="display:flex;align-items:flex-start;gap:8px;cursor:pointer;">
+              <input id="autorizacaoCNPJ" type="checkbox" style="margin-top:4px;" />
+              <span style="font-size:14px;color:#ddd;line-height:1.4;">
+                Se você não for o dono(a) ou sócio(a) do CNPJ, precisa estar autorizado(a)
+                pela empresa para usar o MEI Robô. 
+                <strong>Para seguir com este CNPJ, confirme que você está autorizado(a).</strong>
+              </span>
+            </label>
+            <div id="autorizacaoErro" style="color:#ff6b6b;font-size:13px;display:none;margin-top:6px;">
+              Para continuar, confirme que você está autorizado(a) pela empresa.
+              Sem isso, a tela de avanço fica bloqueada.
+            </div>
+          </div>
+
           <!-- Bloco extra: só aparece quando houver dúvida de vínculo -->
           <div id="vinculo-extra-wrapper" class="mt-8" hidden>
             <div class="mt-4">
@@ -374,26 +390,11 @@
           </div>
         </section>
 
-                <!-- PATCH 1: esconder botão antigo de salvar/continuar -->
+        <!-- PATCH 1: esconder botão antigo de salvar/continuar -->
         <div class="mt-24">
           <!-- Botão antigo de avançar foi desativado; a jornada segue agora pela agenda. -->
           <button id="btn-salvar" type="button" class="btn primary" style="display:none" disabled>Salvar e continuar</button>
           <span id="config-feedback" class="hint mt-8" style="margin-left:8px;"></span>
-        </div>
-
-        <!-- 🔒 Declaração de Autorização (leve, estilo MEI) -->
-        <div id="autorizacao-container" style="margin-top: 20px;">
-          <label style="display:flex;align-items:flex-start;gap:8px;cursor:pointer;">
-            <input id="autorizacaoCNPJ" name="autorizacaoCNPJ" type="checkbox" style="margin-top:4px;" />
-            <span style="font-size:14px;color:#ddd;">
-              Se você não for o dono(a) ou sócio(a) do CNPJ, precisa estar autorizado(a)
-              pela empresa para usar o MEI Robô.
-              Confirme que você está autorizado(a) a seguir com este CNPJ.
-            </span>
-          </label>
-          <div id="autorizacaoErro" style="color:#ff6b6b;font-size:13px;display:none;margin-top:6px;">
-            Para continuar, confirme que você está autorizado(a) pela empresa.
-          </div>
         </div>
       </form>
 
@@ -570,7 +571,7 @@
       cnpj = onlyDigits(cnpj||'');
       if (cnpj.length !== 14) return false;
       // rejeita CNPJs com todos os dígitos iguais (000..., 111..., etc.)
-      if (/^(\d)\1{13}$/.test(cnpj)) return false;
+      if (/^(\d){13}$/.test(cnpj)) return false;
       let t = 12, d1 = 0, d2 = 0, p1 = 5, p2 = 6;
       for (let i = 0; i < t; i++) {
         const n = parseInt(cnpj[i],10);
@@ -762,7 +763,7 @@
         if(voiceState.files.length>=5){ setVoiceMsg('Limite de 5 arquivos atingido.', true); break; }
         if(!isAudio(f)){ setVoiceMsg('Arquivo rejeitado: extensão não reconhecida como áudio.', true); continue; }
         voiceState.files.push(f);
-      }
+      });
       renderFileList(); validateVoiceReady();
     }
     function validateVoiceReady(){
@@ -1052,7 +1053,7 @@
             const origemRaw = String(lic.origem || '').toLowerCase();
             const statusRaw = String(lic.status || '').toLowerCase();
 
-            const origemEhCupom = origemRaw.startsWith('cupom'); // ex.: "cupom", "cupom_ativacao", etc.
+            const origemEhCupom = origemRaw.startswith ? origemRaw.startswith('cupom') : origemRaw.startsWith('cupom');
             const statusAtivo =
               statusRaw === 'ativa' ||
               statusRaw === 'active' ||
@@ -1069,7 +1070,7 @@
           const licencaStatusSolto = String(j?.licencaStatus || '').toLowerCase();
           const licencaOrigemSolta = String(j?.licencaOrigem || '').toLowerCase();
           if (!contaAtiva) {
-            const origemCupomSolta = licencaOrigemSolta.startsWith('cupom');
+            const origemCupomSolta = licencaOrigemSolta.startswith ? licencaOrigemSolta.startswith('cupom') : licencaOrigemSolta.startsWith('cupom');
             const statusAtivoSolto =
               licencaStatusSolto === 'ativa' ||
               licencaStatusSolto === 'active' ||
@@ -1744,8 +1745,8 @@
             } else if (v === 'PROVAVEL') {
               // vínculo provável, mas não perfeito
               cnpjVinculoHint.textContent =
-                '✅ Vínculo provavelmente correto: seu nome é muito parecido com o responsável pelo CNPJ. ' +
-                'Se houver alguma divergência, podemos pedir confirmação depois.';
+                '✅ Temos indicativos de que seu nome se relaciona ao quadro societário da empresa. ' +
+                'A confirmação final ocorre durante o processo de ativação. Pode seguir normalmente com a configuração.';
             } else {
               // qualquer outro caso (não encontrado, divergente etc.)
               cnpjVinculoHint.textContent =
@@ -2032,6 +2033,29 @@
           const v = apenasNumeros(cpfInput.value);
           if (v && v.length > 0 && v.length < 11) {
             if (erroEl) {
-              erroEl.textContent = 'CPF parece incompleto.
+              erroEl.style.display = 'block';
+              erroEl.textContent = 'CPF parece incompleto.';
+            }
+          } else if (erroEl) {
+            erroEl.style.display = 'none';
+            erroEl.textContent = '';
+          }
+        });
+      }
 
+      if (chkAut && erroEl) {
+        chkAut.addEventListener('change', function(){
+          if (!chkAut.checked) {
+            erroEl.style.display = 'block';
+            erroEl.textContent = 'Para continuar, marque que você está autorizado(a) pela empresa.';
+          } else {
+            erroEl.style.display = 'none';
+            erroEl.textContent = '';
+          }
+        });
+      }
+    })();
+  </script>
+</body>
+</html>
 
