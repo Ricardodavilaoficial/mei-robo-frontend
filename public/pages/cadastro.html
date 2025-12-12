@@ -405,11 +405,23 @@
     let SUBMITTING = false;
     let CF_RETRY = 0;
 
-    
+
     /* ====== SSE (definitivo) ====== */
-    let _sse;
-    async function startSSE(user){
-      try{
+// SSE é opcional. Mantemos DESLIGADO por padrão para evitar ruído (401) e UX confusa.
+// Para ligar em testes: adicione ?sse=1 na URL OU localStorage.mr_enable_sse=1
+const ENABLE_SSE = (() => {
+  try {
+    const qs = new URLSearchParams(location.search);
+    if (qs.get('sse') === '1') return true;
+    if (localStorage.getItem('mr_enable_sse') === '1') return true;
+  } catch (_) {}
+  return false;
+})();
+
+let _sse;
+async function startSSE(user){
+  try{
+    if (!ENABLE_SSE) return;
         if (!user || typeof EventSource === 'undefined') return;
         // fecha conexão anterior, se houver
         try { _sse && _sse.close && _sse.close(); } catch(_){}
@@ -419,7 +431,7 @@
         const idt = await user.getIdToken(true);
         const url = (API_BASE.replace(/\/$/,'') + '/api/sse/verify?token=' + encodeURIComponent(idt));
 
-        console.log('[cadastro][SSE] conectando em', url);
+        console.log('[cadastro][SSE] conectando (SSE habilitado)');
         const es = new EventSource(url);
         _sse = es;
 
@@ -445,15 +457,27 @@
         };
         es.onerror = function(ev){
           console.warn('[cadastro][SSE] erro na conexão SSE', ev);
-          // encerra para evitar loops agressivos; fallback de avanço já existe (focus/visibility + backend)
-          try{ es.close(); }catch(_){}
+
+          // UX: não assusta. SSE é opcional; o caminho oficial é o botão.
+          try {
+            if (verifyBannerText) {
+              verifyBannerText.innerHTML =
+                '<strong>Abra seu e-mail agora e clique no botão de confirmação.</strong><br/>' +
+                'Depois volte para esta aba e clique em <strong>“Já verifiquei — continuar”</strong>.';
+            }
+            if (psgStatus && (psgStatus.textContent || '').toLowerCase().includes('confirmando')) {
+              psgStatus.textContent = 'Siga pelo botão “Já verifiquei — continuar”.';
+            }
+          } catch(_) {}
+
+          // encerra para evitar loops agressivos
+          try{ es.close(); }catch(_){ }
           if (_sse === es) _sse = null;
         };
       }catch(err){
         console.warn('[cadastro][SSE] erro geral', err);
       }
     }
-
 
     function reRenderTurnstileWithBackoff(){
       try { if (window.turnstile && CF_WIDGET_ID) turnstile.reset(CF_WIDGET_ID); } catch(_) {}
@@ -1302,7 +1326,6 @@ try {
 
         const payload = {
           email,
-          senha,
           nome,
           telefone: telefoneDigits,
           cnpj: cnpjDigits,
@@ -1409,7 +1432,7 @@ try {
       } catch(e){
         console.error('[cadastro][proceedSubmit] erro geral', e);
         formMsg.className='error';
-        const wrong = e && (e.code === 'auth/wrong-password' || e.code === 'auth/invalid-login-credentials' || e.__wrongPassword);
+        const wrong = e && (e.code === 'auth/wrong-password' || e.code === 'auth/invalid-login-credentials' || e.code === 'auth/wrong-password' || e.code === 'auth/invalid-login-credentials' || e.__wrongPassword);
         const email = (emailInput.value || '').trim();
 
         if (wrong && API.authReclaim) {
@@ -1441,7 +1464,7 @@ try {
                   formMsg.textContent = 'Sua conta foi recriada, mas não conseguimos enviar o e-mail de verificação agora. Tente reenviar em alguns instantes.';
                 } catch(_) {}
               }
-              
+
               const idToken = await user.getIdToken();
               showVerifyBanner(user.email || email);
               try {
@@ -1629,7 +1652,7 @@ try {
           clearInterval(iv);
         }
       }catch{}},150);
-    
+
       setTimeout(()=>clearInterval(iv),8000);
     }catch(e){console.warn('[guard] falhou',e);}
   })();
