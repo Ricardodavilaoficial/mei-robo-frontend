@@ -571,7 +571,7 @@
       cnpj = onlyDigits(cnpj||'');
       if (cnpj.length !== 14) return false;
       // rejeita CNPJs com todos os dígitos iguais (000..., 111..., etc.)
-      if (/^(\d){13}$/.test(cnpj)) return false;
+      if (/^(\d)1{13}$/.test(cnpj)) return false;
       let t = 12, d1 = 0, d2 = 0, p1 = 5, p2 = 6;
       for (let i = 0; i < t; i++) {
         const n = parseInt(cnpj[i],10);
@@ -848,6 +848,15 @@
       // 🔴 NOVO: marcar que o upload foi iniciado
       voiceState.started = true;
       updateSalvarStateAfterVoiceChange();
+      // 🔔 Status bem evidente para o MEI (mantra: clareza total)
+      try {
+        setAgendaMessage('📤 Enviando sua voz… aguarde concluir. Não feche esta página.', 'success');
+      } catch(_) {}
+
+      try {
+        setVoiceMsg('📤 Enviando sua voz… isso pode levar um tempinho. Não feche a página.', false);
+      } catch(_) {}
+
       // 🔴 FIM NOVO
 
       const file = voiceState.files[0]; // usa o primeiro (fluxo simples/robusto)
@@ -860,10 +869,24 @@
 
       const xhr = new XMLHttpRequest();
       xhr.open('POST', `${API_BASE}/api/voz/upload`, true);
+      
+      xhr.timeout = 300000; // 300s (5 minutos)
+      
       if (idToken) xhr.setRequestHeader('Authorization','Bearer ' + idToken);
 
       xhr.upload.onprogress = (e)=>{ if(e.lengthComputable){ setUploadPct(Math.round(e.loaded/e.total*100)); } };
       xhr.onerror = ()=>{ setVoiceMsg('❌ Não deu para salvar agora. Tente novamente.', true); voiceState.uploading=false; enableVoiceControls(true); };
+            xhr.onabort = ()=>{ 
+        setVoiceMsg('⚠️ Upload cancelado. Tente novamente.', true);
+        voiceState.uploading=false;
+        enableVoiceControls(true);
+      };
+
+      xhr.ontimeout = ()=>{ 
+        setVoiceMsg('⚠️ Upload demorou demais e expirou. Tente novamente.', true);
+        voiceState.uploading=false;
+        enableVoiceControls(true);
+      };
 
       xhr.onload = async ()=> {
         voiceState.uploading = false; enableVoiceControls(true); setUploadPct(100);
@@ -1053,7 +1076,7 @@
             const origemRaw = String(lic.origem || '').toLowerCase();
             const statusRaw = String(lic.status || '').toLowerCase();
 
-            const origemEhCupom = origemRaw.startswith ? origemRaw.startswith('cupom') : origemRaw.startsWith('cupom');
+            const origemEhCupom = origemRaw.startsWith('cupom');
             const statusAtivo =
               statusRaw === 'ativa' ||
               statusRaw === 'active' ||
@@ -1070,7 +1093,7 @@
           const licencaStatusSolto = String(j?.licencaStatus || '').toLowerCase();
           const licencaOrigemSolta = String(j?.licencaOrigem || '').toLowerCase();
           if (!contaAtiva) {
-            const origemCupomSolta = licencaOrigemSolta.startswith ? licencaOrigemSolta.startswith('cupom') : licencaOrigemSolta.startsWith('cupom');
+            const origemCupomSolta = licencaOrigemSolta.startsWith('cupom');
             const statusAtivoSolto =
               licencaStatusSolto === 'ativa' ||
               licencaStatusSolto === 'active' ||
@@ -1308,8 +1331,8 @@
     }
     // PATCH 3 — lógica da "configuração inicial concluída"
     function isConfigInicialConcluida() {
-      // 1) Voz: já pronta (player/voz no backend) ou upload iniciado nesta jornada
-      const okVoz = !!(voiceState.ready || voiceState.started);
+      // 1) Voz: só conta como pronta quando estiver READY (ou player com URL válida)
+      const okVoz = !!(voiceState.ready || (voiceEls.player && voiceEls.player.style.display !== 'none' && (voiceEls.player.src || '').startsWith('http')));;
 
       // 2) Agenda: já salva no backend (carregada ou recém-salva)
       const okAgenda = !!agendaSavedOk;
@@ -1444,8 +1467,31 @@
       if (!agendaFormEl) return;
 
       // 1) Voz obrigatória para avançar
-      if (!voiceState.ready && !voiceState.started) {
-        setAgendaMessage('Antes de continuar, envie e processe a sua voz em “Enviar & Processar”.', 'error');
+      if (!voiceState.ready && !(voiceEls.player && voiceEls.player.style.display !== 'none' && (voiceEls.player.src || '').startsWith('http'))) {
+        // Mensagem bem clara na agenda (onde a pessoa clicou
+        const msg = voiceState.uploading
+          ? 'Sua voz ainda está enviando/processando. Aguarde terminar para continuar.'
+          : 'Antes de continuar, envie e processe a sua voz em “Enviar & Processar”.';
+        setAgendaMessage(msg, 'error');
+        
+        // Mensagem também na área da voz (pra não ficar “cadê?”)
+        try { setVoiceMsg('⚠️ ' + msg, true); } catch(_) {}
+        
+        // Leva o MEI direto pra seção certa
+        try { document.getElementById('sec-voz')?.scrollIntoView({ behavior: 'smooth', block: 'start' }); } catch(_) {}
+        
+        // Dá um “pisca” sutil na caixa de upload (bem evidente)
+        try {
+          if (voiceEls?.area) {
+            voiceEls.area.style.outline = '2px solid #ff6b6b'
+            voiceEls.area.style.outlineOffset = '6px';
+            setTimeout(() => {
+              voiceEls.area.style.outline = '';
+              voiceEls.area.style.outlineOffset = ''
+            }, 1600);
+          }
+        } catch(_) {}
+        
         return;
       }
 
@@ -1466,7 +1512,7 @@
       // - o hint tiver um aviso (⚠) E
       // - a pessoa ainda não marcou que está autorizada pela empresa
       const hintTexto = (cnpjVinculoHint && cnpjVinculoHint.textContent || '').trim();
-      const temAlertaVinculo = /⚠/.test(hintTexto);
+      const temAlertaVinculo = /⚠/.test(hintTexto) && /não conseguimos confirmar|nao conseguimos confirmar|diverg/i.test(hintTexto);
 
       if (temAlertaVinculo && autorizacaoCheckbox && !autorizacaoCheckbox.checked) {
         setAgendaMessage('Para seguir, confirme que você está autorizado(a) pela empresa a usar este CNPJ.', 'error');
@@ -1884,7 +1930,7 @@
       }
     }
 
-    /* ===== Submit (ajustado para started OU ready) ===== */
+    /* ===== Submit (ajustado: só libera quando voz estiver READY ou player válido) ===== */
     async function getIdTokenOrNull() {
       try {
         const user = firebase.auth().currentUser;
