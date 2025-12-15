@@ -44,8 +44,8 @@
 
   function defaultPrefix(){
     const uid = (uidInput.value || "").trim();
-    // recomendado: só sandbox/
-    return uid ? `sandbox/${uid}/contatos/` : "sandbox/";
+    // robusto: lista tudo do sandbox do usuário (evita "lista vazia" se o caminho variar)
+    return uid ? `sandbox/${uid}/` : "sandbox/";
   }
 
   async function getIdToken(){
@@ -60,12 +60,23 @@
     const resp = await fetch(`${url}?${q}`, {
       headers: { "Authorization": `Bearer ${idToken}` }
     });
+
     const text = await resp.text();
     let data = null;
     try{ data = JSON.parse(text); }catch(_){ /* ignore */ }
 
     if(!resp.ok){
-      const msg = (data && (data.error || data.detail)) ? `${data.error}${data.detail?": "+data.detail:""}` : `${resp.status} ${resp.statusText}`;
+      // Mensagens claras pra não parecer "bug" quando é permissão
+      if(resp.status === 401){
+        throw new Error("401 unauthorized — faça login novamente (token inválido/expirado).");
+      }
+      if(resp.status === 403){
+        const detail = (data && (data.error || data.detail)) ? ` (${data.error || data.detail})` : "";
+        throw new Error("403 forbidden — você não tem acesso admin (allowlist)." + detail);
+      }
+      const msg = (data && (data.error || data.detail))
+        ? `${data.error}${data.detail?": "+data.detail:""}`
+        : `${resp.status} ${resp.statusText}`;
       throw new Error(msg);
     }
     return data;
@@ -78,9 +89,13 @@
     const prefix = (prefixInput.value || "").trim() || defaultPrefix();
     prefixInput.value = prefix;
 
+    const listBtn = $("#listBtn");
+    if (listBtn) listBtn.disabled = true;
+
     setStatus(`Listando: <span class="badge">${esc(prefix)}</span> ...`);
     filesTbody.innerHTML = `<tr><td colspan="5" class="muted">Carregando...</td></tr>`;
 
+    const listBtn2 = $("#listBtn");
     try{
       const data = await apiGet("/api/admin/storage/list", { prefix, limit: "500" });
       const items = (data && data.items) || [];
@@ -130,6 +145,8 @@
       console.error(e);
       setStatus(`<span class="err">Falhou listar:</span> ${esc(e.message || e)}`);
       filesTbody.innerHTML = `<tr><td colspan="5" class="muted">Erro ao listar.</td></tr>`;
+    }finally{
+      if (listBtn2) listBtn2.disabled = false;
     }
   }
 
