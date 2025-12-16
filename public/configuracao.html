@@ -369,9 +369,8 @@
       <strong>Sua voz (pelo WhatsApp)</strong>
       <span id="vozWaBadge" class="pill pill-pending">aguardando</span>
       <div class="hint mt-6">
-        Para finalizar sua configuração, você precisa enviar um áudio com a sua voz pelo WhatsApp.
-        <br>Ao clicar no botão abaixo, vamos abrir o WhatsApp no seu celular com a mensagem pronta.
-        <br>Depois é só responder com um áudio de 1–2 minutos falando normalmente.
+        Aqui você manda sua voz do jeito mais fácil: por mensagem de áudio no WhatsApp.<br>
+        Leva 1 minuto. O MEI Robô só avança quando sua voz estiver pronta.
       </div>
     </div>
     <div class="hint" style="opacity:.85">
@@ -381,40 +380,45 @@
   </div>
 
   <div class="mt-12">
-    <ol class="hint" style="margin:0; padding-left:18px; line-height:1.6;">
-      <li><strong>Clique em “Gerar código de voz”</strong></li>
-      <li>No WhatsApp, mande a mensagem: <strong>MEIROBO VOZ &lt;CÓDIGO&gt;</strong></li>
-      <li>Depois mande um áudio de <strong>60–90s</strong> falando naturalmente</li>
-      <li>Volte aqui — o status vai atualizar automaticamente</li>
-    </ol>
-    <div class="hint mt-8" style="opacity:.9;">
-      Dica: fale seu nome, seu serviço e uma frase de atendimento. Natural, como você fala com cliente.<br>
-      <strong>Não feche esta página</strong> enquanto estiver em “Recebendo”/“Salvando”.
+    <div class="note" style="margin:0 0 10px;">
+      <strong>Obrigatório:</strong> para terminar sua configuração, você precisa mandar um áudio com a sua voz.
     </div>
-  </div>
-
-  <div class="grid-2 mt-12">
-    <div>
-      <label>Código de voz</label>
-      <input id="vozWaCode" type="text" readonly placeholder="Gere o código para aparecer aqui" />
-      <div id="vozWaCodeHint" class="hint mt-6"></div>
+    <div class="hint" style="margin:0; line-height:1.55;">
+      Clique no botão abaixo. Você vai abrir o WhatsApp no seu celular, receber a mensagem e <strong>responder com um áudio de 60–90s</strong> falando normalmente.
     </div>
 
-    <div>
-      <label>Mensagem pronta</label>
-      <input id="vozWaMsgReady" type="text" readonly value="MEIROBO VOZ " />
-      <div class="hint mt-6">Você pode copiar e colar no WhatsApp.</div>
+    <div class="mt-12">
+      <button type="button" class="btn primary" id="btnVozWaStart" style="width:100%; padding:14px 16px;">
+        Enviar minha voz no WhatsApp
+      </button>
+      <button type="button" class="btn outline mt-8" id="btnVozWaResend" style="width:100%;">
+        Não recebi mensagem no WhatsApp — enviar de novo
+      </button>
+      <div class="hint mt-8" style="opacity:.9;">
+        Dica rápida: diga seu nome, o que você faz e como atende um cliente. Sem música de fundo.
+      </div>
     </div>
-  </div>
 
-  <div class="upload-actions mt-12">
-    <button type="button" class="btn primary" id="btnVozWaGerar">Gerar código de voz</button>
-    <button type="button" class="btn outline" id="btnVozWaCopiar" disabled>Copiar mensagem pronta</button>
-    <a class="btn outline" id="btnVozWaAbrir" href="#" target="_blank" rel="noopener noreferrer" style="text-decoration:none; display:inline-flex; align-items:center;">
-      Abrir WhatsApp
-    </a>
-    <button type="button" class="btn outline" id="btnVozWaRecarregar">Recarregar status</button>
-    <button type="button" class="btn outline" id="btnVozWaRefazer">Trocar número / Refazer</button>
+    <details class="mt-12" style="opacity:.95;">
+      <summary class="hint" style="cursor:pointer;">Preciso de ajuda / ver detalhes</summary>
+      <div class="mt-12">
+        <label class="hint">Código de voz</label>
+        <input id="vozWaCode" type="text" readonly placeholder="(vai aparecer aqui)" />
+        <div class="hint mt-6" id="vozWaCodeHint"></div>
+
+        <label class="hint mt-12">Mensagem pronta</label>
+        <input id="vozWaMsgReady" type="text" readonly value="MEIROBO VOZ " />
+        <div class="upload-actions mt-12">
+          <button type="button" class="btn outline" id="btnVozWaGerar">Gerar código</button>
+          <button type="button" class="btn outline" id="btnVozWaCopiar" disabled>Copiar</button>
+          <a class="btn outline" id="btnVozWaAbrir" href="#" target="_blank" rel="noopener" style="text-decoration:none; display:inline-flex; align-items:center;">
+            Abrir WhatsApp
+          </a>
+          <button type="button" class="btn outline" id="btnVozWaRecarregar">Recarregar status</button>
+          <button type="button" class="btn outline" id="btnVozWaRefazer">Trocar número / Refazer</button>
+        </div>
+      </div>
+    </details>
   </div>
 
   <div id="vozWaErroHumano" class="hint mt-12" style="color:#ffbdbd; display:none;"></div>
@@ -423,7 +427,6 @@
   <audio id="vozWaPlayer" controls style="display:none; margin-top:10px; width:100%"></audio>
 </div>
 <!-- ====== /Voz via WhatsApp ====== -->
-
         </section>
 
         <!-- PATCH 1: esconder botão antigo de salvar/continuar -->
@@ -445,21 +448,16 @@
 
       <div id="agenda-alert" class="hint" style="margin-bottom:8px;"></div>
 
-      <div class="card mt-12" id="agendaCompact" style="padding:12px 14px;">
-        <div style="display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap;">
-          <div>
-            <strong>Horários de atendimento (padrão)</strong>
-            <div class="hint mt-6" id="agendaResumo">Seg–Sex • 09:00–18:00 • Sáb fechado • Dom fechado</div>
-          </div>
-          <div style="display:flex; gap:10px; flex-wrap:wrap;">
-            <button type="button" class="btn outline" id="btnAgendaPadrao">Usar padrão</button>
-            <button type="button" class="btn" id="btnAgendaEditar">Editar</button>
-          </div>
-        </div>
-      </div>
-
-      <div id="agendaAdvanced" style="display:none;">
-<form id="agenda-form" class="mt-12">
+      <div id="agenda-summary" class="card" style="margin:10px 0 12px; padding:12px 14px; background:#0d0f10; border:1px solid #333; border-radius:14px;">
+  <div style="display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap;">
+    <div>
+      <strong>Seu horário de atendimento (padrão)</strong>
+      <div class="hint" id="agenda-summary-text" style="margin-top:6px;">Seg–Sex, 09:00–18:00 (você pode editar)</div>
+    </div>
+    <button type="button" class="btn outline" id="btnAgendaEditar">Editar</button>
+  </div>
+</div>
+<form id="agenda-form" class="mt-12" style="display:none;">
         <label class="hint" style="margin-bottom:4px;">Dias de atendimento</label>
         <div class="grid-3" style="margin-bottom:10px;">
           <label><input type="checkbox" name="diasAtendimento" value="seg" /> Seg</label>
@@ -499,8 +497,6 @@
           <button id="agenda-save-btn" type="submit" class="btn outline">Salvar e continuar</button>
         </div>
       </form>
-      </div>
-
 
       <hr style="margin:16px 0; border-color:rgba(255,255,255,0.08);" />
 
@@ -685,8 +681,6 @@
     const fEmojis= form.querySelector('select[name="emojis"]');
     const fSaud  = form.querySelector('input[name="saudacao"]');
     const fDisp  = form.querySelector('input[name="display_name"]');
-    let _dispDirty = false;
-    if (fDisp) fDisp.addEventListener('input', ()=>{ _dispDirty = true; });
     const fClose = form.querySelector('input[name="closing_text"]');
     const fJanela= document.getElementById('janela_resposta');
     const wrapCustom = document.getElementById('custom-horario');
@@ -713,6 +707,79 @@
     // Agenda DOM
     const agendaResumoEl = document.getElementById('agendaConfigResumo');
     const agendaFormEl = document.getElementById('agenda-form');
+    const agendaSummaryWrap = document.getElementById('agenda-summary');
+    const agendaSummaryText = document.getElementById('agenda-summary-text');
+    const btnAgendaEditar = document.getElementById('btnAgendaEditar');
+    function _agendaFmt(t){ return (t||'').toString().slice(0,5); }
+    function _updateAgendaSummary(){
+      if (!agendaSummaryText) return;
+      const seg = document.getElementById('d1')?.checked;
+      const ter = document.getElementById('d2')?.checked;
+      const qua = document.getElementById('d3')?.checked;
+      const qui = document.getElementById('d4')?.checked;
+      const sex = document.getElementById('d5')?.checked;
+      const sab = document.getElementById('d6')?.checked;
+      const dom = document.getElementById('d0')?.checked;
+      const open = _agendaFmt(document.getElementById('hora-inicio')?.value || '09:00');
+      const close= _agendaFmt(document.getElementById('hora-fim')?.value || '18:00');
+      const days = [];
+      if (seg) days.push('Seg'); if (ter) days.push('Ter'); if (qua) days.push('Qua'); if (qui) days.push('Qui'); if (sex) days.push('Sex');
+      if (sab) days.push('Sáb'); if (dom) days.push('Dom');
+      const d = days.length ? days.join('–') : 'Seg–Sex';
+      agendaSummaryText.textContent = d + ', ' + open + '–' + close + ' (você pode editar)';
+    }
+    if (btnAgendaEditar && agendaFormEl) {
+      btnAgendaEditar.onclick = () => {
+        const open = agendaFormEl.style.display !== 'none';
+        agendaFormEl.style.display = open ? 'none' : 'block';
+        if (agendaSummaryWrap) agendaSummaryWrap.style.display = open ? 'block' : 'none';
+        if (!open) _updateAgendaSummary();
+      };
+    }
+    ['hora-inicio','hora-fim','d0','d1','d2','d3','d4','d5','d6'].forEach((id)=>{
+      const el = document.getElementById(id);
+      if (el) el.addEventListener('change', _updateAgendaSummary);
+    });
+    setTimeout(_updateAgendaSummary, 600);
+
+    const agendaSummaryWrap = document.getElementById('agenda-summary');
+    const agendaSummaryText = document.getElementById('agenda-summary-text');
+    const btnAgendaEditar = document.getElementById('btnAgendaEditar');
+    function _agendaFmt(t){ return (t||'').toString().slice(0,5); }
+    function _updateAgendaSummary(){
+      if (!agendaSummaryText) return;
+      // tenta ler do form (se já carregou) — fallback para padrão
+      const seg = document.getElementById('d1')?.checked;
+      const ter = document.getElementById('d2')?.checked;
+      const qua = document.getElementById('d3')?.checked;
+      const qui = document.getElementById('d4')?.checked;
+      const sex = document.getElementById('d5')?.checked;
+      const sab = document.getElementById('d6')?.checked;
+      const dom = document.getElementById('d0')?.checked;
+      const open = _agendaFmt(document.getElementById('hora-inicio')?.value || '09:00');
+      const close= _agendaFmt(document.getElementById('hora-fim')?.value || '18:00');
+      const days = [];
+      if (seg) days.push('Seg'); if (ter) days.push('Ter'); if (qua) days.push('Qua'); if (qui) days.push('Qui'); if (sex) days.push('Sex');
+      if (sab) days.push('Sáb'); if (dom) days.push('Dom');
+      const d = days.length ? days.join('–') : 'Seg–Sex';
+      agendaSummaryText.textContent = `${d}, ${open}–${close} (você pode editar)`;
+    }
+    if (btnAgendaEditar && agendaFormEl) {
+      btnAgendaEditar.onclick = () => {
+        const open = agendaFormEl.style.display !== 'none';
+        agendaFormEl.style.display = open ? 'none' : 'block';
+        if (agendaSummaryWrap) agendaSummaryWrap.style.display = open ? 'block' : 'none';
+        if (!open) _updateAgendaSummary();
+      };
+    }
+    // atualiza o resumo sempre que mexer nos campos principais
+    ['hora-inicio','hora-fim','d0','d1','d2','d3','d4','d5','d6'].forEach((id)=>{
+      const el = document.getElementById(id);
+      if (el) el.addEventListener('change', _updateAgendaSummary);
+    });
+    // mostra resumo assim que possível
+    setTimeout(_updateAgendaSummary, 600);
+
     const agendaAlertEl = document.getElementById('agenda-alert');
     const agendaSaveBtn = document.getElementById('agenda-save-btn');
     let currentAgendaConfig = null;
@@ -787,7 +854,7 @@
     }
     
         /* ===== Voz via WhatsApp (constantes v1.0) ===== */
-    window.VOICE_WA_NUMBER_E164 = window.VOICE_WA_NUMBER_E164 || '+5551981474122'; // número oficial da plataforma
+    window.VOICE_WA_NUMBER_E164 = window.VOICE_WA_NUMBER_E164 || '+5551985648608'; // trocar aqui quando virar oficial // ⚠️ trocar em 2–3 dias aqui e só aqui
 
     
     // estado novo (a “verdade” da voz agora vem do backend)
@@ -977,13 +1044,6 @@ function _vozWaShowError(msg){
       if (wa.code) wa.code.value = newCode;
       if (wa.msgReady) wa.msgReady.value = 'MEIROBO VOZ ' + newCode;
       if (wa.btnCopiar) wa.btnCopiar.disabled = false;
-      try{ const btnReenviar = document.getElementById('btnVozWaReenviar'); if(btnReenviar) btnReenviar.style.display='inline-flex'; }catch(_){ }
-      // abre o WhatsApp automaticamente (experiência simples pro MEI)
-      try{
-        if (opts.autoOpen && wa.btnAbrir && wa.btnAbrir.href && wa.btnAbrir.href !== '#') {
-          window.open(wa.btnAbrir.href, '_blank', 'noopener');
-        }
-      }catch(_){ }
       _updateWhatsAppLink(newCode);
     }
 
@@ -1000,9 +1060,7 @@ function _vozWaShowError(msg){
     return payload;
   }
 
-  async function _generateCode(opts){
-    opts = opts || {};
-
+  async function _generateCode(){
     try { _vozWaShowError(''); } catch(_){}
     if (wa.btnGerar) wa.btnGerar.disabled = true;
 
@@ -1107,11 +1165,7 @@ function _vozWaShowError(msg){
 
   // 3) liga botões — UI real (AGORA COM BACKEND)
   if (wa.btnGerar) {
-    wa.btnGerar.onclick = async () => { await _generateCode({autoOpen:true}); };
-  }
-  const btnReenviar = document.getElementById('btnVozWaReenviar');
-  if (btnReenviar) {
-    btnReenviar.onclick = async () => { await _generateCode({autoOpen:true, force:true}); };
+    wa.btnGerar.onclick = async () => { await _generateCode(); };
   }
 
   if (wa.btnCopiar) {
@@ -1166,6 +1220,27 @@ function _vozWaShowError(msg){
 
         await _apiTry(paths, { method:'POST', headers, body: JSON.stringify({ uid: ctx.uid }) });
       } catch(_){}
+
+  // Botões ultra-simples (UX MEI): 1 botão principal + 1 reenvio
+  const btnStartSimple  = document.getElementById('btnVozWaStart');
+  const btnResendSimple = document.getElementById('btnVozWaResend');
+
+  async function _startSimple(resend){
+    try { _vozWaShowError(''); } catch(_){}
+    // Gera/renova o código (backend) e abre o WhatsApp já com a mensagem pronta
+    if (wa.btnGerar) wa.btnGerar.click();
+    // dá um respiro para a href ser atualizada
+    setTimeout(()=>{ try { if (wa.btnAbrir) wa.btnAbrir.click(); } catch(_){ } }, 250);
+    if (resend) { /* sem estado extra; o backend trata como novo convite */ }
+  }
+
+  if (btnStartSimple) {
+    btnStartSimple.onclick = ()=> _startSimple(false);
+  }
+  if (btnResendSimple) {
+    btnResendSimple.onclick = ()=> _startSimple(true);
+  }
+
     };
   }
 
@@ -1364,13 +1439,6 @@ function _vozWaShowError(msg){
           if (wa.code) wa.code.value = newCode;
           if (wa.msgReady) wa.msgReady.value = 'MEIROBO VOZ ' + newCode;
           if (wa.btnCopiar) wa.btnCopiar.disabled = false;
-      try{ const btnReenviar = document.getElementById('btnVozWaReenviar'); if(btnReenviar) btnReenviar.style.display='inline-flex'; }catch(_){ }
-      // abre o WhatsApp automaticamente (experiência simples pro MEI)
-      try{
-        if (opts.autoOpen && wa.btnAbrir && wa.btnAbrir.href && wa.btnAbrir.href !== '#') {
-          window.open(wa.btnAbrir.href, '_blank', 'noopener');
-        }
-      }catch(_){ }
           await _updateWhatsAppLink(newCode);
         }
 
@@ -1388,9 +1456,7 @@ function _vozWaShowError(msg){
         return payload;
       }
 
-      async function _generateCode(opts){
-    opts = opts || {};
-
+      async function _generateCode(){
         try { _vozWaShowError(''); } catch(_){}
         wa.btnGerar.disabled = true;
 
@@ -1470,13 +1536,6 @@ function _vozWaShowError(msg){
         if (wa.msgReady) wa.msgReady.value = 'MEIROBO VOZ ' + code;
         if (wa.codeHint) wa.codeHint.textContent = 'Código gerado. Envie a mensagem no WhatsApp e depois o áudio (60–90s).';
         if (wa.btnCopiar) wa.btnCopiar.disabled = false;
-      try{ const btnReenviar = document.getElementById('btnVozWaReenviar'); if(btnReenviar) btnReenviar.style.display='inline-flex'; }catch(_){ }
-      // abre o WhatsApp automaticamente (experiência simples pro MEI)
-      try{
-        if (opts.autoOpen && wa.btnAbrir && wa.btnAbrir.href && wa.btnAbrir.href !== '#') {
-          window.open(wa.btnAbrir.href, '_blank', 'noopener');
-        }
-      }catch(_){ }
 
         await _updateWhatsAppLink(code);
 
@@ -2338,16 +2397,10 @@ if (!vozWaState || !vozWaState.ready) {
         if (data.formalidade) fFormal.value = data.formalidade;
         if (data.emojis) fEmojis.value = data.emojis;
         if (data.saudacao) fSaud.value = data.saudacao;
-        if (data.display_name && fDisp && !_dispDirty) {
+        if (data.display_name) {
           const dn = String(data.display_name||'').trim();
-          const ln = String(data.legal_name||'').trim();
-          const tn = String(data.trade_name||'').trim();
-          // Se o backend mandou igual ao nome legal/fantasia, deixa vazio e usa placeholder (mais natural pro MEI)
-          if (dn && (dn === ln || dn === tn)) {
-            fDisp.value = '';
-          } else {
-            fDisp.value = dn;
-          }
+          const an = String(authName||'').trim();
+          if (dn && (!an || dn.toLowerCase() !== an.toLowerCase())) fDisp.value = dn;
         }
         if (data.closing_text) fClose.value = data.closing_text;
         if (data.janela_resposta) {
@@ -2614,103 +2667,7 @@ if (!vozWaState || !vozWaState.ready) {
         else document.getElementById('public_brand').setAttribute('disabled','disabled');
       });
     }
-    /* ===== PATCH: initVozWaUI (liga a seção “Voz via WhatsApp”) ===== */
-    /* LEGADO DESABILITADO: initVozWaUI duplicado causava confusão/DOM incompleto.
-(function initVozWaUI(){
-  function $(id){ return document.getElementById(id); }
-
-  function mount(){
-    const wa = {
-      area: $("vozWaArea"),
-      badge: $("vozWaBadge"),
-      statusText: $("vozWaStatusText"),
-      updatedAt: $("vozWaUpdatedAt"),
-      code: $("vozWaCode"),
-      msgReady: $("vozWaMsgReady"),
-      codeHint: $("vozWaCodeHint"),
-      erroHumano: $("vozWaErroHumano"),
-      btnGerar: $("btnVozWaGerar"),
-      btnCopiar: $("btnVozWaCopiar"),
-      btnAbrir: $("btnVozWaAbrir"),
-      btnRecarregar: $("btnVozWaRecarregar"),
-      btnRefazer: $("btnVozWaRefazer"),
-      player: $("vozWaPlayer"),
-    };
-
-    // expõe para debug
-    window.vozWaEls = wa;
-
-    if (!wa.area || !wa.btnGerar || !wa.code || !wa.msgReady) {
-      console.warn('[voz-wa] elementos não encontrados (DOM incompleto).');
-      return;
-    }
-
-    const numberE164 = String(window.VOICE_WA_NUMBER_E164 || '').trim() || '+5551985648608';
-    const waDigits = numberE164.replace(/\D+/g,''); // só números
-    const waMeBase = `https://wa.me/${waDigits}`;
-
-    function showErr(msg){
-      if (!wa.erroHumano) return;
-      wa.erroHumano.style.display = msg ? 'block' : 'none';
-      wa.erroHumano.textContent = msg || '';
-    }
-
-    function setReadyMsg(code){
-      showErr('');
-      wa.code.value = code;
-      wa.msgReady.value = `MEIROBO VOZ ${code}`;
-      if (wa.btnCopiar) wa.btnCopiar.disabled = false;
-      try{ const btnReenviar = document.getElementById('btnVozWaReenviar'); if(btnReenviar) btnReenviar.style.display='inline-flex'; }catch(_){ }
-      // abre o WhatsApp automaticamente (experiência simples pro MEI)
-      try{
-        if (opts.autoOpen && wa.btnAbrir && wa.btnAbrir.href && wa.btnAbrir.href !== '#') {
-          window.open(wa.btnAbrir.href, '_blank', 'noopener');
-        }
-      }catch(_){ }
-
-      if (wa.btnAbrir) {
-        wa.btnAbrir.href = `${waMeBase}?text=${encodeURIComponent(wa.msgReady.value)}`;
-      }
-      if (wa.codeHint) wa.codeHint.textContent = 'Copie a mensagem pronta e envie no WhatsApp.';
-    }
-
-    // Gera o código local (MVP seguro) — sem backend aqui
-    function genCode(){
-      return Math.random().toString(36).slice(2, 8).toUpperCase();
-    }
-
-    wa.btnGerar.addEventListener('click', ()=> {
-      try{
-        const code = genCode();
-        setReadyMsg(code);
-      }catch(e){
-        console.error('[voz-wa] erro ao gerar código', e);
-        showErr('Não foi possível gerar o código. Recarregue a página.');
-      }
-    });
-
-    if (wa.btnCopiar){
-      wa.btnCopiar.addEventListener('click', async ()=> {
-        try{
-          await navigator.clipboard.writeText(wa.msgReady.value || '');
-          if (wa.codeHint) wa.codeHint.textContent = 'Copiado ✅ Agora é só colar no WhatsApp.';
-        }catch(_){
-          if (wa.codeHint) wa.codeHint.textContent = 'Copie manualmente a mensagem pronta e cole no WhatsApp.';
-        }
-      });
-    }
-
-    console.log('[voz-wa] UI ligada. number=', numberE164);
-  }
-
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', mount);
-  } else {
-    mount();
-  }
-})()
-*/;
-</script>
+    </script>
 
   <script>
     (function(){
@@ -2784,66 +2741,7 @@ if (!vozWaState || !vozWaState.ready) {
         });
       }
     })();
-  
-<script>
-(function(){
-  function $(sel){ return document.querySelector(sel); }
-  const adv = document.getElementById('agendaAdvanced');
-  const resumoEl = document.getElementById('agendaResumo');
-  const btnEdit = document.getElementById('btnAgendaEditar');
-  const btnPadrao = document.getElementById('btnAgendaPadrao');
-  const form = document.getElementById('agenda-form');
-
-  function dayLabel(v){
-    return ({seg:'Seg',ter:'Ter',qua:'Qua',qui:'Qui',sex:'Sex',sab:'Sáb',dom:'Dom'})[v] || v;
-  }
-  function buildResumo(){
-    if(!form || !resumoEl) return;
-    const days = Array.from(form.querySelectorAll('input[name="diasAtendimento"]:checked')).map(i=>i.value);
-    const ini = (form.querySelector('input[name="atendimentoInicio"]')||{}).value || '09:00';
-    const fim = (form.querySelector('input[name="atendimentoFim"]')||{}).value || '18:00';
-    const hasSab = days.includes('sab');
-    const hasDom = days.includes('dom');
-    const workDays = days.filter(d=>['seg','ter','qua','qui','sex'].includes(d));
-    const workTxt = workDays.length ? 'Seg–Sex' : (days.length ? days.map(dayLabel).join(', ') : 'Seg–Sex');
-    resumoEl.textContent = `${workTxt} • ${ini}–${fim} • Sáb ${hasSab?'aberto':'fechado'} • Dom ${hasDom?'aberto':'fechado'}`;
-  }
-  function applyPadrao(){
-    if(!form) return;
-    const map = {seg:true,ter:true,qua:true,qui:true,sex:true,sab:false,dom:false};
-    form.querySelectorAll('input[name="diasAtendimento"]').forEach(ch=>{
-      ch.checked = !!map[ch.value];
-    });
-    const ini = form.querySelector('input[name="atendimentoInicio"]');
-    const fim = form.querySelector('input[name="atendimentoFim"]');
-    if(ini) ini.value = '09:00';
-    if(fim) fim.value = '18:00';
-    buildResumo();
-  }
-
-  if(btnEdit && adv){
-    btnEdit.addEventListener('click', ()=>{
-      adv.style.display = (adv.style.display==='none'?'block':'none');
-      btnEdit.textContent = (adv.style.display==='none'?'Editar':'Fechar edição');
-      buildResumo();
-    });
-  }
-  if(btnPadrao){
-    btnPadrao.addEventListener('click', ()=>{
-      applyPadrao();
-      if(adv) adv.style.display = 'none';
-      if(btnEdit) btnEdit.textContent = 'Editar';
-    });
-  }
-  if(form){
-    form.addEventListener('change', buildResumo);
-    // inicial
-    setTimeout(buildResumo, 400);
-  }
-})();
-</script>
-
-</script>
+  </script>
 </body>
 </html>
 
