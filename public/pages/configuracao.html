@@ -10,7 +10,73 @@
   <meta name="twitter:url" content="https://www.meirobo.com.br/pages/configuracao.html" />
 
   <link rel="stylesheet" href="/assets/styles.css" />
-  <script defer src="/assets/layout.js?v=2025-09-06-07"></script>
+  <script defer src="/assets/layout.js?v=2025-09-06-07">
+/* ===== PATCH (2025-12-16): UX simples Voz via WhatsApp (1 botão) ===== */
+(function vozWaSimplePatch(){
+  function $(id){ return document.getElementById(id); }
+  const btn = $("btnVozWaGerar");
+  if (!btn) return;
+
+  // Mostra só o essencial pro MEI
+  const hideIds = ["vozWaCode","vozWaMsgReady","btnVozWaCopiar","btnVozWaAbrir","btnVozWaRecarregar","btnVozWaRefazer"];
+  hideIds.forEach(id => { const el=$(id); if (el) el.style.display="none"; });
+
+  // helper: abre WhatsApp com texto (no celular ele manda msg + áudio)
+  function openWa(toE164, text){
+    const digits = String(toE164||"").replace(/\D+/g,"");
+    const msg = encodeURIComponent(String(text||"").trim());
+    const url = "https://wa.me/" + digits + "?text=" + msg;
+    window.open(url, "_blank", "noopener,noreferrer");
+  }
+
+  // Reaproveita as funções existentes quando possível
+  btn.onclick = async () => {
+    try{
+      btn.disabled = true;
+
+      // usa state + API do backend (já existente no arquivo)
+      const cfg = (typeof _fetchVozWaConfig === "function") ? await _fetchVozWaConfig() : null;
+
+      // pega número do WhatsApp oficial
+      const waNumber = (window.vozWaState && window.vozWaState.waNumberE164) ? window.vozWaState.waNumberE164 : (cfg && cfg.waNumberE164) ? cfg.waNumberE164 : null;
+
+      // pega telefone do MEI na tela (destino do convite pode não ser necessário, mas mantemos)
+      const telInput = document.querySelector('input[name="telefone"], #telefone, #telefoneInput');
+      const toE164 = (telInput && typeof toE164 === "function") ? toE164(telInput.value) : null;
+
+      // chama invite no backend (gera código e deixa "convite ativo")
+      if (typeof _apiTry !== "function") throw new Error("API indisponível");
+
+      const ctx = (typeof getAuthContext === "function") ? await getAuthContext() : null;
+      const tok = ctx?.idToken || (typeof idToken !== "undefined" ? idToken : null);
+      const headers = {};
+      if (tok) headers["Authorization"] = "Bearer " + tok;
+      headers["Content-Type"] = "application/json";
+
+      const payload = { toE164: toE164 || null };
+      const out = await _apiTry([`/api/voz/whatsapp/invite`], { method:"POST", headers, body: JSON.stringify(payload) });
+
+      const code = out?.json?.code || out?.json?.inviteCode || out?.json?.data?.code || "";
+      const text = ("MEIROBO VOZ " + String(code||"").trim()).trim();
+
+      if (!waNumber) throw new Error("Número do WhatsApp da plataforma não encontrado.");
+      if (!code) throw new Error(out?.json?.error || "Não consegui gerar seu convite agora.");
+
+      // feedback humano
+      const statusEl = $("vozWaStatusText");
+      if (statusEl) statusEl.textContent = "Pronto. Agora é só mandar a mensagem e depois um áudio (1 minuto).";
+
+      openWa(waNumber, text);
+    }catch(e){
+      const errEl = $("vozWaErroHumano");
+      if (errEl) errEl.textContent = (e && e.message) ? e.message : "Falhou ao iniciar. Tente novamente.";
+    }finally{
+      btn.disabled = false;
+    }
+  };
+})();
+
+</script>
 
   <!-- ✅ Firebase Hosting SDKs (necessário para auth/token nesta página) -->
   <script defer src="/__/firebase/9.22.2/firebase-app-compat.js"></script>
@@ -103,6 +169,12 @@
   <script>
     window.API_BASE = "https://mei-robo-prod.onrender.com";
   </script>
+
+<style id="vozwa-simple-css">
+  /* UX simples: Voz via WhatsApp */
+  #vozWaCode, #vozWaMsgReady, #btnVozWaCopiar, #btnVozWaAbrir, #btnVozWaRecarregar, #btnVozWaRefazer { display:none !important; }
+</style>
+
 </head>
 <body>
   <div id="app-header"></div>
@@ -353,10 +425,10 @@
 
         <!-- ====== Voz (upload/gravação + progresso + polling) ====== -->
         <section class="mt-24" id="sec-voz">
-          <h3>Sua voz (obrigatório)</h3>
+          <h3>Sua voz (obrigatório) — envio pelo WhatsApp</h3>
           <p class="hint">
-            Pra o MEI Robô atender com a <strong>sua voz</strong>, você só precisa mandar um áudio no WhatsApp.
-            Aqui a gente mostra o passo e o status — sem anexar nada por aqui.
+            Para o MEI Robô falar com a sua voz, você vai enviar áudios <strong>pelo WhatsApp</strong>.
+            Aqui a gente só te guia e mostra o status. (Sem anexar arquivos por aqui.)
           </p>
 
           
@@ -369,42 +441,26 @@
       <strong>Sua voz (pelo WhatsApp)</strong>
       <span id="vozWaBadge" class="pill pill-pending">aguardando</span>
       <div class="hint mt-6">
-  1) Clique em <strong>Gerar código</strong><br>
-  2) Abra o WhatsApp e envie a mensagem pronta<br>
-  3) Depois mande um áudio de <strong>60–90s</strong> falando normal (sem música)<br>
-  Volte aqui e clique em <strong>Recarregar status</strong>.
-</div>
-  </div>
-
-  <div class="grid-2 mt-12">
-    <div>
-      <label>Código de voz</label>
-      <input id="vozWaCode" type="text" readonly placeholder="Gere o código para aparecer aqui" />
-      <div id="vozWaCodeHint" class="hint mt-6"></div>
+        É simples: clique no botão abaixo, o WhatsApp vai abrir no seu celular. Aí é só mandar <strong>um áudio de 1–2 minutos</strong> falando normal.
+      </div>
+      <div class="hint mt-6" style="opacity:.85">
+        Dica rápida: diga seu nome, seu serviço e como você atende um cliente (“Oi! Aqui é o ...”).
+      </div>
+      <div id="vozWaErroHumano" class="hint" style="display:none; margin-top:8px;"></div>
     </div>
-
-    <div>
-      <label>Mensagem pronta</label>
-      <input id="vozWaMsgReady" type="text" readonly value="MEIROBO VOZ " />
-      <div class="hint mt-6">Você pode copiar e colar no WhatsApp.</div>
+    <div class="hint" style="opacity:.85">
+      <div><strong>Status:</strong> <span id="vozWaStatusText">Aguardando</span></div>
+      <div><small id="vozWaUpdatedAt"></small></div>
     </div>
   </div>
 
   <div class="upload-actions mt-12">
-    <button type="button" class="btn primary" id="btnVozWaGerar">Gerar código de voz</button>
-    <button type="button" class="btn outline" id="btnVozWaCopiar" disabled>Copiar mensagem pronta</button>
-    <a class="btn outline" id="btnVozWaAbrir" href="#" target="_blank" rel="noopener noreferrer" style="text-decoration:none; display:inline-flex; align-items:center;">
-      Abrir WhatsApp
-    </a>
-    <button type="button" class="btn outline" id="btnVozWaRecarregar">Recarregar status</button>
-    <button type="button" class="btn outline" id="btnVozWaRefazer">Trocar número / Refazer</button>
+    <button type="button" class="btn primary" id="btnVozWaGerar">ENVIAR MINHA VOZ NO WHATSAPP</button>
   </div>
 
-  <div id="vozWaErroHumano" class="hint mt-12" style="color:#ffbdbd; display:none;"></div>
-
-  <!-- Mantém o player apenas como compat/fallback visual se o backend fornecer URL -->
   <audio id="vozWaPlayer" controls style="display:none; margin-top:10px; width:100%"></audio>
 </div>
+
 <!-- ====== /Voz via WhatsApp ====== -->
 
         </section>
@@ -427,6 +483,11 @@
       </p>
 
       <div id="agenda-alert" class="hint" style="margin-bottom:8px;"></div>
+
+      <div class="row" style="gap:8px; margin:10px 0 6px;">
+        <button id="btnAgendaPreset" type="button" class="btn primary">Usar horário comercial (recomendado)</button>
+        <button id="btnAgendaToggle" type="button" class="btn outline">Editar detalhes</button>
+      </div>
 
       <form id="agenda-form" class="mt-12">
         <label class="hint" style="margin-bottom:4px;">Dias de atendimento</label>
@@ -678,6 +739,56 @@
     // Agenda DOM
     const agendaResumoEl = document.getElementById('agendaConfigResumo');
     const agendaFormEl = document.getElementById('agenda-form');
+
+    // Agenda (modo simples): 1 clique para "horário comercial" e um botão para abrir detalhes
+    const btnAgendaPreset = document.getElementById('btnAgendaPreset');
+    const btnAgendaToggle = document.getElementById('btnAgendaToggle');
+    if (agendaFormEl && agendaResumoEl) {
+      // começa compacto: mostra resumo e esconde o "painel de avião"
+      agendaFormEl.style.display = 'none';
+
+      if (btnAgendaToggle) {
+        btnAgendaToggle.onclick = () => {
+          const open = (agendaFormEl.style.display !== 'none');
+          agendaFormEl.style.display = open ? 'none' : 'block';
+          btnAgendaToggle.textContent = open ? 'Editar detalhes' : 'Fechar detalhes';
+        };
+      }
+
+      if (btnAgendaPreset) {
+        btnAgendaPreset.onclick = async () => {
+          try {
+            // seg–sex, 09:00–18:00, intervalo 30, antecedência 0
+            agendaFormEl.querySelectorAll('input[name="diasAtendimento"]').forEach(el => {
+              const v = (el.value || '').toLowerCase();
+              el.checked = (v === 'seg' || v === 'ter' || v === 'qua' || v === 'qui' || v === 'sex');
+            });
+            const fIni = agendaFormEl.querySelector('input[name="atendimentoInicio"]');
+            const fFim = agendaFormEl.querySelector('input[name="atendimentoFim"]');
+            const fInt = agendaFormEl.querySelector('select[name="intervaloMin"]');
+            const fAnt = agendaFormEl.querySelector('input[name="antecedenciaMinDias"]');
+            if (fIni) fIni.value = '09:00';
+            if (fFim) fFim.value = '18:00';
+            if (fInt) fInt.value = '30';
+            if (fAnt) fAnt.value = '0';
+
+            // salva usando o fluxo existente (sem reinventar)
+            if (typeof salvarAgendaConfig === 'function') {
+              await salvarAgendaConfig(new Event('submit'));
+            } else {
+              // fallback: dispara submit do form
+              agendaFormEl.requestSubmit();
+            }
+
+            // volta pro modo compacto
+            agendaFormEl.style.display = 'none';
+            if (btnAgendaToggle) btnAgendaToggle.textContent = 'Editar detalhes';
+          } catch(e) {
+            console.debug('[agenda] preset failed', e);
+          }
+        };
+      }
+    }
     const agendaAlertEl = document.getElementById('agenda-alert');
     const agendaSaveBtn = document.getElementById('agenda-save-btn');
     let currentAgendaConfig = null;
@@ -784,7 +895,7 @@ async function _fetchVozWaConfig(){
     const headers = {};
     if (tok) headers['Authorization'] = 'Bearer ' + tok;
 
-    const r = await fetch((typeof API_BASE!=='undefined'?API_BASE:'') + '/api/voz/whatsapp/config', { method:'GET', headers, cache:'no-store' });
+    const r = await fetch('/api/voz/whatsapp/config', { method:'GET', headers, cache:'no-store' });
     const j = await r.json().catch(()=> ({}));
     if (r.ok && j && j.ok) {
       vozWaState.waNumberE164 = String(j.waNumberE164 || '').trim() || null;
@@ -796,736 +907,233 @@ async function _fetchVozWaConfig(){
 
 
 
+/* =========================================================
+ * Voz do MEI via WhatsApp — UI simples (1 botão) + status
+ * - Sem upload local
+ * - Usa backend:
+ *   GET  /api/voz/whatsapp/config
+ *   GET  /api/voz/whatsapp/status
+ *   POST /api/voz/whatsapp/invite
+ *   POST /api/voz/whatsapp/reset (opcional/avançado)
+ * ========================================================= */
+
 window.vozWaEls = {
   area: document.getElementById('vozWaArea'),
   badge: document.getElementById('vozWaBadge'),
   statusText: document.getElementById('vozWaStatusText'),
   updatedAt: document.getElementById('vozWaUpdatedAt'),
 
+  // (mantemos no DOM pra compat, mas escondemos no modo simples)
   code: document.getElementById('vozWaCode'),
   msgReady: document.getElementById('vozWaMsgReady'),
   codeHint: document.getElementById('vozWaCodeHint'),
   erroHumano: document.getElementById('vozWaErroHumano'),
 
-  btnGerar: document.getElementById('btnVozWaGerar'),
-  btnCopiar: document.getElementById('btnVozWaCopiar'),
-  btnAbrir: document.getElementById('btnVozWaAbrir'),
-  btnRecarregar: document.getElementById('btnVozWaRecarregar'),
-  btnRefazer: document.getElementById('btnVozWaRefazer'),
+  btnGerar: document.getElementById('btnVozWaGerar'),         // vira o botão único
+  btnCopiar: document.getElementById('btnVozWaCopiar'),       // avançado (escondido)
+  btnAbrir: document.getElementById('btnVozWaAbrir'),         // avançado (escondido)
+  btnRecarregar: document.getElementById('btnVozWaRecarregar'),// avançado (escondido)
+  btnRefazer: document.getElementById('btnVozWaRefazer'),     // avançado (escondido)
 
   player: document.getElementById('vozWaPlayer'),
 };
 
-const vozWaEls = window.vozWaEls;
+function _vozWaSetText(el, txt){ if (el) el.textContent = (txt == null ? '' : String(txt)); }
+function _vozWaShow(el){ if (el) el.style.display = ''; }
+function _vozWaHide(el){ if (el) el.style.display = 'none'; }
 
-// helper visual “safe”
-function _vozWaShowError(msg){
+function _vozWaBadge(kind, txt){
+  const wa = window.vozWaEls;
+  if (!wa || !wa.badge) return;
+  wa.badge.className = 'pill ' + (kind || 'pill-pending');
+  wa.badge.textContent = txt || '';
+}
+
+function _vozWaStatus(txt){
+  const wa = window.vozWaEls;
+  if (!wa) return;
+  _vozWaSetText(wa.statusText, txt || '');
+}
+
+function _vozWaUpdated(iso){
+  const wa = window.vozWaEls;
+  if (!wa || !wa.updatedAt) return;
+  if (!iso) { wa.updatedAt.textContent = ''; return; }
+  try {
+    const d = new Date(iso);
+    if (isNaN(d.getTime())) { wa.updatedAt.textContent = String(iso); return; }
+    const hh = String(d.getHours()).padStart(2,'0');
+    const mm = String(d.getMinutes()).padStart(2,'0');
+    wa.updatedAt.textContent = `${hh}:${mm}`;
+  } catch(_) {
+    wa.updatedAt.textContent = String(iso);
+  }
+}
+
+function _vozWaError(msg){
   const wa = window.vozWaEls;
   if (!wa || !wa.erroHumano) return;
   wa.erroHumano.style.display = msg ? 'block' : 'none';
   wa.erroHumano.textContent = msg || '';
 }
 
-    async function _apiTry(paths, opts){
-    let lastErr = null;
-    for (const p of paths){
-      try {
-        const r = await fetch(API_BASE + p, opts);
-        if (r.ok) {
-          const ct = (r.headers.get('content-type') || '').toLowerCase();
-          if (ct.includes('application/json')) {
-            const j = await r.json().catch(()=> ({}));
-            return { ok:true, path:p, status:r.status, json:j };
-          }
-          const t = await r.text().catch(()=> '');
-          return { ok:true, path:p, status:r.status, text:t };
-        } else {
-          const t = await r.text().catch(()=> '');
-          lastErr = new Error(`HTTP ${r.status} ${p} ${t}`.trim());
-        }
-      } catch(e){
-        lastErr = e;
-      }
-    }
-    return { ok:false, error:lastErr };
+function _vozWaGetToE164FromForm(){
+  // tenta puxar do input name="telefone" (config do MEI)
+  try {
+    const el = document.querySelector('input[name="telefone"]') || document.getElementById('telefone') || null;
+    const v = (el && el.value) ? String(el.value).trim() : '';
+    return v || null;
+  } catch(_) { return null; }
+}
+
+async function _vozWaFetch(path, opts){
+  const ctx = await getAuthContext();
+  const tok = ctx?.idToken || (typeof idToken !== 'undefined' ? idToken : null);
+  const headers = Object.assign({}, (opts && opts.headers) || {});
+  if (tok) headers['Authorization'] = 'Bearer ' + tok;
+  const finalOpts = Object.assign({ cache:'no-store', headers }, opts || {});
+  const r = await fetch((typeof API_BASE !== 'undefined' ? API_BASE : '') + path, finalOpts);
+  const ct = (r.headers.get('content-type') || '').toLowerCase();
+  const body = ct.includes('application/json') ? await r.json().catch(()=> ({})) : await r.text().catch(()=> '');
+  return { ok:r.ok, status:r.status, body };
+}
+
+function _vozWaApplyStatus(payload){
+  const wa = window.vozWaEls;
+  const s = String(payload?.status || payload?.state || payload?.phase || 'waiting').toLowerCase();
+  const updatedAt = payload?.updatedAt || payload?.updated_at || payload?.lastAt || payload?.last_at || '';
+  _vozWaUpdated(updatedAt);
+
+  if (s === 'ready' || s === 'saved' || payload?.ready === true) {
+    _vozWaBadge('pill-active', 'pronto');
+    _vozWaStatus('Voz pronta ✅');
+  } else if (s === 'receiving') {
+    _vozWaBadge('pill-prov', 'recebendo…');
+    _vozWaStatus('Recebendo seu áudio no WhatsApp…');
+  } else if (s === 'processing') {
+    _vozWaBadge('pill-prov', 'processando…');
+    _vozWaStatus('Processando sua voz…');
+  } else if (s === 'failed') {
+    _vozWaBadge('pill-failed', 'falhou');
+    _vozWaStatus('Falhou');
+  } else {
+    _vozWaBadge('pill-pending', 'aguardando');
+    _vozWaStatus('Aguardando sua voz');
   }
 
-  function _normalizeStatus(raw){
-    const s = String(raw || '').toLowerCase().trim();
-    if (!s) return 'waiting';
-    if (s.includes('ready') || s.includes('pronto') || s.includes('done')) return 'ready';
-    if (s.includes('saved') || s.includes('salvo')) return 'saved';
-    if (s.includes('receb') || s.includes('receiv')) return 'receiving';
-    if (s.includes('process')) return 'processing';
-    if (s.includes('fail') || s.includes('erro')) return 'failed';
-    if (s.includes('code') || s.includes('codigo')) return 'code';
-    return s;
-  }
-
-  function _applyStatusUI(st, payload){
-    const status = _normalizeStatus(st);
-
-    try {
-      if (typeof vozWaState === 'object') {
-        vozWaState.status = status;
-        vozWaState.ready = (status === 'ready' || status === 'saved');
-      }
-    } catch(_){}
-
-    if (status === 'ready' || status === 'saved') {
-      _setBadge('pill-active', 'pronto');
-      _setStatus('Voz pronta ✅');
-    } else if (status === 'receiving') {
-      _setBadge('pill-prov', 'recebendo…');
-      _setStatus('Recebendo áudio no WhatsApp…');
-    } else if (status === 'processing') {
-      _setBadge('pill-prov', 'processando…');
-      _setStatus('Processando sua voz…');
-    } else if (status === 'code') {
-      _setBadge('pill-prov', 'código gerado');
-      _setStatus('Código gerado');
-    } else if (status === 'failed') {
-      _setBadge('pill-failed', 'falhou');
-      _setStatus('Falhou');
-    } else {
-      _setBadge('pill-pending', 'aguardando');
-      _setStatus('Aguardando');
-    }
-
-    const updated = payload?.updatedAt || payload?.updated_at || payload?.ts || payload?.timestamp || '';
-    if (updated) _setUpdatedFromIso(updated);
-    else _setUpdatedNow();
-
-    const url = payload?.url || payload?.audioUrl || payload?.arquivoUrl || payload?.vozUrl || payload?.vozClonada?.arquivoUrl || '';
-    if (url && wa.player) {
-      try {
+  // player (se backend retornar url)
+  try {
+    const url = payload?.audioUrl || payload?.audio_url || payload?.previewUrl || payload?.preview_url || '';
+    if (wa?.player) {
+      if (url) {
         wa.player.src = url;
         wa.player.style.display = 'block';
-      } catch(_){}
-    }
-  }
-
-  async function _fetchStatus(){
-    try { _vozWaShowError(''); } catch(_){}
-
-    const ctx = await getAuthContext();
-    const tok = ctx?.idToken || idToken || null;
-    const headers = {};
-    if (tok) headers['Authorization'] = 'Bearer ' + tok;
-
-    const code = _safeCode();
-    const qsUid = ctx?.uid ? ('uid=' + encodeURIComponent(ctx.uid)) : '';
-    const qsCode = code ? ('code=' + encodeURIComponent(code)) : '';
-    const join = (a,b)=> (a && b) ? (a + '&' + b) : (a || b);
-    const q = join(qsUid, qsCode);
-
-    const paths = [
-      `/api/voz/wa/status${q ? '?' + q : ''}`,
-      `/api/voz/whatsapp/status${q ? '?' + q : ''}`,
-      `/api/voz/wa/last${q ? '?' + q : ''}`,
-      `/api/voz/whatsapp/last${q ? '?' + q : ''}`,
-    ];
-
-    const out = await _apiTry(paths, { method:'GET', headers, cache:'no-store' });
-    if (!out.ok) {
-      _applyStatusUI('waiting', {});
-      _vozWaShowError('Não consegui consultar o status agora. Tente “Recarregar status”.');
-      console.warn('[vozWa] status: falha', out.error);
-      return null;
-    }
-
-    const payload = out.json || {};
-    const st = payload.status || payload.state || payload.etapa || payload.stage || payload.situacao || 'waiting';
-
-    const newCode = String(payload.code || payload.codigo || payload.voiceCode || '').trim();
-    if (newCode && !code) {
-      if (wa.code) wa.code.value = newCode;
-      if (wa.msgReady) wa.msgReady.value = 'MEIROBO VOZ ' + newCode;
-      if (wa.btnCopiar) wa.btnCopiar.disabled = false;
-      _updateWhatsAppLink(newCode);
-    }
-
-    _applyStatusUI(st, payload);
-
-    try {
-      const okVoz = (_normalizeStatus(st) === 'ready' || _normalizeStatus(st) === 'saved');
-      if (okVoz) {
-        if (typeof vozWaState === 'object') vozWaState.ready = true;
-        updateDashboardCTAVisibility();
+      } else {
+        wa.player.style.display = 'none';
       }
-    } catch(_){}
-
-    return payload;
-  }
-
-  async function _generateCode(){
-    try { _vozWaShowError(''); } catch(_){}
-    if (wa.btnGerar) wa.btnGerar.disabled = true;
-
-    _setBadge('pill-prov', 'gerando…');
-    _setStatus('Gerando código…');
-    _setUpdatedNow();
-
-    const ctx = await getAuthContext();
-    const tok = ctx?.idToken || idToken || null;
-    if (!ctx?.uid || !tok) {
-      _setBadge('pill-failed', 'falhou');
-      _setStatus('Sessão ausente');
-      _vozWaShowError('Sua sessão parece ter expirado. Recarregue a página e faça login novamente.');
-      if (wa.btnGerar) wa.btnGerar.disabled = false;
-      return;
     }
+  } catch(_) {}
+}
 
-    const headers = {
-      'Authorization': 'Bearer ' + tok,
-      'Content-Type': 'application/json'
-    };
-
-    const paths = [
-      `/api/voz/wa/code`,
-      `/api/voz/whatsapp/code`,
-      `/api/voz/wa/generate-code`,
-      `/api/voz/whatsapp/generate-code`,
-      `/api/voz/wa/start`,
-      `/api/voz/whatsapp/start`,
-    ];
-
-    const out = await _apiTry(paths, {
-      method:'POST',
-      headers,
-      body: JSON.stringify({ uid: ctx.uid })
-    });
-
-    if (!out.ok) {
-      _setBadge('pill-failed', 'falhou');
-      _setStatus('Falha ao gerar');
-      _vozWaShowError('Não consegui gerar o código agora. (Provável rota diferente no backend.)');
-      console.warn('[vozWa] code: falha', out.error);
-      if (wa.btnGerar) wa.btnGerar.disabled = false;
-      return;
-    }
-
-    const j = out.json || {};
-    const code = String(j.code || j.codigo || j.voiceCode || '').trim();
-    if (!code) {
-      _setBadge('pill-failed', 'falhou');
-      _setStatus('Sem código');
-      _vozWaShowError('Backend respondeu, mas não trouxe o código. (Campo esperado: code/codigo)');
-      if (wa.btnGerar) wa.btnGerar.disabled = false;
-      return;
-    }
-
+async function _vozWaPollStatus(stopAfterMs){
+  const started = Date.now();
+  while (Date.now() - started < (stopAfterMs || 120000)) {
     try {
-      if (typeof vozWaState === 'object') {
-        vozWaState.code = code;
-        vozWaState.status = 'code';
-        vozWaState.ready = false;
+      const out = await _vozWaFetch('/api/voz/whatsapp/status', { method:'GET' });
+      if (out.ok && out.body && out.body.ok) {
+        _vozWaApplyStatus(out.body);
+        if (out.body.ready === true || String(out.body.status||'').toLowerCase()==='ready') return;
       }
-    } catch(_){}
-
-    if (wa.code) wa.code.value = code;
-    if (wa.msgReady) wa.msgReady.value = 'MEIROBO VOZ ' + code;
-    if (wa.codeHint) wa.codeHint.textContent = 'Código gerado. Envie a mensagem no WhatsApp e depois o áudio (60–90s).';
-    if (wa.btnCopiar) wa.btnCopiar.disabled = false;
-
-    await _updateWhatsAppLink(code);
-
-    _setBadge('pill-prov', 'código gerado');
-    _setStatus('Código gerado');
-    _setUpdatedNow();
-
-    try { await _fetchStatus(); } catch(_){}
-
-    if (wa.btnGerar) wa.btnGerar.disabled = false;
+    } catch(_) {}
+    await new Promise(r => setTimeout(r, 4000));
   }
+}
 
-  function _resetUI(){
-    if (wa.code) wa.code.value = '';
-    if (wa.msgReady) wa.msgReady.value = 'MEIROBO VOZ ';
-    if (wa.codeHint) wa.codeHint.textContent = '';
-    if (wa.btnCopiar) wa.btnCopiar.disabled = true;
-    if (wa.btnAbrir) wa.btnAbrir.href = '#';
-    if (wa.player) { try { wa.player.pause(); wa.player.src=''; wa.player.style.display='none'; } catch(_){ } }
-    _setBadge('pill-pending', 'aguardando');
-    _setStatus('Aguardando');
-    if (wa.updatedAt) wa.updatedAt.textContent = '';
-    try { _vozWaShowError(''); } catch(_){}
+async function setupVoice(uid, idTokenParam){
+  const wa = window.vozWaEls;
+  if (!wa || !wa.area) return;
 
-    try {
-      if (typeof vozWaState === 'object') {
-        vozWaState.status = 'waiting';
-        vozWaState.code = '';
-        vozWaState.ready = false;
-      }
-      updateDashboardCTAVisibility();
-    } catch(_){}
-  }
+  // modo simples: esconder tudo que confunde
+  _vozWaHide(wa.code);
+  _vozWaHide(wa.msgReady);
+  _vozWaHide(wa.codeHint);
+  _vozWaHide(wa.btnCopiar);
+  _vozWaHide(wa.btnAbrir);
+  _vozWaHide(wa.btnRecarregar);
+  _vozWaHide(wa.btnRefazer);
 
-  // 3) liga botões — UI real (AGORA COM BACKEND)
+  // botão único
   if (wa.btnGerar) {
-    wa.btnGerar.onclick = async () => { await _generateCode(); };
+    wa.btnGerar.textContent = 'ENVIAR MINHA VOZ NO WHATSAPP';
+    wa.btnGerar.classList.add('primary');
   }
 
-  if (wa.btnCopiar) {
-    wa.btnCopiar.onclick = async () => {
-      try {
-        await navigator.clipboard.writeText(wa.msgReady?.value || '');
-        if (wa.codeHint) wa.codeHint.textContent = 'Mensagem copiada. Cole no WhatsApp.';
-        try { _vozWaShowError(''); } catch(_){}
-      } catch (_) {
-        _vozWaShowError('Não foi possível copiar automaticamente. Copie manualmente.');
-      }
-    };
-  }
+  _vozWaError('');
+  _vozWaBadge('pill-pending', 'aguardando');
+  _vozWaStatus('Aguardando sua voz');
+  _vozWaUpdated('');
 
-  if (wa.btnAbrir) {
-    wa.btnAbrir.onclick = () => {
-      if (!wa.btnAbrir.href || wa.btnAbrir.href === '#') {
-        _vozWaShowError('Gere o código antes de abrir o WhatsApp.');
-        return false;
-      }
-    };
-  }
+  // carrega config (número oficial) e status inicial
+  try {
+    const cfg = await _vozWaFetch('/api/voz/whatsapp/config', { method:'GET' });
+    if (!cfg.ok) {
+      _vozWaError('Não consegui carregar a configuração de voz agora. Recarregue a página.');
+    }
+  } catch(_) {}
 
-  if (wa.btnRecarregar) {
-    wa.btnRecarregar.onclick = async () => {
-      _setStatus('Consultando status…');
-      _setUpdatedNow();
-      await _fetchStatus();
-    };
-  }
+  try {
+    const st = await _vozWaFetch('/api/voz/whatsapp/status', { method:'GET' });
+    if (st.ok && st.body && st.body.ok) _vozWaApplyStatus(st.body);
+  } catch(_) {}
 
-  if (wa.btnRefazer) {
-    wa.btnRefazer.onclick = async () => {
-      _resetUI();
+  if (wa.btnGerar) {
+    wa.btnGerar.onclick = async () => {
+      wa.btnGerar.disabled = true;
+      _vozWaError('');
+      _vozWaBadge('pill-prov', 'preparando…');
+      _vozWaStatus('Abrindo seu WhatsApp…');
 
       try {
-        const ctx = await getAuthContext();
-        const tok = ctx?.idToken || idToken || null;
-        if (!ctx?.uid || !tok) return;
+        // 1) garante config (pega número oficial)
+        const cfg = await _vozWaFetch('/api/voz/whatsapp/config', { method:'GET' });
+        const waNumber = (cfg.body && cfg.body.waNumberE164) ? String(cfg.body.waNumberE164) : '';
 
-        const headers = {
-          'Authorization': 'Bearer ' + tok,
-          'Content-Type': 'application/json'
-        };
-
-        const paths = [
-          `/api/voz/wa/reset`,
-          `/api/voz/whatsapp/reset`,
-          `/api/voz/wa/clear`,
-          `/api/voz/whatsapp/clear`,
-        ];
-
-        await _apiTry(paths, { method:'POST', headers, body: JSON.stringify({ uid: ctx.uid }) });
-      } catch(_){}
-    };
-  }
-
-  // na carga: tenta puxar status (se já existe voz/código)
-  try { _fetchStatus(); } catch(_){}
- 
-  // <<< FECHA o setupVoice AQUI
-
-      // ===== helpers internos (sem vazar pro resto do arquivo) =====
-      function _setBadge(kind, text){
-        if (!wa.badge) return;
-        wa.badge.className = 'pill ' + (kind || 'pill-pending');
-        wa.badge.textContent = text || '';
-      }
-
-      function _setStatus(text){
-        if (wa.statusText) wa.statusText.textContent = text || '';
-      }
-
-      function _setUpdatedNow(){
-        if (wa.updatedAt) wa.updatedAt.textContent = 'Agora';
-      }
-
-      function _setUpdatedFromIso(iso){
-        if (!wa.updatedAt) return;
-        try {
-          if (!iso) { wa.updatedAt.textContent = ''; return; }
-          const d = new Date(iso);
-          if (isNaN(d.getTime())) { wa.updatedAt.textContent = String(iso); return; }
-          const hh = String(d.getHours()).padStart(2,'0');
-          const mm = String(d.getMinutes()).padStart(2,'0');
-          const dd = String(d.getDate()).padStart(2,'0');
-          const mo = String(d.getMonth()+1).padStart(2,'0');
-          wa.updatedAt.textContent = `${dd}/${mo} ${hh}:${mm}`;
-        } catch(_){
-          wa.updatedAt.textContent = String(iso || '');
-        }
-      }
-
-      function _safeCode(){
-        return String(wa.code?.value || '').trim();
-      }
-
-      async function _updateWhatsAppLink(code){
-        try {
-          if (!wa.btnAbrir) return;
-          if (!code) { wa.btnAbrir.href = '#'; return; }
-
-          const ctx = await getAuthContext();
-          const tok = ctx?.idToken || idToken || null;
-
-          const headers = {};
-          if (tok) headers['Authorization'] = 'Bearer ' + tok;
-
-          const qs = new URLSearchParams();
-          if (ctx?.uid) qs.set('uid', ctx.uid);
-          qs.set('code', code);
-
-          const paths = [
-            `/api/voz/whatsapp/link?${qs.toString()}`,
-            `/api/voz/wa/link?${qs.toString()}`,
-            `/api/voz/whatsapp/url?${qs.toString()}`,
-            `/api/voz/wa/url?${qs.toString()}`,
-          ];
-
-          const out = await _apiTry(paths, { method:'GET', headers, cache:'no-store' });
-          if (!out.ok) { wa.btnAbrir.href = '#'; return; }
-
-          const j = out.json || {};
-          const href = String(j.href || j.url || j.link || '').trim();
-          wa.btnAbrir.href = href || '#';
-        } catch(_) {
-          try { if (wa.btnAbrir) wa.btnAbrir.href = '#'; } catch(_){}
-        }
-      }
-
-      async function _apiTry(paths, opts){
-        let lastErr = null;
-        for (const p of paths){
-          try {
-            const r = await fetch(API_BASE + p, opts);
-            if (r.ok) {
-              const ct = (r.headers.get('content-type') || '').toLowerCase();
-              if (ct.includes('application/json')) {
-                const j = await r.json().catch(()=> ({}));
-                return { ok:true, path:p, status:r.status, json:j };
-              }
-              const t = await r.text().catch(()=> '');
-              return { ok:true, path:p, status:r.status, text:t };
-            } else {
-              const t = await r.text().catch(()=> '');
-              lastErr = new Error(`HTTP ${r.status} ${p} ${t}`.trim());
-            }
-          } catch(e){
-            lastErr = e;
-          }
-        }
-        return { ok:false, error:lastErr };
-      }
-
-      function _normalizeStatus(raw){
-        const s = String(raw || '').toLowerCase().trim();
-        // normaliza para um set pequeno
-        if (!s) return 'waiting';
-        if (s.includes('ready') || s.includes('pronto') || s.includes('done')) return 'ready';
-        if (s.includes('saved') || s.includes('salvo')) return 'saved';
-        if (s.includes('receb') || s.includes('receiv')) return 'receiving';
-        if (s.includes('process')) return 'processing';
-        if (s.includes('fail') || s.includes('erro')) return 'failed';
-        if (s.includes('code') || s.includes('codigo')) return 'code';
-        return s;
-      }
-
-      function _applyStatusUI(st, payload){
-        const status = _normalizeStatus(st);
-        // grava no state global se existir
-        try {
-          if (typeof vozWaState === 'object') {
-            vozWaState.status = status;
-            vozWaState.ready = (status === 'ready' || status === 'saved');
-          }
-        } catch(_){}
-
-        if (status === 'ready' || status === 'saved') {
-          _setBadge('pill-active', 'pronto');
-          _setStatus('Voz pronta ✅');
-        } else if (status === 'receiving') {
-          _setBadge('pill-prov', 'recebendo…');
-          _setStatus('Recebendo áudio no WhatsApp…');
-        } else if (status === 'processing') {
-          _setBadge('pill-prov', 'processando…');
-          _setStatus('Processando sua voz…');
-        } else if (status === 'code') {
-          _setBadge('pill-prov', 'código gerado');
-          _setStatus('Código gerado');
-        } else if (status === 'failed') {
-          _setBadge('pill-failed', 'falhou');
-          _setStatus('Falhou');
-        } else {
-          _setBadge('pill-pending', 'aguardando');
-          _setStatus('Aguardando');
-        }
-
-        // updatedAt (se vier)
-        const updated = payload?.updatedAt || payload?.updated_at || payload?.ts || payload?.timestamp || '';
-        if (updated) _setUpdatedFromIso(updated);
-        else _setUpdatedNow();
-
-        // URL opcional (player fallback)
-        const url = payload?.url || payload?.audioUrl || payload?.arquivoUrl || payload?.vozUrl || payload?.vozClonada?.arquivoUrl || '';
-        if (url && wa.player) {
-          try {
-            wa.player.src = url;
-            wa.player.style.display = 'block';
-          } catch(_){}
-        }
-      }
-
-      async function _fetchStatus(){
-        try { _vozWaShowError(''); } catch(_){}
-
-        // auth atual (não confia no idToken antigo)
-        const ctx = await getAuthContext();
-        const tok = ctx?.idToken || idToken || null;
-        const headers = {};
-        if (tok) headers['Authorization'] = 'Bearer ' + tok;
-
-        // tenta algumas rotas prováveis
-        const code = _safeCode();
-        const qsUid = ctx?.uid ? ('uid=' + encodeURIComponent(ctx.uid)) : '';
-        const qsCode = code ? ('code=' + encodeURIComponent(code)) : '';
-        const join = (a,b)=> (a && b) ? (a + '&' + b) : (a || b);
-
-        const q = join(qsUid, qsCode);
-        const paths = [
-          `/api/voz/wa/status${q ? '?' + q : ''}`,
-          `/api/voz/whatsapp/status${q ? '?' + q : ''}`,
-          `/api/voz/wa/last${q ? '?' + q : ''}`,
-          `/api/voz/whatsapp/last${q ? '?' + q : ''}`,
-        ];
-
-        const out = await _apiTry(paths, { method:'GET', headers, cache:'no-store' });
-        if (!out.ok) {
-          _applyStatusUI('waiting', {});
-          _vozWaShowError('Não consegui consultar o status agora. Tente “Recarregar status”.');
-          console.warn('[vozWa] status: falha', out.error);
-          return null;
-        }
-
-        const payload = out.json || {};
-        const st = payload.status || payload.state || payload.etapa || payload.stage || payload.situacao || 'waiting';
-
-        // se vier code, preenche (sem sobrescrever se já existe)
-        const newCode = String(payload.code || payload.codigo || payload.voiceCode || '').trim();
-        if (newCode && !code) {
-          if (wa.code) wa.code.value = newCode;
-          if (wa.msgReady) wa.msgReady.value = 'MEIROBO VOZ ' + newCode;
-          if (wa.btnCopiar) wa.btnCopiar.disabled = false;
-          await _updateWhatsAppLink(newCode);
-        }
-
-        _applyStatusUI(st, payload);
-
-        // se pronto/salvo, libera “config inicial”
-        try {
-          const okVoz = (_normalizeStatus(st) === 'ready' || _normalizeStatus(st) === 'saved');
-          if (okVoz) {
-            if (typeof vozWaState === 'object') vozWaState.ready = true;
-            updateDashboardCTAVisibility();
-          }
-        } catch(_){}
-
-        return payload;
-      }
-
-      async function _generateCode(){
-        try { _vozWaShowError(''); } catch(_){}
-        wa.btnGerar.disabled = true;
-
-        _setBadge('pill-prov', 'gerando…');
-        _setStatus('Gerando código…');
-        _setUpdatedNow();
-
-        const ctx = await getAuthContext();
-        const tok = ctx?.idToken || idToken || null;
-        if (!ctx?.uid || !tok) {
-          _setBadge('pill-failed', 'falhou');
-          _setStatus('Sessão ausente');
-          _vozWaShowError('Sua sessão parece ter expirado. Recarregue a página e faça login novamente.');
-          wa.btnGerar.disabled = false;
-          return;
-        }
-
-        const headers = {
-          'Authorization': 'Bearer ' + tok,
-          'Content-Type': 'application/json'
-        };
-
-        // pega telefone do MEI na tela (input name="telefone")
-        let to = null;
-        try {
-          const telInput = document.querySelector('input[name="telefone"]');
-          const rawTel = telInput ? telInput.value : '';
-          to = toE164(rawTel); // usa o helper que você já colou
-        } catch(_){}
-
-        if (!to) {
-          _setBadge('pill-failed', 'falhou');
-          _setStatus('Telefone ausente');
-          _vozWaShowError('Antes de gerar o código, preencha seu WhatsApp em “Seu WhatsApp (para notificações)”. Depois volte aqui e tente de novo.');
-          wa.btnGerar.disabled = false;
-          return;
-        }
-
-        // chama o endpoint REAL
-        const out = await _apiTry([`/api/voz/whatsapp/invite`], {
+        // 2) gera convite/código
+        const toE164 = _vozWaGetToE164FromForm();
+        const invite = await _vozWaFetch('/api/voz/whatsapp/invite', {
           method:'POST',
-          headers,
-          body: JSON.stringify({ toE164: to })
+          headers: { 'Content-Type':'application/json' },
+          body: JSON.stringify({ toE164 })
         });
 
-        
-      
-        if (!out.ok) {
-          _setBadge('pill-failed', 'falhou');
-          _setStatus('Falha ao gerar');
-          _vozWaShowError('Não consegui gerar o código agora. (Provável rota diferente no backend.)');
-          console.warn('[vozWa] code: falha', out.error);
-          wa.btnGerar.disabled = false;
+        if (!invite.ok || !invite.body || !invite.body.ok) {
+          _vozWaBadge('pill-failed', 'falhou');
+          _vozWaStatus('Não consegui iniciar agora');
+          _vozWaError(invite.body?.error || 'Não consegui iniciar agora. Tente novamente.');
           return;
         }
 
-        const j = out.json || {};
-        const code = String(j.code || j.codigo || j.voiceCode || '').trim();
-        if (!code) {
-          _setBadge('pill-failed', 'falhou');
-          _setStatus('Sem código');
-          _vozWaShowError('Backend respondeu, mas não trouxe o código. (Campo esperado: code/codigo)');
-          wa.btnGerar.disabled = false;
-          return;
-        }
+        const code = String(invite.body.code || '').trim();
+        const num = String(invite.body.waNumberE164 || waNumber || '').replace(/\D/g,'');
+        const msg = `MEIROBO VOZ ${code}`;
+        const url = 'https://wa.me/' + num + '?text=' + encodeURIComponent(msg);
 
-        // grava state
-        try {
-          if (typeof vozWaState === 'object') {
-            vozWaState.code = code;
-            vozWaState.status = 'code';
-            vozWaState.ready = false;
-          }
-        } catch(_){}
+        window.open(url, '_blank', 'noopener');
 
-        if (wa.code) wa.code.value = code;
-        if (wa.msgReady) wa.msgReady.value = 'MEIROBO VOZ ' + code;
-        if (wa.codeHint) wa.codeHint.textContent = 'Código gerado. Envie a mensagem no WhatsApp e depois o áudio (60–90s).';
-        if (wa.btnCopiar) wa.btnCopiar.disabled = false;
-
-        await _updateWhatsAppLink(code);
-
-        _setBadge('pill-prov', 'código gerado');
-        _setStatus('Código gerado');
-        _setUpdatedNow();
-
-        // assim que gera, tenta puxar status (pra pegar “recebendo” rapidamente)
-        try { await _fetchStatus(); } catch(_){}
-
+        _vozWaBadge('pill-prov', 'aguardando…');
+        _vozWaStatus('Envie o áudio no WhatsApp (1–2 min falando normal).');
+        // polling curto
+        _vozWaPollStatus(180000);
+      } catch(e){
+        _vozWaBadge('pill-failed', 'falhou');
+        _vozWaStatus('Falha');
+        _vozWaError('Falha ao abrir o WhatsApp. Tente novamente.');
+      } finally {
         wa.btnGerar.disabled = false;
       }
-
-      function _resetUI(){
-        if (wa.code) wa.code.value = '';
-        if (wa.msgReady) wa.msgReady.value = 'MEIROBO VOZ ';
-        if (wa.codeHint) wa.codeHint.textContent = '';
-        if (wa.btnCopiar) wa.btnCopiar.disabled = true;
-        if (wa.btnAbrir) wa.btnAbrir.href = '#';
-        if (wa.player) { try { wa.player.pause(); wa.player.src=''; wa.player.style.display='none'; } catch(_){ } }
-        _setBadge('pill-pending', 'aguardando');
-        _setStatus('Aguardando');
-        if (wa.updatedAt) wa.updatedAt.textContent = '';
-        try { _vozWaShowError(''); } catch(_){}
-
-        try {
-          if (typeof vozWaState === 'object') {
-            vozWaState.status = 'waiting';
-            vozWaState.code = '';
-            vozWaState.ready = false;
-          }
-          updateDashboardCTAVisibility();
-        } catch(_){}
-      }
-
-      if (wa.btnCopiar) {
-        wa.btnCopiar.onclick = async () => {
-          try {
-            await navigator.clipboard.writeText(wa.msgReady?.value || '');
-            if (wa.codeHint) wa.codeHint.textContent = 'Mensagem copiada. Cole no WhatsApp.';
-            try { _vozWaShowError(''); } catch(_){}
-          } catch (_) {
-            _vozWaShowError('Não foi possível copiar automaticamente. Copie manualmente.');
-          }
-        };
-      }
-
-      if (wa.btnAbrir) {
-        wa.btnAbrir.onclick = () => {
-          if (!wa.btnAbrir.href || wa.btnAbrir.href === '#') {
-            _vozWaShowError('Gere o código antes de abrir o WhatsApp.');
-            return false;
-          }
-        };
-      }
-
-      if (wa.btnRecarregar) {
-        wa.btnRecarregar.onclick = async () => {
-          _setStatus('Consultando status…');
-          _setUpdatedNow();
-          try { await _fetchVozWaConfig(); } catch(_){}
-          await _fetchStatus();
-        };
-      }
-
-      if (wa.btnRefazer) {
-        wa.btnRefazer.onclick = async () => {
-          _resetUI();
-          if (wa.btnRefazer) wa.btnRefazer.disabled = true;
-
-          try {
-            _vozWaShowError('');
-
-            const ctx = await getAuthContext();
-            const tok = ctx?.idToken || idToken || null;
-            if (!ctx?.uid || !tok) {
-              _vozWaShowError('Sua sessão parece ter expirado. Recarregue a página e faça login novamente.');
-              if (wa.btnRefazer) wa.btnRefazer.disabled = false;
-              return;
-            }
-
-            const headers = {
-              'Authorization': 'Bearer ' + tok,
-              'Content-Type': 'application/json'
-            };
-
-            const out = await _apiTry([`/api/voz/whatsapp/reset`], { method:'POST', headers, body: '{}' });
-
-            if (!out.ok || !out.json?.ok) {
-              _vozWaShowError(out.json?.error || 'Não consegui reiniciar agora. Tente novamente.');
-              if (wa.btnRefazer) wa.btnRefazer.disabled = false;
-              return;
-            }
-
-            _setStatus('Consultando status…');
-            _setUpdatedNow();
-            await _fetchStatus();
-
-            _vozWaShowError('Pronto. Agora clique em “Gerar código” e envie um novo áudio pelo WhatsApp.');
-            if (wa.btnRefazer) wa.btnRefazer.disabled = false;
-          } catch(_){
-            _vozWaShowError('Falha ao reiniciar. Tente novamente.');
-            if (wa.btnRefazer) wa.btnRefazer.disabled = false;
-          }
-
-        };
-      }
-
-      // na carga: tenta puxar status (se já existe voz/código)
-      try { _fetchStatus(); } catch(_){}
-    }
-    // <<< FECHA o setupVoice AQUI
-
+    };
+  }
+}
     /* ===== Helpers empresa/CNPJ ===== */
     function getField(obj, keys){
       for (const k of keys){
@@ -2540,10 +2148,93 @@ if (!vozWaState || !vozWaState.ready) {
         else document.getElementById('public_brand').setAttribute('disabled','disabled');
       });
     }
-    
-    <!-- (removido) initVozWaUI duplicado: já existe implementação oficial acima -->
-;
-</script>
+    /* ===== PATCH: initVozWaUI (liga a seção “Voz via WhatsApp”) ===== */
+    (function initVozWaUI(){
+  function $(id){ return document.getElementById(id); }
+
+  function mount(){
+    const wa = {
+      area: $("vozWaArea"),
+      badge: $("vozWaBadge"),
+      statusText: $("vozWaStatusText"),
+      updatedAt: $("vozWaUpdatedAt"),
+      code: $("vozWaCode"),
+      msgReady: $("vozWaMsgReady"),
+      codeHint: $("vozWaCodeHint"),
+      erroHumano: $("vozWaErroHumano"),
+      btnGerar: $("btnVozWaGerar"),
+      btnCopiar: $("btnVozWaCopiar"),
+      btnAbrir: $("btnVozWaAbrir"),
+      btnRecarregar: $("btnVozWaRecarregar"),
+      btnRefazer: $("btnVozWaRefazer"),
+      player: $("vozWaPlayer"),
+    };
+
+    // expõe para debug
+    window.vozWaEls = wa;
+
+    if (!wa.area || !wa.btnGerar || !wa.code || !wa.msgReady) {
+      console.warn('[voz-wa] elementos não encontrados (DOM incompleto).');
+      return;
+    }
+
+    const numberE164 = String(window.VOICE_WA_NUMBER_E164 || '').trim() || '+5551985648608';
+    const waDigits = numberE164.replace(/\D+/g,''); // só números
+    const waMeBase = `https://wa.me/${waDigits}`;
+
+    function showErr(msg){
+      if (!wa.erroHumano) return;
+      wa.erroHumano.style.display = msg ? 'block' : 'none';
+      wa.erroHumano.textContent = msg || '';
+    }
+
+    function setReadyMsg(code){
+      showErr('');
+      wa.code.value = code;
+      wa.msgReady.value = `MEIROBO VOZ ${code}`;
+      if (wa.btnCopiar) wa.btnCopiar.disabled = false;
+
+      if (wa.btnAbrir) {
+        wa.btnAbrir.href = `${waMeBase}?text=${encodeURIComponent(wa.msgReady.value)}`;
+      }
+      if (wa.codeHint) wa.codeHint.textContent = 'Copie a mensagem pronta e envie no WhatsApp.';
+    }
+
+    // Gera o código local (MVP seguro) — sem backend aqui
+    function genCode(){
+      return Math.random().toString(36).slice(2, 8).toUpperCase();
+    }
+
+    wa.btnGerar.addEventListener('click', ()=> {
+      try{
+        const code = genCode();
+        setReadyMsg(code);
+      }catch(e){
+        console.error('[voz-wa] erro ao gerar código', e);
+        showErr('Não foi possível gerar o código. Recarregue a página.');
+      }
+    });
+
+    if (wa.btnCopiar){
+      wa.btnCopiar.addEventListener('click', async ()=> {
+        try{
+          await navigator.clipboard.writeText(wa.msgReady.value || '');
+          if (wa.codeHint) wa.codeHint.textContent = 'Copiado ✅ Agora é só colar no WhatsApp.';
+        }catch(_){
+          if (wa.codeHint) wa.codeHint.textContent = 'Copie manualmente a mensagem pronta e cole no WhatsApp.';
+        }
+      });
+    }
+
+    console.log('[voz-wa] UI ligada. number=', numberE164);
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', mount);
+  } else {
+    mount();
+  }
+})();</script>
 
   <script>
     (function(){
