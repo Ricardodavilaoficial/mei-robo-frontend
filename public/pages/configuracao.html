@@ -600,6 +600,25 @@
     function escapeHtml(str){ return String(str).replace(/[&<>"']/g, s => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[s])); }
     function formatDateBR(iso){ try { const d=new Date(iso); return `${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}/${d.getFullYear()}` } catch(_){ return iso; } }
     function onlyDigits(s){ return String(s||'').replace(/\D+/g,''); }
+    
+    function toE164(raw){
+      const s = String(raw||'').trim();
+      if (!s) return null;
+      const d = onlyDigits(s);
+      if (!d) return null;
+
+      // se já veio com +, respeita
+      if (s.startsWith('+')) return '+' + d;
+
+      // se já tem DDI 55
+      if (d.startsWith('55') && (d.length === 12 || d.length === 13)) return '+' + d;
+
+      // se veio só DDD+numero (10 ou 11 dígitos)
+      if (d.length === 10 || d.length === 11) return '+55' + d;
+
+      return null;
+    }
+    
 
     // === Validação simples de CNPJ ===
     function isValidCNPJ(cnpj){
@@ -758,6 +777,8 @@
       updatedAt: document.getElementById('vozWaUpdatedAt'),
       code: document.getElementById('vozWaCode'),
       codeHint: document.getElementById('vozWaCodeHint'),
+      err: document.getElementById('vozWaErroHumano'),
+      erroHumano: document.getElementById('vozWaErroHumano'),
       msgReady: document.getElementById('vozWaMsgReady'),
       btnGerar: document.getElementById('btnVozWaGerar'),
       btnCopiar: document.getElementById('btnVozWaCopiar'),
@@ -770,17 +791,43 @@
 
     // estado novo (a “verdade” da voz agora vem do backend)
     const vozWaState = {
-      status: 'waiting',
-      code: '',
-      ready: false,
-      polling: false,
-      stop: false,
-      lastError: '',
-      lastUrl: '',
+      // dados necessários pro fluxo
+      waNumberE164: null,   // vem de /api/voz/whatsapp/config
+      toE164: null,         // vem do input name="telefone" (config do MEI)
+      code: '',             // código para WhatsApp, gerado por /api/voz/whatsapp/invite
+
+      // status do fluxo
+      status: 'waiting',    // pode ser: waiting | receiving | processing | ready | failed
+      ready: false,         // vai ser atualizado depois de /status (backend)
+
+      polling: false,       // controle de requisição (para não ficar repetindo)
+      stop: false,          // controle de fluxo (caso a operação precise ser abortada)
+      lastError: '',        // erro registrado
+      lastUrl: '',          // última URL (para logs ou debug)
     };
 
     /* ===== Voz ===== */
     // ===== Voz via WhatsApp (v1.0) — constantes e DOM =====
+
+
+async function _fetchVozWaConfig(){
+  try {
+    const ctx = await getAuthContext();
+    const tok = ctx?.idToken || (typeof idToken !== 'undefined' ? idToken : null);
+
+    const headers = {};
+    if (tok) headers['Authorization'] = 'Bearer ' + tok;
+
+    const r = await fetch('/api/voz/whatsapp/config', { method:'GET', headers, cache:'no-store' });
+    const j = await r.json().catch(()=> ({}));
+    if (r.ok && j && j.ok) {
+      vozWaState.waNumberE164 = String(j.waNumberE164 || '').trim() || null;
+      return j;
+    }
+  } catch(_) {}
+  return null;
+}
+
 
 
 window.vozWaEls = {
@@ -802,6 +849,8 @@ window.vozWaEls = {
 
   player: document.getElementById('vozWaPlayer'),
 };
+
+const vozWaEls = window.vozWaEls;
 
 // helper visual “safe”
 function _vozWaShowError(msg){
@@ -1341,22 +1390,31 @@ function _vozWaShowError(msg){
           'Content-Type': 'application/json'
         };
 
-        // tenta rotas prováveis de “gerar código”
-        const paths = [
-          `/api/voz/wa/code`,
-          `/api/voz/whatsapp/code`,
-          `/api/voz/wa/generate-code`,
-          `/api/voz/whatsapp/generate-code`,
-          `/api/voz/wa/start`,
-          `/api/voz/whatsapp/start`,
-        ];
+        // pega telefone do MEI na tela (input name="telefone")
+        let to = null;
+        try {
+          const telInput = document.querySelector('input[name="telefone"]');
+          const rawTel = telInput ? telInput.value : '';
+          to = toE164(rawTel); // usa o helper que você já colou
+        } catch(_){}
 
-        const out = await _apiTry(paths, {
+        if (!to) {
+          _setBadge('pill-failed', 'falhou');
+          _setStatus('Telefone ausente');
+          _vozWaShowError('Antes de gerar o código, preencha seu WhatsApp em “Seu WhatsApp (para notificações)”. Depois volte aqui e tente de novo.');
+          wa.btnGerar.disabled = false;
+          return;
+        }
+
+        // chama o endpoint REAL
+        const out = await _apiTry([`/api/voz/whatsapp/invite`], {
           method:'POST',
           headers,
-          body: JSON.stringify({ uid: ctx.uid })
+          body: JSON.stringify({ toE164: to })
         });
 
+        
+      
         if (!out.ok) {
           _setBadge('pill-failed', 'falhou');
           _setStatus('Falha ao gerar');
@@ -1449,35 +1507,51 @@ function _vozWaShowError(msg){
         wa.btnRecarregar.onclick = async () => {
           _setStatus('Consultando status…');
           _setUpdatedNow();
+          try { await _fetchVozWaConfig(); } catch(_){}
           await _fetchStatus();
         };
       }
 
       if (wa.btnRefazer) {
         wa.btnRefazer.onclick = async () => {
-          // reset visual primeiro (robusto)
           _resetUI();
+          if (wa.btnRefazer) wa.btnRefazer.disabled = true;
 
-          // tentativa best-effort de reset no backend (se existir rota)
           try {
+            _vozWaShowError('');
+
             const ctx = await getAuthContext();
             const tok = ctx?.idToken || idToken || null;
-            if (!ctx?.uid || !tok) return;
+            if (!ctx?.uid || !tok) {
+              _vozWaShowError('Sua sessão parece ter expirado. Recarregue a página e faça login novamente.');
+              if (wa.btnRefazer) wa.btnRefazer.disabled = false;
+              return;
+            }
 
             const headers = {
               'Authorization': 'Bearer ' + tok,
               'Content-Type': 'application/json'
             };
 
-            const paths = [
-              `/api/voz/wa/reset`,
-              `/api/voz/whatsapp/reset`,
-              `/api/voz/wa/clear`,
-              `/api/voz/whatsapp/clear`,
-            ];
+            const out = await _apiTry([`/api/voz/whatsapp/reset`], { method:'POST', headers, body: '{}' });
 
-            await _apiTry(paths, { method:'POST', headers, body: JSON.stringify({ uid: ctx.uid }) });
-          } catch(_){}
+            if (!out.ok || !out.json?.ok) {
+              _vozWaShowError(out.json?.error || 'Não consegui reiniciar agora. Tente novamente.');
+              if (wa.btnRefazer) wa.btnRefazer.disabled = false;
+              return;
+            }
+
+            _setStatus('Consultando status…');
+            _setUpdatedNow();
+            await _fetchStatus();
+
+            _vozWaShowError('Pronto. Agora clique em “Gerar código” e envie um novo áudio pelo WhatsApp.');
+            if (wa.btnRefazer) wa.btnRefazer.disabled = false;
+          } catch(_){
+            _vozWaShowError('Falha ao reiniciar. Tente novamente.');
+            if (wa.btnRefazer) wa.btnRefazer.disabled = false;
+          }
+
         };
       }
 
