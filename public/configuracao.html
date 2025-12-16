@@ -353,10 +353,10 @@
 
         <!-- ====== Voz (upload/gravação + progresso + polling) ====== -->
         <section class="mt-24" id="sec-voz">
-          <h3>Sua voz (obrigatório) — envio pelo WhatsApp</h3>
+          <h3>Sua voz (obrigatório)</h3>
           <p class="hint">
-            Para o MEI Robô falar com a sua voz, você vai enviar áudios <strong>pelo WhatsApp</strong>.
-            Aqui a gente só te guia e mostra o status. (Sem anexar arquivos por aqui.)
+            Pra o MEI Robô atender com a <strong>sua voz</strong>, você só precisa mandar um áudio no WhatsApp.
+            Aqui a gente mostra o passo e o status — sem anexar nada por aqui.
           </p>
 
           
@@ -369,27 +369,11 @@
       <strong>Sua voz (pelo WhatsApp)</strong>
       <span id="vozWaBadge" class="pill pill-pending">aguardando</span>
       <div class="hint mt-6">
-        Aqui você manda sua voz do jeito mais fácil: por mensagem de áudio no WhatsApp.<br>
-        Leva 1 minuto. O MEI Robô só avança quando sua voz estiver pronta.
-      </div>
-    </div>
-    <div class="hint" style="opacity:.85">
-      <div><strong>Status:</strong> <span id="vozWaStatusText">Aguardando</span></div>
-      <div><small id="vozWaUpdatedAt"></small></div>
-    </div>
-  </div>
-
-  <div class="mt-12">
-    <ol class="hint" style="margin:0; padding-left:18px; line-height:1.6;">
-      <li><strong>Clique em “Gerar código de voz”</strong></li>
-      <li>No WhatsApp, mande a mensagem: <strong>MEIROBO VOZ &lt;CÓDIGO&gt;</strong></li>
-      <li>Depois mande um áudio de <strong>60–90s</strong> falando naturalmente</li>
-      <li>Volte aqui — o status vai atualizar automaticamente</li>
-    </ol>
-    <div class="hint mt-8" style="opacity:.9;">
-      Dica: fale seu nome, seu serviço e uma frase de atendimento. Natural, como você fala com cliente.<br>
-      <strong>Não feche esta página</strong> enquanto estiver em “Recebendo”/“Salvando”.
-    </div>
+  1) Clique em <strong>Gerar código</strong><br>
+  2) Abra o WhatsApp e envie a mensagem pronta<br>
+  3) Depois mande um áudio de <strong>60–90s</strong> falando normal (sem música)<br>
+  Volte aqui e clique em <strong>Recarregar status</strong>.
+</div>
   </div>
 
   <div class="grid-2 mt-12">
@@ -600,6 +584,25 @@
     function escapeHtml(str){ return String(str).replace(/[&<>"']/g, s => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[s])); }
     function formatDateBR(iso){ try { const d=new Date(iso); return `${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}/${d.getFullYear()}` } catch(_){ return iso; } }
     function onlyDigits(s){ return String(s||'').replace(/\D+/g,''); }
+    
+    function toE164(raw){
+      const s = String(raw||'').trim();
+      if (!s) return null;
+      const d = onlyDigits(s);
+      if (!d) return null;
+
+      // se já veio com +, respeita
+      if (s.startsWith('+')) return '+' + d;
+
+      // se já tem DDI 55
+      if (d.startsWith('55') && (d.length === 12 || d.length === 13)) return '+' + d;
+
+      // se veio só DDD+numero (10 ou 11 dígitos)
+      if (d.length === 10 || d.length === 11) return '+55' + d;
+
+      return null;
+    }
+    
 
     // === Validação simples de CNPJ ===
     function isValidCNPJ(cnpj){
@@ -751,36 +754,46 @@
         /* ===== Voz via WhatsApp (constantes v1.0) ===== */
     window.VOICE_WA_NUMBER_E164 = window.VOICE_WA_NUMBER_E164 || '+5551985648608'; // trocar aqui quando virar oficial // ⚠️ trocar em 2–3 dias aqui e só aqui
 
-    const vozWaEls = {
-      area: document.getElementById('vozWaArea'),
-      badge: document.getElementById('vozWaBadge'),
-      statusText: document.getElementById('vozWaStatusText'),
-      updatedAt: document.getElementById('vozWaUpdatedAt'),
-      code: document.getElementById('vozWaCode'),
-      codeHint: document.getElementById('vozWaCodeHint'),
-      msgReady: document.getElementById('vozWaMsgReady'),
-      btnGerar: document.getElementById('btnVozWaGerar'),
-      btnCopiar: document.getElementById('btnVozWaCopiar'),
-      btnAbrir: document.getElementById('btnVozWaAbrir'),
-      btnRecarregar: document.getElementById('btnVozWaRecarregar'),
-      btnRefazer: document.getElementById('btnVozWaRefazer'),
-      err: document.getElementById('vozWaErroHumano'),
-      player: document.getElementById('vozWaPlayer'),
-    };
-
+    
     // estado novo (a “verdade” da voz agora vem do backend)
     const vozWaState = {
-      status: 'waiting',
-      code: '',
-      ready: false,
-      polling: false,
-      stop: false,
-      lastError: '',
-      lastUrl: '',
+      // dados necessários pro fluxo
+      waNumberE164: null,   // vem de /api/voz/whatsapp/config
+      toE164: null,         // vem do input name="telefone" (config do MEI)
+      code: '',             // código para WhatsApp, gerado por /api/voz/whatsapp/invite
+
+      // status do fluxo
+      status: 'waiting',    // pode ser: waiting | receiving | processing | ready | failed
+      ready: false,         // vai ser atualizado depois de /status (backend)
+
+      polling: false,       // controle de requisição (para não ficar repetindo)
+      stop: false,          // controle de fluxo (caso a operação precise ser abortada)
+      lastError: '',        // erro registrado
+      lastUrl: '',          // última URL (para logs ou debug)
     };
 
     /* ===== Voz ===== */
     // ===== Voz via WhatsApp (v1.0) — constantes e DOM =====
+
+
+async function _fetchVozWaConfig(){
+  try {
+    const ctx = await getAuthContext();
+    const tok = ctx?.idToken || (typeof idToken !== 'undefined' ? idToken : null);
+
+    const headers = {};
+    if (tok) headers['Authorization'] = 'Bearer ' + tok;
+
+    const r = await fetch((typeof API_BASE!=='undefined'?API_BASE:'') + '/api/voz/whatsapp/config', { method:'GET', headers, cache:'no-store' });
+    const j = await r.json().catch(()=> ({}));
+    if (r.ok && j && j.ok) {
+      vozWaState.waNumberE164 = String(j.waNumberE164 || '').trim() || null;
+      return j;
+    }
+  } catch(_) {}
+  return null;
+}
+
 
 
 window.vozWaEls = {
@@ -802,6 +815,8 @@ window.vozWaEls = {
 
   player: document.getElementById('vozWaPlayer'),
 };
+
+const vozWaEls = window.vozWaEls;
 
 // helper visual “safe”
 function _vozWaShowError(msg){
@@ -1341,22 +1356,31 @@ function _vozWaShowError(msg){
           'Content-Type': 'application/json'
         };
 
-        // tenta rotas prováveis de “gerar código”
-        const paths = [
-          `/api/voz/wa/code`,
-          `/api/voz/whatsapp/code`,
-          `/api/voz/wa/generate-code`,
-          `/api/voz/whatsapp/generate-code`,
-          `/api/voz/wa/start`,
-          `/api/voz/whatsapp/start`,
-        ];
+        // pega telefone do MEI na tela (input name="telefone")
+        let to = null;
+        try {
+          const telInput = document.querySelector('input[name="telefone"]');
+          const rawTel = telInput ? telInput.value : '';
+          to = toE164(rawTel); // usa o helper que você já colou
+        } catch(_){}
 
-        const out = await _apiTry(paths, {
+        if (!to) {
+          _setBadge('pill-failed', 'falhou');
+          _setStatus('Telefone ausente');
+          _vozWaShowError('Antes de gerar o código, preencha seu WhatsApp em “Seu WhatsApp (para notificações)”. Depois volte aqui e tente de novo.');
+          wa.btnGerar.disabled = false;
+          return;
+        }
+
+        // chama o endpoint REAL
+        const out = await _apiTry([`/api/voz/whatsapp/invite`], {
           method:'POST',
           headers,
-          body: JSON.stringify({ uid: ctx.uid })
+          body: JSON.stringify({ toE164: to })
         });
 
+        
+      
         if (!out.ok) {
           _setBadge('pill-failed', 'falhou');
           _setStatus('Falha ao gerar');
@@ -1449,35 +1473,51 @@ function _vozWaShowError(msg){
         wa.btnRecarregar.onclick = async () => {
           _setStatus('Consultando status…');
           _setUpdatedNow();
+          try { await _fetchVozWaConfig(); } catch(_){}
           await _fetchStatus();
         };
       }
 
       if (wa.btnRefazer) {
         wa.btnRefazer.onclick = async () => {
-          // reset visual primeiro (robusto)
           _resetUI();
+          if (wa.btnRefazer) wa.btnRefazer.disabled = true;
 
-          // tentativa best-effort de reset no backend (se existir rota)
           try {
+            _vozWaShowError('');
+
             const ctx = await getAuthContext();
             const tok = ctx?.idToken || idToken || null;
-            if (!ctx?.uid || !tok) return;
+            if (!ctx?.uid || !tok) {
+              _vozWaShowError('Sua sessão parece ter expirado. Recarregue a página e faça login novamente.');
+              if (wa.btnRefazer) wa.btnRefazer.disabled = false;
+              return;
+            }
 
             const headers = {
               'Authorization': 'Bearer ' + tok,
               'Content-Type': 'application/json'
             };
 
-            const paths = [
-              `/api/voz/wa/reset`,
-              `/api/voz/whatsapp/reset`,
-              `/api/voz/wa/clear`,
-              `/api/voz/whatsapp/clear`,
-            ];
+            const out = await _apiTry([`/api/voz/whatsapp/reset`], { method:'POST', headers, body: '{}' });
 
-            await _apiTry(paths, { method:'POST', headers, body: JSON.stringify({ uid: ctx.uid }) });
-          } catch(_){}
+            if (!out.ok || !out.json?.ok) {
+              _vozWaShowError(out.json?.error || 'Não consegui reiniciar agora. Tente novamente.');
+              if (wa.btnRefazer) wa.btnRefazer.disabled = false;
+              return;
+            }
+
+            _setStatus('Consultando status…');
+            _setUpdatedNow();
+            await _fetchStatus();
+
+            _vozWaShowError('Pronto. Agora clique em “Gerar código” e envie um novo áudio pelo WhatsApp.');
+            if (wa.btnRefazer) wa.btnRefazer.disabled = false;
+          } catch(_){
+            _vozWaShowError('Falha ao reiniciar. Tente novamente.');
+            if (wa.btnRefazer) wa.btnRefazer.disabled = false;
+          }
+
         };
       }
 
@@ -2500,93 +2540,9 @@ if (!vozWaState || !vozWaState.ready) {
         else document.getElementById('public_brand').setAttribute('disabled','disabled');
       });
     }
-    /* ===== PATCH: initVozWaUI (liga a seção “Voz via WhatsApp”) ===== */
-    (function initVozWaUI(){
-  function $(id){ return document.getElementById(id); }
-
-  function mount(){
-    const wa = {
-      area: $("vozWaArea"),
-      badge: $("vozWaBadge"),
-      statusText: $("vozWaStatusText"),
-      updatedAt: $("vozWaUpdatedAt"),
-      code: $("vozWaCode"),
-      msgReady: $("vozWaMsgReady"),
-      codeHint: $("vozWaCodeHint"),
-      erroHumano: $("vozWaErroHumano"),
-      btnGerar: $("btnVozWaGerar"),
-      btnCopiar: $("btnVozWaCopiar"),
-      btnAbrir: $("btnVozWaAbrir"),
-      btnRecarregar: $("btnVozWaRecarregar"),
-      btnRefazer: $("btnVozWaRefazer"),
-      player: $("vozWaPlayer"),
-    };
-
-    // expõe para debug
-    window.vozWaEls = wa;
-
-    if (!wa.area || !wa.btnGerar || !wa.code || !wa.msgReady) {
-      console.warn('[voz-wa] elementos não encontrados (DOM incompleto).');
-      return;
-    }
-
-    const numberE164 = String(window.VOICE_WA_NUMBER_E164 || '').trim() || '+5551985648608';
-    const waDigits = numberE164.replace(/\D+/g,''); // só números
-    const waMeBase = `https://wa.me/${waDigits}`;
-
-    function showErr(msg){
-      if (!wa.erroHumano) return;
-      wa.erroHumano.style.display = msg ? 'block' : 'none';
-      wa.erroHumano.textContent = msg || '';
-    }
-
-    function setReadyMsg(code){
-      showErr('');
-      wa.code.value = code;
-      wa.msgReady.value = `MEIROBO VOZ ${code}`;
-      if (wa.btnCopiar) wa.btnCopiar.disabled = false;
-
-      if (wa.btnAbrir) {
-        wa.btnAbrir.href = `${waMeBase}?text=${encodeURIComponent(wa.msgReady.value)}`;
-      }
-      if (wa.codeHint) wa.codeHint.textContent = 'Copie a mensagem pronta e envie no WhatsApp.';
-    }
-
-    // Gera o código local (MVP seguro) — sem backend aqui
-    function genCode(){
-      return Math.random().toString(36).slice(2, 8).toUpperCase();
-    }
-
-    wa.btnGerar.addEventListener('click', ()=> {
-      try{
-        const code = genCode();
-        setReadyMsg(code);
-      }catch(e){
-        console.error('[voz-wa] erro ao gerar código', e);
-        showErr('Não foi possível gerar o código. Recarregue a página.');
-      }
-    });
-
-    if (wa.btnCopiar){
-      wa.btnCopiar.addEventListener('click', async ()=> {
-        try{
-          await navigator.clipboard.writeText(wa.msgReady.value || '');
-          if (wa.codeHint) wa.codeHint.textContent = 'Copiado ✅ Agora é só colar no WhatsApp.';
-        }catch(_){
-          if (wa.codeHint) wa.codeHint.textContent = 'Copie manualmente a mensagem pronta e cole no WhatsApp.';
-        }
-      });
-    }
-
-    console.log('[voz-wa] UI ligada. number=', numberE164);
-  }
-
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', mount);
-  } else {
-    mount();
-  }
-})();
+    
+    <!-- (removido) initVozWaUI duplicado: já existe implementação oficial acima -->
+;
 </script>
 
   <script>
