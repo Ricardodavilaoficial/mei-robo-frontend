@@ -2424,7 +2424,74 @@ if (!vozWaState || !vozWaState.ready) {
       btn.disabled = true;
       toast("Gerando instrução…");
       try{
-        const payload = await apiFetchJson("/api/voz/whatsapp/invite", { method:"POST", body: JSON.stringify({}) });
+        // 1) Token explícito (não depender de wrappers)
+        const u = (window.firebase && firebase.auth) ? firebase.auth().currentUser : null;
+        if (!u){
+          toast("Faça login novamente e tente de novo.");
+          return;
+        }
+        const token = await u.getIdToken(true);
+
+        // helper fetch JSON com Bearer (reversível, só aqui)
+        async function fetchJsonAuthed(fullUrl, opt){
+          opt = opt || {};
+          opt.method = opt.method || "GET";
+          opt.headers = opt.headers || {};
+          opt.headers["Authorization"] = "Bearer " + token;
+          if (!opt.headers["Content-Type"] && opt.method.toUpperCase() !== "GET"){
+            opt.headers["Content-Type"] = "application/json";
+          }
+          const res = await fetch(fullUrl, opt);
+          const ct = (res.headers.get("content-type")||"").toLowerCase();
+          const body = ct.includes("application/json") ? await res.json().catch(()=>null) : await res.text().catch(()=>null);
+          if (!res.ok){
+            const msg = (body && body.error) ? body.error : (typeof body === "string" ? body : ("HTTP " + res.status));
+            const err = new Error(msg);
+            err.status = res.status;
+            err.body = body;
+            throw err;
+          }
+          return body;
+        }
+
+        // 2) Resolver toE164 (primeiro do input, senão via backend /config)
+        function normalizeE164_BR(raw){
+          const s = String(raw||"").trim();
+          if (!s) return null;
+          if (s.startsWith("+")) return s;
+          const digits = s.replace(/\D+/g,"");
+          if (!digits) return null;
+          // se já tem 55...
+          if (digits.startsWith("55")) return "+" + digits;
+          // assume BR
+          return "+55" + digits;
+        }
+
+        let toE164 = null;
+        const telEl = document.querySelector('input[name="telefone"]') || document.getElementById('telefone');
+        if (telEl && telEl.value) toE164 = normalizeE164_BR(telEl.value);
+
+        const base = (window.API_BASE || "").replace(/\/+$/,"");
+        if (!toE164){
+          try{
+            const cfg = await fetchJsonAuthed(base + "/api/voz/whatsapp/config", { method:"GET" });
+            // aceitar vários formatos de payload sem quebrar
+            toE164 = cfg && (cfg.toE164 || cfg.to_e164 || cfg.temp_toE164 || cfg.tempNumberE164 || cfg.VOICE_WA_TEMP_NUMBER_E164 || (cfg.effective && cfg.effective.toE164)) || null;
+          }catch(e){}
+        }
+
+        // último fallback: se ainda não tem destino, pede pro MEI preencher telefone
+        if (!toE164){
+          toast("Não encontrei seu WhatsApp. Preencha seu número e tente de novo.");
+          return;
+        }
+
+        // 3) Chamar invite com Bearer + toE164
+        const payload = await fetchJsonAuthed(base + "/api/voz/whatsapp/invite", {
+          method:"POST",
+          body: JSON.stringify({ toE164 })
+        });
+
         // backend deve devolver link/message/código; tratamos tudo na boa
         const code = payload && (payload.code || payload.codigo || payload.inviteCode);
         const waLink = payload && (payload.wa_link || payload.waLink || payload.link || payload.url);
@@ -2439,6 +2506,7 @@ if (!vozWaState || !vozWaState.ready) {
           toast(code ? ("Código gerado: " + esc(code)) : "Instrução gerada ✅");
         }
       }catch(e){
+        // Mensagem segura e simples (sem vazar detalhes)
         toast("Não consegui iniciar agora. Verifique login e tente de novo.");
       }finally{
         btn.disabled = false;
@@ -2537,6 +2605,8 @@ if (!vozWaState || !vozWaState.ready) {
 
 </body>
 </html>
+
+
 
 
 
