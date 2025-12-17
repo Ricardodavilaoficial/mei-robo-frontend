@@ -402,7 +402,7 @@
         <!-- PATCH 1: esconder botão antigo de salvar/continuar -->
         <div class="mt-24">
           <!-- Botão antigo de avançar foi desativado; a jornada segue agora pela agenda. -->
-          <button id="btn-salvar" type="button" class="btn primary" style="display:none" disabled>Salvar e continuar</button>
+          <button id="btn-salvar" type="button" class="btn primary" style="display:inline-flex">Salvar e continuar</button>
           <span id="config-feedback" class="hint mt-8" style="margin-left:8px;"></span>
         </div>
       </form>
@@ -2449,8 +2449,55 @@ if (!vozWaState || !vozWaState.ready) {
 })();
 </script>
 
+
+<!-- ===== PATCH: restore "Salvar e continuar" (safe wiring) ===== -->
+<script>
+(function(){
+  try{
+    var btn = document.getElementById('btn-salvar');
+    if(!btn) return;
+
+    // Make it visible + clickable (even if an older script hid it)
+    try{ btn.style.display = 'inline-flex'; }catch(e){}
+    try{ btn.disabled = false; }catch(e){}
+
+    // IMPORTANT: Do not duplicate business rules.
+    // We simply trigger the existing agenda save+continue flow (which already handles:
+    // - voice gate, config gate, authority gate
+    // - save config + save agenda
+    // - redirect (dashboard vs onboarding)
+    btn.onclick = function(){
+      try{
+        var agendaForm = document.getElementById('agenda-form');
+        if(agendaForm){
+          // Fire the existing submit handler (salvarAgendaConfig is bound via addEventListener)
+          var ev = new Event('submit', { bubbles:true, cancelable:true });
+          agendaForm.dispatchEvent(ev);
+          return;
+        }
+
+        // Fallback: if agenda form isn't present, try to find the bottom "Salvar e continuar" button
+        var agendaBtn = document.getElementById('agenda-save-btn');
+        if(agendaBtn && typeof agendaBtn.click === 'function'){
+          agendaBtn.click();
+          return;
+        }
+
+        console.warn('[btn-salvar] agenda-form não encontrado; nada para acionar.');
+      }catch(err){
+        console.error('[btn-salvar] falha ao acionar fluxo de salvar/continuar:', err);
+      }
+    };
+  }catch(e){
+    console.error('[btn-salvar] patch init falhou:', e);
+  }
+})();
+</script>
+<!-- ===== /PATCH ===== -->
+
 </body>
 </html>
+
 
 
 
