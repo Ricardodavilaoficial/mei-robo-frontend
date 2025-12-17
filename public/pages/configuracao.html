@@ -742,6 +742,40 @@
     });
     setTimeout(_updateAgendaSummary, 600);
 
+    function _agendaFmt(t){ return (t||'').toString().slice(0,5); }
+    function _updateAgendaSummary(){
+      if (!agendaSummaryText) return;
+      // tenta ler do form (se já carregou) — fallback para padrão
+      const seg = document.getElementById('d1')?.checked;
+      const ter = document.getElementById('d2')?.checked;
+      const qua = document.getElementById('d3')?.checked;
+      const qui = document.getElementById('d4')?.checked;
+      const sex = document.getElementById('d5')?.checked;
+      const sab = document.getElementById('d6')?.checked;
+      const dom = document.getElementById('d0')?.checked;
+      const open = _agendaFmt(document.getElementById('hora-inicio')?.value || '09:00');
+      const close= _agendaFmt(document.getElementById('hora-fim')?.value || '18:00');
+      const days = [];
+      if (seg) days.push('Seg'); if (ter) days.push('Ter'); if (qua) days.push('Qua'); if (qui) days.push('Qui'); if (sex) days.push('Sex');
+      if (sab) days.push('Sáb'); if (dom) days.push('Dom');
+      const d = days.length ? days.join('–') : 'Seg–Sex';
+      agendaSummaryText.textContent = `${d}, ${open}–${close} (você pode editar)`;
+    }
+    if (btnAgendaEditar && agendaFormEl) {
+      btnAgendaEditar.onclick = () => {
+        const open = agendaFormEl.style.display !== 'none';
+        agendaFormEl.style.display = open ? 'none' : 'block';
+        if (agendaSummaryWrap) agendaSummaryWrap.style.display = open ? 'block' : 'none';
+        if (!open) _updateAgendaSummary();
+      };
+    }
+    // atualiza o resumo sempre que mexer nos campos principais
+    ['hora-inicio','hora-fim','d0','d1','d2','d3','d4','d5','d6'].forEach((id)=>{
+      const el = document.getElementById(id);
+      if (el) el.addEventListener('change', _updateAgendaSummary);
+    });
+    // mostra resumo assim que possível
+    setTimeout(_updateAgendaSummary, 600);
 
     const agendaAlertEl = document.getElementById('agenda-alert');
     const agendaSaveBtn = document.getElementById('agenda-save-btn');
@@ -805,34 +839,58 @@
       if (choice !== 'custom') fPublicBrand.value = custom || '';
     }
 
-    async function getAuthContext(){
-  // tenta pegar usuário logado com um pequeno "wait" (a página às vezes monta antes do Firebase resolver)
-  const auth = firebase && firebase.auth ? firebase.auth() : null;
-  if (!auth) return { user: null, idToken: null };
+    async function getAuthContext() {
+      let idToken = null;
+      let uid = null;
+      if (window.firebase && firebase.auth && firebase.auth().currentUser) {
+        const user = firebase.auth().currentUser;
+        uid = user.uid;
+        try { idToken = await user.getIdToken(true); } catch(_) {}
+      }
+      return { uid, idToken };
+    }
+    
+        /* ===== Voz via WhatsApp (constantes v1.0) ===== */
+    window.VOICE_WA_NUMBER_E164 = window.VOICE_WA_NUMBER_E164 || '+5551985648608'; // trocar aqui quando virar oficial // ⚠️ trocar em 2–3 dias aqui e só aqui
 
-  let user = auth.currentUser;
-  if (!user) {
-    user = await new Promise((resolve)=>{
-      let done = false;
-      const t = setTimeout(()=>{ if(done) return; done=true; resolve(null); }, 2000);
-      const unsub = auth.onAuthStateChanged((u)=>{
-        if(done) return;
-        done = true;
-        clearTimeout(t);
-        try{ unsub && unsub(); } catch(_){}
-        resolve(u || null);
-      });
-    });
-  }
+    
+    // estado novo (a “verdade” da voz agora vem do backend)
+    const vozWaState = {
+      // dados necessários pro fluxo
+      waNumberE164: null,   // vem de /api/voz/whatsapp/config
+      toE164: null,         // vem do input name="telefone" (config do MEI)
+      code: '',             // código para WhatsApp, gerado por /api/voz/whatsapp/invite
 
-  if (!user) return { user: null, idToken: null };
+      // status do fluxo
+      status: 'waiting',    // pode ser: waiting | receiving | processing | ready | failed
+      ready: false,         // vai ser atualizado depois de /status (backend)
 
-  try{
-    const idToken = await user.getIdToken(true);
-    return { user, idToken };
-  }catch(_){
-    return { user, idToken: null };
-  }
+      polling: false,       // controle de requisição (para não ficar repetindo)
+      stop: false,          // controle de fluxo (caso a operação precise ser abortada)
+      lastError: '',        // erro registrado
+      lastUrl: '',          // última URL (para logs ou debug)
+    };
+
+    /* ===== Voz ===== */
+    // ===== Voz via WhatsApp (v1.0) — constantes e DOM =====
+
+
+async function _fetchVozWaConfig(){
+  try {
+    const ctx = await getAuthContext();
+    const tok = ctx?.idToken || (typeof idToken !== 'undefined' ? idToken : null);
+
+    const headers = {};
+    if (tok) headers['Authorization'] = 'Bearer ' + tok;
+
+    const r = await fetch('/api/voz/whatsapp/config', { method:'GET', headers, cache:'no-store' });
+    const j = await r.json().catch(()=> ({}));
+    if (r.ok && j && j.ok) {
+      vozWaState.waNumberE164 = String(j.waNumberE164 || '').trim() || null;
+      return j;
+    }
+  } catch(_) {}
+  return null;
 }
 
 
@@ -842,15 +900,19 @@ window.vozWaEls = {
   badge: document.getElementById('vozWaBadge'),
   statusText: document.getElementById('vozWaStatusText'),
   updatedAt: document.getElementById('vozWaUpdatedAt'),
+
+  code: document.getElementById('vozWaCode'),
+  msgReady: document.getElementById('vozWaMsgReady'),
+  codeHint: document.getElementById('vozWaCodeHint'),
   erroHumano: document.getElementById('vozWaErroHumano'),
 
-  // compat (código legado ainda referencia estes nomes)
-  btnGerar: document.getElementById('btnVozWaStart'),
-  btnRefazer: document.getElementById('btnVozWaResend'),
+  btnGerar: document.getElementById('btnVozWaGerar'),
+  btnCopiar: document.getElementById('btnVozWaCopiar'),
+  btnAbrir: document.getElementById('btnVozWaAbrir'),
+  btnRecarregar: document.getElementById('btnVozWaRecarregar'),
+  btnRefazer: document.getElementById('btnVozWaRefazer'),
 
-  // nomes novos (opcional)
-  btnStart: document.getElementById('btnVozWaStart'),
-  btnResend: document.getElementById('btnVozWaResend'),
+  player: document.getElementById('vozWaPlayer'),
 };
 
 const vozWaEls = window.vozWaEls;
@@ -1581,7 +1643,6 @@ function _vozWaShowError(msg){
 
       // na carga: tenta puxar status (se já existe voz/código)
       try { _fetchStatus(); } catch(_){}
-    }
     // <<< FECHA o setupVoice AQUI
 
     /* ===== Helpers empresa/CNPJ ===== */
@@ -2679,6 +2740,7 @@ if (!vozWaState || !vozWaState.ready) {
   </script>
 </body>
 </html>
+
 
 
 
