@@ -2493,10 +2493,51 @@ if (!vozWaState || !vozWaState.ready) {
   }
 })();
 </script>
+
+<!-- PATCH: mover "Salvar e continuar" para o final (abaixo da Agenda) -->
+<script>
+(function(){
+  function move(){
+    var btn = document.getElementById('btn-salvar');
+    if(!btn) return;
+
+    // garante que está visível
+    btn.style.display = 'inline-flex';
+    btn.disabled = false;
+
+    // tenta ancorar abaixo da área da agenda
+    var anchor =
+      document.getElementById('agendaArea') ||
+      document.getElementById('agendaWrap') ||
+      document.getElementById('agenda-form') ||
+      document.getElementById('agenda-card') ||
+      document.querySelector('#agenda-form') ||
+      null;
+    
+    // se o form estiver hidden, ancora no pai (container visível)
+    if (anchor && anchor.style && anchor.style.display === 'none' && anchor.parentElement) {
+      anchor = anchor.parentElement;
+    }
+    
+    if(!anchor) return;
+
+    // coloca o botão logo depois do bloco da agenda
+    anchor.insertAdjacentElement('afterend', btn);
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', move);
+  } else {
+    move();
+  }
+})();
+</script>
+
 <!-- ===== /PATCH ===== -->
 
 </body>
 </html>
+
 
 
 
