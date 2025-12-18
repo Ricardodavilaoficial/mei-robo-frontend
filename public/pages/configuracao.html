@@ -876,6 +876,10 @@ window.vozWaEls = {
   player: document.getElementById('vozWaPlayer'),
 };
 
+// VOICE_WA_PATCH_INVITE_V3: marca UI nova (evita init antigo reclamar/duplicar)
+window.__vozwa_new_ui = true;
+
+
 function _vozWaSetText(el, txt){ if (el) el.textContent = (txt == null ? '' : String(txt)); }
 function _vozWaShow(el){ if (el) el.style.display = ''; }
 function _vozWaHide(el){ if (el) el.style.display = 'none'; }
@@ -925,8 +929,13 @@ function _vozWaGetToE164FromForm(){
 }
 
 async function _vozWaFetch(path, opts){
-  const ctx = await getAuthContext();
-  const tok = ctx?.idToken || (typeof idToken !== 'undefined' ? idToken : null);
+  // VOICE_WA_PATCH_INVITE_V3: sempre tenta anexar Bearer (evita 401 por header ausente)
+  let tok = null;
+  try {
+    if (window.firebase && firebase.auth && firebase.auth().currentUser) {
+      tok = await firebase.auth().currentUser.getIdToken(true);
+    }
+  } catch(_) { tok = null; }
   const headers = Object.assign({}, (opts && opts.headers) || {});
   if (tok) headers['Authorization'] = 'Bearer ' + tok;
   const finalOpts = Object.assign({ cache:'no-store', headers }, opts || {});
@@ -1038,54 +1047,19 @@ async function setupVoice(uid, idTokenParam){
 
         // 2) gera convite/código
         let toE164 = _vozWaGetToE164FromForm();
-
-        // Fallback seguro: tenta obter o telefone do MEI (toE164) via /api/conta/status,
-        // para primeira jornada quando o campo ainda não foi preenchido.
         if (!toE164) {
-          try {
-            const u0 = (window.firebase && firebase.auth) ? firebase.auth().currentUser : null;
-            const uid0 = u0 && u0.uid ? String(u0.uid) : '';
-            if (uid0) {
-              const r0 = await fetch((typeof API_BASE !== 'undefined' ? API_BASE : '') + '/api/conta/status?uid=' + encodeURIComponent(uid0), { method:'GET', cache:'no-store' });
-              const j0 = await r0.json().catch(()=> ({}));
-              const cand =
-                j0?.telefoneE164 || j0?.phoneE164 || j0?.whatsappE164 || j0?.toE164 ||
-                j0?.conta?.telefoneE164 || j0?.conta?.phoneE164 || j0?.conta?.whatsappE164 ||
-                j0?.profile?.telefoneE164 || j0?.profile?.phoneE164 || j0?.profile?.whatsappE164 ||
-                '';
-              if (cand) toE164 = String(cand).trim();
-            }
-          } catch(_e) {}
-        }
-
-        if (!toE164) {
-          _vozWaBadge('pill-failed', 'faltou telefone');
-          _vozWaStatus('Antes, preencha seu WhatsApp (telefone) ou finalize o cadastro.');
-          _vozWaError('Não encontrei seu número (toE164). Preencha o campo de telefone e tente novamente.');
+          _vozWaBadge('pill-failed', 'atenção');
+          _vozWaStatus('Preencha seu WhatsApp (com DDD) antes de gerar o convite.');
+          _vozWaError('Informe seu número no campo Telefone/WhatsApp e tente novamente.');
           return;
         }
+        const invite = await _vozWaFetch('/api/voz/whatsapp/invite', {
+          method:'POST',
+          headers: { 'Content-Type':'application/json' },
+          body: JSON.stringify({ toE164 })
+        });
 
-        // Chamada do invite com Bearer explícito (não depender do wrapper)
-        let invite = { ok:false, status:0, body:null };
-        try {
-          const u = (window.firebase && firebase.auth) ? firebase.auth().currentUser : null;
-          const tok = u ? await u.getIdToken(true) : null;
-          const r = await fetch((typeof API_BASE !== 'undefined' ? API_BASE : '') + '/api/voz/whatsapp/invite', {
-            method:'POST',
-            cache:'no-store',
-            headers: {
-              'Content-Type':'application/json',
-              ...(tok ? { 'Authorization':'Bearer ' + tok } : {})
-            },
-            body: JSON.stringify({ toE164 })
-          });
-          const ct = (r.headers.get('content-type') || '').toLowerCase();
-          const body = ct.includes('application/json') ? await r.json().catch(()=> ({})) : await r.text().catch(()=> '');
-          invite = { ok:r.ok, status:r.status, body };
-        } catch(_e) {
-          invite = { ok:false, status:0, body:{ ok:false, error:'network_error' } };
-        }
-if (!invite.ok || !invite.body || !invite.body.ok) {
+        if (!invite.ok || !invite.body || !invite.body.ok) {
           _vozWaBadge('pill-failed', 'falhou');
           _vozWaStatus('Não consegui iniciar agora');
           _vozWaError(invite.body?.error || 'Não consegui iniciar agora. Tente novamente.');
@@ -2151,6 +2125,8 @@ if (!vozWaState || !vozWaState.ready) {
 
     // expõe para debug
     window.vozWaEls = wa;
+
+    if (window.__vozwa_new_ui) { return; }
 
     if (!wa.area || !wa.btnGerar || !wa.code || !wa.msgReady) {
       console.warn('[voz-wa] elementos não encontrados (DOM incompleto).');
