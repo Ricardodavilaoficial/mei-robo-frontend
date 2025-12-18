@@ -927,36 +927,57 @@ function _vozWaGetToE164FromForm(){
     return v || null;
   } catch(_) { return null; }
 }
-
 async function _vozWaFetch(path, opts){
-  // VOICE_WA_PATCH_INVITE_V3: sempre tenta anexar Bearer (evita 401 por header ausente)
+  // VOICE_WA_PATCH_INVITE_V4: token sempre anexado (evita 401 por timing)
   let tok = null;
   if (path && path[0] !== "/") path = "/" + path;
 
-  // 1) caminho oficial: currentUser.getIdToken(true)
-  try {
+  // 1) tenta currentUser imediato
+  try{
     if (window.firebase && firebase.auth && firebase.auth().currentUser) {
       tok = await firebase.auth().currentUser.getIdToken(true);
     }
-  } catch(_) { /* não zera tok aqui */ }
+  }catch(_){}
 
-  // 2) fallback: helper do arquivo (se o user ainda não estava pronto)
+  // 2) se não veio, espera o onAuthStateChanged (resolve “currentUser null” intermitente)
   if (!tok) {
-    try { if (typeof getIdTokenSafe === 'function') tok = await getIdTokenSafe(); } catch(_) {}
+    try{
+      await new Promise((resolve, reject)=>{
+        if (!window.firebase || !firebase.auth) return reject(new Error("firebase_not_loaded"));
+        const unsub = firebase.auth().onAuthStateChanged(async (u)=>{
+          try{
+            if (u) tok = await u.getIdToken(true);
+            try{ if (typeof unsub === "function") unsub(); }catch(_){}
+            resolve();
+          }catch(e){
+            try{ if (typeof unsub === "function") unsub(); }catch(_){}
+            reject(e);
+          }
+        });
+        setTimeout(()=>{
+          try{ if (typeof unsub === "function") unsub(); }catch(_){}
+          reject(new Error("auth_timeout"));
+        }, 2500);
+      });
+    }catch(_){}
+  }
+
+  // 3) fallback opcional (se existir nesse escopo)
+  if (!tok) {
+    try{ if (typeof getIdTokenSafe === "function") tok = await getIdTokenSafe(); }catch(_){}
   }
 
   const headers = Object.assign({}, (opts && opts.headers) || {});
-  if (tok) headers['Authorization'] = 'Bearer ' + tok;
+  if (tok) headers["Authorization"] = "Bearer " + tok;
 
-  const finalOpts = Object.assign({ cache:'no-store', headers }, opts || {});
-  const base = ((typeof API_BASE !== 'undefined' && API_BASE) ? API_BASE : (window.API_BASE || "https://mei-robo-prod.onrender.com"));
+  const finalOpts = Object.assign({ cache:"no-store", headers }, opts || {});
+  const base = (window.API_BASE || "https://mei-robo-prod.onrender.com");
+
   const r = await fetch(base + path, finalOpts);
-
-  const ct = (r.headers.get('content-type') || '').toLowerCase();
-  const body = ct.includes('application/json') ? await r.json().catch(()=> ({})) : await r.text().catch(()=> '');
+  const ct = (r.headers.get("content-type") || "").toLowerCase();
+  const body = ct.includes("application/json") ? await r.json().catch(()=>({})) : await r.text().catch(()=>"");
   return { ok:r.ok, status:r.status, body };
 }
-
 function _vozWaApplyStatus(payload){
   const wa = window.vozWaEls;
   const s = String(payload?.status || payload?.state || payload?.phase || 'waiting').toLowerCase();
@@ -2579,6 +2600,8 @@ if (!vozWaState || !vozWaState.ready) {
 
 </body>
 </html>
+
+
 
 
 
