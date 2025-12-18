@@ -2441,7 +2441,7 @@ if (!vozWaState || !vozWaState.ready) {
       btn.disabled = true;
       toast("Gerando instrução…");
       try{
-        const payload = await apiFetchJson("/api/voz/whatsapp/invite", { method:"POST", body: JSON.stringify({}), auth: true });
+        const payload = await (async()=>{ const u=firebase.auth().currentUser; const t=await u.getIdToken(true); return apiFetchJson("/api/voz/whatsapp/invite",{method:"POST",headers:{Authorization:"Bearer "+t,"Content-Type":"application/json"},body:JSON.stringify({})}); })();
         // backend deve devolver link/message/código; tratamos tudo na boa
         const code = payload && (payload.code || payload.codigo || payload.inviteCode);
         const waLink = payload && (payload.wa_link || payload.waLink || payload.link || payload.url);
