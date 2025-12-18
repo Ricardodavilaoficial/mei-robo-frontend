@@ -2278,7 +2278,7 @@ if (!vozWaState || !vozWaState.ready) {
   async function getIdTokenSafe(){
     try{
       if (window.firebase && firebase.auth){
-        const u = firebase.auth().currentUser;
+        const u = (typeof firebase.auth === "function") ? firebase.auth().currentUser : firebase.auth.currentUser;
         if (u) return await u.getIdToken(true);
       }
     }catch(e){}
