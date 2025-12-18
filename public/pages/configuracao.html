@@ -931,15 +931,27 @@ function _vozWaGetToE164FromForm(){
 async function _vozWaFetch(path, opts){
   // VOICE_WA_PATCH_INVITE_V3: sempre tenta anexar Bearer (evita 401 por header ausente)
   let tok = null;
+  if (path && path[0] !== "/") path = "/" + path;
+
+  // 1) caminho oficial: currentUser.getIdToken(true)
   try {
     if (window.firebase && firebase.auth && firebase.auth().currentUser) {
       tok = await firebase.auth().currentUser.getIdToken(true);
     }
-  } catch(_) { tok = null; }
+  } catch(_) { /* não zera tok aqui */ }
+
+  // 2) fallback: helper do arquivo (se o user ainda não estava pronto)
+  if (!tok) {
+    try { if (typeof getIdTokenSafe === 'function') tok = await getIdTokenSafe(); } catch(_) {}
+  }
+
   const headers = Object.assign({}, (opts && opts.headers) || {});
   if (tok) headers['Authorization'] = 'Bearer ' + tok;
+
   const finalOpts = Object.assign({ cache:'no-store', headers }, opts || {});
-  const r = await fetch((typeof API_BASE !== 'undefined' ? API_BASE : '') + path, finalOpts);
+  const base = ((typeof API_BASE !== 'undefined' && API_BASE) ? API_BASE : (window.API_BASE || "https://mei-robo-prod.onrender.com"));
+  const r = await fetch(base + path, finalOpts);
+
   const ct = (r.headers.get('content-type') || '').toLowerCase();
   const body = ct.includes('application/json') ? await r.json().catch(()=> ({})) : await r.text().catch(()=> '');
   return { ok:r.ok, status:r.status, body };
@@ -2557,6 +2569,7 @@ if (!vozWaState || !vozWaState.ready) {
 
 </body>
 </html>
+
 
 
 
