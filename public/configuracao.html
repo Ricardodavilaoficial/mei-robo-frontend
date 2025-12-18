@@ -2458,7 +2458,15 @@ if (!vozWaState || !vozWaState.ready) {
         const base = (window.API_BASE || "https://mei-robo-prod.onrender.com");
         const t = await getIdTokenSafe();
         if (!t) throw new Error("no_token");
-        const payload = await (await fetch(base + "/api/voz/whatsapp/invite", { method:"POST", headers:{ "Authorization":"Bearer " + t, "Content-Type":"application/json" }, body: JSON.stringify({ toE164: (window.__vozWa_toE164 || null) }) })).json();
+        const toE164 =
+          (window.__vozWa_toE164 && String(window.__vozWa_toE164).trim()) ||
+          (($("whatsapp") || $("telefone") || $("phone") || null) ? (String(( $("whatsapp")||$("telefone")||$("phone") ).value||"").trim()) : "");
+
+        if (!toE164 || toE164.length < 8) {
+          toast("Preencha seu WhatsApp (com +55...) e clique em Salvar antes de enviar a voz.");
+          return;
+        }
+        const payload = await (await fetch(base + "/api/voz/whatsapp/invite", { method:"POST", headers:{ "Authorization":"Bearer " + t, "Content-Type":"application/json" }, body: JSON.stringify({ toE164 }) })).json();
         // backend deve devolver link/message/código; tratamos tudo na boa
         const code = payload && (payload.code || payload.codigo || payload.inviteCode);
         const waLink = payload && (payload.wa_link || payload.waLink || payload.link || payload.url);
