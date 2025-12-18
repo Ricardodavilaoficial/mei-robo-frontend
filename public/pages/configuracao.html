@@ -1037,7 +1037,7 @@ async function setupVoice(uid, idTokenParam){
         const waNumber = (cfg.body && cfg.body.waNumberE164) ? String(cfg.body.waNumberE164) : '';
 
         // 2) gera convite/código
-        const toE164 = _vozWaGetToE164FromForm();
+        let toE164 = _vozWaGetToE164FromForm();
 
         // Fallback seguro: tenta obter o telefone do MEI (toE164) via /api/conta/status,
         // para primeira jornada quando o campo ainda não foi preenchido.
