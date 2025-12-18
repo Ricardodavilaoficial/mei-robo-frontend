@@ -2438,6 +2438,8 @@ if (!vozWaState || !vozWaState.ready) {
 
   // ===== VOZ via WhatsApp (botão único) =====
   (function initVozWaSimple(){
+    if (window.__vozwa_new_ui) return; // ✅ não sobrescrever a UI nova
+    window.__vozwa_new_ui = true;      // ✅ trava multiverso: garante dono único do botão
     const btn = $("btnVozWaGerar");
     const player = $("voicePlayer");
     if (!btn) return;
