@@ -2193,17 +2193,81 @@ if (!vozWaState || !vozWaState.ready) {
       return Math.random().toString(36).slice(2, 8).toUpperCase();
     }
 
-    wa.btnGerar.addEventListener('click', ()=> {
+    wa.btnGerar.addEventListener('click', async ()=> {
+      // Segurança máxima: muda só o fluxo da voz WA, sem tocar no resto da página.
+      if (!wa.btnGerar) return;
+      wa.btnGerar.disabled = true;
       try{
-        const code = genCode();
+        showErr('');
+        if (wa.statusText) wa.statusText.textContent = 'Gerando código...';
+
+        // Pega telefone do MEI (NÃO altera o campo, só lê)
+        const telEl = document.querySelector('input[name="telefone"], input[name="whatsapp"], #whatsapp');
+        const toRaw = (telEl && telEl.value ? String(telEl.value) : '').trim();
+
+        if (!toRaw || toRaw.length < 8) {
+          showErr('Preencha seu WhatsApp e clique em Salvar antes de enviar a voz.');
+          if (wa.statusText) wa.statusText.textContent = 'WhatsApp do MEI não preenchido.';
+          return;
+        }
+
+        // 1) Gera o código no backend (fonte da verdade)
+        const linkPayload = await apiFetchJson(`${API_BASE}/api/voz/whatsapp/link`, {
+          method: 'POST',
+          body: JSON.stringify({})
+        });
+
+        const code = (linkPayload && linkPayload.code) ? String(linkPayload.code).trim() : '';
+        if (!code) {
+          showErr('Não foi possível gerar o código. Tente novamente.');
+          if (wa.statusText) wa.statusText.textContent = 'Falha ao gerar código.';
+          return;
+        }
+
+        // Atualiza UI (mensagem pronta: "MEIROBO VOZ <CODE>")
         setReadyMsg(code);
+        if (wa.statusText) wa.statusText.textContent = 'Código gerado. Agora registrando seu WhatsApp...';
+
+        // 2) Registra/autoriza o remetente no backend (e tenta invite outbound se estiver ligado)
+        const invitePayload = await apiFetchJson(`${API_BASE}/api/voz/whatsapp/invite`, {
+          method: 'POST',
+          body: JSON.stringify({ toE164: toRaw })
+        });
+
+        if (wa.badge) wa.badge.textContent = 'Pronto';
+        if (wa.statusText) wa.statusText.textContent = 'Pronto: copie a mensagem e envie no WhatsApp.';
+        if (wa.updatedAt) wa.updatedAt.textContent = 'agora';
+        // Se o backend retornou next/detalhe, não “inventamos” — só exibimos se já existir na UI.
+        // (mantemos silêncio para não interferir em outros fluxos)
       }catch(e){
-        console.error('[voz-wa] erro ao gerar código', e);
-        showErr('Não foi possível gerar o código. Recarregue a página.');
+        const status = e && (e.status || e.statusCode);
+        const body = e && e.body;
+        console.error('[voz-wa] falha invite/link', e);
+
+        if (status === 401) {
+          showErr('Sessão expirada. Faça login novamente e tente de novo.');
+          if (wa.statusText) wa.statusText.textContent = 'Não autenticado (401).';
+          return;
+        }
+        if (status === 403) {
+          showErr('Seu número não está autorizado para teste ainda (403).');
+          if (wa.statusText) wa.statusText.textContent = 'Não autorizado (403).';
+          return;
+        }
+        if (status === 400) {
+          const hint = (body && body.hint) ? String(body.hint) : '';
+          showErr(hint || 'WhatsApp inválido. Preencha com DDD e clique em Salvar.');
+          if (wa.statusText) wa.statusText.textContent = 'Dados inválidos (400).';
+          return;
+        }
+
+        showErr('Falha ao preparar a voz via WhatsApp. Recarregue a página e tente novamente.');
+        if (wa.statusText) wa.statusText.textContent = 'Falha no preparo da voz.';
+      }finally{
+        wa.btnGerar.disabled = false;
       }
     });
-
-    if (wa.btnCopiar){
+if (wa.btnCopiar){
       wa.btnCopiar.addEventListener('click', async ()=> {
         try{
           await navigator.clipboard.writeText(wa.msgReady.value || '');
@@ -2600,6 +2664,8 @@ if (!vozWaState || !vozWaState.ready) {
 
 </body>
 </html>
+
+
 
 
 
