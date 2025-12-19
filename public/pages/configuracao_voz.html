@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Voz via WhatsApp — MEI Robô</title>
+
+  <link rel="stylesheet" href="/assets/styles.css" />
+  <style>
+    :root { color-scheme: dark; }
+    body { padding: 16px; max-width: 860px; margin: 0 auto; }
+    .card { border: 1px solid #2a2f33; border-radius: 16px; padding: 16px; background: #0d0f10; margin: 12px 0; }
+    .h1 { font-size: 22px; font-weight: 750; margin: 6px 0 2px; }
+    .muted { opacity: .88; }
+    .tiny { font-size: 12px; opacity: .86; }
+    .row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+    .spacer { height: 10px; }
+    .link { color: #79d0ff; text-decoration: none; }
+    .link:hover { text-decoration: underline; }
+    input, button {
+      padding: 10px 12px;
+      border-radius: 12px;
+      border: 1px solid #2a2f33;
+      background: #141719;
+      color: #eee;
+    }
+    input { min-width: 260px; }
+    button { cursor: pointer; }
+    button[disabled] { opacity: .5; cursor: not-allowed; }
+    .primary { border-color: #1f6f3d; background: #102016; }
+    .ghost { background: transparent; }
+    .toast { position: fixed; left: 16px; right: 16px; bottom: 16px; max-width: 860px; margin: 0 auto; display:none; }
+    .toast > div { border: 1px solid #2a2f33; border-radius: 14px; padding: 12px 14px; background: rgba(13,15,16,.96); }
+    .pill { display:inline-flex; gap:8px; align-items:center; padding: 6px 10px; border: 1px solid #2a2f33; border-radius: 999px; background: #121516; font-size: 13px; }
+  </style>
+
+  <script defer src="/assets/layout.js"></script>
+
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
+  <script src="/assets/firebase-init.js"></script>
+</head>
+<body>
+  <div id="header"></div>
+
+  <div class="card">
+    <div class="h1">Configurar sua voz</div>
+    <div class="muted">
+      <b>Obrigatório</b> para concluir sua conta e para o seu MEI Robô responder por áudio com <b>sua voz</b> e <b>seu jeito</b>.
+    </div>
+    <div class="spacer"></div>
+    <div class="muted">
+      Você vai receber uma mensagem no WhatsApp. Responda com um <b>áudio de 1 a 3 minutos</b>, falando normal.
+    </div>
+    <div class="spacer"></div>
+    <div class="tiny muted">Grave em lugar silencioso, sem TV/música e sem gente falando junto.</div>
+    <div class="spacer"></div>
+    <div class="pill">✅ Dá pra reenviar depois, se quiser melhorar</div>
+  </div>
+
+  <div class="card">
+    <div class="row" style="align-items:flex-start;">
+      <input id="consentChk" type="checkbox" style="margin-top:3px; width:18px; min-width:auto;" />
+      <div>
+        <div class="muted"><b>Autorizo</b> o uso da minha voz conforme os Termos.</div>
+        <div class="tiny">
+          <a class="link" href="/consentimento-voz.html" target="_blank" rel="noopener">consentimento</a> ·
+          <a class="link" href="/termos.html" target="_blank" rel="noopener">termos</a> ·
+          <a class="link" href="/privacidade.html" target="_blank" rel="noopener">privacidade</a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="row">
+      <button id="btnInvite" class="primary" disabled>Receber mensagem no WhatsApp</button>
+      <button id="btnResend" class="ghost" disabled>Reenviar</button>
+    </div>
+
+    <div id="phoneInline" class="tiny muted" style="margin-top:10px; display:none;">
+      WhatsApp usado: <b id="phoneMasked">—</b>
+      · <a href="#" class="link" id="editPhoneLink">editar</a>
+    </div>
+
+    <div id="phoneEdit" style="margin-top:12px; display:none;">
+      <div class="tiny muted">Se precisar, ajuste seu WhatsApp (DDD + número). Ex.: +55 51 99999-9999</div>
+      <div class="spacer"></div>
+      <div class="row">
+        <input id="toPhone" inputmode="tel" autocomplete="tel" placeholder="+55 51 99999-9999" />
+        <button id="savePhoneBtn" class="ghost">Salvar número</button>
+      </div>
+    </div>
+
+    <div id="afterInviteMsg" class="muted" style="margin-top:12px; display:none;">
+      Pronto. Agora abre teu WhatsApp, responde com o áudio, e volta pra seguir.
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="row">
+      <button id="btnBack" class="ghost">Voltar</button>
+      <button id="btnContinue" class="primary" disabled>Salvar e continuar</button>
+      <span id="continueHint" class="tiny muted">Primeiro, peça a mensagem no WhatsApp.</span>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"><div id="toastMsg"></div></div>
+  <div id="footer"></div>
+
+<script>
+(function(){
+  const DEFAULT_API_BASE = "https://mei-robo-prod.onrender.com";
+  const API_BASE = (localStorage.getItem("apiBase") || DEFAULT_API_BASE).trim() || DEFAULT_API_BASE;
+
+  const $ = (id)=>document.getElementById(id);
+
+  function toast(msg){
+    $("toastMsg").innerText = msg || "";
+    $("toast").style.display = "block";
+    clearTimeout(window.__toastT);
+    window.__toastT = setTimeout(()=>{ $("toast").style.display="none"; }, 4200);
+  }
+
+  function onlyDigits(s){ return String(s||"").replace(/\D+/g, ""); }
+
+  function toE164BR(raw){
+    const t = (raw||"").trim();
+    if(!t) return "";
+    if(t.startsWith("+")) return t.replace(/\s+/g, "");
+    const d = onlyDigits(t);
+    if(d.startsWith("55") && d.length >= 12) return "+"+d;
+    if(d.length >= 10 && d.length <= 11) return "+55"+d;
+    return "";
+  }
+
+  function maskE164(e164){
+    const d = onlyDigits(e164);
+    if(d.length < 10) return e164 || "—";
+    const cc = d.startsWith("55") ? "55" : "";
+    const rest = cc ? d.slice(2) : d;
+    const ddd = rest.slice(0,2);
+    const last4 = rest.slice(-4);
+    return "+55 " + ddd + " *****-" + last4;
+  }
+
+  function parseParams(){
+    const u = new URL(location.href);
+    const returnUrl = u.searchParams.get("return") || u.searchParams.get("returnUrl") || "";
+    let mode = (u.searchParams.get("mode") || "").toLowerCase();
+    if(!mode){
+      if(returnUrl && /\/pages\/dashboard\.html/i.test(returnUrl)) mode = "review";
+      else mode = "onboarding";
+    }
+    return { returnUrl, mode };
+  }
+
+  async function getIdTokenOrNull(){
+    const u = firebase.auth().currentUser;
+    if(!u) return null;
+    try { return await u.getIdToken(true); } catch(e){ return null; }
+  }
+
+  async function voiceApiFetch(path, opts){
+    const o = opts || {};
+    const method = (o.method || "GET").toUpperCase();
+    const headers = Object.assign({}, o.headers || {});
+
+    if(o.json) headers["Content-Type"] = "application/json";
+
+    const t = await getIdTokenOrNull();
+    if(!t) throw new Error("not_authenticated");
+    headers["Authorization"] = "Bearer " + t;
+
+    const url = API_BASE + path;
+    console.debug("[voz] request", method, url);
+    const r = await fetch(url, { method, headers, body: o.json ? JSON.stringify(o.json) : undefined });
+    console.debug("[voz] status", r.status, url);
+
+    let txt = "";
+    try { txt = await r.text(); } catch(e){ txt = ""; }
+    let payload = null;
+    try { payload = txt ? JSON.parse(txt) : null; } catch(e){ payload = { raw: txt }; }
+
+    if(!r.ok){
+      const err = (payload && (payload.error || payload.message)) ? (payload.error || payload.message) : ("http_"+r.status);
+      const e = new Error(err);
+      e.httpStatus = r.status;
+      e.payload = payload;
+      throw e;
+    }
+    return payload || {};
+  }
+
+  function getDefaultReturn(){
+    return (state.mode === "review") ? "/pages/dashboard.html" : "/pages/ativar-cliente.html";
+  }
+
+  function goReturn(){
+    location.href = (state.returnUrl || getDefaultReturn());
+  }
+
+  const state = { mode: "onboarding", returnUrl: "", invitedOnce: false, toE164: "" };
+
+  function guessPhoneFromStorage(){
+    const candidates = [
+      localStorage.getItem("vozWa_toE164_last"),
+      localStorage.getItem("whatsappE164"),
+      localStorage.getItem("whatsapp_e164"),
+      localStorage.getItem("whatsapp"),
+      localStorage.getItem("telefone"),
+      localStorage.getItem("toE164"),
+      localStorage.getItem("wa_to_e164"),
+    ].filter(Boolean);
+
+    for(const c of candidates){
+      const e = toE164BR(String(c));
+      if(e) return e;
+    }
+    return "";
+  }
+
+  function showPhoneInline(e164){
+    $("phoneMasked").textContent = maskE164(e164);
+    $("phoneInline").style.display = "block";
+  }
+
+  function showPhoneEdit(show){
+    $("phoneEdit").style.display = show ? "block" : "none";
+  }
+
+  function render(){
+    const consentOk = $("consentChk").checked === true;
+    $("btnInvite").disabled = !consentOk;
+    $("btnResend").disabled = !consentOk;
+
+    $("btnContinue").disabled = !state.invitedOnce;
+    $("continueHint").textContent = state.invitedOnce ? "Pronto. Você pode seguir." : "Primeiro, peça a mensagem no WhatsApp.";
+  }
+
+  async function sendInvite(){
+    if(!$("consentChk").checked){
+      toast("Marque a autorização para continuar.");
+      return;
+    }
+
+    let toE164 = state.toE164 || guessPhoneFromStorage();
+    if(!toE164){
+      showPhoneEdit(true);
+      toast("Confirme seu WhatsApp pra eu mandar a mensagem.");
+      return;
+    }
+
+    try{
+      await voiceApiFetch("/api/voz/whatsapp/invite", { method: "POST", json: { toE164 } });
+
+      state.invitedOnce = true;
+      state.toE164 = toE164;
+      localStorage.setItem("vozWa_toE164_last", toE164);
+
+      $("afterInviteMsg").style.display = "block";
+      showPhoneInline(toE164);
+      showPhoneEdit(false);
+
+      toast("Mensagem enviada. Veja seu WhatsApp.");
+      render();
+    } catch(e){
+      console.warn("[voz] invite error:", e);
+      if(e && e.message === "not_authenticated"){
+        const here = location.pathname + location.search;
+        toast("Você precisa entrar. Redirecionando…");
+        setTimeout(()=> location.href = "/pages/login.html?return=" + encodeURIComponent(here), 600);
+        return;
+      }
+      const msg = (e && e.payload && (e.payload.error || e.payload.message)) ? (e.payload.error || e.payload.message) : (e.message || "erro");
+      toast("Não consegui enviar agora. Tente de novo. ("+msg+")");
+    }
+  }
+
+  function boot(){
+    const p = parseParams();
+    state.mode = p.mode;
+    state.returnUrl = p.returnUrl;
+
+    const guessed = guessPhoneFromStorage();
+    if(guessed){
+      state.toE164 = guessed;
+      showPhoneInline(guessed);
+    }
+
+    $("editPhoneLink").onclick = (ev)=>{ ev.preventDefault(); showPhoneEdit(true); };
+    $("savePhoneBtn").onclick = (ev)=>{
+      ev.preventDefault();
+      const e = toE164BR($("toPhone").value);
+      if(!e){ toast("Número inválido. Ex.: +55 51 99999-9999"); return; }
+      state.toE164 = e;
+      localStorage.setItem("vozWa_toE164_last", e);
+      showPhoneInline(e);
+      showPhoneEdit(false);
+      toast("Número salvo.");
+    };
+
+    $("btnInvite").onclick = ()=>sendInvite();
+    $("btnResend").onclick = ()=>sendInvite();
+
+    $("btnBack").onclick = ()=>{ location.href = (state.returnUrl || getDefaultReturn()); };
+    $("btnContinue").onclick = ()=>goReturn();
+
+    $("consentChk").addEventListener("change", render);
+
+    firebase.auth().onAuthStateChanged((user)=>{
+      if(!user){
+        const here = location.pathname + location.search;
+        location.href = "/pages/login.html?return=" + encodeURIComponent(here);
+        return;
+      }
+      render();
+    });
+  }
+
+  boot();
+})();
+</script>
+
+</body>
+</html>
+
