@@ -801,7 +801,30 @@
     }
     
         /* ===== Voz via WhatsApp (constantes v1.0) ===== */
-    window.VOICE_WA_NUMBER_E164 = window.VOICE_WA_NUMBER_E164 || '+5551985648608'; // trocar aqui quando virar oficial // ⚠️ trocar em 2–3 dias aqui e só aqui
+    // FASE 1 (ISOLAMENTO): Voz NÃO roda nesta página. Esta UI aqui é apenas vitrine.
+    // A configuração obrigatória de voz acontece em /pages/configuracao_voz.html
+    window.__VOZWA_DISABLED_IN_CONFIG__ = !!window.__VOICE_DISABLED_IN_CONFIG__;
+    if (window.__VOZWA_DISABLED_IN_CONFIG__) {
+      (function(){
+        const go = ()=>{ try{ window.location.href = '/pages/configuracao_voz.html'; }catch(e){} };
+        const ids = [
+          'btnVozWaGerar','btnVozWaCopiar','btnVozWaAbrir',
+          'btnVozWaGerar2','btnVozWaCopiar2','btnVozWaAbrir2',
+          'btnVozWaCopy','btnVozWaOpen','btnVozWaOpen2'
+        ];
+        for (const id of ids){
+          const el = document.getElementById(id);
+          if (!el) continue;
+          el.onclick = go;
+          // mantém clicável: serve apenas para levar pra próxima etapa
+          if (typeof el.disabled !== 'undefined') el.disabled = false;
+        }
+        const st = document.getElementById('vozWaStatus') || document.getElementById('voiceStatus');
+        if (st) st.innerHTML = 'A voz é configurada na próxima etapa.';
+        console.log('[configuracao] voz isolada (Fase 1).');
+      })();
+    }
+window.VOICE_WA_NUMBER_E164 = window.VOICE_WA_NUMBER_E164 || '+5551985648608'; // trocar aqui quando virar oficial // ⚠️ trocar em 2–3 dias aqui e só aqui
 
     
     // estado novo (a “verdade” da voz agora vem do backend)
@@ -877,7 +900,19 @@ window.vozWaEls = {
 };
 
 // VOICE_WA_PATCH_INVITE_V3: marca UI nova (evita init antigo reclamar/duplicar)
-window.__vozwa_new_ui = true;
+if (window.__VOICE_DISABLED_IN_CONFIG__) {
+    // FASE 1: qualquer botão de voz aqui vira apenas redirecionamento
+    const go = ()=>{ try{ window.location.href='/pages/configuracao_voz.html'; }catch(e){} };
+    try{
+      const b = document.getElementById('btnVozWaGerar'); if (b) b.onclick = go;
+      const c = document.getElementById('btnVozWaCopiar'); if (c) c.onclick = go;
+      const o = document.getElementById('btnVozWaAbrir'); if (o) o.onclick = go;
+      const st = document.getElementById('vozWaStatus') || document.getElementById('voiceStatus');
+      if (st) st.innerHTML = 'Configuração de voz: prossiga em <strong>Voz</strong> (próxima etapa).';
+    }catch(_){}
+    return;
+  }
+  window.__vozwa_new_ui = true;
 
 
 function _vozWaSetText(el, txt){ if (el) el.textContent = (txt == null ? '' : String(txt)); }
@@ -928,6 +963,10 @@ function _vozWaGetToE164FromForm(){
   } catch(_) { return null; }
 }
 async function _vozWaFetch(path, opts){
+  // FASE 1 (ISOLAMENTO): não chamar backend de voz nesta página
+  if (window.__VOZWA_DISABLED_IN_CONFIG__ || window.__VOICE_DISABLED_IN_CONFIG__) {
+    return { ok:false, status:0, disabled:true, data:null };
+  }
   // VOICE_WA_PATCH_INVITE_V4: token sempre anexado (evita 401 por timing)
   let tok = null;
   if (path && path[0] !== "/") path = "/" + path;
@@ -1802,14 +1841,14 @@ if (!vozWaState || !vozWaState.ready) {
         // 3) Senão, se statusAtivacao tiver algum valor diferente de "aguardando-voz" → painel (fallback legado)
         // 4) Caso contrário → tela de conclusão de assinatura
         if (!veioDoDashboard) {
-          if (origemEhCupomCfg || statusAtivoCfg) {
-            destinoPosConfig = '/pages/dashboard.html';
-          } else if (contaAtiva) {
-            destinoPosConfig = '/pages/dashboard.html';
-          } else if (statusAtivacao && statusAtivacao.toLowerCase() !== 'aguardando-voz') {
+          // 🔒 FASE 1 (isolamento): configuracao.html NÃO ativa conta e NÃO processa voz.
+          // Regra saudável:
+          // - Se já estiver "ok" (licença ativa/cupom/config ou conta ativa), volta para o painel.
+          // - Caso contrário (onboarding ainda pendente), encaminha para a tela de VOZ (obrigatória).
+          if (origemEhCupomCfg || statusAtivoCfg || contaAtiva) {
             destinoPosConfig = '/pages/dashboard.html';
           } else {
-            destinoPosConfig = '/pages/ativar-cliente.html';
+            destinoPosConfig = '/pages/configuracao_voz.html';
           }
         }
 
@@ -2662,8 +2701,31 @@ if (wa.btnCopiar){
 
 <!-- ===== /PATCH ===== -->
 
+
+<script>
+/* FASE 1: isolador de voz (configuracao.html)
+ * - garante que nenhum handler de voz fique ativo aqui
+ * - qualquer clique em botões de voz vira redirecionamento
+ */
+(function(){
+  try{
+    if (!window.__VOICE_DISABLED_IN_CONFIG__) return;
+    const go = ()=>{ try{ window.location.href='/pages/configuracao_voz.html'; }catch(e){} };
+    const ids = [
+      'btnVozWaGerar','btnVozWaCopiar','btnVozWaAbrir',
+      'btnVozWaGerar2','btnVozWaCopiar2','btnVozWaAbrir2',
+      'btnVozWaCopy','btnVozWaOpen','btnVozWaOpen2'
+    ];
+    for (const id of ids){
+      const el = document.getElementById(id);
+      if (el) el.onclick = go;
+    }
+  }catch(e){}
+})();
+</script>
 </body>
 </html>
+
 
 
 
