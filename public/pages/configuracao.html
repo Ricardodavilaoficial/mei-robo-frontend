@@ -17,6 +17,8 @@
   <script defer src="/__/firebase/9.22.2/firebase-auth-compat.js"></script>
   <script defer src="/__/firebase/init.js"></script>
   <script>
+    // FASE 1 (isolamento): configuracao.html NÃO processa voz. Voz obrigatória só em /pages/configuracao_voz.html
+    window.__VOICE_DISABLED_IN_CONFIG__ = true;
     // Ajuste de idioma do e-mail/verificações, e log defensivo de inicialização
     window.addEventListener('load', () => {
       try {
@@ -369,7 +371,7 @@
 <!-- REMOVIDO: bloco legado de voz (upload/gravação) -->
 
           <!-- ====== Voz via WhatsApp (v1.0) — UI nova ====== -->
-<div class="upload-area" id="vozWaArea" style="margin-top:12px;">
+<div class="upload-area" id="vozWaArea" style="margin-top:12px; display:none">
   <div style="display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap;">
     <div>
       <strong>Sua voz (pelo WhatsApp)</strong>
@@ -2724,6 +2726,7 @@ if (wa.btnCopiar){
 </script>
 </body>
 </html>
+
 
 
 
