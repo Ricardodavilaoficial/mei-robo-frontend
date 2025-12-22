@@ -901,19 +901,18 @@ window.vozWaEls = {
 
 // VOICE_WA_PATCH_INVITE_V3: marca UI nova (evita init antigo reclamar/duplicar)
 if (window.__VOICE_DISABLED_IN_CONFIG__) {
-    // FASE 1: qualquer botão de voz aqui vira apenas redirecionamento
-    const go = ()=>{ try{ window.location.href='/pages/configuracao_voz.html'; }catch(e){} };
-    try{
-      const b = document.getElementById('btnVozWaGerar'); if (b) b.onclick = go;
-      const c = document.getElementById('btnVozWaCopiar'); if (c) c.onclick = go;
-      const o = document.getElementById('btnVozWaAbrir'); if (o) o.onclick = go;
-      const st = document.getElementById('vozWaStatus') || document.getElementById('voiceStatus');
-      if (st) st.innerHTML = 'Configuração de voz: prossiga em <strong>Voz</strong> (próxima etapa).';
-    }catch(_){}
-    return;
-  }
+  // FASE 1: qualquer botão de voz aqui vira apenas redirecionamento
+  const go = ()=>{ try{ window.location.href='/pages/configuracao_voz.html'; }catch(e){} };
+  try{
+    const b = document.getElementById('btnVozWaGerar'); if (b) b.onclick = go;
+    const c = document.getElementById('btnVozWaCopiar'); if (c) c.onclick = go;
+    const o = document.getElementById('btnVozWaAbrir'); if (o) o.onclick = go;
+    const st = document.getElementById('vozWaStatus') || document.getElementById('voiceStatus');
+    if (st) st.innerHTML = 'Configuração de voz: prossiga em <strong>Voz</strong> (próxima etapa).';
+  }catch(_){}
+} else {
   window.__vozwa_new_ui = true;
-
+}
 
 function _vozWaSetText(el, txt){ if (el) el.textContent = (txt == null ? '' : String(txt)); }
 function _vozWaShow(el){ if (el) el.style.display = ''; }
