@@ -104,10 +104,7 @@
     window.API_BASE = "https://mei-robo-prod.onrender.com";
   </script>
 
-<style id="vozwa-simple-css">
-  /* UX simples: Voz via WhatsApp */
-  #vozWaCode, #vozWaMsgReady, #btnVozWaCopiar, #btnVozWaAbrir, #btnVozWaRecarregar, #btnVozWaRefazer { display:none !important; }
-</style>
+
 
 </head>
 <body>
@@ -358,46 +355,9 @@
         </section>
 
         <!-- ====== Voz (upload/gravação + progresso + polling) ====== -->
-        <section class="mt-24" id="sec-voz" style="display:none">
-          <h3>Sua voz (obrigatório) — envio pelo WhatsApp</h3>
-          <p class="hint">
-            Para o MEI Robô falar com a sua voz, você vai enviar áudios <strong>pelo WhatsApp</strong>.
-            Aqui a gente só te guia e mostra o status. (Sem anexar arquivos por aqui.)
-          </p>
+        
+<!-- REMOVIDO (FASE1): seção de voz -->
 
-          
-<!-- REMOVIDO: bloco legado de voz (upload/gravação) -->
-
-          <!-- ====== Voz via WhatsApp (v1.0) — UI nova ====== -->
-<div class="upload-area" id="vozWaArea" style="margin-top:12px;">
-  <div style="display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap;">
-    <div>
-      <strong>Sua voz (pelo WhatsApp)</strong>
-      <span id="vozWaBadge" class="pill pill-pending">aguardando</span>
-      <div class="hint mt-6">
-        É simples: clique no botão abaixo, o WhatsApp vai abrir no seu celular. Aí é só mandar <strong>um áudio de 1–2 minutos</strong> falando normal.
-      </div>
-      <div class="hint mt-6" style="opacity:.85">
-        Dica rápida: diga seu nome, seu serviço e como você atende um cliente (“Oi! Aqui é o ...”).
-      </div>
-      <div id="vozWaErroHumano" class="hint" style="display:none; margin-top:8px;"></div>
-    </div>
-    <div class="hint" style="opacity:.85">
-      <div><strong>Status:</strong> <span id="vozWaStatusText">Aguardando</span></div>
-      <div><small id="vozWaUpdatedAt"></small></div>
-    </div>
-  </div>
-
-  <div class="upload-actions mt-12">
-    <button type="button" class="btn primary" id="btnVozWaGerar">ENVIAR MINHA VOZ NO WHATSAPP</button>
-  </div>
-
-  <audio id="vozWaPlayer" controls style="display:none; margin-top:10px; width:100%"></audio>
-</div>
-
-<!-- ====== /Voz via WhatsApp ====== -->
-
-        </section>
 
         <!-- PATCH 1: esconder botão antigo de salvar/continuar -->
         <div class="mt-24">
@@ -511,8 +471,6 @@
   <script>
     // 🔧 Ajuste: prioriza window.API_BASE (se já definido) e mantém fallback para localStorage/config padrão
     console.log('[configuracao] v2025-12-09-b (com stripe gate heuristico)');
-    // FASE 1: Voz totalmente fora desta página (tudo acontece em /pages/configuracao_voz.html)
-    window.__VOICE_DISABLED_IN_CONFIG__ = true;
     const API_BASE = (window.API_BASE || localStorage.getItem('apiBase') || 'https://mei-robo-prod.onrender.com').replace(/\/+$/, '');
 
     // === REMOVIDO: enforceVerifiedEmail baseado em check-verification, para evitar ping-pong com outras telas ===
@@ -802,600 +760,8 @@
       return { uid, idToken };
     }
     
-        /* ===== Voz via WhatsApp (constantes v1.0) ===== */
-    // FASE 1 (ISOLAMENTO): Voz NÃO roda nesta página. Esta UI aqui é apenas vitrine.
-    // A configuração obrigatória de voz acontece em /pages/configuracao_voz.html
-    window.__VOZWA_DISABLED_IN_CONFIG__ = !!window.__VOICE_DISABLED_IN_CONFIG__;
-    if (window.__VOZWA_DISABLED_IN_CONFIG__) {
-      (function(){
-        const go = ()=>{ try{ window.location.href = '/pages/configuracao_voz.html'; }catch(e){} };
-        const ids = [
-          'btnVozWaGerar','btnVozWaCopiar','btnVozWaAbrir',
-          'btnVozWaGerar2','btnVozWaCopiar2','btnVozWaAbrir2',
-          'btnVozWaCopy','btnVozWaOpen','btnVozWaOpen2'
-        ];
-        for (const id of ids){
-          const el = document.getElementById(id);
-          if (!el) continue;
-          el.onclick = go;
-          // mantém clicável: serve apenas para levar pra próxima etapa
-          if (typeof el.disabled !== 'undefined') el.disabled = false;
-        }
-        const st = document.getElementById('vozWaStatus') || document.getElementById('voiceStatus');
-        if (st) st.innerHTML = 'A voz é configurada na próxima etapa.';
-      })();
-    }
-window.VOICE_WA_NUMBER_E164 = window.VOICE_WA_NUMBER_E164 || '+5551985648608'; // trocar aqui quando virar oficial // ⚠️ trocar em 2–3 dias aqui e só aqui
+        /* REMOVIDO (FASE1): módulo de voz */
 
-    
-    // estado novo (a “verdade” da voz agora vem do backend)
-    const vozWaState = {
-      // dados necessários pro fluxo
-      waNumberE164: null,   // vem de /api/voz/whatsapp/config
-      toE164: null,         // vem do input name="telefone" (config do MEI)
-      code: '',             // código para WhatsApp, gerado por /api/voz/whatsapp/invite
-
-      // status do fluxo
-      status: 'waiting',    // pode ser: waiting | receiving | processing | ready | failed
-      ready: false,         // vai ser atualizado depois de /status (backend)
-
-      polling: false,       // controle de requisição (para não ficar repetindo)
-      stop: false,          // controle de fluxo (caso a operação precise ser abortada)
-      lastError: '',        // erro registrado
-      lastUrl: '',          // última URL (para logs ou debug)
-    };
-
-    /* ===== Voz ===== */
-    // ===== Voz via WhatsApp (v1.0) — constantes e DOM =====
-
-
-async function _fetchVozWaConfig(){
-  try {
-    const ctx = await getAuthContext();
-    const tok = ctx?.idToken || (typeof idToken !== 'undefined' ? idToken : null);
-
-    const headers = {};
-    if (tok) headers['Authorization'] = 'Bearer ' + tok;
-
-    const r = await fetch('/api/voz/whatsapp/config', { method:'GET', headers, cache:'no-store' });
-    const j = await r.json().catch(()=> ({}));
-    if (r.ok && j && j.ok) {
-      vozWaState.waNumberE164 = String(j.waNumberE164 || '').trim() || null;
-      return j;
-    }
-  } catch(_) {}
-  return null;
-}
-
-
-
-/* =========================================================
- * Voz do MEI via WhatsApp — UI simples (1 botão) + status
- * - Sem upload local
- * - Usa backend:
- *   GET  /api/voz/whatsapp/config
- *   GET  /api/voz/whatsapp/status
- *   POST /api/voz/whatsapp/invite
- *   POST /api/voz/whatsapp/reset (opcional/avançado)
- * ========================================================= */
-
-window.vozWaEls = {
-  area: document.getElementById('vozWaArea'),
-  badge: document.getElementById('vozWaBadge'),
-  statusText: document.getElementById('vozWaStatusText'),
-  updatedAt: document.getElementById('vozWaUpdatedAt'),
-
-  // (mantemos no DOM pra compat, mas escondemos no modo simples)
-  code: document.getElementById('vozWaCode'),
-  msgReady: document.getElementById('vozWaMsgReady'),
-  codeHint: document.getElementById('vozWaCodeHint'),
-  erroHumano: document.getElementById('vozWaErroHumano'),
-
-  btnGerar: document.getElementById('btnVozWaGerar'),         // vira o botão único
-  btnCopiar: document.getElementById('btnVozWaCopiar'),       // avançado (escondido)
-  btnAbrir: document.getElementById('btnVozWaAbrir'),         // avançado (escondido)
-  btnRecarregar: document.getElementById('btnVozWaRecarregar'),// avançado (escondido)
-  btnRefazer: document.getElementById('btnVozWaRefazer'),     // avançado (escondido)
-
-  player: document.getElementById('vozWaPlayer'),
-};
-
-// VOICE_WA_PATCH_INVITE_V3: marca UI nova (evita init antigo reclamar/duplicar)
-if (window.__VOICE_DISABLED_IN_CONFIG__) {
-  // FASE 1: qualquer botão de voz aqui vira apenas redirecionamento
-  const go = ()=>{ try{ window.location.href='/pages/configuracao_voz.html'; }catch(e){} };
-  try{
-    const b = document.getElementById('btnVozWaGerar'); if (b) b.onclick = go;
-    const c = document.getElementById('btnVozWaCopiar'); if (c) c.onclick = go;
-    const o = document.getElementById('btnVozWaAbrir'); if (o) o.onclick = go;
-    const st = document.getElementById('vozWaStatus') || document.getElementById('voiceStatus');
-    if (st) st.innerHTML = 'Configuração de voz: prossiga em <strong>Voz</strong> (próxima etapa).';
-  }catch(_){}
-} else {
-  window.__vozwa_new_ui = true;
-}
-
-function _vozWaSetText(el, txt){ if (el) el.textContent = (txt == null ? '' : String(txt)); }
-function _vozWaShow(el){ if (el) el.style.display = ''; }
-function _vozWaHide(el){ if (el) el.style.display = 'none'; }
-
-function _vozWaBadge(kind, txt){
-  const wa = window.vozWaEls;
-  if (!wa || !wa.badge) return;
-  wa.badge.className = 'pill ' + (kind || 'pill-pending');
-  wa.badge.textContent = txt || '';
-}
-
-function _vozWaStatus(txt){
-  const wa = window.vozWaEls;
-  if (!wa) return;
-  _vozWaSetText(wa.statusText, txt || '');
-}
-
-function _vozWaUpdated(iso){
-  const wa = window.vozWaEls;
-  if (!wa || !wa.updatedAt) return;
-  if (!iso) { wa.updatedAt.textContent = ''; return; }
-  try {
-    const d = new Date(iso);
-    if (isNaN(d.getTime())) { wa.updatedAt.textContent = String(iso); return; }
-    const hh = String(d.getHours()).padStart(2,'0');
-    const mm = String(d.getMinutes()).padStart(2,'0');
-    wa.updatedAt.textContent = `${hh}:${mm}`;
-  } catch(_) {
-    wa.updatedAt.textContent = String(iso);
-  }
-}
-
-function _vozWaError(msg){
-  const wa = window.vozWaEls;
-  if (!wa || !wa.erroHumano) return;
-  wa.erroHumano.style.display = msg ? 'block' : 'none';
-  wa.erroHumano.textContent = msg || '';
-}
-
-function _vozWaGetToE164FromForm(){
-  // tenta puxar do input name="telefone" (config do MEI)
-  try {
-    const el = document.querySelector('input[name="telefone"]') || document.getElementById('telefone') || null;
-    const v = (el && el.value) ? String(el.value).trim() : '';
-    return v || null;
-  } catch(_) { return null; }
-}
-async function _vozWaFetch(path, opts){
-  // FASE 1 (ISOLAMENTO): não chamar backend de voz nesta página
-  if (window.__VOZWA_DISABLED_IN_CONFIG__ || window.__VOICE_DISABLED_IN_CONFIG__) {
-    return { ok:false, status:0, disabled:true, data:null };
-  }
-  // VOICE_WA_PATCH_INVITE_V4: token sempre anexado (evita 401 por timing)
-  let tok = null;
-  if (path && path[0] !== "/") path = "/" + path;
-
-  // 1) tenta currentUser imediato
-  try{
-    if (window.firebase && firebase.auth && firebase.auth().currentUser) {
-      tok = await firebase.auth().currentUser.getIdToken(true);
-    }
-  }catch(_){}
-
-  // 2) se não veio, espera o onAuthStateChanged (resolve “currentUser null” intermitente)
-  if (!tok) {
-    try{
-      await new Promise((resolve, reject)=>{
-        if (!window.firebase || !firebase.auth) return reject(new Error("firebase_not_loaded"));
-        const unsub = firebase.auth().onAuthStateChanged(async (u)=>{
-          try{
-            if (u) tok = await u.getIdToken(true);
-            try{ if (typeof unsub === "function") unsub(); }catch(_){}
-            resolve();
-          }catch(e){
-            try{ if (typeof unsub === "function") unsub(); }catch(_){}
-            reject(e);
-          }
-        });
-        setTimeout(()=>{
-          try{ if (typeof unsub === "function") unsub(); }catch(_){}
-          reject(new Error("auth_timeout"));
-        }, 2500);
-      });
-    }catch(_){}
-  }
-
-  // 3) fallback opcional (se existir nesse escopo)
-  if (!tok) {
-    try{ if (typeof getIdTokenSafe === "function") tok = await getIdTokenSafe(); }catch(_){}
-  }
-
-  const headers = Object.assign({}, (opts && opts.headers) || {});
-  if (tok) headers["Authorization"] = "Bearer " + tok;
-
-  const finalOpts = Object.assign({ cache:"no-store", headers }, opts || {});
-  const base = (window.API_BASE || "https://mei-robo-prod.onrender.com");
-
-  const r = await fetch(base + path, finalOpts);
-  const ct = (r.headers.get("content-type") || "").toLowerCase();
-  const body = ct.includes("application/json") ? await r.json().catch(()=>({})) : await r.text().catch(()=>"");
-  return { ok:r.ok, status:r.status, body };
-}
-function _vozWaApplyStatus(payload){
-  const wa = window.vozWaEls;
-  const s = String(payload?.status || payload?.state || payload?.phase || 'waiting').toLowerCase();
-  const updatedAt = payload?.updatedAt || payload?.updated_at || payload?.lastAt || payload?.last_at || '';
-  _vozWaUpdated(updatedAt);
-
-  if (s === 'ready' || s === 'saved' || payload?.ready === true) {
-    _vozWaBadge('pill-active', 'pronto');
-    _vozWaStatus('Voz pronta ✅');
-  } else if (s === 'receiving') {
-    _vozWaBadge('pill-prov', 'recebendo…');
-    _vozWaStatus('Recebendo seu áudio no WhatsApp…');
-  } else if (s === 'processing') {
-    _vozWaBadge('pill-prov', 'processando…');
-    _vozWaStatus('Processando sua voz…');
-  } else if (s === 'failed') {
-    _vozWaBadge('pill-failed', 'falhou');
-    _vozWaStatus('Falhou');
-  } else {
-    _vozWaBadge('pill-pending', 'aguardando');
-    _vozWaStatus('Aguardando sua voz');
-  }
-
-  // player (se backend retornar url)
-  try {
-    const url = payload?.audioUrl || payload?.audio_url || payload?.previewUrl || payload?.preview_url || '';
-    if (wa?.player) {
-      if (url) {
-        wa.player.src = url;
-        wa.player.style.display = 'block';
-      } else {
-        wa.player.style.display = 'none';
-      }
-    }
-  } catch(_) {}
-}
-
-async function _vozWaPollStatus(stopAfterMs){
-  const started = Date.now();
-  while (Date.now() - started < (stopAfterMs || 120000)) {
-    try {
-      const out = await _vozWaFetch('/api/voz/whatsapp/status', { method:'GET' });
-      if (out.ok && out.body && out.body.ok) {
-        _vozWaApplyStatus(out.body);
-        if (out.body.ready === true || String(out.body.status||'').toLowerCase()==='ready') return;
-      }
-    } catch(_) {}
-    await new Promise(r => setTimeout(r, 4000));
-  }
-}
-
-async function setupVoice(uid, idTokenParam){
-  const wa = window.vozWaEls;
-  if (!wa || !wa.area) return;
-
-  // modo simples: esconder tudo que confunde
-  _vozWaHide(wa.code);
-  _vozWaHide(wa.msgReady);
-  _vozWaHide(wa.codeHint);
-  _vozWaHide(wa.btnCopiar);
-  _vozWaHide(wa.btnAbrir);
-  _vozWaHide(wa.btnRecarregar);
-  _vozWaHide(wa.btnRefazer);
-
-  // botão único
-  if (wa.btnGerar) {
-    wa.btnGerar.textContent = 'ENVIAR MINHA VOZ NO WHATSAPP';
-    wa.btnGerar.classList.add('primary');
-  }
-
-  _vozWaError('');
-  _vozWaBadge('pill-pending', 'aguardando');
-  _vozWaStatus('Aguardando sua voz');
-  _vozWaUpdated('');
-
-  // carrega config (número oficial) e status inicial
-  try {
-    const cfg = await _vozWaFetch('/api/voz/whatsapp/config', { method:'GET' });
-    if (!cfg.ok) {
-      _vozWaError('Não consegui carregar a configuração de voz agora. Recarregue a página.');
-    }
-  } catch(_) {}
-
-  try {
-    const st = await _vozWaFetch('/api/voz/whatsapp/status', { method:'GET' });
-    if (st.ok && st.body && st.body.ok) _vozWaApplyStatus(st.body);
-  } catch(_) {}
-
-  if (wa.btnGerar) {
-    wa.btnGerar.onclick = async () => {
-      wa.btnGerar.disabled = true;
-      _vozWaError('');
-      _vozWaBadge('pill-prov', 'preparando…');
-      _vozWaStatus('Abrindo seu WhatsApp…');
-
-      try {
-        // 1) garante config (pega número oficial)
-        const cfg = await _vozWaFetch('/api/voz/whatsapp/config', { method:'GET' });
-        const waNumber = (cfg.body && cfg.body.waNumberE164) ? String(cfg.body.waNumberE164) : '';
-
-        // 2) gera convite/código
-        let toE164 = _vozWaGetToE164FromForm();
-        if (!toE164) {
-          _vozWaBadge('pill-failed', 'atenção');
-          _vozWaStatus('Preencha seu WhatsApp (com DDD) antes de gerar o convite.');
-          _vozWaError('Informe seu número no campo Telefone/WhatsApp e tente novamente.');
-          return;
-        }
-        const invite = await _vozWaFetch('/api/voz/whatsapp/invite', {
-          method:'POST',
-          headers: { 'Content-Type':'application/json' },
-          body: JSON.stringify({ toE164 })
-        });
-
-        if (!invite.ok || !invite.body || !invite.body.ok) {
-          _vozWaBadge('pill-failed', 'falhou');
-          _vozWaStatus('Não consegui iniciar agora');
-          _vozWaError(invite.body?.error || 'Não consegui iniciar agora. Tente novamente.');
-          return;
-        }
-
-        const code = String(invite.body.code || '').trim();
-        const num = String(invite.body.waNumberE164 || waNumber || '').replace(/\D/g,'');
-        const msg = `MEIROBO VOZ ${code}`;
-        const url = 'https://wa.me/' + num + '?text=' + encodeURIComponent(msg);
-
-        window.open(url, '_blank', 'noopener');
-
-        _vozWaBadge('pill-prov', 'aguardando…');
-        _vozWaStatus('Envie o áudio no WhatsApp (1–2 min falando normal).');
-        // polling curto
-        _vozWaPollStatus(180000);
-      } catch(e){
-        _vozWaBadge('pill-failed', 'falhou');
-        _vozWaStatus('Falha');
-        _vozWaError('Falha ao abrir o WhatsApp. Tente novamente.');
-      } finally {
-        wa.btnGerar.disabled = false;
-      }
-    };
-  }
-}
-    /* ===== Helpers empresa/CNPJ ===== */
-    function getField(obj, keys){
-      for (const k of keys){
-        if (obj && obj[k] != null && obj[k] !== '') return obj[k];
-      }
-      return '';
-    }
-    function pickCNAE(empresa){
-      const c1 = empresa.cnaePrincipal || empresa.cnae_principal || null;
-      if (c1 && (c1.codigo || c1.descricao)) return c1;
-      const arr = empresa.cnaes || empresa.cnaesPrincipais || [];
-      return Array.isArray(arr) && arr.length ? arr[0] : {};
-    }
-    async function fetchJson(url, headers) {
-      const r = await fetch(url, { headers: headers || {}, cache: 'no-store' });
-      if (!r.ok) throw new Error('HTTP ' + r.status);
-      return r.json();
-    }
-    function formatEnderecoFrom(empresa){
-      const e = empresa?.endereco || {};
-      const municipio = (typeof e.municipio === 'object') ? (e.municipio.nome || e.municipio.sigla || '') : (e.municipio || '');
-      const uf        = (typeof e.uf === 'object')        ? (e.uf.sigla || e.uf.nome || '')        : (e.uf || '');
-      const parts = [e.logradouro, e.numero, e.bairro, municipio, uf, e.cep].filter(Boolean);
-      return parts.join(', ');
-    }
-
-    function populateFromEmpresa(empresa) {
-      if (!empresa) return;
-      const cnpjRaw = getField(empresa, ['cnpj','cnpjSemMascara','cnpj_sem_mascara','cnpj_basico','id']);
-      const cnpjDig = onlyDigits(cnpjRaw || '');
-      if (cnpjDig) { dCnpj.textContent = cnpjDig; hCnpj.value = cnpjDig; }
-
-      const legal = getField(empresa, ['razaoSocial','razao_social','nomeEmpresarial','legal_name']);
-      const trade = getField(empresa, ['nomeFantasia','nome_fantasia','trade_name']);
-      if (legal) { dLegal.textContent = legal; hLegal.value = legal; }
-      if (trade) { dTrade.textContent = trade; hTrade.value = trade; }
-
-      const cnae = pickCNAE(empresa);
-      const seg = [cnae.codigo, cnae.descricao].filter(Boolean).join(' — ');
-      if (seg) { dSeg.textContent = seg; hSeg.value = seg; }
-
-      // ===== situação, abertura e endereço (somente leitura)
-      const situ = getField(empresa, ['situacao']);
-      const abrt = getField(empresa, ['dataAbertura','abertura','data_inicio_atividade']);
-      const end  = formatEnderecoFrom(empresa);
-      if (situ){ dSitu.textContent = situ; hSitu.value = situ; }
-      if (abrt){ dAber.textContent = abrt.includes('-') ? formatDateBR(abrt) : abrt; hAber.value = abrt; }
-      if (end){  dEnd.textContent = end; hEnd.value = end; }
-    }
-
-    async function loadEmpresaFromContaStatus(uid, idToken) {
-      try {
-        if (!uid) return null;
-        const headers = {}; 
-        if (idToken) headers['Authorization'] = 'Bearer ' + idToken;
-        const j = await fetchJson(`${API_BASE}/api/conta/status?uid=${encodeURIComponent(uid)}`, headers);
-
-        if (j && j.empresa) {
-          populateFromEmpresa(j.empresa);
-          const municipio = j.empresa?.endereco?.municipio || j.empresa?.municipio || '';
-          const uf = j.empresa?.endereco?.uf || j.empresa?.uf || '';
-          if (cnpjVinculoHint && (municipio || uf)) {
-            cnpjVinculoHint.textContent =
-              `CNPJ encontrado na Receita Federal (${municipio}${uf ? ' / ' + uf : ''}). ` +
-              `Isso confirma apenas os dados da empresa. O vínculo do responsável será verificado durante a ativação do número.`;
-          }
-        } else if (j && typeof j === 'object') {
-          populateFromEmpresa(j);
-          const municipio = j?.endereco?.municipio || j?.municipio || '';
-          const uf = j?.endereco?.uf || j?.uf || '';
-          if (cnpjVinculoHint && (municipio || uf)) {
-            cnpjVinculoHint.textContent =
-              `CNPJ encontrado na Receita Federal (${municipio}${uf ? ' / ' + uf : ''}). ` +
-              `Isso confirma apenas os dados da empresa. O vínculo do responsável será verificado durante a ativação do número.`;
-          }
-        }
-        
-        // 🔴 NOVO: detectar se a conta já está ativa/licenciada
-        try {
-          const lic = j && j.licenca ? j.licenca : null;
-          if (lic) {
-            const origemRaw = String(lic.origem || '').toLowerCase();
-            const statusRaw = String(lic.status || '').toLowerCase();
-
-            const origemEhCupom = origemRaw.startsWith('cupom');
-            const statusAtivo =
-              statusRaw === 'ativa' ||
-              statusRaw === 'active' ||
-              statusRaw === 'trial' ||
-              statusRaw === 'trialing';
-
-            if (origemEhCupom || statusAtivo) {
-              contaAtiva = true;
-              console.log('[configuracao] contaAtiva=true (licenca)', lic);
-            }
-          }
-
-          // fallback: alguns backends podem mandar status/origem soltos
-          const licencaStatusSolto = String(j?.licencaStatus || '').toLowerCase();
-          const licencaOrigemSolta = String(j?.licencaOrigem || '').toLowerCase();
-          if (!contaAtiva) {
-            const origemCupomSolta = licencaOrigemSolta.startsWith('cupom');
-            const statusAtivoSolto =
-              licencaStatusSolto === 'ativa' ||
-              licencaStatusSolto === 'active' ||
-              licencaStatusSolto === 'trial' ||
-              licencaStatusSolto === 'trialing';
-            if (origemCupomSolta || statusAtivoSolto) {
-              contaAtiva = true;
-              console.log('[configuracao] contaAtiva=true (licenca solta)', {
-                licencaStatusSolto,
-                licencaOrigemSolta,
-              });
-            }
-          }
-        } catch (e) {
-          console.warn('[configuracao] falha ao interpretar licenca em /api/conta/status', e);
-        }
-
-        return j;
-
-      } catch (_) {
-        return null;
-      }
-    }
-
-    // ======= configuração/CNPJ inline (como estava) =======>
-    async function fetchConfig(tok){
-      const r = await fetch(`${API_BASE}/api/configuracao`, { headers: { "Authorization": tok ? ("Bearer " + tok) : "", "Accept":"application/json" } });
-      if (!r.ok) throw new Error("config_fetch_failed");
-      return r.json();
-    }
-    async function postConfigCNPJ(tok, cnpj){
-      const r = await fetch(`${API_BASE}/api/configuracao`, {
-        method: "POST",
-        headers: { "Authorization": tok ? ("Bearer " + tok) : "", "Content-Type":"application/json", "Accept":"application/json" },
-        body: JSON.stringify({ cnpj })
-      });
-      return r;
-    }
-    async function checkCnpjAvailability(cnpj){
-      const r = await fetch(`${API_BASE}/api/cnpj/availability?cnpj=` + onlyDigits(cnpj));
-      return r.ok;
-    }
-
-    /* ===== Buscar DETALHES do CNPJ (público) ===== */
-    async function fetchEmpresaDetalhes(cnpj14){
-      const c = onlyDigits(cnpj14||'');
-      if (!c || c.length !== 14) return null;
-      const urls = [
-        `${API_BASE}/api/cnpj/${c}`,
-        `${API_BASE}/integracoes/cnpj/${c}`, // fallback legado
-      ];
-      for (const u of urls){
-        try {
-          const j = await fetchJson(u);
-          if (j && typeof j === 'object') return j;
-        } catch(_) {}
-      }
-      return null;
-    }
-
-    /* ===== Stripe Gate: usar o que o backend já sabe sobre pagamento/cupom ===== */
-    async function aplicarHeuristicaStripeGate(idToken) {
-      try {
-        // Se veio do dashboard, não deixamos o Stripe mudar o destino
-        if (veioDoDashboard) {
-          console.log('[configuracao] origem=dashboard → ignorando stripe/gate, destinoPosConfig=', destinoPosConfig);
-          return;
-        }
-
-        const headers = {};
-        if (idToken) {
-          headers['Authorization'] = 'Bearer ' + idToken;
-        }
-
-        const resp = await fetch(`${API_BASE}/api/stripe/gate`, {
-          method: 'GET',
-          headers,
-          cache: 'no-store'
-        });
-
-        if (!resp.ok) {
-          console.warn('[configuracao] stripe/gate não-ok:', resp.status);
-          return;
-        }
-
-        const j = await resp.json().catch(() => null);
-        if (!j || typeof j !== 'object') {
-          console.warn('[configuracao] stripe/gate retornou payload inesperado:', j);
-          return;
-        }
-
-        // Vários nomes possíveis, para não depender de um único contrato.
-        const requiresPayment =
-          (typeof j.requiresPayment === 'boolean') ? j.requiresPayment : null;
-        const canSkipPayment =
-          (typeof j.canSkipPayment === 'boolean') ? j.canSkipPayment : null;
-
-        const statusRaw =
-          String(j.status || j.licencaStatus || '').toLowerCase();
-        const origemRaw =
-          String(j.origem || j.licencaOrigem || '').toLowerCase();
-
-        let liberarPainel = false;
-
-        // 1) Sinal direto
-        if (canSkipPayment === true) liberarPainel = true;
-        if (requiresPayment === false) liberarPainel = true;
-
-        // 2) Origem baseada em cupom
-        if (origemRaw.startsWith('cupom')) {
-          liberarPainel = true;
-        }
-
-        // 3) Status de licença "ativa"
-        if (
-          statusRaw === 'ativa' ||
-          statusRaw === 'active' ||
-          statusRaw === 'trial' ||
-          statusRaw === 'trialing'
-        ) {
-          liberarPainel = true;
-        }
-
-        if (liberarPainel) {
-          destinoPosConfig = '/pages/dashboard.html';
-          console.log('[configuracao] stripe/gate liberou painel; destinoPosConfig ajustado para dashboard', j);
-        } else {
-          console.log('[configuracao] stripe/gate não liberou painel explicitamente; mantendo destinoPosConfig=', destinoPosConfig, j);
-        }
-      } catch (e) {
-        console.warn('[configuracao] erro ao consultar stripe/gate:', e);
-      }
-    }
-
-    /* ===== AGENDA: helpers ===== */
     function normalizeAgendaConfig(raw){
       const cfg = (raw && typeof raw === 'object') ? raw : {};
       const dias = (Array.isArray(cfg.diasAtendimento) && cfg.diasAtendimento.length)
@@ -1499,9 +865,8 @@ async function setupVoice(uid, idTokenParam){
     // PATCH 3 — lógica da "configuração inicial concluída"
     function isConfigInicialConcluida() {
       // 1) Voz (v1.0 WhatsApp): conta como pronta quando o backend disser "saved/ready"
-      const okVoz = !!(vozWaState && vozWaState.ready);
-
-      // 2) Agenda: já salva no backend (carregada ou recém-salva)
+      const okVoz = true; // FASE1: voz fora desta página
+// 2) Agenda: já salva no backend (carregada ou recém-salva)
       const okAgenda = !!agendaSavedOk;
 
       // 3) Config mínima de conta: CNPJ + Nome + Email
@@ -1634,10 +999,8 @@ async function setupVoice(uid, idTokenParam){
       if (!agendaFormEl) return;
 
       // 1) Voz obrigatória para avançar (WhatsApp v1.0)
-if (!vozWaState || !vozWaState.ready) {
-  const msg = 'Antes de continuar, envie sua voz pelo WhatsApp (código de voz + áudio).';
-  setAgendaMessage(msg, 'error');
-  try { document.getElementById('sec-voz')?.scrollIntoView({ behavior:'smooth', block:'start' }); } catch(_) {}
+/* FASE1: voz fora desta página (sem gate) */
+); } catch(_) {}
   return;
 }
 
@@ -1841,14 +1204,14 @@ if (!vozWaState || !vozWaState.ready) {
         // 3) Senão, se statusAtivacao tiver algum valor diferente de "aguardando-voz" → painel (fallback legado)
         // 4) Caso contrário → tela de conclusão de assinatura
         if (!veioDoDashboard) {
-          // 🔒 FASE 1 (isolamento): configuracao.html NÃO ativa conta e NÃO processa voz.
-          // Regra saudável:
-          // - Se já estiver "ok" (licença ativa/cupom/config ou conta ativa), volta para o painel.
-          // - Caso contrário (onboarding ainda pendente), encaminha para a tela de VOZ (obrigatória).
-          if (origemEhCupomCfg || statusAtivoCfg || contaAtiva) {
+          if (origemEhCupomCfg || statusAtivoCfg) {
+            destinoPosConfig = '/pages/dashboard.html';
+          } else if (contaAtiva) {
+            destinoPosConfig = '/pages/dashboard.html';
+          } else if (statusAtivacao && statusAtivacao.toLowerCase() !== 'aguardando-voz') {
             destinoPosConfig = '/pages/dashboard.html';
           } else {
-            destinoPosConfig = '/pages/configuracao_voz.html';
+            destinoPosConfig = '/pages/ativar-cliente.html';
           }
         }
 
@@ -1908,14 +1271,6 @@ if (!vozWaState || !vozWaState.ready) {
         if (data.emojis) fEmojis.value = data.emojis;
         if (data.saudacao) fSaud.value = data.saudacao;
         if (data.display_name) fDisp.value = data.display_name;
-        // Onboarding: não auto-preencher "Como você costuma ser chamado?" (evita efeito "obrigatório")
-        try {
-          if (!veioDoDashboard) {
-            const autoName = (user?.displayName || (data.nome || '') || '').trim();
-            const cur = (fDisp.value || '').trim();
-            if (cur && autoName && cur === autoName) fDisp.value = '';
-          }
-        } catch(_){ }
         if (data.closing_text) fClose.value = data.closing_text;
         if (data.janela_resposta) {
           fJanela.value = data.janela_resposta;
@@ -1966,14 +1321,9 @@ if (!vozWaState || !vozWaState.ready) {
           } catch(_){}
         }
 
-        // Voz: isolada nesta página (FASE 1) — tudo em /pages/configuracao_voz.html
-        if (!window.__VOICE_DISABLED_IN_CONFIG__) {
-          setupVoice(uid, idToken);
-        }
-        // WABA status: não precisa rodar quando veio do dashboard (evita 404/barulho)
-        if (!veioDoDashboard) {
-          await loadWabaStatus(uid, idToken);
-        }
+        // Voz/WABA como já estava (com novo setupVoice)
+        setupVoice(uid, idToken);
+        await loadWabaStatus(uid, idToken);
 
         // Agenda (nova): carregamento + form
         await setupAgendaConfig();
@@ -2186,159 +1536,8 @@ if (!vozWaState || !vozWaState.ready) {
         else document.getElementById('public_brand').setAttribute('disabled','disabled');
       });
     }
-    /* ===== PATCH: initVozWaUI (liga a seção “Voz via WhatsApp”) ===== */
-    (function initVozWaUI(){
-  function $(id){ return document.getElementById(id); }
-
-  function mount(){
-    const wa = {
-      area: $("vozWaArea"),
-      badge: $("vozWaBadge"),
-      statusText: $("vozWaStatusText"),
-      updatedAt: $("vozWaUpdatedAt"),
-      code: $("vozWaCode"),
-      msgReady: $("vozWaMsgReady"),
-      codeHint: $("vozWaCodeHint"),
-      erroHumano: $("vozWaErroHumano"),
-      btnGerar: $("btnVozWaGerar"),
-      btnCopiar: $("btnVozWaCopiar"),
-      btnAbrir: $("btnVozWaAbrir"),
-      btnRecarregar: $("btnVozWaRecarregar"),
-      btnRefazer: $("btnVozWaRefazer"),
-      player: $("vozWaPlayer"),
-    };
-
-    // expõe para debug
-    window.vozWaEls = wa;
-
-    if (window.__vozwa_new_ui) { return; }
-
-    if (!wa.area || !wa.btnGerar || !wa.code || !wa.msgReady) {
-      console.warn('[voz-wa] elementos não encontrados (DOM incompleto).');
-      return;
-    }
-
-    const numberE164 = String(window.VOICE_WA_NUMBER_E164 || '').trim() || '+5551985648608';
-    const waDigits = numberE164.replace(/\D+/g,''); // só números
-    const waMeBase = `https://wa.me/${waDigits}`;
-
-    function showErr(msg){
-      if (!wa.erroHumano) return;
-      wa.erroHumano.style.display = msg ? 'block' : 'none';
-      wa.erroHumano.textContent = msg || '';
-    }
-
-    function setReadyMsg(code){
-      showErr('');
-      wa.code.value = code;
-      wa.msgReady.value = `MEIROBO VOZ ${code}`;
-      if (wa.btnCopiar) wa.btnCopiar.disabled = false;
-
-      if (wa.btnAbrir) {
-        wa.btnAbrir.href = `${waMeBase}?text=${encodeURIComponent(wa.msgReady.value)}`;
-      }
-      if (wa.codeHint) wa.codeHint.textContent = 'Copie a mensagem pronta e envie no WhatsApp.';
-    }
-
-    // Gera o código local (MVP seguro) — sem backend aqui
-    function genCode(){
-      return Math.random().toString(36).slice(2, 8).toUpperCase();
-    }
-
-    wa.btnGerar.addEventListener('click', async ()=> {
-      // Segurança máxima: muda só o fluxo da voz WA, sem tocar no resto da página.
-      if (!wa.btnGerar) return;
-      wa.btnGerar.disabled = true;
-      try{
-        showErr('');
-        if (wa.statusText) wa.statusText.textContent = 'Gerando código...';
-
-        // Pega telefone do MEI (NÃO altera o campo, só lê)
-        const telEl = document.querySelector('input[name="telefone"], input[name="whatsapp"], #whatsapp');
-        const toRaw = (telEl && telEl.value ? String(telEl.value) : '').trim();
-
-        if (!toRaw || toRaw.length < 8) {
-          showErr('Preencha seu WhatsApp e clique em Salvar antes de enviar a voz.');
-          if (wa.statusText) wa.statusText.textContent = 'WhatsApp do MEI não preenchido.';
-          return;
-        }
-
-        // 1) Gera o código no backend (fonte da verdade)
-        const linkPayload = await apiFetchJson(`${API_BASE}/api/voz/whatsapp/link`, {
-          method: 'POST',
-          body: JSON.stringify({})
-        });
-
-        const code = (linkPayload && linkPayload.code) ? String(linkPayload.code).trim() : '';
-        if (!code) {
-          showErr('Não foi possível gerar o código. Tente novamente.');
-          if (wa.statusText) wa.statusText.textContent = 'Falha ao gerar código.';
-          return;
-        }
-
-        // Atualiza UI (mensagem pronta: "MEIROBO VOZ <CODE>")
-        setReadyMsg(code);
-        if (wa.statusText) wa.statusText.textContent = 'Código gerado. Agora registrando seu WhatsApp...';
-
-        // 2) Registra/autoriza o remetente no backend (e tenta invite outbound se estiver ligado)
-        const invitePayload = await apiFetchJson(`${API_BASE}/api/voz/whatsapp/invite`, {
-          method: 'POST',
-          body: JSON.stringify({ toE164: toRaw })
-        });
-
-        if (wa.badge) wa.badge.textContent = 'Pronto';
-        if (wa.statusText) wa.statusText.textContent = 'Pronto: copie a mensagem e envie no WhatsApp.';
-        if (wa.updatedAt) wa.updatedAt.textContent = 'agora';
-        // Se o backend retornou next/detalhe, não “inventamos” — só exibimos se já existir na UI.
-        // (mantemos silêncio para não interferir em outros fluxos)
-      }catch(e){
-        const status = e && (e.status || e.statusCode);
-        const body = e && e.body;
-        console.error('[voz-wa] falha invite/link', e);
-
-        if (status === 401) {
-          showErr('Sessão expirada. Faça login novamente e tente de novo.');
-          if (wa.statusText) wa.statusText.textContent = 'Não autenticado (401).';
-          return;
-        }
-        if (status === 403) {
-          showErr('Seu número não está autorizado para teste ainda (403).');
-          if (wa.statusText) wa.statusText.textContent = 'Não autorizado (403).';
-          return;
-        }
-        if (status === 400) {
-          const hint = (body && body.hint) ? String(body.hint) : '';
-          showErr(hint || 'WhatsApp inválido. Preencha com DDD e clique em Salvar.');
-          if (wa.statusText) wa.statusText.textContent = 'Dados inválidos (400).';
-          return;
-        }
-
-        showErr('Falha ao preparar a voz via WhatsApp. Recarregue a página e tente novamente.');
-        if (wa.statusText) wa.statusText.textContent = 'Falha no preparo da voz.';
-      }finally{
-        wa.btnGerar.disabled = false;
-      }
-    });
-if (wa.btnCopiar){
-      wa.btnCopiar.addEventListener('click', async ()=> {
-        try{
-          await navigator.clipboard.writeText(wa.msgReady.value || '');
-          if (wa.codeHint) wa.codeHint.textContent = 'Copiado ✅ Agora é só colar no WhatsApp.';
-        }catch(_){
-          if (wa.codeHint) wa.codeHint.textContent = 'Copie manualmente a mensagem pronta e cole no WhatsApp.';
-        }
-      });
-    }
-
-    console.log('[voz-wa] UI ligada. number=', numberE164);
-  }
-
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', mount);
-  } else {
-    mount();
-  }
-})();</script>
+    
+</script>
 
   <script>
     (function(){
@@ -2418,7 +1617,6 @@ if (wa.btnCopiar){
 /* ===== INIT: Agenda compacta + Voz via WhatsApp (sem painel de avião) =====
  * - Mantém CNPJ do arquivo canônico
  * - Agenda: usa os IDs do sec-agenda (compacto)
- * - Voz: usa o botão único #btnVozWaGerar e integra com backend (invite) quando existir
  */
 (function(){
   function $(id){ return document.getElementById(id); }
@@ -2573,58 +1771,8 @@ if (wa.btnCopiar){
     load();
   })();
 
-  // ===== VOZ via WhatsApp (botão único) =====
-  (function initVozWaSimple(){
-    if (window.__vozwa_new_ui) return; // ✅ não sobrescrever a UI nova
-    window.__vozwa_new_ui = true;      // ✅ trava multiverso: garante dono único do botão
-    const btn = $("btnVozWaGerar");
-    const player = $("voicePlayer");
-    if (!btn) return;
-
-    function toast(msg){
-      try{
-        const el = $("vozWaStatus") || $("voiceStatus") || null;
-        if (el) el.innerHTML = esc(msg);
-      }catch(e){}
-    }
-
-    btn.onclick = async ()=>{
-      btn.disabled = true;
-      toast("Gerando instrução…");
-      try{
-        const base = (window.API_BASE || "https://mei-robo-prod.onrender.com");
-        const t = await getIdTokenSafe();
-        if (!t) throw new Error("no_token");
-        const toE164 =
-          (window.__vozWa_toE164 && String(window.__vozWa_toE164).trim()) ||
-          (($("whatsapp") || $("telefone") || $("phone") || null) ? (String(( $("whatsapp")||$("telefone")||$("phone") ).value||"").trim()) : "");
-
-        if (!toE164 || toE164.length < 8) {
-          toast("Preencha seu WhatsApp (com +55...) e clique em Salvar antes de enviar a voz.");
-          return;
-        }
-        const payload = await (await fetch(base + "/api/voz/whatsapp/invite", { method:"POST", headers:{ "Authorization":"Bearer " + t, "Content-Type":"application/json" }, body: JSON.stringify({ toE164 }) })).json();
-        // backend deve devolver link/message/código; tratamos tudo na boa
-        const code = payload && (payload.code || payload.codigo || payload.inviteCode);
-        const waLink = payload && (payload.wa_link || payload.waLink || payload.link || payload.url);
-        const msg = payload && (payload.message || payload.msg);
-        if (waLink){
-          window.open(waLink, "_blank", "noopener");
-          toast("Pronto. Envie o áudio no WhatsApp ✅");
-        }else if (msg){
-          navigator.clipboard?.writeText(msg).catch(()=>{});
-          toast("Copiei a mensagem. Cole no WhatsApp ✅");
-        }else{
-          toast(code ? ("Código gerado: " + esc(code)) : "Instrução gerada ✅");
-        }
-      }catch(e){
-        toast("Não consegui iniciar agora. Verifique login e tente de novo.");
-      }finally{
-        btn.disabled = false;
-      }
-    };
-  })();
-
+  
+/* REMOVIDO (FASE1): voz-wa-ui (voz fora desta página) */
 })();
 </script>
 
@@ -2714,32 +1862,8 @@ if (wa.btnCopiar){
 
 <!-- ===== /PATCH ===== -->
 
-
-<script>
-/* FASE 1: isolador de voz (configuracao.html)
- * - garante que nenhum handler de voz fique ativo aqui
- * - qualquer clique em botões de voz vira redirecionamento
- */
-(function(){
-  try{
-    if (!window.__VOICE_DISABLED_IN_CONFIG__) return;
-    const go = ()=>{ try{ window.location.href='/pages/configuracao_voz.html'; }catch(e){} };
-    const ids = [
-      'btnVozWaGerar','btnVozWaCopiar','btnVozWaAbrir',
-      'btnVozWaGerar2','btnVozWaCopiar2','btnVozWaAbrir2',
-      'btnVozWaCopy','btnVozWaOpen','btnVozWaOpen2'
-    ];
-    for (const id of ids){
-      const el = document.getElementById(id);
-      if (el) el.onclick = go;
-    }
-  }catch(e){}
-})();
-</script>
 </body>
 </html>
-
-
 
 
 
