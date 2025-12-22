@@ -1,22 +1,8 @@
-# OS / editor
-.DS_Store
-Thumbs.db
-
-# Firebase
-.firebase/
-.cache/
-
-# Node
-**/node_modules/
-
-# Logs
-npm-debug.log*
-yarn-error.log*
-
 # Misc
 *.local
 idtoken.json
 idtoken.txt
+admin_idtoken.txt
 signin.json
 signin_resp.json
 token.json
