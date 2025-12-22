@@ -17,8 +17,6 @@
   <script defer src="/__/firebase/9.22.2/firebase-auth-compat.js"></script>
   <script defer src="/__/firebase/init.js"></script>
   <script>
-    // FASE 1 (isolamento): configuracao.html NÃO processa voz. Voz obrigatória só em /pages/configuracao_voz.html
-    window.__VOICE_DISABLED_IN_CONFIG__ = true;
     // Ajuste de idioma do e-mail/verificações, e log defensivo de inicialização
     window.addEventListener('load', () => {
       try {
@@ -360,7 +358,7 @@
         </section>
 
         <!-- ====== Voz (upload/gravação + progresso + polling) ====== -->
-        <section class="mt-24" id="sec-voz">
+        <section class="mt-24" id="sec-voz" style="display:none">
           <h3>Sua voz (obrigatório) — envio pelo WhatsApp</h3>
           <p class="hint">
             Para o MEI Robô falar com a sua voz, você vai enviar áudios <strong>pelo WhatsApp</strong>.
@@ -371,7 +369,7 @@
 <!-- REMOVIDO: bloco legado de voz (upload/gravação) -->
 
           <!-- ====== Voz via WhatsApp (v1.0) — UI nova ====== -->
-<div class="upload-area" id="vozWaArea" style="margin-top:12px; display:none">
+<div class="upload-area" id="vozWaArea" style="margin-top:12px;">
   <div style="display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap;">
     <div>
       <strong>Sua voz (pelo WhatsApp)</strong>
@@ -513,6 +511,8 @@
   <script>
     // 🔧 Ajuste: prioriza window.API_BASE (se já definido) e mantém fallback para localStorage/config padrão
     console.log('[configuracao] v2025-12-09-b (com stripe gate heuristico)');
+    // FASE 1: Voz totalmente fora desta página (tudo acontece em /pages/configuracao_voz.html)
+    window.__VOICE_DISABLED_IN_CONFIG__ = true;
     const API_BASE = (window.API_BASE || localStorage.getItem('apiBase') || 'https://mei-robo-prod.onrender.com').replace(/\/+$/, '');
 
     // === REMOVIDO: enforceVerifiedEmail baseado em check-verification, para evitar ping-pong com outras telas ===
@@ -823,7 +823,6 @@
         }
         const st = document.getElementById('vozWaStatus') || document.getElementById('voiceStatus');
         if (st) st.innerHTML = 'A voz é configurada na próxima etapa.';
-        console.log('[configuracao] voz isolada (Fase 1).');
       })();
     }
 window.VOICE_WA_NUMBER_E164 = window.VOICE_WA_NUMBER_E164 || '+5551985648608'; // trocar aqui quando virar oficial // ⚠️ trocar em 2–3 dias aqui e só aqui
@@ -1909,6 +1908,14 @@ if (!vozWaState || !vozWaState.ready) {
         if (data.emojis) fEmojis.value = data.emojis;
         if (data.saudacao) fSaud.value = data.saudacao;
         if (data.display_name) fDisp.value = data.display_name;
+        // Onboarding: não auto-preencher "Como você costuma ser chamado?" (evita efeito "obrigatório")
+        try {
+          if (!veioDoDashboard) {
+            const autoName = (user?.displayName || (data.nome || '') || '').trim();
+            const cur = (fDisp.value || '').trim();
+            if (cur && autoName && cur === autoName) fDisp.value = '';
+          }
+        } catch(_){ }
         if (data.closing_text) fClose.value = data.closing_text;
         if (data.janela_resposta) {
           fJanela.value = data.janela_resposta;
@@ -1959,9 +1966,14 @@ if (!vozWaState || !vozWaState.ready) {
           } catch(_){}
         }
 
-        // Voz/WABA como já estava (com novo setupVoice)
-        setupVoice(uid, idToken);
-        await loadWabaStatus(uid, idToken);
+        // Voz: isolada nesta página (FASE 1) — tudo em /pages/configuracao_voz.html
+        if (!window.__VOICE_DISABLED_IN_CONFIG__) {
+          setupVoice(uid, idToken);
+        }
+        // WABA status: não precisa rodar quando veio do dashboard (evita 404/barulho)
+        if (!veioDoDashboard) {
+          await loadWabaStatus(uid, idToken);
+        }
 
         // Agenda (nova): carregamento + form
         await setupAgendaConfig();
