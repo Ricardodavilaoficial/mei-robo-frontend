@@ -15,3 +15,13 @@ cfg.json
 tts_ok.mp3
 tts_quick.mp3
 tts_real.mp3
+# Firebase local / cache
+.firebase/
+
+# arquivos locais de teste
+cors-contatos.json
+cors-test.json
+storage.rules.txt
+
+# pasta "git" local (se for tua)
+git/
