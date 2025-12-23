@@ -463,7 +463,7 @@
 
   <script>
     // 🔧 Ajuste: prioriza window.API_BASE (se já definido) e mantém fallback para localStorage/config padrão
-    console.log('[configuracao] v2025-12-09-b (com stripe gate heuristico)');
+    console.log('[configuracao] v2025-12-09-b+cnpjfix2 (com stripe gate heuristico)');
     const API_BASE = (window.API_BASE || localStorage.getItem('apiBase') || 'https://mei-robo-prod.onrender.com').replace(/\/+$/, '');
 
     // === REMOVIDO: enforceVerifiedEmail baseado em check-verification, para evitar ping-pong com outras telas ===
@@ -1186,8 +1186,8 @@
     })();
 
     
-    // ===== FIX: restaura loader de CNPJ via /api/conta/status (sem quebrar init) =====
-    // Mantém o guard no init() e adiciona a função real aqui.
+    // ===== FIX CNPJ: loader de empresa via /api/conta/status (robusto, sem quebrar init) =====
+    // Mantém o guard no init() e garante preenchimento dos campos usados no POST e na UI.
     async function loadEmpresaFromContaStatus(uid, idToken) {
       try {
         const headers = {};
@@ -1231,19 +1231,27 @@
         if (cnpj) {
           if (dispCnpj) dispCnpj.textContent = cnpj;
           if (hidCnpj)  hidCnpj.value = cnpj;
+
+          // blindagem extra: se existir um input editável em alguma variação do HTML
+          const cnpjInput = document.getElementById('cnpjInput');
+          if (cnpjInput && !cnpjInput.value) cnpjInput.value = cnpj;
+
+          // e também pelo handle global se existir (mesmo elemento)
+          try { if (typeof hCnpj !== 'undefined' && hCnpj) hCnpj.value = cnpj; } catch(_){}
         }
 
-        const situacao = emp.situacao || '';
-        const abertura = emp.dataAbertura || '';
+        // mapeamento defensivo: backends diferentes já mandaram campos com nomes variados e/ou null
+        const situacao = (emp.situacao ?? emp.situacaoCadastral ?? emp.status ?? '') || '';
+        const abertura = (emp.dataAbertura ?? emp.abertura ?? emp.data_abertura ?? '') || '';
 
-        const e = emp.endereco || {};
+        const e = (emp.endereco || emp.enderecoFiscal || emp.address || {}) || {};
         const endereco = [
-          e.logradouro,
-          e.numero,
-          e.bairro,
-          e.municipio,
-          e.uf,
-          e.cep
+          e.logradouro || e.rua || e.street,
+          e.numero || e.num,
+          e.bairro || e.district,
+          e.municipio || e.cidade || e.city,
+          e.uf || e.estado || e.state,
+          e.cep || e.postalCode
         ].filter(Boolean).join(' — ');
 
         if (dispSit) dispSit.textContent = situacao || '-';
@@ -1260,22 +1268,22 @@
           const dispTrade = document.getElementById('disp-tradename');
           const hidLegal  = document.getElementById('hid-legalname');
           const hidTrade  = document.getElementById('hid-tradename');
-          const legal = emp.razaoSocial || emp.razao_social || emp.nomeEmpresarial || '';
+
+          const legal = emp.razaoSocial || emp.razao_social || emp.nomeEmpresarial || emp.nome_empresarial || '';
           const trade = emp.nomeFantasia || emp.nome_fantasia || '';
-          if (legal) {
-            if (dispLegal) dispLegal.textContent = legal;
-            if (hidLegal)  hidLegal.value = legal;
-          }
-          if (trade) {
-            if (dispTrade) dispTrade.textContent = trade;
-            if (hidTrade)  hidTrade.value = trade;
-          }
+
+          if (dispLegal) dispLegal.textContent = legal || (dispLegal.textContent || '—');
+          if (dispTrade) dispTrade.textContent = trade || (dispTrade.textContent || '—');
+
+          if (hidLegal)  hidLegal.value = legal || '';
+          if (hidTrade)  hidTrade.value = trade || '';
         } catch (_) {}
 
       } catch (err) {
         console.warn('[configuracao] loadEmpresaFromContaStatus exception', err);
       }
     }
+
 async function init() {
       // PATCH 3 — ação do botão "Ir para o painel do MEI Robô"
       if (btnGoDashboard) {
@@ -1462,7 +1470,7 @@ async function init() {
             if (emp) populateFromEmpresa(emp);
           } catch(_){}
         }
-        // (FASE 1) Voz não é tratada nesta tela. Próxima etapa: configuracao_voz.html
+        setupVoice(uid, idToken);
         await loadWabaStatus(uid, idToken);
 
         // Agenda (nova): carregamento + form
