@@ -1208,7 +1208,11 @@
       }
 
       // 1) Preenche via /api/conta/status
-      await loadEmpresaFromContaStatus(uid, idToken);
+      if (typeof loadEmpresaFromContaStatus === 'function') {
+        await loadEmpresaFromContaStatus(uid, idToken);
+      } else {
+        console.warn('[configuracao] loadEmpresaFromContaStatus() ausente — seguindo sem CNPJ via /api/conta/status');
+      }
 
       try {
         // 2) /api/configuracao (pode dar 404 no primeiro acesso)
@@ -1906,6 +1910,7 @@
 
 </body>
 </html>
+
 
 
 
