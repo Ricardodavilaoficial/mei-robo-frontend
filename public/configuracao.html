@@ -1185,7 +1185,98 @@
       init();
     })();
 
-    async function init() {
+    
+    // ===== FIX: restaura loader de CNPJ via /api/conta/status (sem quebrar init) =====
+    // Mantém o guard no init() e adiciona a função real aqui.
+    async function loadEmpresaFromContaStatus(uid, idToken) {
+      try {
+        const headers = {};
+        if (idToken) headers['Authorization'] = 'Bearer ' + idToken;
+
+        const r = await fetch(`${API_BASE}/api/conta/status`, {
+          method: 'GET',
+          headers,
+          cache: 'no-store'
+        });
+
+        const j = await r.json().catch(() => ({}));
+        if (!r.ok) {
+          console.warn('[configuracao] /api/conta/status falhou', r.status, j);
+          return;
+        }
+
+        // (Opcional) sinal de "conta ativa" se o backend informar algo assim
+        try {
+          if (typeof j?.contaAtiva === 'boolean') contaAtiva = j.contaAtiva;
+          else if (typeof j?.conta?.ativa === 'boolean') contaAtiva = j.conta.ativa;
+          else if (typeof j?.conta?.isActive === 'boolean') contaAtiva = j.conta.isActive;
+          else if (typeof j?.stripe_enabled === 'boolean') contaAtiva = j.stripe_enabled; // fallback fraco, mas melhor que nada
+        } catch (_) {}
+
+        const emp = j?.empresa || {};
+        const cnpj = String(emp.cnpj || '').trim();
+
+        // Campos de exibição
+        const dispCnpj = document.getElementById('disp-cnpj');
+        const dispSit  = document.getElementById('disp-situacao');
+        const dispAb   = document.getElementById('disp-abertura');
+        const dispEnd  = document.getElementById('disp-endereco');
+
+        // Campos hidden (usados no POST)
+        const hidCnpj = document.getElementById('hid-cnpj');
+        const hidSit  = document.getElementById('hid-situacao');
+        const hidAb   = document.getElementById('hid-abertura');
+        const hidEnd  = document.getElementById('hid-endereco');
+
+        if (cnpj) {
+          if (dispCnpj) dispCnpj.textContent = cnpj;
+          if (hidCnpj)  hidCnpj.value = cnpj;
+        }
+
+        const situacao = emp.situacao || '';
+        const abertura = emp.dataAbertura || '';
+
+        const e = emp.endereco || {};
+        const endereco = [
+          e.logradouro,
+          e.numero,
+          e.bairro,
+          e.municipio,
+          e.uf,
+          e.cep
+        ].filter(Boolean).join(' — ');
+
+        if (dispSit) dispSit.textContent = situacao || '-';
+        if (dispAb)  dispAb.textContent  = abertura || '-';
+        if (dispEnd) dispEnd.textContent = endereco || '-';
+
+        if (hidSit) hidSit.value = situacao || '';
+        if (hidAb)  hidAb.value  = abertura || '';
+        if (hidEnd) hidEnd.value = endereco || '';
+
+        // Campos extras (se existirem no DOM): razão social / fantasia
+        try {
+          const dispLegal = document.getElementById('disp-legalname');
+          const dispTrade = document.getElementById('disp-tradename');
+          const hidLegal  = document.getElementById('hid-legalname');
+          const hidTrade  = document.getElementById('hid-tradename');
+          const legal = emp.razaoSocial || emp.razao_social || emp.nomeEmpresarial || '';
+          const trade = emp.nomeFantasia || emp.nome_fantasia || '';
+          if (legal) {
+            if (dispLegal) dispLegal.textContent = legal;
+            if (hidLegal)  hidLegal.value = legal;
+          }
+          if (trade) {
+            if (dispTrade) dispTrade.textContent = trade;
+            if (hidTrade)  hidTrade.value = trade;
+          }
+        } catch (_) {}
+
+      } catch (err) {
+        console.warn('[configuracao] loadEmpresaFromContaStatus exception', err);
+      }
+    }
+async function init() {
       // PATCH 3 — ação do botão "Ir para o painel do MEI Robô"
       if (btnGoDashboard) {
         btnGoDashboard.addEventListener('click', () => {
@@ -1371,7 +1462,7 @@
             if (emp) populateFromEmpresa(emp);
           } catch(_){}
         }
-        setupVoice(uid, idToken);
+        // (FASE 1) Voz não é tratada nesta tela. Próxima etapa: configuracao_voz.html
         await loadWabaStatus(uid, idToken);
 
         // Agenda (nova): carregamento + form
@@ -1910,6 +2001,8 @@
 
 </body>
 </html>
+
+
 
 
 
