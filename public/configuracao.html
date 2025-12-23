@@ -1205,6 +1205,167 @@
           return;
         }
 
+
+
+    // ===== FIX: detalhar CNPJ via /integracoes/cnpj/{cnpj}?nome=... (UI) =====
+    // Motivo: chamadas a fetchEmpresaDetalhes()/populateFromEmpresa() existem no init(),
+    // mas a implementação pode ter sido removida em algum patch anterior.
+    // Esta versão é tolerante a múltiplos formatos de payload do backend.
+    function _firstNonEmpty(){
+      for (let i=0;i<arguments.length;i++){
+        const v = arguments[i];
+        if (v !== undefined && v !== null && String(v).trim() !== '') return v;
+      }
+      return '';
+    }
+    function _toStr(v){ return (v===undefined||v===null) ? '' : String(v).trim(); }
+    function _formatEndereco(e){
+      if (!e || typeof e !== 'object') return '';
+      const logradouro = _firstNonEmpty(e.logradouro, e.street, e.log, e.descricao_tipo_logradouro);
+      const numero     = _firstNonEmpty(e.numero, e.number, e.num);
+      const bairro     = _firstNonEmpty(e.bairro, e.neighborhood);
+      const municipio  = _firstNonEmpty(e.municipio, e.cidade, e.city, e.municipio_nome);
+      const uf         = _firstNonEmpty(e.uf, e.estado, e.state, e.uf_sigla);
+      const cep        = _firstNonEmpty(e.cep, e.zip);
+      return [logradouro, numero, bairro, municipio, uf, cep].filter(Boolean).join(' — ');
+    }
+    function _normalizeEmpresaPayload(j){
+      // tenta achar o "miolo" em formatos comuns
+      const root = j || {};
+      const data =
+        root.empresa ||
+        root.estabelecimento || // alguns provedores usam isso
+        root.data ||
+        root.receita ||
+        root.result ||
+        root;
+
+      // BrasilAPI (cnpj v1) costuma vir com chaves no root:
+      // razao_social, nome_fantasia, data_inicio_atividade, descricao_situacao_cadastral, logradouro...
+      const cnpj = _toStr(_firstNonEmpty(
+        data.cnpj, data.cnpjSemMascara, data.cnpj_basico, root.cnpj, root.cnpjSemMascara, root.cnpj_basico
+      ));
+
+      const razaoSocial = _toStr(_firstNonEmpty(
+        data.razaoSocial, data.razao_social, data.nomeEmpresarial, data.nome_empresarial,
+        root.razaoSocial, root.razao_social, root.nomeEmpresarial, root.nome_empresarial
+      ));
+
+      const nomeFantasia = _toStr(_firstNonEmpty(
+        data.nomeFantasia, data.nome_fantasia, data.fantasia,
+        root.nomeFantasia, root.nome_fantasia, root.fantasia
+      ));
+
+      const situacao = _toStr(_firstNonEmpty(
+        data.situacao, data.situacao_cadastral, data.descricao_situacao_cadastral, data.status,
+        root.situacao, root.situacao_cadastral, root.descricao_situacao_cadastral, root.status
+      ));
+
+      const dataAbertura = _toStr(_firstNonEmpty(
+        data.dataAbertura, data.abertura, data.data_inicio_atividade, data.inicio_atividade,
+        root.dataAbertura, root.abertura, root.data_inicio_atividade, root.inicio_atividade
+      ));
+
+      // endereço pode vir aninhado ou "espalhado"
+      const enderecoObj = data.endereco || root.endereco || {
+        logradouro: _firstNonEmpty(data.logradouro, root.logradouro),
+        numero:     _firstNonEmpty(data.numero, root.numero),
+        bairro:     _firstNonEmpty(data.bairro, root.bairro),
+        municipio:  _firstNonEmpty(data.municipio, root.municipio),
+        uf:         _firstNonEmpty(data.uf, root.uf),
+        cep:        _firstNonEmpty(data.cep, root.cep)
+      };
+
+      return {
+        cnpj,
+        razaoSocial,
+        nomeFantasia,
+        situacao,
+        dataAbertura,
+        endereco: enderecoObj,
+        _raw: root
+      };
+    }
+
+    async function fetchEmpresaDetalhes(cnpj14, nomeBusca){
+      try{
+        const cnpjDigits = onlyDigits(String(cnpj14||''));
+        if (!cnpjDigits) return null;
+
+        // nome é opcional e serve apenas para cálculo de vínculo no backend
+        const nome = _toStr(nomeBusca || window.__authName || '');
+        const url = `${API_BASE}/integracoes/cnpj/${encodeURIComponent(cnpjDigits)}?nome=${encodeURIComponent(nome)}`;
+
+        const r = await fetch(url, { method:'GET', credentials:'include', cache:'no-store' });
+        const j = await r.json().catch(()=> ({}));
+        if (!r.ok){
+          console.warn('[configuracao] /integracoes/cnpj falhou', r.status, j);
+          return null;
+        }
+        return _normalizeEmpresaPayload(j);
+      } catch(err){
+        console.warn('[configuracao] fetchEmpresaDetalhes exception', err);
+        return null;
+      }
+    }
+
+    function populateFromEmpresa(emp){
+      try{
+        if (!emp) return;
+
+        const cnpj = _toStr(emp.cnpj);
+        const legal = _toStr(emp.razaoSocial);
+        const trade = _toStr(emp.nomeFantasia);
+        const situacao = _toStr(emp.situacao);
+        const abertura = _toStr(emp.dataAbertura);
+        const endereco = _formatEndereco(emp.endereco);
+
+        const dispCnpj  = document.getElementById('disp-cnpj');
+        const dispLegal = document.getElementById('disp-legalname');
+        const dispTrade = document.getElementById('disp-tradename');
+        const dispSit   = document.getElementById('disp-situacao');
+        const dispAb    = document.getElementById('disp-abertura');
+        const dispEnd   = document.getElementById('disp-endereco');
+
+        const hidCnpj  = document.getElementById('hid-cnpj');
+        const hidLegal = document.getElementById('hid-legalname');
+        const hidTrade = document.getElementById('hid-tradename');
+        const hidSit   = document.getElementById('hid-situacao');
+        const hidAb    = document.getElementById('hid-abertura');
+        const hidEnd   = document.getElementById('hid-endereco');
+
+        if (cnpj){
+          if (dispCnpj) dispCnpj.textContent = cnpj;
+          if (hidCnpj)  hidCnpj.value = cnpj;
+        }
+        if (legal){
+          if (dispLegal) dispLegal.textContent = legal;
+          if (hidLegal)  hidLegal.value = legal;
+        }
+        if (trade){
+          if (dispTrade) dispTrade.textContent = trade;
+          if (hidTrade)  hidTrade.value = trade;
+        }
+
+        if (dispSit) dispSit.textContent = situacao || (dispSit.textContent || '-') || '-';
+        if (dispAb)  dispAb.textContent  = abertura || (dispAb.textContent  || '-') || '-';
+        if (dispEnd) dispEnd.textContent = endereco || (dispEnd.textContent || '-') || '-';
+
+        if (hidSit) hidSit.value = situacao || hidSit.value || '';
+        if (hidAb)  hidAb.value  = abertura || hidAb.value  || '';
+        if (hidEnd) hidEnd.value = endereco || hidEnd.value || '';
+
+        // debug leve (não quebra nada)
+        console.info('[configuracao] CNPJ detalhes aplicados (integracoes/cnpj)', {
+          cnpj: cnpj || null,
+          legal: legal ? 'ok' : null,
+          trade: trade ? 'ok' : null,
+          situacao: situacao || null
+        });
+      } catch(err){
+        console.warn('[configuracao] populateFromEmpresa exception', err);
+      }
+    }
         // (Opcional) sinal de "conta ativa" se o backend informar algo assim
         try {
           if (typeof j?.contaAtiva === 'boolean') contaAtiva = j.contaAtiva;
@@ -1466,7 +1627,7 @@ async function init() {
         // ===== Se já temos CNPJ, buscar DETALHES públicos e sobrepor exibição =====
         if (hCnpj.value){
           try {
-            const emp = await fetchEmpresaDetalhes(hCnpj.value);
+            const emp = await fetchEmpresaDetalhes(hCnpj.value, authName || '');
             if (emp) populateFromEmpresa(emp);
           } catch(_){}
         }
@@ -1512,7 +1673,7 @@ async function init() {
                     if (trade2){ dTrade.textContent = trade2; hTrade.value = trade2; }
                     // buscar detalhes logo após salvar
                     try {
-                      const emp2 = await fetchEmpresaDetalhes(c2);
+                      const emp2 = await fetchEmpresaDetalhes(c2, authName || '');
                       if (emp2) populateFromEmpresa(emp2);
                     } catch(_){}
                   }catch(_){
@@ -2009,6 +2170,7 @@ async function init() {
 
 </body>
 </html>
+
 
 
 
