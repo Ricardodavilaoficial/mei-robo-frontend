@@ -157,6 +157,43 @@
         return rootApp.auth();
       }
 
+      async function decidePostLoginTarget(user, idToken){
+        // Regra: se a conta parece “rascunho”, vai pra configuração.
+        // Se parece completa, vai pro dashboard.
+        //
+        // Heurística segura: /api/conta/status hoje está retornando placeholders
+        // quando ainda não “amarrou” o CNPJ real (ex.: cnpj 000... e “Nome Ltda”).
+        try{
+          const res = await fetch('/api/conta/status', {
+            method: 'GET',
+            headers: { 'Authorization': 'Bearer ' + idToken }
+          });
+          if(!res.ok) return '/pages/configuracao.html?from=login';
+
+          const st = await res.json();
+          const emp = st?.empresa || {};
+          const pub = st?.publico || {};
+
+          const cnpjDigits = String(emp?.cnpj || '').replace(/\D/g,'');
+          const razao = String(emp?.razaoSocial || '').trim();
+          const nomePub = String(pub?.nomePublico || '').trim();
+
+          // ⚠️ Ajuste de “conta incompleta” (heurístico, mas bem prático)
+          const cnpjPlaceholder = !cnpjDigits || /^0+$/.test(cnpjDigits);
+          const razaoPlaceholder = !razao || /^nome\b/i.test(razao);          // "Nome Ltda"
+          const nomePubPlaceholder = !nomePub || /^seu neg[oó]cio$/i.test(nomePub);
+
+          const incompleta = cnpjPlaceholder || razaoPlaceholder || nomePubPlaceholder;
+
+          return incompleta
+            ? '/pages/configuracao.html?from=login'
+            : '/pages/dashboard.html';
+        }catch(e){
+          console.warn('[login] decidePostLoginTarget falhou:', e);
+          return '/pages/configuracao.html?from=login';
+        }
+      }
+
       async function doLogin(e){
         e.preventDefault();
         const email = ($email.value || '').trim();
@@ -186,14 +223,20 @@
           console.log('Login OK — UID:', user.uid, 'IDToken(ini):', idt.slice(0,25), '...');
           say('Login OK! Redirecionando…', true);
 
-          // 🔁 Redireciona para ?next=... se existir, senão dashboard
+          // 🔁 Redireciona para ?next=... se existir.
+          // Se NÃO existir next, decide via /api/conta/status (conta completa vs. precisa configurar)
           let target = '/pages/dashboard.html';
           try {
             const params = new URLSearchParams(location.search || '');
             const next = params.get('next');
-            if (next) target = next;
+            if (next) {
+              target = next; // next manda (ex.: voltar pra onde o user tentou entrar)
+            } else {
+              target = await decidePostLoginTarget(user, idt);
+            }
           } catch (e) {
-            console.warn('[login] erro lendo next', e);
+            console.warn('[login] erro lendo next/decidindo alvo', e);
+            target = '/pages/configuracao.html?from=login';
           }
           window.location.href = target;
         }catch(err){
@@ -246,3 +289,4 @@
   </script>
 </body>
 </html>
+
