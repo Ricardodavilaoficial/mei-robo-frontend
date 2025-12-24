@@ -11,6 +11,7 @@
 
   <link rel="stylesheet" href="/assets/styles.css" />
   <script defer src="/assets/layout.js?v=2025-09-06-07"></script>
+  <script defer src="/assets/header-auth.js?v=v11-2025-09-16-08"></script>
 
   <!-- ✅ Firebase Hosting SDKs (necessário para auth/token nesta página) -->
   <script defer src="/__/firebase/9.22.2/firebase-app-compat.js"></script>
@@ -537,6 +538,41 @@
     function formatDateBR(iso){ try { const d=new Date(iso); return `${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}/${d.getFullYear()}` } catch(_){ return iso; } }
     function onlyDigits(s){ return String(s||'').replace(/\D+/g,''); }
     
+        function applyCnpjPublicoToUI(payload){
+      if(!payload || payload.ok !== true) return;
+
+      // guarda para debug
+      window.empresaFromCnpj = payload;
+
+      const setTextIf = (id, v) => {
+        const el = document.getElementById(id);
+        if (!el) return;
+        const s = (v ?? "").toString().trim();
+        if (s) el.textContent = s;
+      };
+
+      // ✅ Esses 2 têm que voltar a aparecer já
+      setTextIf("disp-legalname", payload.razaoSocial);
+
+      // Nome fantasia pode vir vazio mesmo (alguns CNPJs não têm)
+      setTextIf("disp-tradename", payload.nomeFantasia);
+
+      // Situação/abertura: só se a API trouxer (no teu exemplo não trouxe)
+      setTextIf("disp-situacao", payload.situacao);
+      setTextIf("disp-abertura", payload.dataAbertura);
+
+      // CNAE principal
+      setTextIf("disp-cnae-codigo", payload?.cnaePrincipal?.codigo);
+      setTextIf("disp-cnae-desc", payload?.cnaePrincipal?.descricao);
+
+      // Endereço: só se existir no payload (se não existir, mantém o que já está)
+      if (payload.endereco){
+        const e = payload.endereco;
+        const parts = [e.logradouro, e.numero, e.bairro, e.municipio, e.uf, e.cep].filter(Boolean);
+        setTextIf("disp-endereco", parts.join(" — "));
+      }
+    }
+
     function toE164(raw){
       const s = String(raw||'').trim();
       if (!s) return null;
@@ -1298,6 +1334,7 @@
 
         const r = await fetch(url, { method:'GET', credentials:'include', cache:'no-store' });
         const j = await r.json().catch(()=> ({}));
+        if (j && j.ok) { applyCnpjPublicoToUI(j); }
         if (!r.ok){
           console.warn('[configuracao] /integracoes/cnpj falhou', r.status, j);
           return null;
@@ -2174,6 +2211,7 @@ async function init() {
 
 </body>
 </html>
+
 
 
 
