@@ -1419,9 +1419,11 @@
         if (dispAb)  dispAb.textContent  = abertura || '-';
         if (dispEnd) dispEnd.textContent = endereco || '-';
 
-        if (hidSit) hidSit.value = situacao || '';
-        if (hidAb)  hidAb.value  = abertura || '';
-        if (hidEnd) hidEnd.value = endereco || '';
+        if (hidSit && situacao) hidSit.value = situacao;
+          else if (hidSit && !situacao) console.debug('[configuracao] Status retornou situacao vazia — mantendo valor atual');
+          if (hidAb && abertura) hidAb.value = abertura;
+          else if (hidAb && !abertura) console.debug('[configuracao] Status retornou abertura vazia — mantendo valor atual');
+          if (hidEnd) hidEnd.value = endereco || '';
 
         // Campos extras (se existirem no DOM): razão social / fantasia
         try {
@@ -1436,9 +1438,11 @@
           if (dispLegal) dispLegal.textContent = legal || (dispLegal.textContent || '—');
           if (dispTrade) dispTrade.textContent = trade || (dispTrade.textContent || '—');
 
-          if (hidLegal)  hidLegal.value = legal || '';
-          if (hidTrade)  hidTrade.value = trade || '';
-        } catch (_) {}
+          if (hidLegal && legal) hidLegal.value = legal;
+          else if (hidLegal && !legal) console.debug('[configuracao] Status retornou razaoSocial vazia — mantendo valor atual');
+          if (hidTrade && trade) hidTrade.value = trade;
+          else if (hidTrade && !trade) console.debug('[configuracao] Status retornou nomeFantasia vazio — mantendo valor atual');
+          } catch (_) {}
 
       } catch (err) {
         console.warn('[configuracao] loadEmpresaFromContaStatus exception', err);
@@ -2170,6 +2174,7 @@ async function init() {
 
 </body>
 </html>
+
 
 
 
