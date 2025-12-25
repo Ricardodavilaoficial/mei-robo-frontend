@@ -537,7 +537,49 @@
     function escapeHtml(str){ return String(str).replace(/[&<>"']/g, s => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[s])); }
     function formatDateBR(iso){ try { const d=new Date(iso); return `${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}/${d.getFullYear()}` } catch(_){ return iso; } }
     function onlyDigits(s){ return String(s||'').replace(/\D+/g,''); }
-    
+
+// ===== PATCH: re-aplicar CNPJ público (anti race condition) =====
+function scheduleCnpjPublicApply(nomeBusca){
+  try{
+    if (window.__cnpjPublicApplyScheduled) return;
+    window.__cnpjPublicApplyScheduled = true;
+
+    const run = async () => {
+      try{
+        const hCnpj = document.getElementById('hid-cnpj');
+        const cnpjDigits = (hCnpj?.value || '').toString().replace(/\D/g,'');
+        if (!cnpjDigits) return;
+
+        const nome = (nomeBusca || window.__authName || '').toString().trim();
+        const url = `${API_BASE}/integracoes/cnpj/${encodeURIComponent(cnpjDigits)}?nome=${encodeURIComponent(nome)}`;
+
+        const r = await fetch(url, { method:'GET', credentials:'include', cache:'no-store' });
+        const j = await r.json().catch(()=> ({}));
+
+        if (j && j.ok){
+          window.empresaFromCnpj = j;
+
+          // aplica algumas vezes (caso DOM/valores ainda estejam assentando)
+          if (typeof applyCnpjPublicoToUI === 'function'){
+            for(let i=0;i<4;i++){
+              applyCnpjPublicoToUI(j);
+              await new Promise(res=>setTimeout(res, 250));
+            }
+          }
+        }
+      }catch(e){
+        console.warn('[configuracao] scheduleCnpjPublicApply.run err', e);
+      }
+    };
+
+    // 2 tentativas espaçadas (resolve 99% de race)
+    setTimeout(run, 450);
+    setTimeout(run, 1450);
+  }catch(e){
+    console.warn('[configuracao] scheduleCnpjPublicApply err', e);
+  }
+}
+
         function applyCnpjPublicoToUI(payload){
       if(!payload || payload.ok !== true) return;
 
@@ -1568,6 +1610,8 @@ async function init() {
         try { await user?.reload(); } catch(_){}
         const authEmail = user?.email || '';
         const authName = user?.displayName || (data.nome || '');
+        window.__authName = authName || '';
+        scheduleCnpjPublicApply(window.__authName);
 
         // Decide destino pós-configuração com base na licença e, em último caso, no statusAtivacao
         const statusAtivacao = String(data.statusAtivacao || '').trim();
@@ -2238,6 +2282,7 @@ async function init() {
 
 </body>
 </html>
+
 
 
 
