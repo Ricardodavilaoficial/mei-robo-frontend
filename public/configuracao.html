@@ -537,6 +537,31 @@
     function formatDateBR(iso){ try { const d=new Date(iso); return `${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}/${d.getFullYear()}` } catch(_){ return iso; } }
     function onlyDigits(s){ return String(s||'').replace(/\D+/g,''); }
 
+
+
+function fmtEnderecoCnpj(endereco) {
+  if (!endereco) return "";
+  if (typeof endereco === "string") return endereco.trim();
+
+  const e = endereco || {};
+  const municipioNome =
+    (typeof e.municipio === "string" ? e.municipio : (e.municipio?.nome || e.municipio?.sigla || "")) || "";
+  const ufSigla =
+    (typeof e.uf === "string" ? e.uf : (e.uf?.sigla || e.uf?.nome || "")) || "";
+
+  const parts = [
+    e.logradouro,
+    e.numero,
+    e.complemento,
+    e.bairro,
+    municipioNome,
+    ufSigla,
+    e.cep
+  ].map(x => (x ?? "").toString().trim()).filter(Boolean);
+
+  return parts.join(" — ");
+}
+
 // ===== PATCH: re-aplicar CNPJ público (anti race condition) =====
 function scheduleCnpjPublicApply(nomeBusca){
   try{
@@ -1490,7 +1515,7 @@ function scheduleCnpjPublicApply(nomeBusca){
         const trade = _toStr(emp.nomeFantasia);
         const situacao = _toStr(emp.situacao);
         const abertura = _toStr(emp.dataAbertura);
-        const endereco = _formatEndereco(emp.endereco);
+        const endereco = fmtEnderecoCnpj(emp.endereco);
 
         const dispCnpj  = document.getElementById('disp-cnpj');
         const dispLegal = document.getElementById('disp-legalname');
@@ -1521,11 +1546,11 @@ function scheduleCnpjPublicApply(nomeBusca){
 
         if (dispSit) dispSit.textContent = situacao || (dispSit.textContent || '-') || '-';
         if (dispAb)  dispAb.textContent  = abertura || (dispAb.textContent  || '-') || '-';
-        if (dispEnd) dispEnd.textContent = endereco || (dispEnd.textContent || '-') || '-';
+        if (dispEnd) dispEnd.textContent = endereco || 'Cidade — UF';
 
         if (hidSit) hidSit.value = situacao || hidSit.value || '';
         if (hidAb)  hidAb.value  = abertura || hidAb.value  || '';
-        if (hidEnd) hidEnd.value = endereco || hidEnd.value || '';
+        if (hidEnd && endereco) hidEnd.value = endereco;
 
         // debug leve (não quebra nada)
         console.info('[configuracao] CNPJ detalhes aplicados (integracoes/cnpj)', {
@@ -1580,25 +1605,17 @@ try {} catch (_) {}
         const situacao = (emp.situacao ?? emp.situacaoCadastral ?? emp.status ?? '') || '';
         const abertura = (emp.dataAbertura ?? emp.abertura ?? emp.data_abertura ?? '') || '';
 
-        const e = (emp.endereco || emp.enderecoFiscal || emp.address || {}) || {};
-        const endereco = [
-          e.logradouro || e.rua || e.street,
-          e.numero || e.num,
-          e.bairro || e.district,
-          e.municipio || e.cidade || e.city,
-          e.uf || e.estado || e.state,
-          e.cep || e.postalCode
-        ].filter(Boolean).join(' — ');
+        const endTxt = fmtEnderecoCnpj(emp.endereco || emp.enderecoFiscal || emp.address);
 
         if (dispSit) dispSit.textContent = situacao || '-';
         if (dispAb)  dispAb.textContent  = abertura || '-';
-        if (dispEnd) dispEnd.textContent = endereco || '-';
+        if (dispEnd) dispEnd.textContent = endTxt || 'Cidade — UF';
 
         if (hidSit && situacao) hidSit.value = situacao;
           else if (hidSit && !situacao) console.debug('[configuracao] Status retornou situacao vazia — mantendo valor atual');
           if (hidAb && abertura) hidAb.value = abertura;
           else if (hidAb && !abertura) console.debug('[configuracao] Status retornou abertura vazia — mantendo valor atual');
-          if (hidEnd) hidEnd.value = endereco || '';
+          if (hidEnd && endTxt) hidEnd.value = endTxt;
 
         // Campos extras (se existirem no DOM): razão social / fantasia
         try {
@@ -2364,6 +2381,7 @@ async function init() {
 
 </body>
 </html>
+
 
 
 
