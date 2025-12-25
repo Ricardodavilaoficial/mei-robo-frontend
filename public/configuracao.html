@@ -688,8 +688,7 @@ function scheduleCnpjPublicApply(nomeBusca){
   window.empresaFromCnpj = payload;
 
 // guarda para debug
-      window.empresaFromCnpj = payload;
-
+      
       const setTextIf = (id, v) => {
         const el = document.getElementById(id);
         if (!el) return;
@@ -698,14 +697,41 @@ function scheduleCnpjPublicApply(nomeBusca){
       };
 
       // ✅ Esses 2 têm que voltar a aparecer já
-      setTextIf("disp-legalname", payload.razaoSocial);
+      const legalName =
+        payload.razaoSocial || payload.razao_social ||
+        payload.nomeEmpresarial || payload.nome_empresarial ||
+        payload.nome_empresarial || payload.nomeEmpresarial || "";
+
+      const tradeName =
+        payload.nomeFantasia || payload.nome_fantasia ||
+        payload.fantasia || payload.nome_fantasia || "";
+
+      setTextIf("disp-legalname", legalName);
 
       // Nome fantasia pode vir vazio mesmo (alguns CNPJs não têm)
-      setTextIf("disp-tradename", payload.nomeFantasia);
+      setTextIf("disp-tradename", tradeName);
 
             // Situação/Abertura (fallbacks comuns entre provedores)
-            const situ = (payload?.situacao || payload?.situacaoCadastral || payload?.descricaoSituacaoCadastral || payload?.status || "").toString().trim();
+            const situ = (
+              payload?.situacao ||
+              payload?.situacaoCadastral ||
+              payload?.situacao_cadastral ||
+              payload?.descricaoSituacaoCadastral ||
+              payload?.descricao_situacao_cadastral ||
+              payload?.status ||
+              payload?.statusDescricao ||
+              ""
+            ).toString().trim();
             const ab   = (payload?.dataAbertura || payload?.abertura || payload?.data_inicio_atividade || payload?.inicioAtividade || "").toString().trim();
+
+            console.log('[CNPJ UI] situ raw:', {
+              situacao: payload?.situacao,
+              situacaoCadastral: payload?.situacaoCadastral,
+              situacao_cadastral: payload?.situacao_cadastral,
+              descricaoSituacaoCadastral: payload?.descricaoSituacaoCadastral,
+              descricao_situacao_cadastral: payload?.descricao_situacao_cadastral,
+              status: payload?.status
+            });
 
             setTextIf("disp-situacao", situ);
             setTextIf("disp-abertura", ab);
@@ -725,11 +751,10 @@ function scheduleCnpjPublicApply(nomeBusca){
             // hidden (pra persistir, sem apagar se já tiver algo)
             const hidSeg = document.getElementById("hid-segmento");
             if (hidSeg && cnaeLinha && !hidSeg.value) hidSeg.value = cnaeLinha;
-      // Endereço: só se existir no payload (se não existir, mantém o que já está)
-      if (payload.endereco){
-        const e = payload.endereco;
-        const parts = [e.logradouro, e.numero, e.bairro, e.municipio, e.uf, e.cep].filter(Boolean);
-        setTextIf("disp-endereco", parts.join(" — "));
+      // Endereço: formatação robusta (municipio/uf podem ser objetos)
+      if (payload.endereco) {
+        const endTxt = fmtEnderecoCnpj(payload.endereco);
+        if (endTxt) setTextIf("disp-endereco", endTxt);
       }
     }
 
@@ -757,7 +782,7 @@ function scheduleCnpjPublicApply(nomeBusca){
       cnpj = onlyDigits(cnpj||'');
       if (cnpj.length !== 14) return false;
       // rejeita CNPJs com todos os dígitos iguais (000..., 111..., etc.)
-      if (/^(\d)1{13}$/.test(cnpj)) return false;
+      if (/^(\d)\1{13}$/.test(cnpj)) return false;
       let t = 12, d1 = 0, d2 = 0, p1 = 5, p2 = 6;
       for (let i = 0; i < t; i++) {
         const n = parseInt(cnpj[i],10);
@@ -2381,6 +2406,7 @@ async function init() {
 
 </body>
 </html>
+
 
 
 
