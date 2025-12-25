@@ -540,49 +540,129 @@
 // ===== PATCH: re-aplicar CNPJ público (anti race condition) =====
 function scheduleCnpjPublicApply(nomeBusca){
   try{
+    // evita spam, mas não pode travar pra sempre
     if (window.__cnpjPublicApplyScheduled) return;
     window.__cnpjPublicApplyScheduled = true;
 
-    const run = async () => {
-      try{
-        const hCnpj = document.getElementById('hid-cnpj');
-        const cnpjDigits = (hCnpj?.value || '').toString().replace(/\D/g,'');
-        if (!cnpjDigits) return;
-
-        const nome = (nomeBusca || window.__authName || '').toString().trim();
-        const url = `${API_BASE}/integracoes/cnpj/${encodeURIComponent(cnpjDigits)}?nome=${encodeURIComponent(nome)}`;
-
-        const r = await fetch(url, { method:'GET', credentials:'include', cache:'no-store' });
-        const j = await r.json().catch(()=> ({}));
-
-        if (j && j.ok){
-          window.empresaFromCnpj = j;
-
-          // aplica algumas vezes (caso DOM/valores ainda estejam assentando)
-          if (typeof applyCnpjPublicoToUI === 'function'){
-            for(let i=0;i<4;i++){
-              applyCnpjPublicoToUI(j);
-              await new Promise(res=>setTimeout(res, 250));
-            }
-          }
-        }
-      }catch(e){
-        console.warn('[configuracao] scheduleCnpjPublicApply.run err', e);
-      }
+    const unlockLater = (ms) => {
+      try { setTimeout(()=>{ window.__cnpjPublicApplyScheduled = false; }, ms); } catch(_){}
     };
 
-    // 2 tentativas espaçadas (resolve 99% de race)
-    setTimeout(run, 450);
-    setTimeout(run, 1450);
+    const sleep = (ms) => new Promise(res=>setTimeout(res, ms));
+
+    const parseJsonSafe = async (resp) => {
+      try { return await resp.json(); } catch(_) { return null; }
+    };
+
+    const runOnce = async () => {
+      const hCnpj = document.getElementById('hid-cnpj');
+      const cnpjDigits = (hCnpj?.value || '').toString().replace(/\D/g,'');
+      if (!cnpjDigits) return { ok:false, reason:'no_cnpj' };
+
+      const nome = (nomeBusca || window.__authName || '').toString().trim();
+      const url = `${API_BASE}/integracoes/cnpj/${encodeURIComponent(cnpjDigits)}?nome=${encodeURIComponent(nome)}`;
+
+      const r = await fetch(url, { method:'GET', credentials:'include', cache:'no-store' });
+
+      // 429: rate limit → retry com backoff
+      if (r.status === 429) {
+        let bodyTxt = '';
+        try { bodyTxt = await r.text(); } catch(_){}
+        console.warn('[configuracao] CNPJ público 429 (rate limit). Body:', bodyTxt);
+        return { ok:false, retry:true, status:429 };
+      }
+
+      // tenta JSON; se não der, pega texto
+      let j = await parseJsonSafe(r);
+      if (!j) {
+        let bodyTxt = '';
+        try { bodyTxt = await r.text(); } catch(_){}
+        console.warn('[configuracao] CNPJ público payload não-JSON. HTTP=', r.status, 'Body:', bodyTxt);
+        return { ok:false, status:r.status };
+      }
+
+      // loga erro com payload (pra overlay/console)
+      if (!r.ok) {
+        console.warn('[configuracao] CNPJ público não-ok. HTTP=', r.status, 'Body:', j);
+        return { ok:false, status:r.status, body:j };
+      }
+
+      // ✅ Sucesso não pode depender só de j.ok
+      const hasEmpresaData =
+        !!(j && (
+          j.razaoSocial || j.razao_social || j.nomeEmpresarial || j.nome_empresarial ||
+          j.nomeFantasia || j.nome_fantasia || j.fantasia ||
+          j.situacao || j.situacaoCadastral || j.descricaoSituacaoCadastral || j.descricao_situacao_cadastral ||
+          j.dataAbertura || j.abertura || j.data_inicio_atividade || j.inicioAtividade
+        ));
+
+      if (j && (j.ok === true || hasEmpresaData)) {
+        window.empresaFromCnpj = j;
+
+        if (typeof applyCnpjPublicoToUI === 'function'){
+          for (let i=0;i<4;i++){
+            applyCnpjPublicoToUI(j);
+            await sleep(250);
+          }
+        }
+        return { ok:true };
+      }
+
+      console.warn('[configuracao] CNPJ público 200 mas payload inesperado:', j);
+      return { ok:false, status:200, body:j };
+    };
+
+    const runWithBackoff = async () => {
+      // 2 tentativas normais (igual era), + retry extra se 429
+      const attempts = [450, 1450];
+      for (const delay of attempts){
+        await sleep(delay);
+        try{
+          const res = await runOnce();
+          if (res.ok) { unlockLater(1500); return; }
+          if (res.retry && res.status === 429) {
+            // backoff progressivo (curto, mas efetivo)
+            const backoffs = [800, 1800, 3500];
+            for (const b of backoffs){
+              await sleep(b);
+              const r2 = await runOnce();
+              if (r2.ok) { unlockLater(1500); return; }
+              if (!(r2.retry && r2.status === 429)) break;
+            }
+          }
+        }catch(e){
+          console.warn('[configuracao] scheduleCnpjPublicApply.run err', e);
+        }
+      }
+
+      // se falhou, destrava depois de um tempo pra permitir nova tentativa
+      unlockLater(5000);
+    };
+
+    runWithBackoff();
   }catch(e){
     console.warn('[configuracao] scheduleCnpjPublicApply err', e);
+    try { window.__cnpjPublicApplyScheduled = false; } catch(_){}
   }
 }
 
-        function applyCnpjPublicoToUI(payload){
-      if(!payload || payload.ok !== true) return;
 
-      // guarda para debug
+        function applyCnpjPublicoToUI(payload){
+  if(!payload) return;
+
+  const hasEmpresaData =
+    !!(payload && (
+      payload.razaoSocial || payload.razao_social || payload.nomeEmpresarial || payload.nome_empresarial ||
+      payload.nomeFantasia || payload.nome_fantasia || payload.fantasia
+    ));
+
+  // PATCH C — aceita ok===true OU payload com dados de empresa
+  if (!(payload.ok === true || hasEmpresaData)) return;
+
+  // guarda para debug
+  window.empresaFromCnpj = payload;
+
+// guarda para debug
       window.empresaFromCnpj = payload;
 
       const setTextIf = (id, v) => {
@@ -1458,6 +1538,9 @@ function scheduleCnpjPublicApply(nomeBusca){
         console.warn('[configuracao] populateFromEmpresa exception', err);
       }
     }
+// PATCH B — expor helpers globalmente SEM depender de catch/erro
+try {} catch (_) {}
+
         // (Opcional) sinal de "conta ativa" se o backend informar algo assim
         try {
           if (typeof j?.contaAtiva === 'boolean') contaAtiva = j.contaAtiva;
@@ -2281,6 +2364,7 @@ async function init() {
 
 </body>
 </html>
+
 
 
 
