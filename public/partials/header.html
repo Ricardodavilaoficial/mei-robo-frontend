@@ -86,7 +86,55 @@
     <!-- Mobile menu button -->
     <button id="btn-menu" aria-label="Abrir menu" style="display:none;margin-left:8px;background:transparent;border:1px solid rgba(255,255,255,.18);color:#cfe8dd;padding:8px 10px;border-radius:10px;cursor:pointer;line-height:1;">☰</button>
 
-    <!-- Controle global de Entrar/Sair/saudação no header -->
-    <script defer src="/assets/header-auth.js"></script>
+
+  <!-- Controle global de Entrar/Sair/saudação no header -->
+  <script defer src="/assets/header-auth.js"></script>
+
+  <script>
+  // Fallback anti-Edge-InPrivate: se o auth reidratar tarde, garante Sair visível
+  (function(){
+    function ensureSair(){
+      try{
+        const btn = document.getElementById("btn-sair");
+        if (!btn) return true;
+
+        const isLogged = !!(window.firebase && firebase.auth && firebase.auth().currentUser);
+        if (isLogged){
+          btn.style.display = "inline-block";
+          // liga logout uma vez
+          if (!btn.__bound){
+            btn.__bound = true;
+            btn.addEventListener("click", async ()=>{
+              try{
+                if (window.MEIROBO && window.MEIROBO.auth && window.MEIROBO.auth.logout) {
+                  await window.MEIROBO.auth.logout();
+                } else if (window.firebase && firebase.auth) {
+                  await firebase.auth().signOut();
+                }
+                location.href = "/pages/login.html";
+              } catch(e){
+                console.warn("logout failed:", e);
+              }
+            });
+          }
+          return true;
+        }
+        return false;
+      } catch(e){
+        console.warn("ensureSair err:", e);
+        return false;
+      }
+    }
+
+    // tenta já e depois repete algumas vezes (auth pode demorar no InPrivate)
+    let tries = 0;
+    const maxTries = 8;
+    const t = setInterval(()=>{
+      tries++;
+      if (ensureSair() || tries >= maxTries) clearInterval(t);
+    }, 250);
+  })();
+  </script>
   </div>
 </header>
+
