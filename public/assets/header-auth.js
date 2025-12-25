@@ -1,5 +1,11 @@
 // header-auth.js — controla "Entrar / Sair" e saudação no header
 (function () {
+  if (window.__HEADER_AUTH_LOADED__) {
+    console.warn('[header-auth] carregado em duplicidade — ignorando');
+    return;
+  }
+  window.__HEADER_AUTH_LOADED__ = true;
+
   'use strict';
 
   function onReady(fn) {
@@ -186,3 +192,4 @@
     }
   });
 })();
+
