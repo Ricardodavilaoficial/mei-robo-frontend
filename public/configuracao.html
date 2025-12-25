@@ -557,14 +557,28 @@
       // Nome fantasia pode vir vazio mesmo (alguns CNPJs não têm)
       setTextIf("disp-tradename", payload.nomeFantasia);
 
-      // Situação/abertura: só se a API trouxer (no teu exemplo não trouxe)
-      setTextIf("disp-situacao", payload.situacao);
-      setTextIf("disp-abertura", payload.dataAbertura);
+            // Situação/Abertura (fallbacks comuns entre provedores)
+            const situ = (payload?.situacao || payload?.situacaoCadastral || payload?.descricaoSituacaoCadastral || payload?.status || "").toString().trim();
+            const ab   = (payload?.dataAbertura || payload?.abertura || payload?.data_inicio_atividade || payload?.inicioAtividade || "").toString().trim();
 
-      // CNAE principal
-      setTextIf("disp-cnae-codigo", payload?.cnaePrincipal?.codigo);
-      setTextIf("disp-cnae-desc", payload?.cnaePrincipal?.descricao);
+            setTextIf("disp-situacao", situ);
+            setTextIf("disp-abertura", ab);
+            // CNAE principal (payload pode vir com nomes alternativos)
+            const cnaeCodigo = (payload?.cnaePrincipal?.codigo || payload?.cnae?.codigo || payload?.cnae_codigo || "").toString().trim();
+            const cnaeDesc   = (payload?.cnaePrincipal?.descricao || payload?.cnae?.descricao || payload?.cnae_descricao || "").toString().trim();
 
+            // (se no futuro você reintroduzir esses IDs, já fica compatível)
+            setTextIf("disp-cnae-codigo", cnaeCodigo);
+            setTextIf("disp-cnae-desc", cnaeDesc);
+
+            // ✅ Hoje o DOM NÃO tem disp-cnae-*; o campo que existe é o "Segmento (CNAE)"
+            // Então usamos disp-segmento como CNAE oficial (sem inventar)
+            const cnaeLinha = [cnaeCodigo, cnaeDesc].filter(Boolean).join(" — ");
+            setTextIf("disp-segmento", cnaeLinha);
+
+            // hidden (pra persistir, sem apagar se já tiver algo)
+            const hidSeg = document.getElementById("hid-segmento");
+            if (hidSeg && cnaeLinha && !hidSeg.value) hidSeg.value = cnaeLinha;
       // Endereço: só se existir no payload (se não existir, mantém o que já está)
       if (payload.endereco){
         const e = payload.endereco;
@@ -1483,6 +1497,16 @@
 
       } catch (err) {
         console.warn('[configuracao] loadEmpresaFromContaStatus exception', err);
+        // ===== PATCH: expor helpers de CNPJ para o init() =====
+        try {
+          // Se essas funções existirem aqui dentro (escopo atual), expõe no global.
+          if (typeof fetchEmpresaDetalhes === 'function' && typeof window.fetchEmpresaDetalhes !== 'function') {
+            window.fetchEmpresaDetalhes = fetchEmpresaDetalhes;
+          }
+          if (typeof populateFromEmpresa === 'function' && typeof window.populateFromEmpresa !== 'function') {
+            window.populateFromEmpresa = populateFromEmpresa;
+          }
+        } catch (_) {}
       }
     }
 
@@ -1668,8 +1692,8 @@ async function init() {
         // ===== Se já temos CNPJ, buscar DETALHES públicos e sobrepor exibição =====
         if (hCnpj.value){
           try {
-            const emp = await fetchEmpresaDetalhes(hCnpj.value, authName || '');
-            if (emp) populateFromEmpresa(emp);
+            const emp = await (window.fetchEmpresaDetalhes || fetchEmpresaDetalhes)(hCnpj.value, authName || '');
+            if (emp) (window.populateFromEmpresa || populateFromEmpresa)(emp);
           } catch(_){}
         }
         setupVoice(uid, idToken);
@@ -1968,6 +1992,9 @@ async function init() {
  * - Agenda: usa os IDs do sec-agenda (compacto)
  */
 (function(){
+  // PATCH: desativado — já existe setupAgendaConfig() no script principal.
+  return;
+
   function $(id){ return document.getElementById(id); }
   function esc(s){ return String(s??"").replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
 
@@ -2211,6 +2238,8 @@ async function init() {
 
 </body>
 </html>
+
+
 
 
 

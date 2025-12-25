@@ -1497,6 +1497,16 @@
 
       } catch (err) {
         console.warn('[configuracao] loadEmpresaFromContaStatus exception', err);
+        // ===== PATCH: expor helpers de CNPJ para o init() =====
+        try {
+          // Se essas funções existirem aqui dentro (escopo atual), expõe no global.
+          if (typeof fetchEmpresaDetalhes === 'function' && typeof window.fetchEmpresaDetalhes !== 'function') {
+            window.fetchEmpresaDetalhes = fetchEmpresaDetalhes;
+          }
+          if (typeof populateFromEmpresa === 'function' && typeof window.populateFromEmpresa !== 'function') {
+            window.populateFromEmpresa = populateFromEmpresa;
+          }
+        } catch (_) {}
       }
     }
 
@@ -1682,8 +1692,8 @@ async function init() {
         // ===== Se já temos CNPJ, buscar DETALHES públicos e sobrepor exibição =====
         if (hCnpj.value){
           try {
-            const emp = await fetchEmpresaDetalhes(hCnpj.value, authName || '');
-            if (emp) populateFromEmpresa(emp);
+            const emp = await (window.fetchEmpresaDetalhes || fetchEmpresaDetalhes)(hCnpj.value, authName || '');
+            if (emp) (window.populateFromEmpresa || populateFromEmpresa)(emp);
           } catch(_){}
         }
         setupVoice(uid, idToken);
@@ -1982,6 +1992,9 @@ async function init() {
  * - Agenda: usa os IDs do sec-agenda (compacto)
  */
 (function(){
+  // PATCH: desativado — já existe setupAgendaConfig() no script principal.
+  return;
+
   function $(id){ return document.getElementById(id); }
   function esc(s){ return String(s??"").replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
 
@@ -2225,6 +2238,7 @@ async function init() {
 
 </body>
 </html>
+
 
 
 
