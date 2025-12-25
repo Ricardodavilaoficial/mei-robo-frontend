@@ -709,7 +709,7 @@ function scheduleCnpjPublicApply(nomeBusca){
       setTextIf("disp-legalname", legalName);
 
       // Nome fantasia pode vir vazio mesmo (alguns CNPJs não têm)
-      setTextIf("disp-tradename", tradeName);
+      setTextIf("disp-tradename", tradeName || "—");
 
             // Situação/Abertura (fallbacks comuns entre provedores)
             const situ = (
@@ -733,7 +733,7 @@ function scheduleCnpjPublicApply(nomeBusca){
               status: payload?.status
             });
 
-            setTextIf("disp-situacao", situ);
+            setTextIf("disp-situacao", situ || "—");
             setTextIf("disp-abertura", ab);
             // CNAE principal (payload pode vir com nomes alternativos)
             const cnaeCodigo = (payload?.cnaePrincipal?.codigo || payload?.cnae?.codigo || payload?.cnae_codigo || "").toString().trim();
