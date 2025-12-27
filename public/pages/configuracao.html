@@ -2391,7 +2391,8 @@ async function init() {
     if(!anchor) return;
 
     // coloca o botão logo depois do bloco da agenda
-    anchor.insertAdjacentElement('afterend', btn);
+    (anchor && anchor.id === 'agenda-form' ? anchor : (document.getElementById('agenda-form') || anchor)).appendChild(btn);
+
   }
 
   if (document.readyState === 'loading') {
