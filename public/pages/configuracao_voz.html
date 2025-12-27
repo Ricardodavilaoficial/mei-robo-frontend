@@ -163,7 +163,7 @@
   async function getIdTokenOrNull(){
     const u = firebase.auth().currentUser;
     if(!u) return null;
-    try { return await u.getIdToken(true); } catch(e){ return null; }
+    try { return await u.getIdToken(false); } catch(e){ return null; }
   }
 
   async function voiceApiFetch(path, opts){
@@ -215,9 +215,8 @@
 
       let st = "none";
       if(vc){
-        const hasObj = !!(vc.object_path || vc.object_key || vc.objectKey || vc.objectPath);
-        const hasFile = !!(vc.arquivoUrl);
-        if(hasObj || hasFile){
+        const hasObj = !!(vc.object_path || vc.object_key || vc.objectKey || vc.objectPath || vc.arquivoUrl);
+        if(hasObj){
           if(String(vc.status || "").toLowerCase() === "ready" && vc.voiceId) st = "ready";
           else st = "received";
         }
@@ -238,20 +237,43 @@
     window.__voicePollDeadline = null;
   }
 
+  
   function startVoicePolling(){
     stopVoicePolling();
 
-    const intervalMs = 2500;
+    const startedAt = Date.now();
     const maxMs = 90000;
-    const deadline = Date.now() + maxMs;
+    const deadline = startedAt + maxMs;
     window.__voicePollDeadline = deadline;
 
+    const nextDelay = ()=>{
+      const elapsed = Date.now() - startedAt;
+      if(elapsed < 30000) return 2500;      // 0–30s
+      if(elapsed < 90000) return 9000;      // 30–90s
+      return null;                          // stop
+    };
+
     const tick = async ()=>{
-      if(Date.now() > deadline){
+      const delay = nextDelay();
+      if(delay === null || Date.now() > deadline){
         stopVoicePolling();
         render();
         return;
       }
+
+      const st = await fetchVoiceStatus();
+      render();
+
+      if(st === "received" || st === "ready"){
+        stopVoicePolling();
+        return;
+      }
+
+      window.__voicePollT = setTimeout(tick, delay);
+    };
+
+    window.__voicePollT = setTimeout(tick, nextDelay());
+  }
 
       const st = await fetchVoiceStatus();
       render();
@@ -413,5 +435,6 @@
 
 </body>
 </html>
+
 
 
