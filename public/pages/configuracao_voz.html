@@ -95,6 +95,11 @@
     <div id="afterInviteMsg" class="muted" style="margin-top:12px; display:none;">
       Pronto. Agora abre teu WhatsApp, responde com o áudio, e volta pra seguir.
     </div>
+    <div id="voiceStatusBox" style="margin-top:12px; display:none; padding:12px 14px; border:1px dashed #2a2f33; border-radius:14px; background:#0b0d0e;">
+      <div id="voiceStatusText" class="muted"></div>
+      <div class="spacer"></div>
+      <div id="voiceStatusHint" class="tiny muted"></div>
+    </div>
   </div>
 
   <div class="card">
@@ -200,7 +205,69 @@
     location.href = (state.returnUrl || getDefaultReturn());
   }
 
-  const state = { mode: "onboarding", returnUrl: "", invitedOnce: false, toE164: "" };
+  const state = { mode: "onboarding", returnUrl: "", invitedOnce: false, toE164: "", voiceState: "none" };
+
+
+  async function fetchVoiceStatus(){
+    try{
+      const payload = await voiceApiFetch("/api/configuracao");
+      const vc = (payload && payload.data && payload.data.vozClonada) ? payload.data.vozClonada : null;
+
+      let st = "none";
+      if(vc){
+        const hasObj = !!(vc.object_path || vc.object_key || vc.objectKey || vc.objectPath);
+        const hasFile = !!(vc.arquivoUrl);
+        if(hasObj || hasFile){
+          if(String(vc.status || "").toLowerCase() === "ready" && vc.voiceId) st = "ready";
+          else st = "received";
+        }
+      }
+
+      state.voiceState = st;
+      return st;
+    } catch(e){
+      return state.voiceState || "none";
+    }
+  }
+
+  function stopVoicePolling(){
+    if(window.__voicePollT){
+      clearTimeout(window.__voicePollT);
+      window.__voicePollT = null;
+    }
+    window.__voicePollDeadline = null;
+  }
+
+  function startVoicePolling(){
+    stopVoicePolling();
+
+    const intervalMs = 2500;
+    const maxMs = 90000;
+    const deadline = Date.now() + maxMs;
+    window.__voicePollDeadline = deadline;
+
+    const tick = async ()=>{
+      if(Date.now() > deadline){
+        stopVoicePolling();
+        render();
+        return;
+      }
+
+      const st = await fetchVoiceStatus();
+      render();
+
+      if(st === "received" || st === "ready"){
+        stopVoicePolling();
+        return;
+      }
+
+      window.__voicePollT = setTimeout(tick, intervalMs);
+    };
+
+    window.__voicePollT = setTimeout(tick, intervalMs);
+  }
+
+
 
   function guessPhoneFromStorage(){
     const candidates = [
@@ -234,8 +301,29 @@
     $("btnInvite").disabled = !consentOk;
     $("btnResend").disabled = !consentOk;
 
-    $("btnContinue").disabled = !state.invitedOnce;
-    $("continueHint").textContent = state.invitedOnce ? "Pronto. Você pode seguir." : "Primeiro, peça a mensagem no WhatsApp.";
+    const canContinue = !!(state.invitedOnce || state.voiceState === "received" || state.voiceState === "ready");
+    $("btnContinue").disabled = !canContinue;
+
+    let hint = "Primeiro, peça a mensagem no WhatsApp.";
+    if(state.voiceState === "ready") hint = "Voz pronta ✅";
+    else if(state.voiceState === "received") hint = "Voz recebida ✅ (processaremos após ativação)";
+    else if(state.invitedOnce) hint = "Aguardando seu áudio…";
+    $("continueHint").textContent = hint;
+
+    const showStatus = !!(state.invitedOnce || state.voiceState === "received" || state.voiceState === "ready");
+    $("voiceStatusBox").style.display = showStatus ? "block" : "none";
+    if(showStatus){
+      let main = "";
+      if(state.voiceState === "ready"){
+        main = "Voz pronta ✅ Sua conta já tem uma voz ativa configurada.";
+      } else if(state.voiceState === "received"){
+        main = "Voz recebida ✅ Vamos processar sua voz automaticamente após a ativação da conta.";
+      } else {
+        main = "Pedido enviado ✅ Agora mande seu áudio no WhatsApp.";
+      }
+      $("voiceStatusText").textContent = main;
+      $("voiceStatusHint").textContent = "Você poderá enviar mais áudios depois (até 5). Eles contam no armazenamento do seu plano.";
+    }
   }
 
   async function sendInvite(){
@@ -264,6 +352,7 @@
 
       toast("Mensagem enviada. Veja seu WhatsApp.");
       render();
+      startVoicePolling();
     } catch(e){
       console.warn("[voz] invite error:", e);
       if(e && e.message === "not_authenticated"){
@@ -314,7 +403,7 @@
         location.href = "/pages/login.html?return=" + encodeURIComponent(here);
         return;
       }
-      render();
+      fetchVoiceStatus().then(()=>render()).catch(()=>render());
     });
   }
 
@@ -324,4 +413,5 @@
 
 </body>
 </html>
+
 
