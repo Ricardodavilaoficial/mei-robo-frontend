@@ -2347,34 +2347,35 @@ async function init() {
 
 
 <!-- ===== PATCH: restore "Salvar e continuar" (safe wiring) ===== -->
+<!-- ===== PATCH: restore "Salvar e continuar" (call real flow) ===== -->
 <script>
 (function(){
   try{
     var btn = document.getElementById('btn-salvar');
     if(!btn) return;
 
-    // Make it visible + clickable (even if an older script hid it)
+    // sempre visível/clicável
     try{ btn.style.display = 'inline-flex'; }catch(e){}
     try{ btn.disabled = false; }catch(e){}
 
-    // IMPORTANT: Do not duplicate business rules.
-    // We simply trigger the existing agenda save+continue flow (which already handles:
-    // - voice gate, config gate, authority gate
-    // - save config + save agenda
-    // - redirect (dashboard vs onboarding)
-    btn.onclick = function(){
-      try{
-        var agendaForm = document.getElementById('agenda-form');
-        if (agendaForm) {
-          if (typeof agendaForm.requestSubmit === 'function') agendaForm.requestSubmit();
-          else agendaForm.dispatchEvent(new Event('submit', { bubbles:true, cancelable:true }));
-          return;
-        }
-        var agendaBtn = document.getElementById('agenda-save-btn');
-        if (agendaBtn && typeof agendaBtn.click === 'function') agendaBtn.click();
-      } catch(err){
-        console.error('[btn-salvar] falha ao acionar fluxo:', err);
+    btn.onclick = async function(ev){
+      try{ if(ev){ ev.preventDefault(); ev.stopPropagation(); } }catch(e){}
+
+      // chama o fluxo REAL (já faz save + redirect)
+      if (typeof window.salvarAgendaConfig === 'function') {
+        await window.salvarAgendaConfig({ preventDefault: function(){} });
+        return;
       }
+
+      // fallback: tenta submeter o form
+      var agendaForm = document.getElementById('agenda-form');
+      if (agendaForm) {
+        if (typeof agendaForm.requestSubmit === 'function') agendaForm.requestSubmit();
+        else agendaForm.dispatchEvent(new Event('submit', { bubbles:true, cancelable:true }));
+        return;
+      }
+
+      console.warn('[btn-salvar] não achei salvarAgendaConfig nem agenda-form.');
     };
   }catch(e){
     console.error('[btn-salvar] patch init falhou:', e);
@@ -2425,28 +2426,3 @@ async function init() {
 
 </body>
 </html>
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
