@@ -709,7 +709,7 @@ function scheduleCnpjPublicApply(nomeBusca){
       setTextIf("disp-legalname", legalName);
 
       // Nome fantasia pode vir vazio mesmo (alguns CNPJs não têm)
-      setTextIf("disp-tradename", tradeName || "—");
+      setTextIf("disp-tradename", tradeName);
 
             // Situação/Abertura (fallbacks comuns entre provedores)
             const situ = (
@@ -733,7 +733,7 @@ function scheduleCnpjPublicApply(nomeBusca){
               status: payload?.status
             });
 
-            setTextIf("disp-situacao", situ || "—");
+            setTextIf("disp-situacao", situ);
             setTextIf("disp-abertura", ab);
             // CNAE principal (payload pode vir com nomes alternativos)
             const cnaeCodigo = (payload?.cnaePrincipal?.codigo || payload?.cnae?.codigo || payload?.cnae_codigo || "").toString().trim();
@@ -902,6 +902,24 @@ function scheduleCnpjPublicApply(nomeBusca){
       }
     }
     const agendaAlertEl = document.getElementById('agenda-alert');
+
+    // ===== PATCH: ligar botão "Editar" da agenda (UI) =====
+    const agendaSummaryBox = document.getElementById('agenda-summary');
+    const agendaSummaryTextEl = document.getElementById('agenda-summary-text');
+    const btnAgendaEditarEl = document.getElementById('btnAgendaEditar');
+
+    function setAgendaEditMode(editing){
+      if (agendaFormEl) agendaFormEl.style.display = editing ? 'block' : 'none';
+      if (agendaSummaryBox) agendaSummaryBox.style.display = editing ? 'none' : 'block';
+    }
+
+    if (btnAgendaEditarEl) {
+      btnAgendaEditarEl.addEventListener('click', () => {
+        setAgendaEditMode(true);
+        try { agendaFormEl?.scrollIntoView({ behavior:'smooth', block:'start' }); } catch(_){}
+      });
+    }
+
     const agendaSaveBtn = document.getElementById('agenda-save-btn');
     let currentAgendaConfig = null;
     let agendaSavedOk = false; // ✅ usamos isso para saber se a agenda já foi salva nesta jornada
@@ -1213,6 +1231,14 @@ function scheduleCnpjPublicApply(nomeBusca){
       agendaResumoEl.appendChild(l2);
       agendaResumoEl.appendChild(l3);
       agendaResumoEl.appendChild(l4);
+    
+      // PATCH (opcional): 1 linha coerente no resumo (topo)
+      try {
+        if (typeof agendaSummaryTextEl !== 'undefined' && agendaSummaryTextEl && cfg) {
+          const dias = (cfg.diasAtendimento || []).join(', ');
+          agendaSummaryTextEl.textContent = `${dias || 'Seg–Sex'}, ${cfg.atendimentoInicio || '--:--'}–${cfg.atendimentoFim || '--:--'} (você pode editar)`;
+        }
+      } catch(_) {}
     }
 
     async function carregarAgendaConfigFromApi(){
@@ -1369,6 +1395,7 @@ function scheduleCnpjPublicApply(nomeBusca){
         currentAgendaConfig = payload;
         atualizarAgendaResumo(currentAgendaConfig);
         agendaSavedOk = true; // garantir que marcamos como salva nesta jornada
+        try { setAgendaEditMode(false); } catch(_) {}
         updateDashboardCTAVisibility(); // PATCH 3 — reavalia CTA do painel
         setAgendaMessage('Configuração de agenda salva com sucesso. Indo para a próxima etapa…', 'success');
 
@@ -2338,23 +2365,15 @@ async function init() {
     btn.onclick = function(){
       try{
         var agendaForm = document.getElementById('agenda-form');
-        if(agendaForm){
-          // Fire the existing submit handler (salvarAgendaConfig is bound via addEventListener)
-          var ev = new Event('submit', { bubbles:true, cancelable:true });
-          agendaForm.dispatchEvent(ev);
+        if (agendaForm) {
+          if (typeof agendaForm.requestSubmit === 'function') agendaForm.requestSubmit();
+          else agendaForm.dispatchEvent(new Event('submit', { bubbles:true, cancelable:true }));
           return;
         }
-
-        // Fallback: if agenda form isn't present, try to find the bottom "Salvar e continuar" button
         var agendaBtn = document.getElementById('agenda-save-btn');
-        if(agendaBtn && typeof agendaBtn.click === 'function'){
-          agendaBtn.click();
-          return;
-        }
-
-        console.warn('[btn-salvar] agenda-form não encontrado; nada para acionar.');
-      }catch(err){
-        console.error('[btn-salvar] falha ao acionar fluxo de salvar/continuar:', err);
+        if (agendaBtn && typeof agendaBtn.click === 'function') agendaBtn.click();
+      } catch(err){
+        console.error('[btn-salvar] falha ao acionar fluxo:', err);
       }
     };
   }catch(e){
@@ -2391,8 +2410,7 @@ async function init() {
     if(!anchor) return;
 
     // coloca o botão logo depois do bloco da agenda
-    (anchor && anchor.id === 'agenda-form' ? anchor : (document.getElementById('agenda-form') || anchor)).appendChild(btn);
-
+    anchor.insertAdjacentElement('afterend', btn);
   }
 
   if (document.readyState === 'loading') {
