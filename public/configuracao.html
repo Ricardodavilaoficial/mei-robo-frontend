@@ -419,7 +419,7 @@ console.info("[configuracao] PATCH_MARKER v2 single-binder ativo");
 
         <div class="mt-12">
           <!-- PATCH 4: renomear botão da agenda -->
-          <button id="agenda-save-btn" type="submit" class="btn outline">Salvar e continuar</button>
+          <button id="agenda-save-btn" type="submit" class="btn outline">Salvar agenda</button>
         </div>
       </form>
 
@@ -1399,30 +1399,21 @@ function scheduleCnpjPublicApply(nomeBusca){
         agendaSavedOk = true; // garantir que marcamos como salva nesta jornada
         try { setAgendaEditMode(false); } catch(_) {}
         updateDashboardCTAVisibility(); // PATCH 3 — reavalia CTA do painel
-        setAgendaMessage('Configuração de agenda salva com sucesso. Indo para a próxima etapa…', 'success');
+        setAgendaMessage('Agenda salva ✅ Você continua na configuração. Quando quiser avançar, use o botão "Salvar e continuar" acima.', 'success');
 
-        // 4.3. Agora sim, avança a jornada
-        setTimeout(() => {
-          try {
-            let dest = destinoPosConfig;
-            if (!dest) {
-              const qs = new URLSearchParams(window.location.search || "");
-              const fromDash = (qs.get("from") || "") === "dashboard";
-              dest = fromDash ? "/pages/dashboard.html" : "/pages/configuracao_voz.html";
-            }
-            window.location.href = dest;
-          } catch (_) {
-            window.location.href = "/pages/configuracao_voz.html";
-          }
-        }, 800);
+        try { setAgendaEditMode(false); } catch(_) {}
 
-      } catch (e) {
+        // opcional: rolar pro topo da configuração (pra pessoa ver os campos)
+        try {
+          const y = form?.offsetTop || 0;
+          window.scrollTo({ top: Math.max(y - 40, 0), behavior: 'smooth' });
+        } catch(_) {}} catch (e) {
         console.error('[configuracao] Erro ao salvar agenda', e);
         setAgendaMessage('Não foi possível salvar a agenda agora. Tente novamente.', 'error');
       } finally {
         if (agendaSaveBtn) {
           agendaSaveBtn.disabled = false;
-          agendaSaveBtn.textContent = 'Salvar e continuar';
+          agendaSaveBtn.textContent = 'Salvar agenda';
         }
       }
     }
@@ -1433,7 +1424,7 @@ function scheduleCnpjPublicApply(nomeBusca){
         agendaFormEl.addEventListener('submit', salvarAgendaConfig);
       }
       if (agendaSaveBtn) {
-        agendaSaveBtn.textContent = 'Salvar e continuar'; // ✅ botão final da página
+        agendaSaveBtn.textContent = 'Salvar agenda'; // ✅ botão final da página
       }
       updateDashboardCTAVisibility(); // PATCH 3 — decide se mostra o CTA ao carregar a página
     }
