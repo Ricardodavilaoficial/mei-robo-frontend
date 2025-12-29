@@ -23,6 +23,7 @@
         if (window.firebase?.apps?.length) {
           try { firebase.auth().languageCode = 'pt_BR'; } catch(_){}
           console.log('[configuracao] Firebase pronto (Hosting init).');
+console.info("[configuracao] PATCH_MARKER v2 single-binder ativo");
         } else {
           console.error('[configuracao] Firebase não inicializou via Hosting.');
         }
@@ -104,6 +105,7 @@
     window.API_BASE = "https://mei-robo-prod.onrender.com";
   </script>
 
+<!-- PATCH_MARKER: salvar_e_continuar_single_binder v2 | sha_src=d4a78e9f4c0c -->
 </head>
 <body>
   <div id="app-header"></div>
@@ -1305,7 +1307,7 @@ function scheduleCnpjPublicApply(nomeBusca){
 
     // PATCH 3.2 — nova função salvarAgendaConfig (config + agenda + redirect)
     async function salvarAgendaConfig(ev){
-      ev.preventDefault();
+      try { if (ev && ev.preventDefault) ev.preventDefault(); } catch (_) {}
       if (!agendaFormEl) return;
 
       // 2) Campos mínimos da configuração de comunicação
@@ -1401,7 +1403,17 @@ function scheduleCnpjPublicApply(nomeBusca){
 
         // 4.3. Agora sim, avança a jornada
         setTimeout(() => {
-          window.location.href = destinoPosConfig;
+          try {
+            let dest = destinoPosConfig;
+            if (!dest) {
+              const qs = new URLSearchParams(window.location.search || "");
+              const fromDash = (qs.get("from") || "") === "dashboard";
+              dest = fromDash ? "/pages/dashboard.html" : "/pages/configuracao_voz.html";
+            }
+            window.location.href = dest;
+          } catch (_) {
+            window.location.href = "/pages/configuracao_voz.html";
+          }
         }, 800);
 
       } catch (e) {
@@ -1704,6 +1716,7 @@ try {} catch (_) {}
     }
 
 async function init() {
+      try {
       // PATCH 3 — ação do botão "Ir para o painel do MEI Robô"
       if (btnGoDashboard) {
         btnGoDashboard.addEventListener('click', () => {
@@ -1827,7 +1840,7 @@ async function init() {
           if (typeof data.endereco === 'string') {
             endStr = data.endereco;
           } else {
-            endStr = formatEnderecoFrom({ endereco: data.endereco });
+            endStr = fmtEnderecoCnpj(data.endereco);
           }
           if (endStr) {
             dEnd.textContent = endStr;
@@ -1891,8 +1904,17 @@ async function init() {
             if (emp) (window.populateFromEmpresa || populateFromEmpresa)(emp);
           } catch(_){}
         }
-        setupVoice(uid, idToken);
-        await loadWabaStatus(uid, idToken);
+        if (typeof setupVoice === 'function') {
+          setupVoice(uid, idToken);
+        } else {
+          console.warn('[configuracao] setupVoice() ausente — seguindo sem módulo de voz nesta tela');
+        }
+
+        if (typeof loadWabaStatus === 'function') {
+          await loadWabaStatus(uid, idToken);
+        } else {
+          console.warn('[configuracao] loadWabaStatus() ausente — seguindo sem status WABA nesta tela');
+        }
 
         // Agenda (nova): carregamento + form
         await setupAgendaConfig();
@@ -1955,6 +1977,12 @@ async function init() {
 
       } catch(e) {
         // permanece na tela
+      }
+
+      } catch (e) {
+        console.error('[configuracao] init() quebrou:', e);
+        // mantém a página “viva” mesmo se alguma parte falhar
+        setAuthMsg('Algo falhou ao carregar esta tela. Recarregue (Ctrl+F5). Se persistir, avise o suporte.');
       }
     }
 
@@ -2346,83 +2374,6 @@ async function init() {
 </script>
 
 
-<!-- ===== PATCH: restore "Salvar e continuar" (safe wiring) ===== -->
-<!-- ===== PATCH: restore "Salvar e continuar" (call real flow) ===== -->
-<script>
-(function(){
-  try{
-    var btn = document.getElementById('btn-salvar');
-    if(!btn) return;
-
-    // sempre visível/clicável
-    try{ btn.style.display = 'inline-flex'; }catch(e){}
-    try{ btn.disabled = false; }catch(e){}
-
-    btn.onclick = async function(ev){
-      try{ if(ev){ ev.preventDefault(); ev.stopPropagation(); } }catch(e){}
-
-      // chama o fluxo REAL (já faz save + redirect)
-      if (typeof window.salvarAgendaConfig === 'function') {
-        await window.salvarAgendaConfig({ preventDefault: function(){} });
-        return;
-      }
-
-      // fallback: tenta submeter o form
-      var agendaForm = document.getElementById('agenda-form');
-      if (agendaForm) {
-        if (typeof agendaForm.requestSubmit === 'function') agendaForm.requestSubmit();
-        else agendaForm.dispatchEvent(new Event('submit', { bubbles:true, cancelable:true }));
-        return;
-      }
-
-      console.warn('[btn-salvar] não achei salvarAgendaConfig nem agenda-form.');
-    };
-  }catch(e){
-    console.error('[btn-salvar] patch init falhou:', e);
-  }
-})();
-</script>
-
-<!-- PATCH: mover "Salvar e continuar" para o final (abaixo da Agenda) -->
-<script>
-(function(){
-  function move(){
-    var btn = document.getElementById('btn-salvar');
-    if(!btn) return;
-
-    // garante que está visível
-    btn.style.display = 'inline-flex';
-    btn.disabled = false;
-
-    // tenta ancorar abaixo da área da agenda
-    var anchor =
-      document.getElementById('agendaArea') ||
-      document.getElementById('agendaWrap') ||
-      document.getElementById('agenda-form') ||
-      document.getElementById('agenda-card') ||
-      document.querySelector('#agenda-form') ||
-      null;
-    
-    // se o form estiver hidden, ancora no pai (container visível)
-    if (anchor && anchor.style && anchor.style.display === 'none' && anchor.parentElement) {
-      anchor = anchor.parentElement;
-    }
-    
-    if(!anchor) return;
-
-    // coloca o botão logo depois do bloco da agenda
-    anchor.insertAdjacentElement('afterend', btn);
-  }
-
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', move);
-  } else {
-    move();
-  }
-})();
-</script>
-
-<!-- ===== /PATCH ===== -->
 
 </body>
 </html>
