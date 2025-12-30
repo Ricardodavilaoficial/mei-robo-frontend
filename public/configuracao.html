@@ -354,12 +354,6 @@ console.info("[configuracao] PATCH_MARKER v2 single-binder ativo");
           </div>
         </section>
 
-        <!-- PATCH 1: esconder botão antigo de salvar/continuar -->
-        <div class="mt-24">
-          <!-- Botão antigo de avançar foi desativado; a jornada segue agora pela agenda. -->
-          <button id="btn-salvar" type="button" class="btn primary" style="display:inline-flex">Salvar e continuar</button>
-          <span id="config-feedback" class="hint mt-8" style="margin-left:8px;"></span>
-        </div>
       </form>
 
 
@@ -458,6 +452,15 @@ console.info("[configuracao] PATCH_MARKER v2 single-binder ativo");
           </button>
         </div>
       </div>
+
+    <!-- Botão principal (único) — fica após a Agenda -->
+        <!-- PATCH 1: esconder botão antigo de salvar/continuar -->
+        <div class="actions-footer">
+          <!-- Botão antigo de avançar foi desativado; a jornada segue agora pela agenda. -->
+          <button id="btn-salvar" type="button" class="btn primary" style="display:inline-flex">Salvar e continuar</button>
+          <span id="config-feedback" class="hint mt-8" style="margin-left:8px;"></span>
+        </div>
+
     </section>
   </main>
 
@@ -926,6 +929,7 @@ function scheduleCnpjPublicApply(nomeBusca){
     let currentAgendaConfig = null;
     let agendaSavedOk = false; // ✅ usamos isso para saber se a agenda já foi salva nesta jornada
     let destinoPosConfig = '/pages/configuracao_voz.html'; // default: onboarding ainda em andamento
+    let vozReady = false; // ✅ controla se já existe voz pronta (voiceId/status ready)
     let contaAtiva = false; // 🔴 NOVO: será preenchido com base em /api/conta/status
 
     // Indica se o usuário chegou aqui vindo do dashboard
@@ -1436,6 +1440,10 @@ function scheduleCnpjPublicApply(nomeBusca){
       init();
     })();
 
+    // PATCH D — Esconder CTAs antigos de “ir pro dashboard” (pra ficar 1 botão só)
+    try { if (btnGoDashboard) btnGoDashboard.style.display = 'none'; } catch(_){ }
+    try { if (dashCta) dashCta.style.display = 'none'; } catch(_){ }
+
     
     // ===== FIX CNPJ: loader de empresa via /api/conta/status (robusto, sem quebrar init) =====
     // Mantém o guard no init() e garante preenchimento dos campos usados no POST e na UI.
@@ -1761,6 +1769,17 @@ async function init() {
         }
 
         const data = (payload && payload.data) ? payload.data : (payload || {});
+        // ✅ Detecta voz pronta a partir do payload da configuração
+        try {
+          const vz = (data && (data.vozClonada || data.voz || data.voice)) || {};
+          const st = String(vz.status || '').toLowerCase().trim();
+          const voiceId = String(vz.voiceId || vz.voice_id || '').trim();
+          vozReady = (st === 'ready') || (!!voiceId);
+        } catch (_) {
+          vozReady = false;
+        }
+
+        console.log('[configuracao] vozReady=', vozReady);
         let user = firebase.auth().currentUser;
         try { await user?.reload(); } catch(_){}
         const authEmail = user?.email || '';
@@ -2114,6 +2133,46 @@ async function init() {
     form.addEventListener('submit', function (event) {
       event.preventDefault();
       salvarConfiguracaoSemRedirect();
+    });
+    
+    // ✅ ÚNICO avanço da jornada: botão principal "Salvar e continuar"
+    btnSalvar.addEventListener('click', async (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+
+      // trava UI
+      btnSalvar.disabled = true;
+      const oldTxt = btnSalvar.textContent;
+      btnSalvar.textContent = 'Salvando…';
+
+      try {
+        // 1) salva a configuração (sem redirect interno)
+        const res = await salvarConfiguracaoSemRedirect();
+        if (!res || !res.ok) {
+          // se falhou, não avança
+          btnSalvar.disabled = false;
+          btnSalvar.textContent = oldTxt;
+          return;
+        }
+
+        // 2) decide destino FINAL com base na voz
+        let dest = '/pages/configuracao_voz.html';
+
+        // Se veio do dashboard, volta pro dashboard (modo edição)
+        if (veioDoDashboard) {
+          dest = '/pages/dashboard.html';
+        } else {
+          // Regra principal pedida: voz pronta -> dashboard; sem voz -> configuracao_voz
+          dest = vozReady ? '/pages/dashboard.html' : '/pages/configuracao_voz.html';
+        }
+
+        window.location.href = dest;
+      } catch (err) {
+        console.error('[configuracao] erro no btn-salvar:', err);
+        cfgFeedback.textContent = '❌ Não foi possível salvar agora. Tente novamente.';
+        btnSalvar.disabled = false;
+        btnSalvar.textContent = oldTxt;
+      }
     });
 
     for (const r of document.getElementsByName('branding_choice')) {
