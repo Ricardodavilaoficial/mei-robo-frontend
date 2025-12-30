@@ -331,8 +331,8 @@
   function render(){
     const consentOk = $("consentChk").checked === true;
     const hasPhone = !!state.toE164;
-    $("btnInvite").disabled = !(consentOk && hasPhone);
-    $("btnResend").disabled = !(consentOk && hasPhone);
+    $("btnInvite").disabled = !consentOk;
+    $("btnResend").disabled = !consentOk;
 
     const canContinue = !!(state.invitedOnce || state.voiceState === "received" || state.voiceState === "ready");
     $("btnContinue").disabled = !canContinue;
@@ -365,21 +365,20 @@
       return;
     }
 
-    let toE164 = state.toE164;
-    if(!toE164){
-      toast("Não achei seu WhatsApp vinculado. Volte e finalize seu cadastro.");
-      return;
-    }
+    let toE164 = state.toE164 || "";
 
     try{
-      await voiceApiFetch("/api/voz/whatsapp/invite", { method: "POST", json: { toE164 } });
-
+      const body = toE164 ? { toE164 } : {};
+      await voiceApiFetch("/api/voz/whatsapp/invite", { method: "POST", json: body });
       state.invitedOnce = true;
-      state.toE164 = toE164;
-      localStorage.setItem("vozWa_toE164_last", toE164);
+
+      if (toE164) {
+        state.toE164 = toE164;
+        localStorage.setItem("vozWa_toE164_last", toE164);
+        showPhoneInline(toE164);
+      }
 
       $("afterInviteMsg").style.display = "block";
-      showPhoneInline(toE164);
 
       toast("Mensagem enviada. Veja seu WhatsApp.");
       render();
