@@ -1774,7 +1774,7 @@ async function init() {
           const vz = (data && (data.vozClonada || data.voz || data.voice)) || {};
           const st = String(vz.status || '').toLowerCase().trim();
           const voiceId = String(vz.voiceId || vz.voice_id || '').trim();
-          vozReady = (st === 'ready') || (!!voiceId);
+          vozReady = (st === 'ready');
         } catch (_) {
           vozReady = false;
         }
