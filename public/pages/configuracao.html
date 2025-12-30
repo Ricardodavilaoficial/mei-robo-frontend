@@ -2163,8 +2163,10 @@ async function init() {
           dest = '/pages/dashboard.html';
         } else {
           // Regra principal pedida: voz pronta -> dashboard; sem voz -> configuracao_voz
-          dest = vozReady ? '/pages/dashboard.html' : '/pages/configuracao_voz.html';
+          dest = '/pages/configuracao_voz.html';
         }
+        
+        console.log('[configuracao] continuar:', { veioDoDashboard, vozReady, dest });
 
         window.location.href = dest;
       } catch (err) {
