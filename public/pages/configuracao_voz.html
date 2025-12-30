@@ -41,7 +41,7 @@
   <script src="/assets/firebase-init.js"></script>
 </head>
 <body>
-  <div id="header"></div>
+  <div id="app-header"></div>
 
   <div class="card">
     <div class="h1">Configurar sua voz</div>
@@ -79,17 +79,7 @@
     </div>
 
     <div id="phoneInline" class="tiny muted" style="margin-top:10px; display:none;">
-      WhatsApp usado: <b id="phoneMasked">—</b>
-      · <a href="#" class="link" id="editPhoneLink">editar</a>
-    </div>
-
-    <div id="phoneEdit" style="margin-top:12px; display:none;">
-      <div class="tiny muted">Se precisar, ajuste seu WhatsApp (DDD + número). Ex.: +55 51 99999-9999</div>
-      <div class="spacer"></div>
-      <div class="row">
-        <input id="toPhone" inputmode="tel" autocomplete="tel" placeholder="+55 51 99999-9999" />
-        <button id="savePhoneBtn" class="ghost">Salvar número</button>
-      </div>
+      WhatsApp usado: <b id="phoneMasked">—</b></div>
     </div>
 
     <div id="afterInviteMsg" class="muted" style="margin-top:12px; display:none;">
@@ -111,7 +101,7 @@
   </div>
 
   <div class="toast" id="toast"><div id="toastMsg"></div></div>
-  <div id="footer"></div>
+  <div id="app-footer"></div>
 
 <script>
 (function(){
@@ -208,9 +198,42 @@
   const state = { mode: "onboarding", returnUrl: "", invitedOnce: false, toE164: "", voiceState: "none" };
 
 
+
+
+  function extractToE164FromConfigPayload(payload){
+    try{
+      const d = (payload && payload.data) ? payload.data : payload;
+
+      const candidates = [
+        d && d.whatsappE164,
+        d && d.whatsapp_e164,
+        d && d.wa_e164,
+        d && d.toE164,
+        d && d.whatsapp,
+        d && d.wa,
+        d && d.conta && d.conta.whatsappE164,
+        d && d.conta && d.conta.toE164,
+        d && d.conta && d.conta.wa_e164,
+      ].filter(Boolean);
+
+      for(const c of candidates){
+        const e = toE164BR(String(c));
+        if(e) return e;
+      }
+      return "";
+    }catch(_){
+      return "";
+    }
+  }
+
   async function fetchVoiceStatus(){
     try{
       const payload = await voiceApiFetch("/api/configuracao");
+      const e164 = extractToE164FromConfigPayload(payload);
+      if(e164){
+        state.toE164 = e164;
+        showPhoneInline(e164);
+      }
       const vc = (payload && payload.data && payload.data.vozClonada) ? payload.data.vozClonada : null;
 
       let st = "none";
@@ -307,8 +330,9 @@
 
   function render(){
     const consentOk = $("consentChk").checked === true;
-    $("btnInvite").disabled = !consentOk;
-    $("btnResend").disabled = !consentOk;
+    const hasPhone = !!state.toE164;
+    $("btnInvite").disabled = !(consentOk && hasPhone);
+    $("btnResend").disabled = !(consentOk && hasPhone);
 
     const canContinue = !!(state.invitedOnce || state.voiceState === "received" || state.voiceState === "ready");
     $("btnContinue").disabled = !canContinue;
@@ -341,10 +365,9 @@
       return;
     }
 
-    let toE164 = state.toE164 || guessPhoneFromStorage();
+    let toE164 = state.toE164;
     if(!toE164){
-      showPhoneEdit(true);
-      toast("Confirme seu WhatsApp pra eu mandar a mensagem.");
+      toast("Não achei seu WhatsApp vinculado. Volte e finalize seu cadastro.");
       return;
     }
 
@@ -357,7 +380,6 @@
 
       $("afterInviteMsg").style.display = "block";
       showPhoneInline(toE164);
-      showPhoneEdit(false);
 
       toast("Mensagem enviada. Veja seu WhatsApp.");
       render();
@@ -379,24 +401,6 @@
     const p = parseParams();
     state.mode = p.mode;
     state.returnUrl = p.returnUrl;
-
-    const guessed = guessPhoneFromStorage();
-    if(guessed){
-      state.toE164 = guessed;
-      showPhoneInline(guessed);
-    }
-
-    $("editPhoneLink").onclick = (ev)=>{ ev.preventDefault(); showPhoneEdit(true); };
-    $("savePhoneBtn").onclick = (ev)=>{
-      ev.preventDefault();
-      const e = toE164BR($("toPhone").value);
-      if(!e){ toast("Número inválido. Ex.: +55 51 99999-9999"); return; }
-      state.toE164 = e;
-      localStorage.setItem("vozWa_toE164_last", e);
-      showPhoneInline(e);
-      showPhoneEdit(false);
-      toast("Número salvo.");
-    };
 
     $("btnInvite").onclick = ()=>sendInvite();
     $("btnResend").onclick = ()=>sendInvite();
@@ -422,6 +426,7 @@
 
 </body>
 </html>
+
 
 
 
