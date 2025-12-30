@@ -275,19 +275,6 @@
     window.__voicePollT = setTimeout(tick, nextDelay());
   }
 
-      const st = await fetchVoiceStatus();
-      render();
-
-      if(st === "received" || st === "ready"){
-        stopVoicePolling();
-        return;
-      }
-
-      window.__voicePollT = setTimeout(tick, intervalMs);
-    };
-
-    window.__voicePollT = setTimeout(tick, intervalMs);
-  }
 
 
 
@@ -435,6 +422,7 @@
 
 </body>
 </html>
+
 
 
 
