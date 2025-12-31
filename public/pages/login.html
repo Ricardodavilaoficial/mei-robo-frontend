@@ -173,6 +173,11 @@
           const st = await res.json();
           const emp = st?.empresa || {};
           const pub = st?.publico || {};
+          
+          // VIP: conta ativa (pagou ou cupom) -> vai direto para o Dashboard
+          if (st && st.isActive === true) {
+            return '/pages/dashboard.html';
+          }
 
           const cnpjDigits = String(emp?.cnpj || '').replace(/\D/g,'');
           const razao = String(emp?.razaoSocial || '').trim();
