@@ -2155,14 +2155,15 @@ async function init() {
           return;
         }
 
-        // 2) decide destino FINAL usando a regra já calculada no init()
-        let dest = (typeof destinoPosConfig === 'string' && destinoPosConfig)
-          ? destinoPosConfig
-          : (vozReady ? '/pages/dashboard.html' : '/pages/configuracao_voz.html');
+        // 2) decide destino FINAL com base na voz
+        let dest = '/pages/configuracao_voz.html';
 
-        // Se veio do dashboard, sempre volta pro dashboard (modo edição)
+        // Se veio do dashboard, volta pro dashboard (modo edição)
         if (veioDoDashboard) {
           dest = '/pages/dashboard.html';
+        } else {
+          // Regra principal pedida: voz pronta -> dashboard; sem voz -> configuracao_voz
+          dest = '/pages/configuracao_voz.html';
         }
         
         console.log('[configuracao] continuar:', { veioDoDashboard, vozReady, dest });
@@ -2428,5 +2429,3 @@ async function init() {
 
 </body>
 </html>
-
-
