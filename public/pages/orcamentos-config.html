@@ -6,7 +6,7 @@
   <title>Configuração de Orçamentos — MEI Robô (v1.0)</title>
 
   <link rel="stylesheet" href="/assets/styles.css" />
-  <script src="/assets/layout.js" defer></script>
+  
 
   <!-- Firebase compat (igual outras telas) -->
   <script defer src="/__/firebase/9.22.2/firebase-app-compat.js"></script>
@@ -14,6 +14,8 @@
   <script defer src="/__/firebase/9.22.2/firebase-firestore-compat.js"></script>
   <script defer src="/__/firebase/9.22.2/firebase-storage-compat.js"></script>
   <script defer src="/__/firebase/init.js"></script>
+  <!-- Layout deve vir DEPOIS do Firebase init (evita header-auth rodar sem app) -->
+  <script src="/assets/layout.js" defer></script>
 
   <style>
     :root{
@@ -476,18 +478,78 @@
 
     async function uploadIfNeeded(uid, kind, file){
       if(!file) return null;
-      const storage = getStorage();
-      if(!storage) return null;
 
-      const ext = (file.name && file.name.includes('.'))
-        ? file.name.split('.').pop()
-        : 'bin';
-      const path = `profissionais/${uid}/orcamentos/${kind}-${Date.now()}.${ext}`;
-      const ref = storage.ref().child(path);
-      const snap = await ref.put(file);
-      const url = await snap.ref.getDownloadURL();
-      return { path, url };
+      // Preferência: upload via BACKEND (controle de quota, segurança e rules de Storage fechadas).
+      // Best-effort: se o endpoint não existir/falhar, não quebra o salvamento da config (apenas ignora o upload).
+      const DEFAULT_BASE = 'https://mei-robo-prod.onrender.com';
+      let base = (localStorage.getItem('apiBase') || DEFAULT_BASE).trim();
+
+      // allowlist conservadora: produção + localhost (dev)
+      try{
+        const b = base.replace(/\/+$/,'');
+        const okProd = b.startsWith('https://mei-robo-prod.onrender.com');
+        const okLocal = b.startsWith('http://localhost:') || b.startsWith('http://127.0.0.1:');
+        base = (okProd || okLocal) ? b : DEFAULT_BASE;
+      }catch(_){
+        base = DEFAULT_BASE;
+      }
+
+      // token
+      let token = '';
+      try{
+        if(hasFirebaseCompat() && typeof firebase.auth === 'function'){
+          const cur = firebase.auth().currentUser;
+          if(cur && typeof cur.getIdToken === 'function'){
+            token = await cur.getIdToken(false);
+          }
+        }
+      }catch(_){
+        token = '';
+      }
+      if(!token){
+        console.warn('[orcamentos] uploadIfNeeded: sem token; ignorando upload de', kind);
+        return null;
+      }
+
+      // Endpoint sugerido (implementar no backend):
+      // POST /api/orcamentos/timbrado  (FormData: file, kind)
+      // Retorno esperado (flexível): {path, url} ou {data:{path,url}} ou {ok:true,path,url}
+      const url = `${base}/api/orcamentos/timbrado`;
+
+      try{
+        const fd = new FormData();
+        fd.append('kind', String(kind || 'logo'));
+        fd.append('file', file, file.name || `${kind}.bin`);
+
+        const resp = await fetch(url, {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${token}` },
+          body: fd,
+        });
+
+        if(!resp.ok){
+          console.warn('[orcamentos] uploadIfNeeded: backend respondeu', resp.status, 'para', kind);
+          return null;
+        }
+
+        const j = await resp.json().catch(() => ({}));
+        const out = (j && j.data) ? j.data : j;
+
+        if(out && out.path && (out.url || out.signedUrl)){
+          return { path: out.path, url: (out.url || out.signedUrl) };
+        }
+        if(out && (out.url || out.signedUrl)){
+          return { path: out.path || '', url: (out.url || out.signedUrl) };
+        }
+
+        console.warn('[orcamentos] uploadIfNeeded: resposta inesperada do backend', j);
+        return null;
+      }catch(err){
+        console.warn('[orcamentos] uploadIfNeeded: falha no upload via backend', err);
+        return null;
+      }
     }
+
 
         async function salvarConfig(){
       if(isValidate){
@@ -649,4 +711,5 @@
   </script>
 </body>
 </html>
+
 
