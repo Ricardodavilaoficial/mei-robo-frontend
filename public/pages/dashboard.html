@@ -182,6 +182,23 @@
         </div>
       </section>
 
+      <!-- Armazenamento -->
+      <section class="card" style="margin-top:14px;" id="storageCard" hidden>
+        <strong>Armazenamento</strong>
+
+        <div class="note" style="margin:6px 0 10px;" id="storageMsg">
+          Carregando…
+        </div>
+
+        <div style="height:10px;border-radius:999px;background:rgba(255,255,255,.08);overflow:hidden;">
+          <div id="storageBar" style="height:10px;width:0%;background:rgba(255,255,255,.35);"></div>
+        </div>
+
+        <div class="actions" style="margin-top:10px;gap:10px;flex-wrap:wrap;">
+          <a class="btn ghost" id="storageUpgradeLink" href="/pages/precos.html">Aumentar espaço</a>
+        </div>
+      </section>
+
       <!-- Fila (visual) -->
       <section class="card" style="margin-top:14px;">
         <strong>Fila de envios (visual)</strong>
@@ -279,6 +296,80 @@
     const catalogoStats=$("#catalogoStats");
     const arrivalBanner=$("#arrivalBanner");
     const loginNotice=$("#loginNotice");
+
+    // --- Storage quota (v1) ---
+    const storageCard = $("#storageCard");
+    const storageMsg  = $("#storageMsg");
+    const storageBar  = $("#storageBar");
+    const storageUpgradeLink = $("#storageUpgradeLink");
+
+    const DEFAULT_MAX_BYTES = 2 * 1024 * 1024 * 1024; // 2 GB (Starter)
+
+    function _fmtBytes(n){
+      try{
+        const b = Math.max(0, Number(n||0));
+        const kb = 1024, mb = kb*1024, gb = mb*1024;
+        if (b >= gb) return (b/gb).toFixed(2).replace('.', ',') + " GB";
+        if (b >= mb) return (b/mb).toFixed(1).replace('.', ',') + " MB";
+        if (b >= kb) return Math.round(b/kb) + " KB";
+        return b + " B";
+      }catch{
+        return "0 B";
+      }
+    }
+
+    function _renderStorageUI(usedBytes, maxBytes){
+      if(!storageCard || !storageMsg || !storageBar) return;
+
+      const used = Math.max(0, Number(usedBytes||0));
+      const max  = Math.max(1, Number(maxBytes||DEFAULT_MAX_BYTES));
+      const pct  = Math.max(0, Math.min(100, Math.round((used/max)*100)));
+
+      let headline = `Você usou ${_fmtBytes(used)} de ${_fmtBytes(max)} (${pct}%).`;
+      let tip = "";
+
+      if(pct >= 100){
+        tip = "Seu espaço acabou. Para continuar enviando itens, libere espaço ou aumente seu plano.";
+      } else if(pct >= 95){
+        tip = "Seu espaço está no limite. Em breve você pode ficar sem enviar novos itens.";
+      } else if(pct >= 80){
+        tip = "Seu espaço está quase cheio. Se precisar, aumente seu plano para ter mais espaço.";
+      } else {
+        tip = "Aqui fica o que você guarda no MEI Robô para atender melhor, como no celular.";
+      }
+
+      storageMsg.textContent = `${headline} ${tip}`;
+      storageBar.style.width = pct + "%";
+
+      storageCard.hidden = false;
+    }
+
+    async function loadStorageMeta(user){
+      // Sempre mostra (mesmo se doc ainda não existir)
+      _renderStorageUI(0, DEFAULT_MAX_BYTES);
+
+      try{
+        const db = fs();
+        if(!db || !user?.uid) return;
+
+        const ref = db.collection("profissionais").doc(user.uid)
+                      .collection("storage").doc("meta");
+        const snap = await ref.get();
+
+        if(!snap.exists){
+          // ainda não gerou uploads com quota: mantém 0/2GB
+          return;
+        }
+
+        const data = snap.data() || {};
+        const usedBytes = Number(data.usedBytes || 0);
+        const maxBytes  = Number(data.maxBytes  || DEFAULT_MAX_BYTES);
+
+        _renderStorageUI(usedBytes, maxBytes);
+      }catch(e){
+        // Best-effort: mantém o fallback
+      }
+    }
 
     function isValidateMode(){ 
       try{ 
@@ -462,6 +553,9 @@
 
         // Pós-checkout/cupom
         showArrivalBanner();
+
+        // Storage (quota) — exibe no dashboard
+        await loadStorageMeta(user);
 
         // KPIs básicos (defensivo)
         const db = fs();
