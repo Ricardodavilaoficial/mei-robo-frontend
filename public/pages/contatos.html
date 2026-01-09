@@ -157,6 +157,68 @@
             <label for="n_email">Email</label>
             <input id="n_email" name="email" type="email" placeholder="nome@exemplo.com" />
             <div class="hint">Usamos apenas quando fizer sentido.</div>
+          
+          </div>
+          
+          <!-- Aniversário (MVP) -->
+          <div>
+            <label for="n_bday_d">Aniversário (dia)</label>
+            <select id="n_bday_d" name="birthdayDay">
+              <option value="">—</option>
+              <option value="1">1</option>
+              <option value="2">2</option>
+              <option value="3">3</option>
+              <option value="4">4</option>
+              <option value="5">5</option>
+              <option value="6">6</option>
+              <option value="7">7</option>
+              <option value="8">8</option>
+              <option value="9">9</option>
+              <option value="10">10</option>
+              <option value="11">11</option>
+              <option value="12">12</option>
+              <option value="13">13</option>
+              <option value="14">14</option>
+              <option value="15">15</option>
+              <option value="16">16</option>
+              <option value="17">17</option>
+              <option value="18">18</option>
+              <option value="19">19</option>
+              <option value="20">20</option>
+              <option value="21">21</option>
+              <option value="22">22</option>
+              <option value="23">23</option>
+              <option value="24">24</option>
+              <option value="25">25</option>
+              <option value="26">26</option>
+              <option value="27">27</option>
+              <option value="28">28</option>
+              <option value="29">29</option>
+              <option value="30">30</option>
+              <option value="31">31</option>
+            </select>
+          </div>
+          <div>
+            <label for="n_bday_m">Aniversário (mês)</label>
+            <select id="n_bday_m" name="birthdayMonth">
+              <option value="">—</option>
+              <option value="1">1</option>
+              <option value="2">2</option>
+              <option value="3">3</option>
+              <option value="4">4</option>
+              <option value="5">5</option>
+              <option value="6">6</option>
+              <option value="7">7</option>
+              <option value="8">8</option>
+              <option value="9">9</option>
+              <option value="10">10</option>
+              <option value="11">11</option>
+              <option value="12">12</option>
+            </select>
+            <div style="margin-top:6px">
+              <label><input type="checkbox" id="n_bday_on" checked> Enviar lembrete de aniversário (ativo)</label>
+            </div>
+            <div class="hint">Se preencher dia/mês, o robô manda 1 mensagem curta por ano (quando tiver consentimento).</div>
           </div>
 
           <!-- Ajustes finos (opcional) -->
@@ -361,6 +423,68 @@
         <div>
           <label for="c_email">Email</label>
           <input id="c_email" type="email" placeholder="nome@exemplo.com" />
+        
+        </div>
+        
+        <!-- Aniversário (MVP) -->
+        <div>
+          <label for="c_bday_d">Aniversário (dia)</label>
+          <select id="c_bday_d">
+            <option value="">—</option>
+            <option value="1">1</option>
+            <option value="2">2</option>
+            <option value="3">3</option>
+            <option value="4">4</option>
+            <option value="5">5</option>
+            <option value="6">6</option>
+            <option value="7">7</option>
+            <option value="8">8</option>
+            <option value="9">9</option>
+            <option value="10">10</option>
+            <option value="11">11</option>
+            <option value="12">12</option>
+            <option value="13">13</option>
+            <option value="14">14</option>
+            <option value="15">15</option>
+            <option value="16">16</option>
+            <option value="17">17</option>
+            <option value="18">18</option>
+            <option value="19">19</option>
+            <option value="20">20</option>
+            <option value="21">21</option>
+            <option value="22">22</option>
+            <option value="23">23</option>
+            <option value="24">24</option>
+            <option value="25">25</option>
+            <option value="26">26</option>
+            <option value="27">27</option>
+            <option value="28">28</option>
+            <option value="29">29</option>
+            <option value="30">30</option>
+            <option value="31">31</option>
+          </select>
+        </div>
+        <div>
+          <label for="c_bday_m">Aniversário (mês)</label>
+          <select id="c_bday_m">
+            <option value="">—</option>
+            <option value="1">1</option>
+            <option value="2">2</option>
+            <option value="3">3</option>
+            <option value="4">4</option>
+            <option value="5">5</option>
+            <option value="6">6</option>
+            <option value="7">7</option>
+            <option value="8">8</option>
+            <option value="9">9</option>
+            <option value="10">10</option>
+            <option value="11">11</option>
+            <option value="12">12</option>
+          </select>
+          <div style="margin-top:6px">
+            <label><input type="checkbox" id="c_bday_on"> Enviar lembrete de aniversário (ativo)</label>
+          </div>
+          <div class="hint">Se deixar vazio, não envia mensagem de aniversário.</div>
         </div>
 
         <!-- Finos dentro do modal -->
@@ -539,6 +663,7 @@
       emojis: $("#n_emojis"), tamanho: $("#n_tamanho"),
       audioRule: $("#n_audio_rule"), speechRate: $("#n_speech_rate"), clearPauses: $("#n_clear_pauses"),
       telefone: $("#n_tel"), email: $("#n_email"),
+      bdayDay: $("#n_bday_d"), bdayMonth: $("#n_bday_m"), bdayOn: $("#n_bday_on"),
       resumoRelacionamento: $("#n_resumo"), observacoes: $("#n_obs")
     };
 
@@ -557,6 +682,7 @@
       emojis: $("#c_emojis"), tamanho: $("#c_tamanho"),
       audioRule: $("#c_audio_rule"), speechRate: $("#c_speech_rate"), clearPauses: $("#c_clear_pauses"),
       telefone: $("#c_tel"), email: $("#c_email"),
+      bdayDay: $("#c_bday_d"), bdayMonth: $("#c_bday_m"), bdayOn: $("#c_bday_on"),
       resumoRelacionamento: $("#c_resumo"), observacoes: $("#c_obs"),
       btnCancel: $("#btnCancelContact"), btnSave: $("#btnSaveContact")
     };
@@ -660,6 +786,24 @@
     /* ====== Máscaras & validações básicas ====== */
     const phoneRegex = /^\+55\s?\(?\d{2}\)?\s?9?\d{4}-?\d{4}$/;
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/i;
+
+    function _readBirthday(dayVal, monthVal, enabledVal){
+      const day = parseInt(String(dayVal||"").trim(), 10);
+      const month = parseInt(String(monthVal||"").trim(), 10);
+      const hasDay = Number.isFinite(day);
+      const hasMonth = Number.isFinite(month);
+      if(!hasDay && !hasMonth){
+        return { mode: "empty", value: undefined };
+      }
+      if(hasDay !== hasMonth){
+        return { mode: "invalid", value: undefined };
+      }
+      if(day < 1 || day > 31 || month < 1 || month > 12){
+        return { mode: "invalid", value: undefined };
+      }
+      return { mode: "ok", value: { day, month, enabled: !!enabledVal, lastSentYear: null } };
+    }
+
     function maskPhoneInput(el){
       el.addEventListener('input', ()=>{
         let v = el.value.replace(/\D/g,'');
@@ -830,6 +974,16 @@
         console.warn('[contatos] telefone_v2 skip', e && e.message ? e.message : e);
       }
 
+      // Aniversário (MVP): merge-friendly
+      if (data && Object.prototype.hasOwnProperty.call(data, "birthday")) {
+        if (data.birthday === null) {
+          // remove campo se o usuário limpou
+          try { payload.birthday = firebase.firestore.FieldValue.delete(); } catch(e){ /* noop */ }
+        } else if (data.birthday && typeof data.birthday === "object") {
+          payload.birthday = data.birthday;
+        }
+      }
+
       if(id){ await col.doc(id).set(payload,{merge:true}); }
       else { await col.add(payload); }
     }
@@ -860,6 +1014,9 @@
         clearPauses: !!NC.clearPauses.checked,
         telefone: NC.telefone?.value?.trim() || "",
         email: NC.email?.value?.trim() || "",
+        birthdayDay: (NC.bdayDay ? NC.bdayDay.value : ""),
+        birthdayMonth: (NC.bdayMonth ? NC.bdayMonth.value : ""),
+        birthdayEnabled: (NC.bdayOn ? NC.bdayOn.checked : true),
         resumoRelacionamento: NC.resumoRelacionamento.value.trim(),
         observacoes: NC.observacoes.value.trim()
       };
@@ -870,6 +1027,9 @@
       NC.slang.value="1"; NC.humor.value="1"; NC.anedotas.value="nunca"; NC.ptbr.checked=true;
       NC.emojis.value="poucos"; NC.tamanho.value="curtas";
       NC.audioRule.value="match"; NC.speechRate.value="normal"; NC.clearPauses.checked=true;
+      if(NC.bdayDay) NC.bdayDay.value="";
+      if(NC.bdayMonth) NC.bdayMonth.value="";
+      if(NC.bdayOn) NC.bdayOn.checked=true;
     }
 
     // PATCH: handler robusto para "Salvar contato"
@@ -895,6 +1055,15 @@
       try {
         // 3) Ler e validar o formulário (sem mexer no botão ainda)
         data = readNewForm();
+
+        // Birthday (MVP)
+        const b = _readBirthday(data.birthdayDay, data.birthdayMonth, data.birthdayEnabled);
+        if (b.mode === "invalid") {
+          alert('Aniversário: se preencher dia ou mês, preencha os dois (dia 1..31 e mês 1..12).');
+          return;
+        }
+        if (b.mode === "ok") data.birthday = b.value;
+
 
         if (!data.nome) {
           alert('Informe o nome do contato.');
@@ -1002,6 +1171,9 @@
         C.tom.value = 'equilibrado';
         C.telefone.value = '+55 (11) 91234-5678';
         C.email.value = 'maria@exemplo.com';
+        if(C.bdayDay) C.bdayDay.value = '7';
+        if(C.bdayMonth) C.bdayMonth.value = '1';
+        if(C.bdayOn) C.bdayOn.checked = true;
         C.slang.value = "1"; C.humor.value="1"; C.anedotas.value='nunca'; C.ptbr.checked=true;
         C.emojis.value='poucos'; C.tamanho.value='curtas';
         C.audioRule.value='match'; C.speechRate.value='normal'; C.clearPauses.checked=true;
@@ -1019,6 +1191,12 @@
         C.tom.value = c.tom||"equilibrado";
         C.telefone.value = c.telefone||"";
         C.email.value = c.email||"";
+        // Birthday (MVP)
+        const bd = (c.birthday || null);
+        if (C.bdayDay) C.bdayDay.value = bd && bd.day ? String(bd.day) : "";
+        if (C.bdayMonth) C.bdayMonth.value = bd && bd.month ? String(bd.month) : "";
+        if (C.bdayOn) C.bdayOn.checked = (bd ? (bd.enabled !== false) : false);
+
         C.slang.value = String(c.slang ?? 1);
         C.humor.value = String(c.humor ?? 1);
         C.anedotas.value = c.anecdotesAllow?'rara':(c.anecdotesFreq||'nunca');
@@ -1054,12 +1232,21 @@
         clearPauses: !!C.clearPauses.checked,
         telefone: C.telefone.value.trim(),
         email: C.email.value.trim(),
+        birthdayDay: (C.bdayDay ? C.bdayDay.value : ""),
+        birthdayMonth: (C.bdayMonth ? C.bdayMonth.value : ""),
+        birthdayEnabled: (C.bdayOn ? C.bdayOn.checked : false),
         resumoRelacionamento: C.resumoRelacionamento.value.trim(),
         observacoes: C.observacoes.value.trim()
       };
       if(!data.nome){ alert('Informe o nome do contato.'); return; }
       if(data.email && !emailRegex.test(data.email)){ alert('Email inválido.'); return; }
       if(data.telefone && !phoneRegex.test(data.telefone)){ alert('Telefone inválido. Use +55 (DD) 9XXXX-XXXX'); return; }
+      // Birthday (MVP)
+      const b = _readBirthday(data.birthdayDay, data.birthdayMonth, data.birthdayEnabled);
+      if (b.mode === "invalid") { alert('Aniversário: se preencher dia ou mês, preencha os dois (dia 1..31 e mês 1..12).'); return; }
+      if (b.mode === "ok") data.birthday = b.value;
+      if (b.mode === "empty") data.birthday = null; // usuário limpou
+
       C.btnSave.disabled=true;
       try{
         await upsertContact(data, data.id);
@@ -1282,3 +1469,5 @@
   </script>
 </body>
 </html>
+
+
