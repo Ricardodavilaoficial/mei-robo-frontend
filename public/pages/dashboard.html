@@ -17,8 +17,8 @@
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
 
-  <!-- seu init (garanta storageBucket=mei-robo-prod.appspot.com lá dentro) -->
-  <script src="/assets/firebase-init.js"></script>
+  <!-- seu init (garanta storageBucket=mei-robo-prod.firebasestorage.app lá dentro) -->
+  <script src="/assets/firebase-init.js?v=1"></script>
 
   <!-- Sequência canônica no HEAD (defer): firebase-init.js → backend-patch.js → layout.js -->
   <script src="/assets/backend-patch.js" defer></script>
@@ -195,7 +195,7 @@
         </div>
 
         <div class="actions" style="margin-top:10px;gap:10px;flex-wrap:wrap;">
-          <a class="btn ghost" id="storageUpgradeLink" href="/pages/precos.html">Aumentar espaço</a>
+          <a class="btn ghost" id="storageUpgradeLink" href="/pages/ativar-cliente.html">Aumentar espaço</a>
         </div>
       </section>
 
@@ -250,7 +250,7 @@
         <div class="actions">
           <a class="btn" href="/pages/contatos.html">Ir para contatos</a>
           <a class="btn" href="/pages/configuracao.html?from=dashboard">Configurações da conta</a>
-          <a class="btn ghost" href="/pages/precos.html">Planos</a>
+          <a class="btn ghost" href="/pages/ativar-cliente.html">Planos</a>
         </div>
       </section>
 
