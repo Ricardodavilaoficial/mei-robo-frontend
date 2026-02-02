@@ -79,12 +79,21 @@
     #successBox .actions { display:flex; gap:8px; margin-top:10px; flex-wrap:wrap; }
     #successBox .actions a { text-decoration:none; }
     .footer-note { margin-top:14px; opacity:.9 }
+
+    /* Destaque visual de erro por campo (safe, só UI) */
+    #signupForm .input.input-error {
+      border-color: #ff6b6b;
+      box-shadow: 0 0 0 1px rgba(255, 107, 107, 0.6);
+    }
+    #signupForm .field-hint-error {
+      color: #ffb3b3;
+    }
   </style>
 
 </head>
 <body>
   <div id="app-header"></div>
-  <div id="header"></"></div>
+  <div id="header"></div>
 
   <main class="section">
     <div class="container form-wrap">
@@ -161,6 +170,10 @@
               Podemos checar disponibilidade agora, mas a validação final é na próxima etapa.
             </span>
             <div id="cnpjStatus" class="hint" aria-live="polite" style="margin-top:6px"></div>
+
+            <!-- NOVO: status da verificação de autoridade (QSA) -->
+            <div id="autoridadeStatus" class="hint" aria-live="polite" style="margin-top:4px"></div>
+
             <div id="microVinculo" class="hint" style="margin-top:8px">
               Pagamento e cupom serão liberados <strong>depois</strong> que confirmarmos seu vínculo com o CNPJ.
             </div>
@@ -300,12 +313,18 @@
   <script>
     /* ====== CONFIG do Backend ====== */
     const API_BASE = "https://mei-robo-prod.onrender.com";
-    const API = {
+    
+
+    // Email verification mode (default seguro)
+    window.EMAIL_VERIFY_MODE = "sendgrid";
+const API = {
       availability: API_BASE + "/api/cnpj/availability",
       cadastro:     API_BASE + "/api/cadastro",
       checkVerification: API_BASE + "/api/auth/check-verification",
       authReclaim:  API_BASE + "/api/auth/reclaim-email",
-      sendVerificationEmail: API_BASE + "/api/auth/send-verification-email"
+      sendVerificationEmail: API_BASE + "/api/auth/send-verification-email",
+      // NOVO: verificação de CNPJ + autoridade (ReceitaWS)
+      cnpjVerificar: API_BASE + "/api/cnpj/verificar"
     };
 
     /* ====== UI refs ====== */
@@ -314,6 +333,9 @@
     const formMsg = document.getElementById('formMsg');
     const cnpjInput = document.getElementById('cnpj');
     const cnpjStatus = document.getElementById('cnpjStatus');
+    // NOVO: status de autoridade (QSA) + nome do responsável
+    const autoridadeStatus = document.getElementById('autoridadeStatus');
+    const nomeInput = document.getElementById('nome');
     const emailInput = document.getElementById('email');
     const email2Input = document.getElementById('email2');
     const phoneInput = document.getElementById('telefone');
@@ -387,11 +409,23 @@
     let SUBMITTING = false;
     let CF_RETRY = 0;
 
-    
+
     /* ====== SSE (definitivo) ====== */
-    let _sse;
-    async function startSSE(user){
-      try{
+// SSE é opcional. Mantemos DESLIGADO por padrão para evitar ruído (401) e UX confusa.
+// Para ligar em testes: adicione ?sse=1 na URL OU localStorage.mr_enable_sse=1
+const ENABLE_SSE = (() => {
+  try {
+    const qs = new URLSearchParams(location.search);
+    if (qs.get('sse') === '1') return true;
+    if (localStorage.getItem('mr_enable_sse') === '1') return true;
+  } catch (_) {}
+  return false;
+})();
+
+let _sse;
+async function startSSE(user){
+  try{
+    if (!ENABLE_SSE) return;
         if (!user || typeof EventSource === 'undefined') return;
         // fecha conexão anterior, se houver
         try { _sse && _sse.close && _sse.close(); } catch(_){}
@@ -401,7 +435,7 @@
         const idt = await user.getIdToken(true);
         const url = (API_BASE.replace(/\/$/,'') + '/api/sse/verify?token=' + encodeURIComponent(idt));
 
-        console.log('[cadastro][SSE] conectando em', url);
+        console.log('[cadastro][SSE] conectando (SSE habilitado)');
         const es = new EventSource(url);
         _sse = es;
 
@@ -427,15 +461,27 @@
         };
         es.onerror = function(ev){
           console.warn('[cadastro][SSE] erro na conexão SSE', ev);
-          // encerra para evitar loops agressivos; fallback de avanço já existe (focus/visibility + backend)
-          try{ es.close(); }catch(_){}
+
+          // UX: não assusta. SSE é opcional; o caminho oficial é o botão.
+          try {
+            if (verifyBannerText) {
+              verifyBannerText.innerHTML =
+                '<strong>Abra seu e-mail agora e clique no botão de confirmação.</strong><br/>' +
+                'Depois volte para esta aba e clique em <strong>“Já verifiquei — continuar”</strong>.';
+            }
+            if (psgStatus && (psgStatus.textContent || '').toLowerCase().includes('confirmando')) {
+              psgStatus.textContent = 'Siga pelo botão “Já verifiquei — continuar”.';
+            }
+          } catch(_) {}
+
+          // encerra para evitar loops agressivos
+          try{ es.close(); }catch(_){ }
           if (_sse === es) _sse = null;
         };
       }catch(err){
         console.warn('[cadastro][SSE] erro geral', err);
       }
     }
-
 
     function reRenderTurnstileWithBackoff(){
       try { if (window.turnstile && CF_WIDGET_ID) turnstile.reset(CF_WIDGET_ID); } catch(_) {}
@@ -533,7 +579,7 @@
     function validateCNPJ(cnpj){
       cnpj = normalizeCNPJ(cnpj);
       if (cnpj.length !== 14) return false;
-      if (/^(\d){13}$/.test(cnpj)) return false;
+      if (/^(\d)\1{13}$/.test(cnpj)) return false;
       let length = cnpj.length - 2;
       let numbers = cnpj.substring(0, length);
       const digits = cnpj.substring(length);
@@ -554,12 +600,91 @@
     }
     function debounce(fn,ms){ let t; return (...args)=>{ clearTimeout(t); t=setTimeout(()=>fn(...args),ms); }; }
 
+    // ====== Verificação de autoridade/Vínculo (ReceitaWS) ======
+    async function verificarCnpjAutoridade(cnpjDigits){
+      if (!autoridadeStatus) return;
+      autoridadeStatus.className = 'hint';
+
+      const nomeResp = (nomeInput?.value || '').trim();
+      if (!nomeResp) {
+        autoridadeStatus.textContent = 'Você poderá confirmar seu vínculo com o CNPJ na próxima etapa.';
+        return;
+      }
+
+      autoridadeStatus.textContent = 'Confirmando vínculo com o CNPJ...';
+
+      try{
+        const res = await fetch(API.cnpjVerificar, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json'
+          },
+          body: JSON.stringify({
+            cnpj: cnpjDigits,
+            nomeUsuario: nomeResp
+          })
+        });
+
+        let data = {};
+        try { data = await res.json(); } catch(_) { data = {}; }
+
+        // Falha HTTP → não bloqueia, só mensagem neutra
+        if (!res.ok) {
+          autoridadeStatus.textContent = 'Não foi possível checar seu vínculo com o CNPJ agora. Vamos revisar na próxima etapa.';
+          autoridadeStatus.className = 'hint';
+          return;
+        }
+
+        // Casos principais conforme backend já implementado
+        if (data && data.ok && data.autoridade) {
+          const aut = data.autoridade || {};
+          if (aut.autoridade === 'valido') {
+            autoridadeStatus.textContent = 'Você consta como responsável pela empresa, podemos seguir.';
+            autoridadeStatus.className = 'ok';
+            return;
+          }
+          if (aut.autoridade === 'nao_encontrado_no_qsa') {
+            autoridadeStatus.textContent = 'Não achei seu nome no quadro de sócios — na próxima etapa vou pedir um documento simples da empresa.';
+            autoridadeStatus.className = 'hint';
+            return;
+          }
+          // Outro código qualquer → neutro
+          autoridadeStatus.textContent = 'CNPJ válido. Seu vínculo será confirmado na próxima etapa, se necessário.';
+          autoridadeStatus.className = 'hint';
+          return;
+        }
+
+        // Ex.: ok:false, motivo: nao_encontrado_no_cache
+        if (data && data.motivo === 'nao_encontrado_no_cache') {
+          autoridadeStatus.textContent = 'Não consegui consultar seu CNPJ automaticamente — na próxima etapa vou pedir o Cartão CNPJ.';
+          autoridadeStatus.className = 'hint';
+          return;
+        }
+
+        // Fallback genérico
+        autoridadeStatus.textContent = 'CNPJ válido. Seu vínculo será revisado na próxima etapa, se necessário.';
+        autoridadeStatus.className = 'hint';
+      } catch (err) {
+        console.warn('[cadastro][autoridade] erro', err);
+        autoridadeStatus.textContent = 'Não foi possível checar seu vínculo com o CNPJ agora. Vamos revisar depois, se precisar.';
+        autoridadeStatus.className = 'hint';
+      }
+    }
+
     // ====== Gate do botão com todos critérios ====== 
     function passwordRulesOk(s){
       if (!s || s.length < 8) return false;
       return /[A-Za-z]/.test(s) && /[0-9]/.test(s);
     }
     function updateButtonState(){
+      // Limpa estados visuais de erro por campo (não mexe em erros de backend no formMsg)
+      [emailInput, email2Input, phoneInput, cnpjInput, pwd, pwd2].forEach(el => {
+        if (!el) return;
+        el.classList.remove('input-error');
+        el.removeAttribute('aria-invalid');
+      });
+
       const e1 = (emailInput.value || '').trim().toLowerCase();
       const e2 = (email2Input.value || '').trim().toLowerCase();
       const phoneDigits = normalizeDigits(phoneInput.value || '');
@@ -571,13 +696,120 @@
       const turnstileOk = !!CF_TOKEN;
       const cnpjNotBlocked = cnpjAvailability !== 'unavailable';
 
-      const allOk = !!(e1 && e2 && e1 === e2 &&
-                       phoneDigits.length >= 10 && phoneDigits.length <= 11 &&
-                       cnpjOk && cnpjNotBlocked &&
-                       senhaOk && confirmOk &&
-                       termsOk && turnstileOk);
+      const allOk = !!(
+        e1 && e2 && e1 === e2 &&
+        phoneDigits.length >= 10 && phoneDigits.length <= 11 &&
+        cnpjOk && cnpjNotBlocked &&
+        senhaOk && confirmOk &&
+        termsOk && turnstileOk
+      );
 
-      if (allOk) enableSubmit(); else disableSubmit();
+      if (allOk) {
+        enableSubmit();
+        // Se a mensagem atual for só dica leve, podemos limpar
+        if (formMsg && (formMsg.className === 'hint' || !formMsg.textContent)) {
+          formMsg.textContent = '';
+        }
+        return;
+      }
+
+      // Não passou no gate → garante botão bloqueado
+      disableSubmit();
+
+      // Só começamos a orientar se o usuário já mexeu em algo
+      const hasInteraction =
+        e1 || e2 ||
+        phoneDigits ||
+        cnpjRaw ||
+        (pwd.value || '') ||
+        (pwd2.value || '') ||
+        aceite.checked ||
+        CF_TOKEN;
+
+      if (!hasInteraction) {
+        // Tela recém aberta, não mostra erro
+        return;
+      }
+
+      if (!formMsg) return;
+
+      // Se já existe erro de backend, não sobrescreve
+      if (formMsg.textContent && formMsg.className === 'error') {
+        return;
+      }
+
+      const issues = [];
+
+      if (!e1 || !e2) {
+        issues.push('preencha os dois e-mails');
+      } else if (e1 !== e2) {
+        issues.push('os dois e-mails precisam ser iguais');
+      }
+
+      if (!phoneDigits || phoneDigits.length < 10 || phoneDigits.length > 11) {
+        issues.push('telefone com DDD (10 ou 11 dígitos)');
+      }
+
+      if (!cnpjOk) {
+        issues.push('CNPJ válido (14 dígitos)');
+      } else if (!cnpjNotBlocked) {
+        issues.push('use um CNPJ que ainda não tenha conta');
+      }
+
+      if (!senhaOk) {
+        issues.push('senha com letras e números (mínimo 8 caracteres)');
+      }
+
+      if (!confirmOk) {
+        issues.push('confirme a senha igual à primeira');
+      }
+
+      if (!termsOk) {
+        issues.push('marque que leu e concorda com os Termos');
+      }
+
+      if (!turnstileOk) {
+        issues.push('clique na caixinha de segurança');
+      }
+
+      // Marcar campos com erro (apenas visual)
+      if (!e1 || !e2 || e1 !== e2) {
+        emailInput.classList.add('input-error');
+        email2Input.classList.add('input-error');
+        emailInput.setAttribute('aria-invalid', 'true');
+        email2Input.setAttribute('aria-invalid', 'true');
+      }
+
+      if (!phoneDigits || phoneDigits.length < 10 || phoneDigits.length > 11) {
+        phoneInput.classList.add('input-error');
+        phoneInput.setAttribute('aria-invalid', 'true');
+      }
+
+      if (!cnpjOk || !cnpjNotBlocked) {
+        cnpjInput.classList.add('input-error');
+        cnpjInput.setAttribute('aria-invalid', 'true');
+      }
+
+      if (!senhaOk) {
+        pwd.classList.add('input-error');
+        pwd.setAttribute('aria-invalid', 'true');
+      }
+
+      if (!confirmOk) {
+        pwd2.classList.add('input-error');
+        pwd2.setAttribute('aria-invalid', 'true');
+      }
+
+      if (issues.length) {
+        formMsg.className = 'error';
+        formMsg.textContent =
+          'Para liberar o botão “Avançar”, ajuste: ' + issues.join(' · ') + '.';
+      } else {
+        // fallback genérico
+        formMsg.className = 'error';
+        formMsg.textContent =
+          'Revise os campos acima para liberar o botão “Avançar”.';
+      }
     }
 
     ['input','blur','change'].forEach(evt => {
@@ -598,6 +830,11 @@
       cnpjAvailability = 'unknown';
       cnpjStatus.className = 'hint';
       cnpjStatus.textContent = '';
+      // NOVO: limpa status de autoridade ao mudar o CNPJ
+      if (autoridadeStatus) {
+        autoridadeStatus.className = 'hint';
+        autoridadeStatus.textContent = '';
+      }
       if (!validateCNPJ(digits)) {
         cnpjStatus.textContent = 'Revise o CNPJ: os números não formam um CNPJ válido.';
         cnpjStatus.className = 'error';
@@ -614,6 +851,11 @@
           cnpjAvailability = 'available';
           cnpjStatus.textContent = 'CNPJ disponível para cadastro.';
           cnpjStatus.className = 'ok';
+
+          // NOVO: tenta checar vínculo com o CNPJ (telecom light), sem bloquear o fluxo
+          try {
+            await verificarCnpjAutoridade(digits);
+          } catch (_) {}
         } else {
           cnpjAvailability = 'unavailable';
           cnpjStatus.textContent = 'Este CNPJ já tem conta. Você pode recuperar o acesso ou usar outro.';
@@ -771,7 +1013,7 @@ try {
         }
 
         // 3) Fluxo normal do check-verification (GET)
-        const data = await res.json().catch(()=>({}));
+        const data = await res.json().catch(()=>({})).catch(()=>({}));
         if (res.ok && data && data.verified === true) {
           markVerifiedAndGo();
           return true;
@@ -1061,7 +1303,11 @@ try {
         // ★★★ ENVIO DE VERIFICAÇÃO — SOMENTE BACKEND (SendGrid)
         try {
           if (user && !user.emailVerified) {
-            await sendVerificationViaBackend(user);
+            if (window.EMAIL_VERIFY_MODE === "firebase") {
+              await user.sendEmailVerification();
+            } else {
+              await sendVerificationViaBackend(user);
+            }
           }
         } catch (e) {
           console.warn('[cadastro] falha no sendVerification backend (proceedSubmit):', e?.message || e);
@@ -1088,7 +1334,6 @@ try {
 
         const payload = {
           email,
-          senha,
           nome,
           telefone: telefoneDigits,
           cnpj: cnpjDigits,
@@ -1195,7 +1440,7 @@ try {
       } catch(e){
         console.error('[cadastro][proceedSubmit] erro geral', e);
         formMsg.className='error';
-        const wrong = e && (e.code === 'auth/wrong-password' || e.code === 'auth/invalid-login-credentials' || e.__wrongPassword);
+        const wrong = e && (e.code === 'auth/wrong-password' || e.code === 'auth/invalid-login-credentials' || e.code === 'auth/wrong-password' || e.code === 'auth/invalid-login-credentials' || e.__wrongPassword);
         const email = (emailInput.value || '').trim();
 
         if (wrong && API.authReclaim) {
@@ -1227,7 +1472,7 @@ try {
                   formMsg.textContent = 'Sua conta foi recriada, mas não conseguimos enviar o e-mail de verificação agora. Tente reenviar em alguns instantes.';
                 } catch(_) {}
               }
-              
+
               const idToken = await user.getIdToken();
               showVerifyBanner(user.email || email);
               try {
@@ -1403,6 +1648,10 @@ try {
   <script>
   (function(){
     try{
+      if (window.EMAIL_VERIFY_MODE === "firebase") {
+        console.warn("[guard] Firebase email verification LIBERADO");
+        return;
+      }
       const iv=setInterval(()=>{try{
         const u=firebase?.auth?.().currentUser;
         const P=(firebase?.User?.prototype)||(u&&Object.getPrototypeOf(u));
@@ -1411,11 +1660,11 @@ try {
             console.warn('[guard] bloqueado sendEmailVerification');
             return Promise.reject(new Error('Use backend SendGrid'));
           }
-          console.log('[guard] ativo');
+          console.log('[guard] ativo (sendgrid)');
           clearInterval(iv);
         }
       }catch{}},150);
-    
+
       setTimeout(()=>clearInterval(iv),8000);
     }catch(e){console.warn('[guard] falhou',e);}
   })();
