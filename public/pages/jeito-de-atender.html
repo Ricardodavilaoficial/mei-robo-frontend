@@ -1,0 +1,629 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Jeito de atender | MEI Robô</title>
+
+  <!-- Firebase init (mantém padrão do projeto) -->
+  <script src="/assets/firebase-init.js?v=1"></script>
+
+  <style>
+    :root{
+      --bg:#0b0f16;
+      --card:#121a26;
+      --card2:#0f1724;
+      --text:#e9eef8;
+      --muted:rgba(233,238,248,.72);
+      --muted2:rgba(233,238,248,.55);
+      --line:rgba(255,255,255,.10);
+      --primary:#5dd6c7;
+      --primary2:#46c2ff;
+      --warn:#ffcc66;
+      --danger:#ff6b6b;
+      --shadow: 0 10px 30px rgba(0,0,0,.35);
+      --radius:16px;
+    }
+    *{box-sizing:border-box}
+    body{
+      margin:0;
+      background: radial-gradient(1200px 600px at 20% -10%, rgba(70,194,255,.18), transparent 55%),
+                  radial-gradient(900px 500px at 90% 0%, rgba(93,214,199,.14), transparent 55%),
+                  var(--bg);
+      color:var(--text);
+      font: 14px/1.35 system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+    }
+    a{color:inherit}
+    .wrap{
+      max-width: 980px;
+      margin: 28px auto;
+      padding: 0 16px 28px;
+    }
+    .top{
+      display:flex; gap:14px; align-items:flex-start; justify-content:space-between;
+      margin-bottom: 16px;
+    }
+    .title h1{
+      font-size: 22px; margin: 0 0 6px;
+      letter-spacing:.2px;
+    }
+    .title p{
+      margin:0;
+      color:var(--muted);
+      max-width: 70ch;
+    }
+    .pill{
+      display:inline-flex; align-items:center; gap:8px;
+      border:1px solid var(--line);
+      border-radius:999px;
+      padding:8px 10px;
+      color:var(--muted);
+      background: rgba(255,255,255,.04);
+      white-space:nowrap;
+    }
+    .grid{
+      display:grid;
+      grid-template-columns: 1.15fr .85fr;
+      gap: 14px;
+    }
+    @media (max-width: 920px){
+      .grid{grid-template-columns:1fr}
+    }
+    .card{
+      background: linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.03));
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      overflow:hidden;
+    }
+    .card .hd{
+      padding: 14px 14px 10px;
+      border-bottom:1px solid var(--line);
+      background: linear-gradient(180deg, rgba(255,255,255,.04), rgba(255,255,255,.01));
+    }
+    .card .hd h2{
+      margin:0 0 4px;
+      font-size: 15px;
+      letter-spacing:.2px;
+    }
+    .card .hd .sub{
+      margin:0;
+      color:var(--muted2);
+    }
+    .card .bd{
+      padding: 14px;
+    }
+
+    .q{
+      margin-bottom: 14px;
+      padding-bottom: 14px;
+      border-bottom: 1px dashed rgba(255,255,255,.10);
+    }
+    .q:last-child{border-bottom:0; padding-bottom:0; margin-bottom:0}
+    .q .qt{
+      display:flex; align-items:flex-start; justify-content:space-between; gap:10px;
+      margin-bottom: 10px;
+    }
+    .q .qt b{font-size:14px}
+    .q .qt .hint{color:var(--muted2); font-size:12px}
+    .opts{
+      display:grid;
+      grid-template-columns: 1fr;
+      gap: 8px;
+    }
+    .opt{
+      display:flex; gap:10px; align-items:flex-start;
+      padding: 10px 10px;
+      border: 1px solid rgba(255,255,255,.12);
+      border-radius: 14px;
+      background: rgba(0,0,0,.18);
+      cursor:pointer;
+      transition: transform .04s ease, border-color .15s ease, background .15s ease;
+    }
+    .opt:hover{
+      border-color: rgba(93,214,199,.45);
+      background: rgba(93,214,199,.07);
+    }
+    .opt input{margin-top:2px}
+    .opt .txt{flex:1}
+    .opt .txt .t{font-weight:650}
+    .opt .txt .d{color:var(--muted2); font-size:12px; margin-top:2px}
+
+    .actions{
+      display:flex; flex-wrap:wrap; gap:10px;
+      justify-content:flex-end;
+      margin-top: 14px;
+    }
+    .btn{
+      appearance:none;
+      border:1px solid rgba(255,255,255,.14);
+      background: rgba(255,255,255,.05);
+      color:var(--text);
+      border-radius: 14px;
+      padding: 10px 12px;
+      cursor:pointer;
+      font-weight:650;
+      text-decoration:none;
+      display:inline-flex; align-items:center; gap:8px;
+    }
+    .btn:hover{border-color: rgba(93,214,199,.55); background: rgba(93,214,199,.08)}
+    .btn.primary{
+      border-color: rgba(93,214,199,.65);
+      background: linear-gradient(90deg, rgba(93,214,199,.22), rgba(70,194,255,.16));
+    }
+    .btn.danger:hover{border-color: rgba(255,107,107,.6); background: rgba(255,107,107,.08)}
+    .toast{
+      position: fixed;
+      left: 50%;
+      bottom: 18px;
+      transform: translateX(-50%);
+      background: rgba(10,14,22,.92);
+      border: 1px solid rgba(255,255,255,.14);
+      box-shadow: var(--shadow);
+      padding: 10px 12px;
+      border-radius: 14px;
+      color: var(--text);
+      display:none;
+      max-width: min(720px, calc(100% - 24px));
+      z-index: 9999;
+    }
+    .toast small{color:var(--muted)}
+    .preview{
+      padding: 14px;
+    }
+    .mini{
+      border: 1px solid rgba(255,255,255,.12);
+      border-radius: 14px;
+      background: rgba(0,0,0,.22);
+      padding: 12px;
+      white-space: pre-wrap;
+      min-height: 120px;
+    }
+    .kv{
+      display:grid;
+      grid-template-columns: 1fr;
+      gap: 8px;
+      margin-top: 12px;
+    }
+    .kv .row{
+      display:flex; justify-content:space-between; gap:10px;
+      border:1px solid rgba(255,255,255,.10);
+      border-radius: 12px;
+      padding: 10px;
+      background: rgba(255,255,255,.03);
+    }
+    .kv .row span{color:var(--muted2)}
+    .note{
+      margin-top: 12px;
+      font-size: 12px;
+      color: var(--muted2);
+      border-left: 3px solid rgba(93,214,199,.55);
+      padding-left: 10px;
+    }
+    code{color:#cfe7ff}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="top">
+      <div class="title">
+        <h1>Jeito de atender</h1>
+        <p>Defina como o MEI Robô conversa com seus clientes no dia a dia. É opcional — se você pular, segue tudo normal.</p>
+      </div>
+      <div class="pill" title="Regra fixa do produto">
+        ✅ Sem interrogatório: confirmação em bloco
+      </div>
+    </div>
+
+    <div class="grid">
+      <!-- Form -->
+      <div class="card" id="cardForm">
+        <div class="hd">
+          <h2>Escolhas rápidas (2 min)</h2>
+          <p class="sub">Poucas escolhas aqui → um monte de decisões por trás (sem você configurar “IA”).</p>
+        </div>
+        <div class="bd">
+          <form id="frm">
+            <div class="q">
+              <div class="qt">
+                <div>
+                  <b>1) Papel principal do robô</b>
+                  <div class="hint">Isso define o “trilho” (economia de token + desempenho).</div>
+                </div>
+              </div>
+              <div class="opts" data-name="operational_mode">
+                <label class="opt">
+                  <input type="radio" name="operational_mode" value="DELIVERY" />
+                  <div class="txt">
+                    <div class="t">Pedidos / Delivery</div>
+                    <div class="d">Fecha pedido sem ping-pong: confirma tudo em um bloco e registra.</div>
+                  </div>
+                </label>
+                <label class="opt">
+                  <input type="radio" name="operational_mode" value="AGENDA" />
+                  <div class="txt">
+                    <div class="t">Agenda (serviço com horário)</div>
+                    <div class="d">Marca, confirma e deixa tudo por escrito (sem troca infinita).</div>
+                  </div>
+                </label>
+                <label class="opt">
+                  <input type="radio" name="operational_mode" value="TECNICO" />
+                  <div class="txt">
+                    <div class="t">Orçamento / Técnico</div>
+                    <div class="d">Coleta só o essencial (foto/medida/endereço) e evita chute.</div>
+                  </div>
+                </label>
+                <label class="opt">
+                  <input type="radio" name="operational_mode" value="TRIAGEM" />
+                  <div class="txt">
+                    <div class="t">Informações & triagem</div>
+                    <div class="d">Responde direto; se faltar algo, faz 1 pergunta curta.</div>
+                  </div>
+                </label>
+                <label class="opt">
+                  <input type="radio" name="operational_mode" value="CONDOMINIO" />
+                  <div class="txt">
+                    <div class="t">Condomínio / Chamados</div>
+                    <div class="d">Organiza ocorrências e registra o que foi pedido.</div>
+                  </div>
+                </label>
+                <label class="opt">
+                  <input type="radio" name="operational_mode" value="EMPRESA" />
+                  <div class="txt">
+                    <div class="t">Equipe / Empresa</div>
+                    <div class="d">Atendimento geral, repasse e encaminhamento quando necessário.</div>
+                  </div>
+                </label>
+                <label class="opt">
+                  <input type="radio" name="operational_mode" value="SUPPORT_BROADCAST" />
+                  <div class="txt">
+                    <div class="t">Suporte / Secretária (só repassa info)</div>
+                    <div class="d">Responde correto e consistente. Sem puxar conversa e sem vender.</div>
+                  </div>
+                </label>
+              </div>
+            </div>
+
+            <div class="q">
+              <div class="qt">
+                <div>
+                  <b>2) Tom da conversa</b>
+                  <div class="hint">Jeito humano, sem robô “engessado”.</div>
+                </div>
+              </div>
+              <div class="opts" data-name="tone">
+                <label class="opt">
+                  <input type="radio" name="tone" value="direto" />
+                  <div class="txt"><div class="t">Direto e objetivo</div><div class="d">Rápido e claro.</div></div>
+                </label>
+                <label class="opt">
+                  <input type="radio" name="tone" value="acolhedor" />
+                  <div class="txt"><div class="t">Acolhedor e paciente</div><div class="d">Calmo, respeitoso, sem pressa.</div></div>
+                </label>
+                <label class="opt">
+                  <input type="radio" name="tone" value="explicativo" />
+                  <div class="txt"><div class="t">Explicativo quando precisa</div><div class="d">Ajuda a entender, sem palestra.</div></div>
+                </label>
+              </div>
+            </div>
+
+            <div class="q">
+              <div class="qt">
+                <div>
+                  <b>3) Humor</b>
+                  <div class="hint">Humor leve é bom. Humor forçado é crime (sem fiança).</div>
+                </div>
+              </div>
+              <div class="opts" data-name="humor">
+                <label class="opt">
+                  <input type="radio" name="humor" value="0" />
+                  <div class="txt"><div class="t">Nenhum</div><div class="d">Profissional, sério.</div></div>
+                </label>
+                <label class="opt">
+                  <input type="radio" name="humor" value="1" />
+                  <div class="txt"><div class="t">Leve, quando o cliente abre espaço</div><div class="d">Um “🙂” aqui e ali, sem exagero.</div></div>
+                </label>
+                <label class="opt">
+                  <input type="radio" name="humor" value="2" />
+                  <div class="txt"><div class="t">Solto, mas sem palhaçada</div><div class="d">Mais próximo, sem forçar.</div></div>
+                </label>
+              </div>
+            </div>
+
+            <div class="q">
+              <div class="qt">
+                <div>
+                  <b>4) Quando já entendeu, como confirma?</b>
+                  <div class="hint">Anti-interrogatório: confirmação em bloco (sempre).</div>
+                </div>
+              </div>
+              <div class="opts" data-name="confirm_style">
+                <label class="opt">
+                  <input type="radio" name="confirm_style" value="bulk" />
+                  <div class="txt"><div class="t">Confirma tudo de uma vez e aguarda</div><div class="d">Um bloco curto + confirma.</div></div>
+                </label>
+                <label class="opt">
+                  <input type="radio" name="confirm_style" value="minimal" />
+                  <div class="txt"><div class="t">Confirma o essencial e segue</div><div class="d">Pergunta só o que destrava.</div></div>
+                </label>
+                <label class="opt">
+                  <input type="radio" name="confirm_style" value="assertive" />
+                  <div class="txt"><div class="t">Conduz e finaliza com confirmação única</div><div class="d">Fecha com clareza e registra.</div></div>
+                </label>
+              </div>
+            </div>
+
+            <div class="q">
+              <div class="qt">
+                <div>
+                  <b>5) Postura comercial</b>
+                  <div class="hint">Sem pressão, sem urgência falsa, sem prometer o que não existe.</div>
+                </div>
+              </div>
+              <div class="opts" data-name="sales_posture">
+                <label class="opt">
+                  <input type="radio" name="sales_posture" value="informa" />
+                  <div class="txt"><div class="t">Só informa</div><div class="d">Responde e pronto.</div></div>
+                </label>
+                <label class="opt">
+                  <input type="radio" name="sales_posture" value="consultivo" />
+                  <div class="txt"><div class="t">Consultivo</div><div class="d">Sugere o próximo passo com bom senso.</div></div>
+                </label>
+                <label class="opt">
+                  <input type="radio" name="sales_posture" value="direto" />
+                  <div class="txt"><div class="t">Direto pro próximo passo</div><div class="d">Sem enrolar, sem empurrar.</div></div>
+                </label>
+              </div>
+            </div>
+
+            <div class="actions">
+              <a class="btn" id="btnSkip" href="/pages/conta.html">Pular por enquanto</a>
+              <button class="btn primary" id="btnSave" type="submit">Salvar e ir para o painel</button>
+            </div>
+
+            <div class="note">
+              Regra fixa: o robô <b>nunca</b> fica perguntando uma coisa por vez. Ele confirma em bloco (máx. 3 perguntas) e, se faltar algo, faz no máximo 1 follow-up.
+            </div>
+          </form>
+        </div>
+      </div>
+
+      <!-- Preview -->
+      <div class="card">
+        <div class="hd">
+          <h2>Preview rápido</h2>
+          <p class="sub">Exemplo de resposta conforme suas escolhas (só pra você sentir o “jeito”).</p>
+        </div>
+        <div class="preview">
+          <div class="mini" id="previewBox">Selecione as opções ao lado pra ver o preview.</div>
+
+          <div class="kv">
+            <div class="row"><span>Trilho</span><b id="kvMode">—</b></div>
+            <div class="row"><span>Tom</span><b id="kvTone">—</b></div>
+            <div class="row"><span>Humor</span><b id="kvHumor">—</b></div>
+            <div class="row"><span>Confirmação</span><b id="kvConfirm">—</b></div>
+            <div class="row"><span>Postura</span><b id="kvSales">—</b></div>
+          </div>
+
+          <div class="note">
+            Dica: se você quer desempenho + baixo custo, escolha um trilho bem claro (ex.: <code>Pedidos</code> ou <code>Agenda</code>). O resto a gente ajusta por trás.
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <script>
+    // -------- Auth guard (simples, sem quebrar) --------
+    (function(){
+      try{
+        const next = encodeURIComponent("/pages/jeito-de-atender.html");
+        const goLogin = ()=>{ window.location.href = "/pages/login.html?next=" + next; };
+
+        const tick = setInterval(()=>{
+          try{
+            if(!window.firebase || !firebase.auth){ return; }
+            clearInterval(tick);
+            firebase.auth().onAuthStateChanged((u)=>{
+              if(!u){ goLogin(); return; }
+              // ok
+            });
+          }catch(e){}
+        }, 250);
+
+        setTimeout(()=>{ try{ clearInterval(tick); }catch(e){} }, 8000);
+      }catch(e){}
+    })();
+
+    // -------- UI helpers --------
+    const $ = (sel)=>document.querySelector(sel);
+    const toast = (msg)=>{
+      const el = $("#toast");
+      el.innerHTML = msg;
+      el.style.display = "block";
+      clearTimeout(window.__t_toast);
+      window.__t_toast = setTimeout(()=>{ el.style.display="none"; }, 2600);
+    };
+
+    function getVal(name){
+      const el = document.querySelector(`input[name="${name}"]:checked`);
+      return el ? el.value : "";
+    }
+
+    function labelFor(name, val){
+      const map = {
+        operational_mode: {
+          DELIVERY:"Pedidos/Delivery", AGENDA:"Agenda", TECNICO:"Orçamento/Técnico", TRIAGEM:"Info & triagem",
+          CONDOMINIO:"Condomínio/Chamados", EMPRESA:"Equipe/Empresa", SUPPORT_BROADCAST:"Suporte/Secretária"
+        },
+        tone: { direto:"Direto", acolhedor:"Acolhedor", explicativo:"Explicativo" },
+        humor: { "0":"Sem humor", "1":"Humor leve", "2":"Humor solto" },
+        confirm_style: { bulk:"Confirma em bloco", minimal:"Essencial e segue", assertive:"Conduz e finaliza" },
+        sales_posture: { informa:"Só informa", consultivo:"Consultivo", direto:"Direto pro próximo passo" }
+      };
+      try{ return (map[name]||{})[val] || "—"; }catch(e){ return "—"; }
+    }
+
+    function buildPreview(){
+      const mode = getVal("operational_mode");
+      const tone = getVal("tone");
+      const humor = getVal("humor");
+      const confirm = getVal("confirm_style");
+      const sales = getVal("sales_posture");
+
+      $("#kvMode").textContent = labelFor("operational_mode", mode);
+      $("#kvTone").textContent = labelFor("tone", tone);
+      $("#kvHumor").textContent = labelFor("humor", humor);
+      $("#kvConfirm").textContent = labelFor("confirm_style", confirm);
+      $("#kvSales").textContent = labelFor("sales_posture", sales);
+
+      if(!(mode && tone && humor && confirm && sales)){
+        $("#previewBox").textContent = "Selecione as opções ao lado pra ver o preview.";
+        return;
+      }
+
+      const emo = (humor === "2") ? "😄" : (humor === "1" ? "🙂" : "");
+      const opener =
+        tone === "direto" ? "Fechado. Vou direto ao ponto." :
+        tone === "acolhedor" ? "Perfeito, vamos resolver isso com calma." :
+        "Beleza — te explico do jeito mais simples possível.";
+
+      // Cenários curtinhos por modo (pra o usuário “sentir”)
+      let sampleIn = "";
+      let sampleOut = "";
+
+      if(mode === "DELIVERY"){
+        sampleIn = "“Vou querer um cheese bacon com ovo e uma Coca.”";
+        sampleOut =
+          `${opener} ${emo}\n\n` +
+          `Pedido: cheese bacon com ovo + Coca.\n` +
+          `Só me confirma rapidinho (tudo de uma vez):\n` +
+          `• Coca é normal ou zero? (lata/600/1L)\n` +
+          `• Entrega ou retirada?\n` +
+          `• Forma de pagamento?\n\n` +
+          `Aí eu te devolvo o pedido por escrito pra confirmar.`;
+      } else if(mode === "AGENDA"){
+        sampleIn = "“Quero marcar corte amanhã.”";
+        sampleOut =
+          `${opener} ${emo}\n\n` +
+          `Só pra eu deixar certinho (em um bloco):\n` +
+          `• Qual serviço exato? (ex.: corte, barba, pacote)\n` +
+          `• Amanhã: manhã ou tarde?\n` +
+          `• Melhor horário aproximado?\n\n` +
+          `Com isso eu te mando a confirmação por escrito.`;
+      } else if(mode === "TECNICO"){
+        sampleIn = "“Preciso ver um vazamento aqui.”";
+        sampleOut =
+          `${opener} ${emo}\n\n` +
+          `Pra eu não chutar nada, só me passa o essencial:\n` +
+          `• Endereço/bairro\n` +
+          `• É urgente (agora) ou pode ser hoje/amanhã?\n` +
+          `• Se der, manda 1 foto ou um áudio curto do ponto.\n\n` +
+          `Daí eu organizo tudo e te devolvo um resumo pra você decidir o próximo passo.`;
+      } else if(mode === "TRIAGEM"){
+        sampleIn = "“Como funciona o atendimento?”";
+        sampleOut =
+          `${opener} ${emo}\n\n` +
+          `Eu organizo o atendimento no WhatsApp: respondo rápido, registro o combinado e só te chamo quando precisa decidir.\n` +
+          `Se você quiser, me diz em 1 frase o que mais acontece aí: agenda, dúvidas ou orçamento — e eu te mostro um exemplo certeiro.`;
+      } else if(mode === "CONDOMINIO"){
+        sampleIn = "“Tô com um problema no portão.”";
+        sampleOut =
+          `${opener} ${emo}\n\n` +
+          `Pra registrar e encaminhar sem ruído:\n` +
+          `• Qual bloco/apto/local exato?\n` +
+          `• O que aconteceu (1 frase)?\n` +
+          `• É urgente ou pode aguardar?\n\n` +
+          `Fechou: eu deixo o chamado registrado e te devolvo o resumo.`;
+      } else if(mode === "EMPRESA"){
+        sampleIn = "“Preciso de ajuda com acesso.”";
+        sampleOut =
+          `${opener} ${emo}\n\n` +
+          `Me diz só:\n` +
+          `• Qual sistema/serviço?\n` +
+          `• Qual erro aparece? (pode copiar/colar)\n` +
+          `• Isso bloqueia seu trabalho agora?\n\n` +
+          `Com isso eu organizo e te encaminho o próximo passo.`;
+      } else { // SUPPORT_BROADCAST
+        sampleIn = "“Qual é o prazo e como funciona?”";
+        sampleOut =
+          `${opener} ${emo}\n\n` +
+          `Eu respondo com base nas informações e documentos que você cadastrou.\n` +
+          `Se a pergunta fugir do que está cadastrado, eu te encaminho sem inventar.\n\n` +
+          `Quer que eu te passe o resumo do passo a passo agora?`;
+      }
+
+      // Postura comercial (sem empurrar)
+      const cta =
+        sales === "informa" ? "" :
+        sales === "consultivo" ? "\n\nSe fizer sentido, eu já te indico o próximo passo." :
+        "\n\nSe fizer sentido, eu te passo o caminho mais curto pro próximo passo.";
+
+      $("#previewBox").textContent = `Cliente: ${sampleIn}\n\nMEI Robô: ${sampleOut}${cta}`;
+    }
+
+    document.addEventListener("change", (e)=>{
+      if(e.target && e.target.matches('input[type="radio"]')) buildPreview();
+    });
+
+    // Defaults (pra não ficar “tudo vazio”)
+    (function setDefaults(){
+      const d = JSON.parse(localStorage.getItem("meiRobo.jeitoAtenderDraft") || "null");
+      const set = (name, value)=>{
+        const el = document.querySelector(`input[name="${name}"][value="${value}"]`);
+        if(el) el.checked = true;
+      };
+
+      if(d){
+        set("operational_mode", d.operational_mode || "");
+        set("tone", d.tone || "");
+        set("humor", String(d.humor || ""));
+        set("confirm_style", d.confirm_style || "");
+        set("sales_posture", d.sales_posture || "");
+      } else {
+        // defaults leves (pode mudar depois)
+        set("operational_mode", "AGENDA");
+        set("tone", "direto");
+        set("humor", "1");
+        set("confirm_style", "bulk");
+        set("sales_posture", "consultivo");
+      }
+      buildPreview();
+    })();
+
+    // Save (sem Firestore ainda): salva rascunho no localStorage e manda pro painel
+    $("#frm").addEventListener("submit", (e)=>{
+      e.preventDefault();
+
+      const data = {
+        operational_mode: getVal("operational_mode"),
+        tone: getVal("tone"),
+        humor: getVal("humor"),
+        confirm_style: getVal("confirm_style"),
+        sales_posture: getVal("sales_posture"),
+        savedAt: new Date().toISOString()
+      };
+
+      // valida rápido
+      for(const k of ["operational_mode","tone","humor","confirm_style","sales_posture"]){
+        if(!data[k]){
+          toast(`Faltou escolher: <b>${k}</b>.`);
+          return;
+        }
+      }
+
+      localStorage.setItem("meiRobo.jeitoAtenderDraft", JSON.stringify(data));
+      toast("Salvo. Indo pro painel… <small>(depois a gente publica isso no Firestore)</small>");
+      setTimeout(()=>{ window.location.href = "/pages/dashboard.html?jeito=ok"; }, 700);
+    });
+
+    // Skip: volta pra conta (e a conta leva o usuário pro painel quando ele quiser)
+    $("#btnSkip").addEventListener("click", (e)=>{
+      // só navega; não apaga rascunho (se existia)
+      // Se quiser apagar, é só limpar localStorage manualmente.
+    });
+  </script>
+</body>
+</html>
