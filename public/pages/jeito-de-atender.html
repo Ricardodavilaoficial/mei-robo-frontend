@@ -5,10 +5,16 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Jeito de atender | MEI Robô</title>
 
-  <!-- Firebase init (mantém padrão do projeto) -->
-  <script src="/assets/firebase-init.js?v=1"></script>
+  <!-- Layout canônico (header/footer dinâmicos) -->
+  <script defer src="/assets/layout.js"></script>
 
-  <style>
+  <!-- Firebase compat (mesmo padrão das telas logadas) -->
+  <script defer src="/__/firebase/9.22.2/firebase-app-compat.js"></script>
+  <script defer src="/__/firebase/9.22.2/firebase-auth-compat.js"></script>
+  <script defer src="/__/firebase/9.22.2/firebase-firestore-compat.js"></script>
+  <script defer src="/__/firebase/init.js"></script>
+
+<style>
     :root{
       --bg:#0b0f16;
       --card:#121a26;
@@ -204,6 +210,7 @@
   </style>
 </head>
 <body>
+  <div id="app-header"></div>
   <div class="wrap">
     <div class="top">
       <div class="title">
@@ -413,217 +420,425 @@
     </div>
   </div>
 
+  <div id="app-footer"></div>
+
   <div class="toast" id="toast"></div>
-
   <script>
-    // -------- Auth guard (simples, sem quebrar) --------
     (function(){
-      try{
-        const next = encodeURIComponent("/pages/jeito-de-atender.html");
-        const goLogin = ()=>{ window.location.href = "/pages/login.html?next=" + next; };
+      'use strict';
 
-        const tick = setInterval(()=>{
-          try{
-            if(!window.firebase || !firebase.auth){ return; }
-            clearInterval(tick);
-            firebase.auth().onAuthStateChanged((u)=>{
-              if(!u){ goLogin(); return; }
-              // ok
-            });
-          }catch(e){}
-        }, 250);
-
-        setTimeout(()=>{ try{ clearInterval(tick); }catch(e){} }, 8000);
-      }catch(e){}
-    })();
-
-    // -------- UI helpers --------
-    const $ = (sel)=>document.querySelector(sel);
-    const toast = (msg)=>{
-      const el = $("#toast");
-      el.innerHTML = msg;
-      el.style.display = "block";
-      clearTimeout(window.__t_toast);
-      window.__t_toast = setTimeout(()=>{ el.style.display="none"; }, 2600);
-    };
-
-    function getVal(name){
-      const el = document.querySelector(`input[name="${name}"]:checked`);
-      return el ? el.value : "";
-    }
-
-    function labelFor(name, val){
-      const map = {
-        operational_mode: {
-          DELIVERY:"Pedidos/Delivery", AGENDA:"Agenda", TECNICO:"Orçamento/Técnico", TRIAGEM:"Info & triagem",
-          CONDOMINIO:"Condomínio/Chamados", EMPRESA:"Equipe/Empresa", SUPPORT_BROADCAST:"Suporte/Secretária"
-        },
-        tone: { direto:"Direto", acolhedor:"Acolhedor", explicativo:"Explicativo" },
-        humor: { "0":"Sem humor", "1":"Humor leve", "2":"Humor solto" },
-        confirm_style: { bulk:"Confirma em bloco", minimal:"Essencial e segue", assertive:"Conduz e finaliza" },
-        sales_posture: { informa:"Só informa", consultivo:"Consultivo", direto:"Direto pro próximo passo" }
+      // -------- UI helpers --------
+      const $ = (sel)=>document.querySelector(sel);
+      const toast = (msg)=>{
+        const el = $("#toast");
+        el.innerHTML = msg;
+        el.style.display = "block";
+        clearTimeout(window.__t_toast);
+        window.__t_toast = setTimeout(()=>{ el.style.display="none"; }, 2600);
       };
-      try{ return (map[name]||{})[val] || "—"; }catch(e){ return "—"; }
-    }
 
-    function buildPreview(){
-      const mode = getVal("operational_mode");
-      const tone = getVal("tone");
-      const humor = getVal("humor");
-      const confirm = getVal("confirm_style");
-      const sales = getVal("sales_posture");
-
-      $("#kvMode").textContent = labelFor("operational_mode", mode);
-      $("#kvTone").textContent = labelFor("tone", tone);
-      $("#kvHumor").textContent = labelFor("humor", humor);
-      $("#kvConfirm").textContent = labelFor("confirm_style", confirm);
-      $("#kvSales").textContent = labelFor("sales_posture", sales);
-
-      if(!(mode && tone && humor && confirm && sales)){
-        $("#previewBox").textContent = "Selecione as opções ao lado pra ver o preview.";
-        return;
+      function getVal(name){
+        const el = document.querySelector(`input[name="${name}"]:checked`);
+        return el ? el.value : "";
       }
 
-      const emo = (humor === "2") ? "😄" : (humor === "1" ? "🙂" : "");
-      const opener =
-        tone === "direto" ? "Fechado. Vou direto ao ponto." :
-        tone === "acolhedor" ? "Perfeito, vamos resolver isso com calma." :
-        "Beleza — te explico do jeito mais simples possível.";
-
-      // Cenários curtinhos por modo (pra o usuário “sentir”)
-      let sampleIn = "";
-      let sampleOut = "";
-
-      if(mode === "DELIVERY"){
-        sampleIn = "“Vou querer um cheese bacon com ovo e uma Coca.”";
-        sampleOut =
-          `${opener} ${emo}\n\n` +
-          `Pedido: cheese bacon com ovo + Coca.\n` +
-          `Só me confirma rapidinho (tudo de uma vez):\n` +
-          `• Coca é normal ou zero? (lata/600/1L)\n` +
-          `• Entrega ou retirada?\n` +
-          `• Forma de pagamento?\n\n` +
-          `Aí eu te devolvo o pedido por escrito pra confirmar.`;
-      } else if(mode === "AGENDA"){
-        sampleIn = "“Quero marcar corte amanhã.”";
-        sampleOut =
-          `${opener} ${emo}\n\n` +
-          `Só pra eu deixar certinho (em um bloco):\n` +
-          `• Qual serviço exato? (ex.: corte, barba, pacote)\n` +
-          `• Amanhã: manhã ou tarde?\n` +
-          `• Melhor horário aproximado?\n\n` +
-          `Com isso eu te mando a confirmação por escrito.`;
-      } else if(mode === "TECNICO"){
-        sampleIn = "“Preciso ver um vazamento aqui.”";
-        sampleOut =
-          `${opener} ${emo}\n\n` +
-          `Pra eu não chutar nada, só me passa o essencial:\n` +
-          `• Endereço/bairro\n` +
-          `• É urgente (agora) ou pode ser hoje/amanhã?\n` +
-          `• Se der, manda 1 foto ou um áudio curto do ponto.\n\n` +
-          `Daí eu organizo tudo e te devolvo um resumo pra você decidir o próximo passo.`;
-      } else if(mode === "TRIAGEM"){
-        sampleIn = "“Como funciona o atendimento?”";
-        sampleOut =
-          `${opener} ${emo}\n\n` +
-          `Eu organizo o atendimento no WhatsApp: respondo rápido, registro o combinado e só te chamo quando precisa decidir.\n` +
-          `Se você quiser, me diz em 1 frase o que mais acontece aí: agenda, dúvidas ou orçamento — e eu te mostro um exemplo certeiro.`;
-      } else if(mode === "CONDOMINIO"){
-        sampleIn = "“Tô com um problema no portão.”";
-        sampleOut =
-          `${opener} ${emo}\n\n` +
-          `Pra registrar e encaminhar sem ruído:\n` +
-          `• Qual bloco/apto/local exato?\n` +
-          `• O que aconteceu (1 frase)?\n` +
-          `• É urgente ou pode aguardar?\n\n` +
-          `Fechou: eu deixo o chamado registrado e te devolvo o resumo.`;
-      } else if(mode === "EMPRESA"){
-        sampleIn = "“Preciso de ajuda com acesso.”";
-        sampleOut =
-          `${opener} ${emo}\n\n` +
-          `Me diz só:\n` +
-          `• Qual sistema/serviço?\n` +
-          `• Qual erro aparece? (pode copiar/colar)\n` +
-          `• Isso bloqueia seu trabalho agora?\n\n` +
-          `Com isso eu organizo e te encaminho o próximo passo.`;
-      } else { // SUPPORT_BROADCAST
-        sampleIn = "“Qual é o prazo e como funciona?”";
-        sampleOut =
-          `${opener} ${emo}\n\n` +
-          `Eu respondo com base nas informações e documentos que você cadastrou.\n` +
-          `Se a pergunta fugir do que está cadastrado, eu te encaminho sem inventar.\n\n` +
-          `Quer que eu te passe o resumo do passo a passo agora?`;
-      }
-
-      // Postura comercial (sem empurrar)
-      const cta =
-        sales === "informa" ? "" :
-        sales === "consultivo" ? "\n\nSe fizer sentido, eu já te indico o próximo passo." :
-        "\n\nSe fizer sentido, eu te passo o caminho mais curto pro próximo passo.";
-
-      $("#previewBox").textContent = `Cliente: ${sampleIn}\n\nMEI Robô: ${sampleOut}${cta}`;
-    }
-
-    document.addEventListener("change", (e)=>{
-      if(e.target && e.target.matches('input[type="radio"]')) buildPreview();
-    });
-
-    // Defaults (pra não ficar “tudo vazio”)
-    (function setDefaults(){
-      const d = JSON.parse(localStorage.getItem("meiRobo.jeitoAtenderDraft") || "null");
-      const set = (name, value)=>{
+      function setVal(name, value){
         const el = document.querySelector(`input[name="${name}"][value="${value}"]`);
         if(el) el.checked = true;
-      };
-
-      if(d){
-        set("operational_mode", d.operational_mode || "");
-        set("tone", d.tone || "");
-        set("humor", String(d.humor || ""));
-        set("confirm_style", d.confirm_style || "");
-        set("sales_posture", d.sales_posture || "");
-      } else {
-        // defaults leves (pode mudar depois)
-        set("operational_mode", "AGENDA");
-        set("tone", "direto");
-        set("humor", "1");
-        set("confirm_style", "bulk");
-        set("sales_posture", "consultivo");
       }
-      buildPreview();
-    })();
 
-    // Save (sem Firestore ainda): salva rascunho no localStorage e manda pro painel
-    $("#frm").addEventListener("submit", (e)=>{
-      e.preventDefault();
+      function labelFor(name, val){
+        const map = {
+          operational_mode: {
+            DELIVERY:"Pedidos/Delivery", AGENDA:"Agenda", TECNICO:"Orçamento/Técnico", TRIAGEM:"Info & triagem",
+            CONDOMINIO:"Condomínio/Chamados", EMPRESA:"Equipe/Empresa", SUPPORT_BROADCAST:"Suporte/Secretária"
+          },
+          tone: { direto:"Direto", acolhedor:"Acolhedor", explicativo:"Explicativo" },
+          humor: { "0":"Sem humor", "1":"Humor leve", "2":"Humor solto" },
+          confirm_style: { bulk:"Confirma em bloco", minimal:"Essencial e segue", assertive:"Conduz e finaliza" },
+          sales_posture: { informa:"Só informa", consultivo:"Consultivo", direto:"Direto pro próximo passo" }
+        };
+        try{ return (map[name]||{})[val] || "—"; }catch(e){ return "—"; }
+      }
 
-      const data = {
-        operational_mode: getVal("operational_mode"),
-        tone: getVal("tone"),
-        humor: getVal("humor"),
-        confirm_style: getVal("confirm_style"),
-        sales_posture: getVal("sales_posture"),
-        savedAt: new Date().toISOString()
+      function buildPreview(){
+        const mode = getVal("operational_mode");
+        const tone = getVal("tone");
+        const humor = getVal("humor");
+        const confirm = getVal("confirm_style");
+        const sales = getVal("sales_posture");
+
+        $("#kvMode").textContent = labelFor("operational_mode", mode);
+        $("#kvTone").textContent = labelFor("tone", tone);
+        $("#kvHumor").textContent = labelFor("humor", humor);
+        $("#kvConfirm").textContent = labelFor("confirm_style", confirm);
+        $("#kvSales").textContent = labelFor("sales_posture", sales);
+
+        if(!(mode && tone && humor && confirm && sales)){
+          $("#previewBox").textContent = "Selecione as opções ao lado pra ver o preview.";
+          return;
+        }
+
+        const emo = (humor === "2") ? "😄" : (humor === "1" ? "🙂" : "");
+        const opener =
+          tone === "direto" ? "Fechado. Vou direto ao ponto." :
+          tone === "acolhedor" ? "Perfeito, vamos resolver isso com calma." :
+          "Beleza — te explico do jeito mais simples possível.";
+
+        // Cenários curtinhos por modo (pra o usuário “sentir”)
+        let sampleIn = "";
+        let sampleOut = "";
+
+        if(mode === "DELIVERY"){
+          sampleIn = "“Vou querer um cheese bacon com ovo e uma Coca.”";
+          sampleOut =
+            `${opener} ${emo}
+
+` +
+            `Pedido: cheese bacon com ovo + Coca.
+` +
+            `Só me confirma rapidinho (tudo de uma vez):
+` +
+            `• Coca é normal ou zero? (lata/600/1L)
+` +
+            `• Entrega ou retirada?
+` +
+            `• Forma de pagamento?
+
+` +
+            `Aí eu te devolvo o pedido por escrito pra confirmar.`;
+        } else if(mode === "AGENDA"){
+          sampleIn = "“Quero marcar corte amanhã.”";
+          sampleOut =
+            `${opener} ${emo}
+
+` +
+            `Só pra eu deixar certinho (em um bloco):
+` +
+            `• Qual serviço exato? (ex.: corte, barba, pacote)
+` +
+            `• Amanhã: manhã ou tarde?
+` +
+            `• Melhor horário aproximado?
+
+` +
+            `Com isso eu te mando a confirmação por escrito.`;
+        } else if(mode === "TECNICO"){
+          sampleIn = "“Preciso ver um vazamento aqui.”";
+          sampleOut =
+            `${opener} ${emo}
+
+` +
+            `Pra eu não chutar nada, só me passa o essencial:
+` +
+            `• Endereço/bairro
+` +
+            `• É urgente (agora) ou pode ser hoje/amanhã?
+` +
+            `• Se der, manda 1 foto ou um áudio curto do ponto.
+
+` +
+            `Daí eu organizo tudo e te devolvo um resumo pra você decidir o próximo passo.`;
+        } else if(mode === "TRIAGEM"){
+          sampleIn = "“Como funciona o atendimento?”";
+          sampleOut =
+            `${opener} ${emo}
+
+` +
+            `Eu organizo o atendimento no WhatsApp: respondo rápido, registro o combinado e só te chamo quando precisa decidir.
+` +
+            `Se você quiser, me diz em 1 frase o que mais acontece aí: agenda, dúvidas ou orçamento — e eu te mostro um exemplo certeiro.`;
+        } else if(mode === "CONDOMINIO"){
+          sampleIn = "“Tô com um problema no portão.”";
+          sampleOut =
+            `${opener} ${emo}
+
+` +
+            `Pra registrar e encaminhar sem ruído:
+` +
+            `• Qual bloco/apto/local exato?
+` +
+            `• O que aconteceu (1 frase)?
+` +
+            `• É urgente ou pode aguardar?
+
+` +
+            `Fechou: eu deixo o chamado registrado e te devolvo o resumo.`;
+        } else if(mode === "EMPRESA"){
+          sampleIn = "“Preciso de ajuda com acesso.”";
+          sampleOut =
+            `${opener} ${emo}
+
+` +
+            `Me diz só:
+` +
+            `• Qual sistema/serviço?
+` +
+            `• Qual erro aparece? (pode copiar/colar)
+` +
+            `• Isso bloqueia seu trabalho agora?
+
+` +
+            `Com isso eu organizo e te encaminho o próximo passo.`;
+        } else { // SUPPORT_BROADCAST
+          sampleIn = "“Qual é o prazo e como funciona?”";
+          sampleOut =
+            `${opener} ${emo}
+
+` +
+            `Eu respondo com base nas informações e documentos que você cadastrou.
+` +
+            `Se a pergunta fugir do que está cadastrado, eu te encaminho sem inventar.
+
+` +
+            `Quer que eu te passe o resumo do passo a passo agora?`;
+        }
+
+        // Postura comercial (sem empurrar)
+        const cta =
+          sales === "informa" ? "" :
+          sales === "consultivo" ? "
+
+Se fizer sentido, eu já te indico o próximo passo." :
+          "
+
+Se fizer sentido, eu te passo o caminho mais curto pro próximo passo.";
+
+        $("#previewBox").textContent = `Cliente: ${sampleIn}
+
+MEI Robô: ${sampleOut}${cta}`;
+      }
+
+      // -------- Persistência (local + Firestore) --------
+      const LS_KEY = "meiRobo.jeitoAtenderDraft";
+
+      function normalizePayload(d){
+        if(!d) return null;
+        return {
+          operational_mode: String(d.operational_mode || "").trim(),
+          tone: String(d.tone || "").trim(),
+          humor: String(d.humor ?? "").trim(), // "0"|"1"|"2"
+          confirm_style: String(d.confirm_style || "").trim(),
+          sales_posture: String(d.sales_posture || "").trim()
+        };
+      }
+
+      function saveDraftLS(d){
+        try{ localStorage.setItem(LS_KEY, JSON.stringify(d)); }catch(e){}
+      }
+
+      function loadDraftLS(){
+        try{ return JSON.parse(localStorage.getItem(LS_KEY) || "null"); }catch(e){ return null; }
+      }
+
+      function applyToForm(d){
+        if(!d) return;
+        setVal("operational_mode", d.operational_mode);
+        setVal("tone", d.tone);
+        setVal("humor", String(d.humor));
+        setVal("confirm_style", d.confirm_style);
+        setVal("sales_posture", d.sales_posture);
+      }
+
+      function setDefaults(){
+        setVal("operational_mode", "AGENDA");
+        setVal("tone", "direto");
+        setVal("humor", "1");
+        setVal("confirm_style", "bulk");
+        setVal("sales_posture", "consultivo");
+      }
+
+      function collect(){
+        return normalizePayload({
+          operational_mode: getVal("operational_mode"),
+          tone: getVal("tone"),
+          humor: getVal("humor"),
+          confirm_style: getVal("confirm_style"),
+          sales_posture: getVal("sales_posture")
+        });
+      }
+
+      const missingLabel = {
+        operational_mode: "o foco principal",
+        tone: "o tom da conversa",
+        humor: "o nível de humor",
+        confirm_style: "como confirmar",
+        sales_posture: "a postura comercial"
       };
 
-      // valida rápido
-      for(const k of ["operational_mode","tone","humor","confirm_style","sales_posture"]){
-        if(!data[k]){
-          toast(`Faltou escolher: <b>${k}</b>.`);
-          return;
+      function firstMissing(d){
+        for(const k of ["operational_mode","tone","humor","confirm_style","sales_posture"]){
+          if(!d || !d[k]) return k;
+        }
+        return "";
+      }
+
+      // -------- Firebase helpers (compat) --------
+      function getAuthSafe(){
+        try{
+          if(!(window.firebase && firebase.app)) return null;
+          const app = firebase.app();
+          if(app && app.auth) return app.auth();
+        }catch(e){
+          console.warn("[jeito] auth não disponível:", e);
+        }
+        return null;
+      }
+
+      function getDbSafe(){
+        try{
+          if(!(window.firebase && firebase.app)) return null;
+          const app = firebase.app();
+          if(app && app.firestore) return app.firestore();
+        }catch(e){
+          console.warn("[jeito] firestore não disponível:", e);
+        }
+        return null;
+      }
+
+      function docRefFor(uid){
+        const db = getDbSafe();
+        if(!db) return null;
+        return db.collection("profissionais").doc(uid).collection("config").doc("jeitoAtender");
+      }
+
+      async function loadFromFirestore(uid){
+        const ref = docRefFor(uid);
+        if(!ref) return null;
+        try{
+          const snap = await ref.get();
+          if(!snap.exists) return null;
+          const d = snap.data() || {};
+          const payload = normalizePayload({
+            operational_mode: d.operational_mode,
+            tone: d.tone,
+            humor: (d.humor != null ? String(d.humor) : ""),
+            confirm_style: d.confirm_style,
+            sales_posture: d.sales_posture
+          });
+          return payload;
+        }catch(e){
+          console.warn("[jeito] load firestore falhou:", e);
+          return null;
         }
       }
 
-      localStorage.setItem("meiRobo.jeitoAtenderDraft", JSON.stringify(data));
-      toast("Salvo. Indo pro painel… <small>(depois a gente publica isso no Firestore)</small>");
-      setTimeout(()=>{ window.location.href = "/pages/dashboard.html?jeito=ok"; }, 700);
-    });
+      async function saveToFirestore(uid, payload){
+        const ref = docRefFor(uid);
+        const db = getDbSafe();
+        if(!ref || !db) return false;
+        try{
+          const FieldValue = firebase.firestore.FieldValue;
+          await ref.set({
+            operational_mode: payload.operational_mode,
+            tone: payload.tone,
+            humor: payload.humor, // string ok (ou número no futuro)
+            confirm_style: payload.confirm_style,
+            sales_posture: payload.sales_posture,
+            version: 1,
+            updatedAt: FieldValue.serverTimestamp()
+          }, { merge: true });
+          return true;
+        }catch(e){
+          console.warn("[jeito] save firestore falhou:", e);
+          return false;
+        }
+      }
 
-    // Skip: volta pra conta (e a conta leva o usuário pro painel quando ele quiser)
-    $("#btnSkip").addEventListener("click", (e)=>{
-      // só navega; não apaga rascunho (se existia)
-      // Se quiser apagar, é só limpar localStorage manualmente.
-    });
+      // -------- Boot --------
+      document.addEventListener("change", (e)=>{
+        if(e.target && e.target.matches('input[type="radio"]')){
+          const d = collect();
+          if(d) saveDraftLS({ ...d, savedAt: new Date().toISOString() });
+          buildPreview();
+        }
+      });
+
+      function onReady(fn){
+        if(document.readyState === "loading"){
+          document.addEventListener("DOMContentLoaded", fn);
+        }else{
+          fn();
+        }
+      }
+
+      onReady(function(){
+        // Primeiro: tenta Firestore (se logado). Se falhar/não existir, cai no localStorage. Se não tiver, defaults.
+        const auth = getAuthSafe();
+        if(!auth){
+          // Sem Firebase carregado → pelo menos deixa usável com localStorage
+          const d = normalizePayload(loadDraftLS());
+          if(d && !firstMissing(d)) applyToForm(d); else { setDefaults(); }
+          buildPreview();
+          return;
+        }
+
+        auth.onAuthStateChanged(async (user)=>{
+          if(!user){
+            const next = encodeURIComponent("/pages/jeito-de-atender.html");
+            window.location.href = "/pages/login.html?next=" + next;
+            return;
+          }
+
+          let applied = false;
+
+          const fromFs = await loadFromFirestore(user.uid);
+          if(fromFs && !firstMissing(fromFs)){
+            applyToForm(fromFs);
+            saveDraftLS({ ...fromFs, loadedFrom: "firestore", savedAt: new Date().toISOString() });
+            applied = true;
+          }
+
+          if(!applied){
+            const fromLs = normalizePayload(loadDraftLS());
+            if(fromLs && !firstMissing(fromLs)){
+              applyToForm(fromLs);
+              applied = true;
+            }
+          }
+
+          if(!applied){
+            setDefaults();
+          }
+
+          buildPreview();
+        });
+      });
+
+      // -------- Submit --------
+      $("#frm").addEventListener("submit", async (e)=>{
+        e.preventDefault();
+
+        const data = collect();
+        const miss = firstMissing(data);
+        if(miss){
+          toast(`Faltou escolher <b>${missingLabel[miss] || miss}</b>.`);
+          return;
+        }
+
+        // salva local primeiro (sempre)
+        saveDraftLS({ ...data, savedAt: new Date().toISOString() });
+
+        // tenta Firestore (se estiver logado e disponível)
+        const auth = getAuthSafe();
+        const user = auth && auth.currentUser ? auth.currentUser : null;
+
+        let okFs = false;
+        if(user){
+          toast("Salvando no Firestore…");
+          okFs = await saveToFirestore(user.uid, data);
+        }
+
+        if(okFs){
+          toast("Salvo ✅ Indo pro painel…");
+        }else{
+          toast("Salvo ✅ (local). Indo pro painel… <small>Se a internet falhar, a gente não perde suas escolhas.</small>");
+        }
+
+        setTimeout(()=>{ window.location.href = "/pages/dashboard.html?jeito=ok"; }, 650);
+      });
+    })();
   </script>
+
 </body>
 </html>
