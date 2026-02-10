@@ -677,6 +677,7 @@ async function startSSE(user){
       return /[A-Za-z]/.test(s) && /[0-9]/.test(s);
     }
     function updateButtonState(){
+      const msgLocked = !!(formMsg && formMsg.dataset && formMsg.dataset.lock);
       // Limpa estados visuais de erro por campo (não mexe em erros de backend no formMsg)
       [emailInput, email2Input, phoneInput, cnpjInput, pwd, pwd2].forEach(el => {
         if (!el) return;
@@ -799,6 +800,10 @@ async function startSSE(user){
         pwd2.setAttribute('aria-invalid', 'true');
       }
 
+      // Se uma mensagem "de fluxo" estiver travada (ex.: email enviado / erro do backend),
+      // não sobrescreve o formMsg aqui.
+      if (msgLocked) return;
+
       if (issues.length) {
         formMsg.className = 'error';
         formMsg.textContent =
@@ -822,6 +827,15 @@ async function startSSE(user){
     });
 
     document.addEventListener('DOMContentLoaded', () => { updateButtonState(); });
+
+    // Quando o usuário digitar de novo, liberamos o formMsg para o updateButtonState voltar a orientar.
+    document.addEventListener('input', () => {
+      try {
+        const fm = document.getElementById('formMsg');
+        if (fm && fm.dataset) delete fm.dataset.lock;
+      } catch(_) {}
+    }, true);
+    
 
     async function checkCNPJAvailability(){
       const raw = cnpjInput.value;
@@ -1287,7 +1301,9 @@ try {
             try { VERIFY_LAST_SENT_AT = Date.now(); } catch(_) {}
             console.log('[cadastro][sendVerificationViaBackend] e-mail de verificação enviado com sucesso para', email);
             try {
-              if (formMsg && (!formMsg.textContent || formMsg.className !== 'hint')) {
+              if (formMsg) {
+                // Lock para o updateButtonState não sobrescrever essa mensagem na hora
+                try { formMsg.dataset.lock = 'verify_sent'; } catch(_) {}
                 formMsg.className = 'hint';
                 formMsg.textContent = 'Enviamos o e-mail de verificação. Confira sua caixa de entrada e volte para esta aba.';
               }
