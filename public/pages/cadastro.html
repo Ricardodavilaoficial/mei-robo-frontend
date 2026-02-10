@@ -1317,6 +1317,19 @@ try {
     
     /* ====== Submit (com Turnstile obrigatório, preservando backend) ====== */
     async function proceedSubmit(){
+      // Gate duro: SEM Turnstile não faz NADA (nem email, nem cadastro)
+      try {
+        const token = (window.CF_TOKEN || '').trim();
+        if (!token) {
+          formMsg.className = 'error';
+          formMsg.textContent = 'Clique na caixinha de segurança para continuar.';
+          try {
+            const ts = document.querySelector('[data-turnstile], .cf-turnstile, #turnstile, #turnstileContainer, iframe[src*="challenges.cloudflare.com"]');
+            if (ts && ts.scrollIntoView) ts.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          } catch(_) {}
+          return;
+        }
+      } catch(_) {}
       formMsg.className='hint';
       formMsg.textContent='Enviando cadastro com segurança...';
 
