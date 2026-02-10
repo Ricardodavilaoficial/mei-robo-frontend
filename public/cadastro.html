@@ -1183,6 +1183,9 @@ try {
         // Ajustes de microcopy para 422
         if (status === 422) {
           const low = m.toLowerCase();
+          if (low.includes('weak_password')) {
+            return 'Senha recusada. Confere se você digitou a senha certinha (8+ chars, maiúscula/minúscula, número) e tenta de novo.';
+          }
           if (low.includes('cnpj') && (low.includes('uso') || low.includes('exist') || low.includes('já'))) {
             return 'Este CNPJ já tem conta. Você pode recuperar o acesso ou usar outro.';
           }
@@ -1445,6 +1448,7 @@ try {
           nome,
           telefone: telefoneDigits,
           cnpj: cnpjDigits,
+          senha,
           cf_token: token,
           'cf-turnstile-response': token,
           turnstile_token: token
