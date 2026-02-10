@@ -1296,6 +1296,9 @@ try {
         try { VERIFY_SEND_INFLIGHT = false; } catch(_) {}
       }
 
+    }  // <-- FIX CRÍTICO: fecha a função sendVerificationViaBackend (evita SyntaxError)
+
+    
     /* ====== Submit (com Turnstile obrigatório, preservando backend) ====== */
     async function proceedSubmit(){
       formMsg.className='hint';
@@ -1758,64 +1761,43 @@ try {
     console.log('[cadastro][watchdog] desativado; avanço controlado só pelo botão.');
   })();
   
-    /* ====== HOTFIX UI: garantir togglePwd + refresh do submit (autofill) ====== */
+    /* ====== HOTFIX UI: apenas reavaliar estado (autofill) sem mexer no toggle ======
+       Motivo: o togglePwd já tem listener acima. Se a gente "rebinda" aqui,
+       ele alterna duas vezes e parece que não funciona. */
     (function () {
-      function qs(id) { return document.getElementById(id); }
-
-      function setSubmitEnabled(enabled) {
-        var btn = qs('submitBtn');
-        if (!btn) return;
-        if (enabled) {
-          btn.classList.remove('btn-disabled');
-          btn.disabled = false;
-          btn.setAttribute('aria-disabled', 'false');
-        } else {
-          btn.classList.add('btn-disabled');
-          btn.disabled = true;
-          btn.setAttribute('aria-disabled', 'true');
-        }
-      }
-
       function refreshSubmitState() {
-        var form = document.querySelector('form');
-        if (!form) return;
-        setSubmitEnabled(!!form.checkValidity());
-      }
+  try {
+    // Preferência: usar o gate oficial (Turnstile + checks) se existir.
+    if (typeof window.updateButtonState === 'function') {
+      window.updateButtonState();
+      return;
+    }
+    // fallback: pelo menos não deixa o estado "travado" se o gate não existir
+    var f = document.querySelector('form');
+    var btn = document.getElementById('submitBtn');
+    if (!f || !btn) return;
+    var ok = !!f.checkValidity();
+    btn.disabled = !ok;
+    btn.setAttribute('aria-disabled', ok ? 'false' : 'true');
+    btn.classList.toggle('btn-disabled', !ok);
+  } catch(_) {}
+}
 
-      function bindTogglePwd() {
-        var a = qs('togglePwd');
-        var p = qs('senha');
-        if (!a || !p) return;
+function boot() {
+  refreshSubmitState();
+  // Autofill pode cair depois dos listeners -> revalida
+  setTimeout(refreshSubmitState, 300);
+  setTimeout(refreshSubmitState, 1200);
+}
 
-        // Evita duplicar listeners caso o script rode 2x
-        if (a.__mei_toggle_bound__) return;
-        a.__mei_toggle_bound__ = true;
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', boot);
+} else {
+  boot();
+}
 
-        a.addEventListener('click', function (ev) {
-          ev.preventDefault();
-          p.type = (p.type === 'password') ? 'text' : 'password';
-          a.textContent = (p.type === 'password') ? 'Mostrar' : 'Ocultar';
-          a.setAttribute('aria-pressed', (p.type === 'text') ? 'true' : 'false');
-        });
-      }
-
-      function boot() {
-        bindTogglePwd();
-        refreshSubmitState();
-        // Autofill pode cair depois dos listeners -> revalida
-        setTimeout(refreshSubmitState, 300);
-        setTimeout(refreshSubmitState, 1200);
-      }
-
-      if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', boot);
-      } else {
-        boot();
-      }
-
-      document.addEventListener('input', refreshSubmitState, true);
-      document.addEventListener('change', refreshSubmitState, true);
-    })();
+document.addEventListener('input', refreshSubmitState, true);
+document.addEventListener('change', refreshSubmitState, true);})();
   </script>
 
 </body>
