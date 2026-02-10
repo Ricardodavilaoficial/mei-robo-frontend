@@ -703,17 +703,17 @@ async function startSSE(user){
         termsOk && turnstileOk
       );
 
+      // HOTFIX (mínimo impacto): botão SEMPRE clicável.
+      // A validação pesada (inclui Turnstile) acontece no submit/proceedSubmit().
+      enableSubmit();
+
       if (allOk) {
-        enableSubmit();
         // Se a mensagem atual for só dica leve, podemos limpar
         if (formMsg && (formMsg.className === 'hint' || !formMsg.textContent)) {
           formMsg.textContent = '';
         }
         return;
       }
-
-      // Não passou no gate → garante botão bloqueado
-      disableSubmit();
 
       // Só começamos a orientar se o usuário já mexeu em algo
       const hasInteraction =
