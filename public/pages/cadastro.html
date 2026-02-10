@@ -530,6 +530,7 @@ async function startSSE(user){
           size: 'compact',
           callback: function(token) {
             CF_TOKEN = token;
+            window.CF_TOKEN = token;
             CF_TOKEN_TS = Date.now();
             const hidden = document.getElementById('cf_token');
             if (hidden) hidden.value = token;
@@ -1319,8 +1320,13 @@ try {
     async function proceedSubmit(){
       // Gate duro: SEM Turnstile não faz NADA (nem email, nem cadastro)
       try {
-        const token = (window.CF_TOKEN || '').trim();
-        if (!token) {
+        let tokenQuick = "";
+        try {
+          if (window.turnstile && CF_WIDGET_ID) tokenQuick = (turnstile.getResponse(CF_WIDGET_ID) || "").trim();
+        } catch(_) {}
+        if (!tokenQuick) tokenQuick = (CF_TOKEN || "").trim();
+        if (!tokenQuick) tokenQuick = (document.getElementById('cf_token')?.value || "").trim();
+        if (!tokenQuick) {
           formMsg.className = 'error';
           formMsg.textContent = 'Clique na caixinha de segurança para continuar.';
           try {
