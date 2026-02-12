@@ -1,0 +1,839 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Conversas • MEI Robô</title>
+
+  <!-- Layout canônico (header/footer via parciais). Mantém padrão do projeto. -->
+  <link rel="stylesheet" href="/assets/styles.css" />
+  <script defer src="/assets/layout.js?v=2025-09-06-07"></script>
+  <!-- ✅ Firebase Hosting SDKs (igual configuracao.html) -->
+  <script defer src="/__/firebase/9.22.2/firebase-app-compat.js"></script>
+  <script defer src="/__/firebase/9.22.2/firebase-auth-compat.js"></script>
+  <script defer src="/__/firebase/9.22.2/firebase-firestore-compat.js"></script>
+  <script defer src="/__/firebase/init.js"></script>
+  <script>
+    window.addEventListener("load", () => {
+      try {
+        if (window.firebase?.apps?.length) {
+          try { firebase.auth().languageCode = "pt_BR"; } catch(_){ }
+          console.log("[conversas] Firebase pronto (Hosting init).");
+        } else {
+          console.error("[conversas] Firebase não inicializou via Hosting.");
+        }
+      } catch (e) {
+        console.error("[conversas] Erro ao inicializar Firebase:", e);
+      }
+    });
+  </script>
+<style>
+    :root{
+      --bg:#0b1014;
+      --muted:#9fb0bd;
+      --text:#e7eef4;
+      --stroke:rgba(255,255,255,.10);
+      --stroke2:rgba(255,255,255,.14);
+      --accent:#25D366;
+      --danger:#ff5d5d;
+      --warn:#ffcc66;
+      --shadow: 0 14px 50px rgba(0,0,0,.50);
+      --r:18px;
+      --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono","Courier New", monospace;
+      --sans: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, "Helvetica Neue", Arial, "Noto Sans", "Apple Color Emoji", "Segoe UI Emoji";
+    }
+    *{box-sizing:border-box}
+    body{
+      margin:0;
+      font-family:var(--sans);
+      background: radial-gradient(1200px 700px at 20% -10%, rgba(37,211,102,.12), transparent 55%),
+                  radial-gradient(900px 600px at 90% 10%, rgba(37,211,102,.07), transparent 55%),
+                  var(--bg);
+      color:var(--text);
+    }
+    .container{max-width:1200px;margin:0 auto;padding:18px 14px 60px}
+    .page-head{
+      display:flex;gap:12px;align-items:flex-start;justify-content:space-between;
+      padding:14px 0 10px;border-bottom:1px solid var(--stroke);
+      margin-bottom:14px;
+    }
+    .title h1{margin:0;font-size:22px;letter-spacing:.2px}
+    .title p{margin:6px 0 0;color:var(--muted);font-size:13.5px;line-height:1.35}
+    .toolbar{display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:flex-end}
+    .chip{
+      display:inline-flex;align-items:center;gap:8px;
+      padding:8px 10px;border:1px solid var(--stroke);
+      background:rgba(255,255,255,.04);
+      border-radius:999px;
+      color:var(--muted);font-size:13px;
+    }
+    .chip strong{color:var(--text);font-weight:600}
+    .btn{
+      appearance:none;border:1px solid var(--stroke2);
+      background:rgba(255,255,255,.05);
+      color:var(--text);
+      padding:9px 12px;border-radius:12px;
+      font-weight:600;font-size:13px;
+      cursor:pointer;
+      transition:.12s transform,.12s background,.12s border-color;
+    }
+    .btn:hover{transform:translateY(-1px);border-color:rgba(255,255,255,.22)}
+    .btn:active{transform:translateY(0)}
+    .btn.primary{background:rgba(37,211,102,.14);border-color:rgba(37,211,102,.30)}
+    .btn.primary:hover{background:rgba(37,211,102,.18)}
+    .btn.ghost{background:transparent}
+    .btn.danger{background:rgba(255,93,93,.10);border-color:rgba(255,93,93,.25)}
+    .btn:disabled{opacity:.55;cursor:not-allowed;transform:none}
+
+    .grid{display:grid;grid-template-columns:360px 1fr;gap:14px;margin-top:14px}
+    @media (max-width:980px){.grid{grid-template-columns:1fr}}
+
+    .card{
+      background:linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.035));
+      border:1px solid var(--stroke);
+      border-radius:var(--r);
+      box-shadow: var(--shadow);
+      overflow:hidden;
+    }
+    .card-h{
+      padding:12px 12px;border-bottom:1px solid var(--stroke);
+      display:flex;align-items:center;justify-content:space-between;gap:10px;
+      background:rgba(0,0,0,.16);
+    }
+    .card-h h2{margin:0;font-size:14px;letter-spacing:.2px}
+    .card-h .sub{color:var(--muted);font-size:12.5px}
+    .card-b{padding:12px}
+
+    .filters{display:flex;flex-wrap:wrap;gap:10px;align-items:end}
+    .field{display:flex;flex-direction:column;gap:6px}
+    label{font-size:12px;color:var(--muted)}
+    input, select{
+      background:rgba(0,0,0,.30);
+      border:1px solid var(--stroke);
+      border-radius:12px;
+      padding:10px 10px;
+      color:var(--text);
+      font-size:13.5px;
+      outline:none;
+      min-width:140px;
+    }
+    input::placeholder{color:rgba(159,176,189,.7)}
+    input:focus, select:focus{border-color:rgba(37,211,102,.35);box-shadow:0 0 0 3px rgba(37,211,102,.10)}
+    .filters .actions{display:flex;gap:10px;align-items:center;margin-left:auto}
+    @media (max-width:980px){
+      .filters .actions{margin-left:0}
+      input,select{min-width:unset;width:100%}
+      .filters{flex-direction:column;align-items:stretch}
+    }
+
+    .list{display:flex;flex-direction:column;gap:8px;max-height:610px;overflow:auto;padding:12px}
+    .item{
+      border:1px solid var(--stroke);
+      background:rgba(0,0,0,.18);
+      border-radius:14px;
+      padding:10px 10px;
+      cursor:pointer;
+      display:flex;gap:10px;align-items:flex-start;justify-content:space-between;
+      transition:.12s border-color,.12s background;
+    }
+    .item:hover{border-color:rgba(255,255,255,.20);background:rgba(0,0,0,.22)}
+    .item.active{border-color:rgba(37,211,102,.35);background:rgba(37,211,102,.08)}
+    .left{display:flex;gap:10px;align-items:flex-start}
+    .avatar{
+      width:34px;height:34px;border-radius:12px;
+      background:linear-gradient(180deg, rgba(37,211,102,.30), rgba(37,211,102,.06));
+      border:1px solid rgba(37,211,102,.25);
+      display:flex;align-items:center;justify-content:center;
+      font-weight:800;color:#05200f;flex:0 0 auto;
+    }
+    .meta{display:flex;flex-direction:column;gap:3px;min-width:0}
+    .who{font-weight:800;font-size:13.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .prev{color:var(--muted);font-size:12.7px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:220px}
+    .right{text-align:right;display:flex;flex-direction:column;gap:6px;align-items:flex-end}
+    .when{color:var(--muted);font-size:11.5px}
+    .tag{
+      font-size:11px;border:1px solid var(--stroke);
+      padding:3px 8px;border-radius:999px;color:var(--muted);
+      background:rgba(255,255,255,.03)
+    }
+
+    .viewer-wrap{padding:12px}
+    .viewer-toolbar{
+      display:flex;gap:10px;align-items:center;justify-content:space-between;
+      padding:10px 12px;border:1px solid var(--stroke);
+      background:rgba(0,0,0,.18);
+      border-radius:14px;margin-bottom:12px;
+    }
+    .viewer-toolbar .who2{display:flex;flex-direction:column;gap:2px;min-width:0}
+    .viewer-toolbar .who2 .top{display:flex;gap:10px;align-items:center;min-width:0}
+    .viewer-toolbar .who2 .top strong{font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .viewer-toolbar .who2 .top span{color:var(--muted);font-size:12.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .viewer-toolbar .who2 .hint{color:var(--muted);font-size:12px}
+    .toggle{display:flex;gap:8px;align-items:center;flex-wrap:wrap;justify-content:flex-end}
+    .seg{
+      display:inline-flex;border:1px solid var(--stroke);border-radius:999px;overflow:hidden;
+      background:rgba(255,255,255,.03);
+    }
+    .seg button{
+      border:0;background:transparent;color:var(--muted);
+      padding:8px 10px;font-weight:800;font-size:12px;cursor:pointer
+    }
+    .seg button.active{color:var(--text);background:rgba(37,211,102,.12)}
+    .seg button:hover{color:var(--text)}
+
+    .phone{
+      margin:0 auto;
+      width:min(420px, 100%);
+      background: linear-gradient(180deg, rgba(255,255,255,.05), rgba(255,255,255,.03));
+      border:1px solid rgba(255,255,255,.14);
+      border-radius:34px;
+      padding:14px;
+      box-shadow: 0 24px 80px rgba(0,0,0,.55);
+    }
+    .phone-inner{
+      border-radius:26px;overflow:hidden;border:1px solid rgba(0,0,0,.65);background:#0e1a12;
+    }
+    .phone-top{
+      background:linear-gradient(180deg, rgba(7,94,84,.92), rgba(7,94,84,.78));
+      padding:10px 12px;display:flex;align-items:center;gap:10px;
+      border-bottom:1px solid rgba(255,255,255,.10);
+    }
+    .phone-top .dot{
+      width:34px;height:34px;border-radius:12px;background:rgba(255,255,255,.18);
+      display:flex;align-items:center;justify-content:center;font-weight:900;color:#05200f
+    }
+    .phone-top .name{display:flex;flex-direction:column;min-width:0}
+    .phone-top .name strong{font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .phone-top .name span{font-size:12px;color:rgba(255,255,255,.78);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .phone-chat{
+      background:
+        radial-gradient(800px 500px at 20% 30%, rgba(37,211,102,.08), transparent 45%),
+        radial-gradient(700px 500px at 90% 10%, rgba(37,211,102,.06), transparent 55%),
+        #0e1a12;
+      padding:12px;height:clamp(560px, 68vh, 760px);overflow:auto;
+    }
+    .bubble{
+      max-width:88%;margin:8px 0;padding:10px 10px;border-radius:16px;
+      border:1px solid rgba(0,0,0,.40);
+      line-height:1.25;font-size:13.5px;white-space:pre-wrap;word-wrap:break-word;
+    }
+    .in{
+      background:rgba(255,255,255,.10);color:rgba(255,255,255,.92);
+      margin-right:auto;border-top-left-radius:6px;
+    }
+    .out{
+      background:rgba(37,211,102,.18);border-color:rgba(37,211,102,.22);
+      color:#eafff2;margin-left:auto;border-top-right-radius:6px;
+    }
+    .bmeta{display:flex;gap:8px;align-items:center;justify-content:flex-end;margin-top:6px;color:rgba(255,255,255,.62);font-size:11px}
+    .ticks{font-size:11px}
+    .audio{
+      display:flex;gap:10px;align-items:center;
+      background:rgba(0,0,0,.18);border:1px solid rgba(0,0,0,.28);
+      padding:9px;border-radius:14px
+    }
+    .audio button{
+      border:0;background:rgba(255,255,255,.10);color:#fff;border-radius:999px;
+      width:30px;height:30px;cursor:pointer;font-weight:900
+    }
+    .audio .bar{flex:1;height:6px;border-radius:999px;background:rgba(255,255,255,.18);position:relative;overflow:hidden}
+    .audio .bar::after{content:"";display:block;height:100%;width:38%;background:rgba(255,255,255,.35);border-radius:999px}
+    .audio small{color:rgba(255,255,255,.75)}
+
+    .sober{border:1px solid var(--stroke);border-radius:16px;background:rgba(0,0,0,.18);overflow:hidden}
+    .sober .log{padding:12px 12px;border-bottom:1px solid var(--stroke);display:flex;gap:10px;align-items:flex-start;justify-content:space-between}
+    .sober .log:last-child{border-bottom:0}
+    .sober .log .side{display:flex;flex-direction:column;gap:4px;min-width:0}
+    .sober .log .side .t{font-weight:900;font-size:13.5px}
+    .sober .log .side .m{color:var(--muted);font-size:12.5px;white-space:pre-wrap;word-wrap:break-word}
+    .sober .log .meta2{color:var(--muted);font-size:11.5px;white-space:nowrap;margin-left:10px}
+    .pill{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--stroke);border-radius:999px;padding:3px 8px;font-size:11px;color:var(--muted);background:rgba(255,255,255,.03)}
+
+    .note{margin-top:12px;border:1px solid rgba(255,255,255,.12);border-radius:16px;background:rgba(255,255,255,.04);padding:12px;color:var(--muted);font-size:12.7px;line-height:1.35}
+    .note strong{color:var(--text)}
+    .warnline{color:var(--warn)}
+    .err{color:var(--danger)}
+    .small{font-size:12px;color:var(--muted)}
+    .mono{font-family:var(--mono)}
+    .hide{display:none !important;}
+  </style>
+</head>
+
+<body>
+  <main class="container">
+    <div class="page-head">
+      <div class="title">
+        <h1>Conversas</h1>
+        <p>Veja a <strong>integralidade</strong> das conversas entre seus clientes e o seu MEI Robô — com modo “celular” caprichado e modo “linha do tempo” pra auditoria.</p>
+      </div>
+      <div class="toolbar">
+        <span class="chip" id="chip-auth">Status: <strong>carregando…</strong></span>
+        <button class="btn ghost" id="btn-refresh">Atualizar</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-h">
+        <div>
+          <h2>Filtros</h2>
+          <div class="sub">Período + contato + tipo. Sem “inventar moda”.</div>
+        </div>
+        <div class="small" id="small-index"></div>
+      </div>
+      <div class="card-b">
+        <div class="filters">
+          <div class="field">
+            <label for="period">Período</label>
+            <select id="period">
+              <option value="today">Hoje</option>
+              <option value="7d" selected>Últimos 7 dias</option>
+              <option value="30d">Últimos 30 dias</option>
+              <option value="custom">Personalizado</option>
+            </select>
+          </div>
+          <div class="field" id="customRange" style="display:none">
+            <label>De</label>
+            <input id="fromDate" type="date" />
+          </div>
+          <div class="field" id="customRange2" style="display:none">
+            <label>Até</label>
+            <input id="toDate" type="date" />
+          </div>
+          <div class="field">
+            <label for="qContact">Contato (telefone / nome)</label>
+            <input id="qContact" type="text" placeholder="Ex: 51 9xxxx ou Maria" />
+          </div>
+          
+          <div class="field">
+            <label for="qText">Pesquisa na conversa (texto)</label>
+            <input id="qText" type="text" placeholder="Ex: 'entrega', 'pix', 'horário'..." />
+          </div>
+
+          <div class="field">
+            <label for="msgType">Tipo</label>
+            <select id="msgType">
+              <option value="all" selected>Texto + Áudio</option>
+              <option value="text">Só texto</option>
+              <option value="audio">Só áudio</option>
+            </select>
+          </div>
+          <div class="actions">
+            <button class="btn" id="btn-apply">Aplicar</button>
+            <button class="btn danger" id="btn-clear">Limpar</button>
+          </div>
+        </div>
+        <div class="note">
+          <strong>Use esta tela pra validar sua configuração.</strong><br/>
+          • Achou uma conversa específica? Use a <strong>pesquisa</strong> e os filtros acima.<br/>
+          • Se aparecer algo incorreto (ex.: promessa, preço, horário), ajuste no painel (agenda/preços/serviços/FAQ) e avise o cliente pelo seu WhatsApp.<br/>
+          <span class="warnline">Dica:</span> quanto melhor a configuração, mais “redondo” o robô fica — e menos você precisa intervir.
+        </div>
+      </div>
+    </div>
+
+    <div class="grid">
+      <section class="card">
+        <div class="card-h">
+          <div>
+            <h2>Conversas</h2>
+            <div class="sub" id="sub-left">Carregando…</div>
+          </div>
+          <div class="sub"><span class="mono" id="count-left">0</span></div>
+        </div>
+        <div class="list" id="convList">
+          <div class="small">Carregando…</div>
+        </div>
+      </section>
+
+      <section class="card">
+        <div class="card-h">
+          <div>
+            <h2>Visualização</h2>
+            <div class="sub">Padrão: “celular”. Você troca quando quiser.</div>
+          </div>
+          <div class="sub"><span class="mono" id="count-right">0</span></div>
+        </div>
+
+        <div class="viewer-wrap">
+          <div class="viewer-toolbar">
+            <div class="who2">
+              <div class="top">
+                <strong id="whoName">Selecione uma conversa</strong>
+                <span id="whoPhone"></span>
+              </div>
+              <div class="hint">Dica: o modo celular é ótimo pra vender. A linha do tempo é ótima pra revisar rápido.</div>
+            </div>
+            <div class="toggle">
+              <div class="seg" role="tablist" aria-label="Modos de exibição">
+                <button id="modePhone" class="active" type="button">📱 Celular</button>
+                <button id="modeSober" type="button">📋 Linha do tempo</button>
+              </div>
+              <button class="btn primary" id="btn-copy-phone" disabled>Copiar telefone</button>
+            </div>
+          </div>
+
+          <div id="viewPhone">
+            <div class="phone">
+              <div class="phone-inner">
+                <div class="phone-top">
+                  <div class="dot" id="phoneDot">MR</div>
+                  <div class="name">
+                    <strong id="phoneTitle">—</strong>
+                    <span id="phoneSub">—</span>
+                  </div>
+                </div>
+                <div class="phone-chat" id="phoneChat">
+                  <div class="small">Selecione uma conversa à esquerda.</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div id="viewSober" class="hide">
+            <div class="sober" id="soberList">
+              <div class="log"><div class="side"><div class="t">Selecione uma conversa</div><div class="m">Aqui você vê tudo em linha do tempo (auditoria).</div></div><div class="meta2">—</div></div>
+            </div>
+          </div>
+
+          <div class="note" style="margin-top:14px">
+            <strong>Regras rápidas (WhatsApp / produto):</strong><br/>
+            • Este painel é <strong>somente leitura</strong> (v1.0).<br/>
+            • O MEI Robô não envia “texto livre” escrito por você — por segurança e previsibilidade.<br/>
+            • Se precisar corrigir algo agora, faça pelo seu WhatsApp e ajuste a configuração para não repetir.
+          </div>
+
+          <div class="small err" id="errBox" style="margin-top:10px"></div>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <script>
+  const DEFAULT_FIREBASE_CONFIG = null; // tenta window.firebaseConfig
+  const LS_MODE_KEY = "mei_robo_conversas_mode";
+  const LS_LAST_CONTACT = "mei_robo_conversas_last_contact";
+  const $ = (id) => document.getElementById(id);
+
+  const state = {
+    user: null,
+    mode: "phone",
+    contacts: [],
+    active: null,
+    logsCache: new Map(),
+    filter: { period: "7d", q: "", qText: "", msgType: "all" }
+  };
+
+  function setError(msg){ $("errBox").textContent = msg || ""; }
+
+  function fmtPhone(raw){
+    try{
+      const s = String(raw||"").trim();
+      if(!s) return "";
+      const digits = s.replace(/[^\d+]/g,"");
+      if(digits.startsWith("+55")){
+        const n = digits.replace("+55","");
+        if(n.length >= 10){
+          const ddd = n.slice(0,2), rest = n.slice(2);
+          if(rest.length === 9) return `+55 (${ddd}) ${rest.slice(0,5)}-${rest.slice(5)}`;
+          if(rest.length === 8) return `+55 (${ddd}) ${rest.slice(0,4)}-${rest.slice(4)}`;
+          return `+55 (${ddd}) ${rest}`;
+        }
+      }
+      return s;
+    }catch(e){ return String(raw||"").trim(); }
+  }
+
+  function fmtTs(ts){
+    try{
+      if(!ts) return "—";
+      let d=null;
+      if(typeof ts.toDate==="function") d = ts.toDate();
+      else if(ts instanceof Date) d = ts;
+      else if(typeof ts==="number") d = new Date(ts);
+      else if(typeof ts==="string") d = new Date(ts);
+      if(!d || isNaN(d.getTime())) return "—";
+      const dd=String(d.getDate()).padStart(2,"0");
+      const mm=String(d.getMonth()+1).padStart(2,"0");
+      const hh=String(d.getHours()).padStart(2,"0");
+      const mi=String(d.getMinutes()).padStart(2,"0");
+      return `${dd}/${mm} ${hh}:${mi}`;
+    }catch(e){ return "—"; }
+  }
+
+  function initials(x){
+    const s=String(x||"").trim(); if(!s) return "MR";
+    const parts=s.split(/\s+/).filter(Boolean);
+    if(parts.length===1){ const t=parts[0].replace(/[^\p{L}\d]/gu,""); return (t.slice(0,2).toUpperCase()||"MR"); }
+    return (parts[0][0]+parts[1][0]).toUpperCase();
+  }
+
+  function escapeHtml(s){
+    return String(s||"").replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;").replaceAll("'","&#039;");
+  }
+
+  function pick(obj, keys){ for(const k of keys){ if(obj && obj[k]!=null) return obj[k]; } return null; }
+
+  function isAudio(m){
+    const mt=String(m.msgType||m.type||"").toLowerCase();
+    if(mt.includes("audio")||mt==="voice") return true;
+    return !!(m.audioUrl||m.mediaUrl||(m.media&&m.media.url));
+  }
+  function isText(m){ return !!String(m.text||m.body||m.message||m.replyText||"").trim(); }
+
+  function normalizeMsg(d, directionHint){
+    d=d||{};
+    const ts = pick(d,["ts","timestamp","createdAt","created_at","sentAt","receivedAt","eventAt","at"]);
+    const from = pick(d,["from","fromRaw","from_phone","waFrom","phone","waKey","contact","contactKey","clienteWaKey"]);
+    const to   = pick(d,["to","toRaw","to_phone","waTo"]);
+    const displayName = pick(d,["displayName","contactName","name","nome"]);
+    const msgType = pick(d,["msgType","type","messageType","kind"]);
+    const text = pick(d,["text","body","message","replyText","reply","content"]);
+    const audioUrl = pick(d,["audioUrl","mediaUrl"]);
+    const route = pick(d,["route","intentRoute","mode","handler"]);
+    const intentFinal = pick(d,["intentFinal","intent","intentAI"]);
+    const direction = d.direction || directionHint || (d.sentVia||d.sentText||d.sentAudio ? "out":"in");
+    return {ts,from,to,displayName,msgType,text,audioUrl,route,intentFinal,direction};
+  }
+
+  function computeRange(){
+    const p = state.filter.period;
+    const now = new Date();
+    const sod = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    if(p==="today") return {from:sod,to:now};
+    if(p==="7d") return {from:new Date(now.getTime()-7*864e5),to:now};
+    if(p==="30d") return {from:new Date(now.getTime()-30*864e5),to:now};
+    if(p==="custom"){
+      const fd = $("fromDate").value ? new Date($("fromDate").value+"T00:00:00") : null;
+      const td = $("toDate").value ? new Date($("toDate").value+"T23:59:59") : null;
+      return {from:fd,to:td};
+    }
+    return {from:null,to:null};
+  }
+
+  function matchesContact(c){
+    const q=String(state.filter.q||"").trim().toLowerCase();
+    if(!q) return true;
+    const hay=(String(c.displayName||"")+" "+String(c.phone||"")+" "+String(c.key||"")).toLowerCase();
+    return hay.includes(q);
+  }
+  function matchesMsg(m){
+    const mt = state.filter.msgType;
+    if(mt==="audio") return isAudio(m);
+    if(mt==="text") return isText(m) && !isAudio(m);
+
+    // Pesquisa por texto dentro da conversa (case-insensitive)
+    const q = String(state.filter.qText || "").trim().toLowerCase();
+    if(q){
+      const t = String(m.text || "").toLowerCase();
+      if(!t.includes(q)) return false;
+    }
+    return true;
+  }
+
+  function setMode(mode){
+    state.mode=mode;
+    localStorage.setItem(LS_MODE_KEY, mode);
+    $("modePhone").classList.toggle("active", mode==="phone");
+    $("modeSober").classList.toggle("active", mode==="sober");
+    $("viewPhone").classList.toggle("hide", mode!=="phone");
+    $("viewSober").classList.toggle("hide", mode!=="sober");
+  }
+
+  function setActive(key){
+    state.active=key;
+    localStorage.setItem(LS_LAST_CONTACT, key||"");
+    [...document.querySelectorAll(".item")].forEach(el=>el.classList.toggle("active", el.getAttribute("data-key")===key));
+  }
+
+  function renderContacts(){
+    const list=$("convList"); list.innerHTML="";
+    const items=state.contacts.filter(matchesContact);
+    $("count-left").textContent=String(items.length);
+    $("sub-left").textContent=items.length ? "Clique para abrir" : "Sem conversas no período";
+    if(!items.length){
+      list.innerHTML=`<div class="small">Nada aqui ainda. Se você acabou de ativar, isso é normal 🙂</div>`;
+      return;
+    }
+    for(const c of items){
+      const el=document.createElement("div");
+      el.className="item"+(state.active===c.key?" active":"");
+      el.setAttribute("data-key", c.key);
+      el.innerHTML=`
+        <div class="left">
+          <div class="avatar">${escapeHtml(initials(c.displayName||c.phone||c.key))}</div>
+          <div class="meta">
+            <div class="who">${escapeHtml(c.displayName||c.phone||c.key)}</div>
+            <div class="prev">${escapeHtml(c.preview||"—")}</div>
+          </div>
+        </div>
+        <div class="right">
+          <div class="when">${escapeHtml(fmtTs(c.lastTs))}</div>
+          <div class="tag">${escapeHtml(c.tag||"conversa")}</div>
+        </div>`;
+      el.addEventListener("click", async ()=>{
+        setActive(c.key);
+        await loadAndRenderConversation(c);
+      });
+      list.appendChild(el);
+    }
+  }
+
+  function renderViewerHeader(c){
+    const phone=fmtPhone(c.phone||c.key);
+    $("whoName").textContent = c.displayName || phone || "—";
+    $("whoPhone").textContent = phone ? `• ${phone}` : "";
+    $("btn-copy-phone").disabled = !phone;
+    $("phoneTitle").textContent = c.displayName || "Cliente";
+    $("phoneSub").textContent = phone || "—";
+    $("phoneDot").textContent = initials(c.displayName || phone);
+  }
+
+  function renderConversation(messages){
+    const msgs=(messages||[]).filter(matchesMsg);
+    $("count-right").textContent=String(msgs.length);
+
+    const chat=$("phoneChat");
+    chat.innerHTML = msgs.length ? "" : `<div class="small">Nada para mostrar com os filtros atuais.</div>`;
+
+    for(const m of msgs){
+      const isOut = String(m.direction||"").toLowerCase()==="out";
+      const bubble=document.createElement("div");
+      bubble.className="bubble "+(isOut?"out":"in");
+      const t=String(m.text||"").trim();
+      if(isAudio(m) && !t){
+        bubble.innerHTML = `
+          <div class="audio">
+            <button type="button" title="Áudio (preview)">▶</button>
+            <div class="bar" aria-hidden="true"></div>
+            <small>Áudio</small>
+          </div>
+          <div class="bmeta"><span>${escapeHtml(fmtTs(m.ts))}</span>${isOut?`<span class="ticks">✓✓</span>`:""}</div>`;
+      }else{
+        bubble.innerHTML = `
+          <div>${escapeHtml(t || (isAudio(m) ? "[Áudio]" : "—"))}</div>
+          <div class="bmeta"><span>${escapeHtml(fmtTs(m.ts))}</span>${isOut?`<span class="ticks">✓✓</span>`:""}</div>`;
+      }
+      chat.appendChild(bubble);
+    }
+    setTimeout(()=>{ chat.scrollTop=chat.scrollHeight; }, 50);
+
+    const sList=$("soberList");
+    sList.innerHTML = msgs.length ? "" : `<div class="log"><div class="side"><div class="t">Nada para mostrar</div><div class="m">Ajuste os filtros e tente de novo.</div></div><div class="meta2">—</div></div>`;
+    for(const m of msgs){
+      const isOut = String(m.direction||"").toLowerCase()==="out";
+      const dir=isOut?"ROBÔ → cliente":"cliente → ROBÔ";
+      const mt=isAudio(m)?"Áudio":"Texto";
+      const pills = `<span class="pill">${escapeHtml(dir)}</span> <span class="pill">${escapeHtml(mt)}</span>`+
+        (m.route?` <span class="pill">${escapeHtml(m.route)}</span>`:"")+
+        (m.intentFinal?` <span class="pill">${escapeHtml(m.intentFinal)}</span>`:"");
+      const text=String(m.text||"").trim() || (isAudio(m) ? "[Áudio]" : "—");
+      const row=document.createElement("div");
+      row.className="log";
+      row.innerHTML = `<div class="side"><div class="t">${pills}</div><div class="m">${escapeHtml(text)}</div></div><div class="meta2">${escapeHtml(fmtTs(m.ts))}</div>`;
+      sList.appendChild(row);
+    }
+  }
+
+  async function loadAndRenderConversation(contact){
+    setError("");
+    renderViewerHeader(contact);
+
+    if(state.logsCache.has(contact.key)){
+      renderConversation(state.logsCache.get(contact.key));
+      return;
+    }
+
+    const db=firebase.firestore();
+    const uid=state.user.uid;
+    const {from,to}=computeRange();
+
+    async function tryQuery(colName, dirHint){
+      const base=db.collection(colName).where("uid","==",uid);
+      const candidates=["waKey","from","fromRaw","contactKey","contact","phone","from_phone"];
+      const results=[];
+      for(const field of candidates){
+        try{
+          let q=base.where(field,"==",contact.key).orderBy("ts","desc").limit(200);
+          if(from) q=q.where("ts",">=",from);
+          if(to) q=q.where("ts","<=",to);
+          const snap=await q.get();
+          snap.forEach(doc=>results.push(normalizeMsg(doc.data(),dirHint)));
+          if(results.length) return results;
+        }catch(e){
+          if(String(e.message||"").toLowerCase().includes("index")) $("small-index").textContent="Obs: pode precisar de índice no Firestore para alguns filtros.";
+        }
+      }
+      return results;
+    }
+
+    const inbound=await tryQuery("platform_wa_logs","in");
+    const outbox =await tryQuery("platform_wa_outbox_logs","out");
+
+    const merged=[...inbound,...outbox].filter(Boolean).sort((a,b)=>{
+      const da=(typeof a.ts?.toDate==="function")?a.ts.toDate().getTime():new Date(a.ts).getTime();
+      const dbb=(typeof b.ts?.toDate==="function")?b.ts.toDate().getTime():new Date(b.ts).getTime();
+      return da-dbb;
+    });
+
+    state.logsCache.set(contact.key, merged);
+    renderConversation(merged);
+  }
+
+  async function loadContacts(){
+    setError("");
+    $("convList").innerHTML = `<div class="small">Carregando…</div>`;
+    state.contacts=[]; state.logsCache.clear();
+
+    const db=firebase.firestore();
+    const uid=state.user.uid;
+    const {from,to}=computeRange();
+
+    async function fetchRecent(colName, dirHint){
+      let q=db.collection(colName).where("uid","==",uid).orderBy("ts","desc").limit(300);
+      if(from) q=q.where("ts",">=",from);
+      if(to) q=q.where("ts","<=",to);
+      const snap=await q.get();
+      const arr=[]; snap.forEach(doc=>arr.push(normalizeMsg(doc.data(),dirHint)));
+      return arr;
+    }
+
+    let inbound=[], outbox=[];
+    try{ inbound=await fetchRecent("platform_wa_logs","in"); }catch(e){}
+    try{ outbox =await fetchRecent("platform_wa_outbox_logs","out"); }catch(e){}
+
+    const all=[...inbound,...outbox].filter(Boolean);
+    if(!all.length){ state.contacts=[]; renderContacts(); return; }
+
+    const map=new Map();
+    for(const m of all){
+      let key="";
+      if(String(m.direction||"")==="in") key=String(m.from||"").trim();
+      else key=String(m.to||m.from||"").trim();
+      key = key || String(m.from||m.to||"").trim();
+      if(!key) continue;
+
+      const prev=String(m.text||"").trim() || (isAudio(m)?"[Áudio]":"");
+      const existing=map.get(key);
+      if(!existing){
+        map.set(key,{key,phone:key,displayName:m.displayName||"",lastTs:m.ts,preview:prev,tag:(m.route||m.intentFinal||"conversa")});
+      }else{
+        const a=(typeof m.ts?.toDate==="function")?m.ts.toDate().getTime():new Date(m.ts).getTime();
+        const b=(typeof existing.lastTs?.toDate==="function")?existing.lastTs.toDate().getTime():new Date(existing.lastTs).getTime();
+        if(a>b){
+          existing.lastTs=m.ts;
+          existing.preview=prev||existing.preview;
+          existing.displayName=existing.displayName||m.displayName||"";
+          existing.tag=existing.tag||(m.route||m.intentFinal||"conversa");
+        }
+      }
+    }
+
+    state.contacts=[...map.values()].sort((x,y)=>{
+      const a=(typeof x.lastTs?.toDate==="function")?x.lastTs.toDate().getTime():new Date(x.lastTs).getTime();
+      const b=(typeof y.lastTs?.toDate==="function")?y.lastTs.toDate().getTime():new Date(y.lastTs).getTime();
+      return b-a;
+    });
+
+    renderContacts();
+
+    try{
+      const todayKey = (()=>{ const d=new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`; })();
+      let todayCount = 0;
+      for(const c of state.contacts){
+        const t = c.lastTs;
+        const dt = (typeof t?.toDate==="function") ? t.toDate() : new Date(t);
+        if(!dt || isNaN(dt.getTime())) continue;
+        const k = `${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,"0")}-${String(dt.getDate()).padStart(2,"0")}`;
+        if(k === todayKey) todayCount++;
+      }
+      const periodLabel = ($("period")?.selectedOptions?.[0]?.textContent || "Período").trim();
+      $("small-index").textContent = `Resumo: ${state.contacts.length} conversas (${periodLabel}) • Hoje: ${todayCount}`;
+    }catch(e){}
+
+    const last=localStorage.getItem(LS_LAST_CONTACT)||"";
+    const chosen=state.contacts.find(c=>c.key===last)||state.contacts[0];
+    if(chosen){ setActive(chosen.key); await loadAndRenderConversation(chosen); }
+  }
+
+  function wireUI(){
+    $("modePhone").addEventListener("click",()=>setMode("phone"));
+    $("modeSober").addEventListener("click",()=>setMode("sober"));
+
+    $("period").addEventListener("change",()=>{
+      const v=$("period").value;
+      $("customRange").style.display = v==="custom" ? "flex" : "none";
+      $("customRange2").style.display = v==="custom" ? "flex" : "none";
+    });
+
+    $("btn-apply").addEventListener("click", async ()=>{
+      state.filter.period=$("period").value;
+      state.filter.q=$("qContact").value||"";
+      state.filter.qText=$("qText").value||"";
+      state.filter.msgType=$("msgType").value;
+      state.logsCache.clear();
+      await loadContacts();
+    });
+
+    $("btn-clear").addEventListener("click", async ()=>{
+      $("period").value="7d"; $("qContact").value=""; $("qText").value=""; $("msgType").value="all";
+      $("customRange").style.display="none"; $("customRange2").style.display="none";
+      $("fromDate").value=""; $("toDate").value="";
+      state.filter={period:"7d",q:"",qText:"",msgType:"all"};
+      state.logsCache.clear();
+      await loadContacts();
+    });
+
+    $("btn-refresh").addEventListener("click", async ()=>{
+      state.logsCache.clear();
+      await loadContacts();
+    });
+
+    $("btn-copy-phone").addEventListener("click", async ()=>{
+      try{
+        const c=state.contacts.find(x=>x.key===state.active); if(!c) return;
+        const phone=fmtPhone(c.phone||c.key);
+        await navigator.clipboard.writeText(phone);
+        $("btn-copy-phone").textContent="Copiado ✅";
+        setTimeout(()=>{$("btn-copy-phone").textContent="Copiar telefone";},1200);
+      }catch(e){ setError("Não consegui copiar (permissão do navegador)."); }
+    });
+  }
+
+  function initDefaultDates(){
+    const now=new Date();
+    const fmt=(d)=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
+    $("fromDate").value = fmt(new Date(now.getTime()-7*864e5));
+    $("toDate").value = fmt(now);
+  }
+
+  async function boot(){
+    wireUI(); initDefaultDates();
+
+    const savedMode=localStorage.getItem(LS_MODE_KEY);
+    setMode(savedMode==="sober"?"sober":"phone");
+
+    // Firebase já inicializa via /__/firebase/init.js (Hosting)
+    if(!window.firebase || !firebase.apps || !firebase.apps.length){
+      $("chip-auth").innerHTML = `Status: <strong class="err">firebase não inicializou</strong>`;
+      setError("Firebase não inicializou via Hosting. Se você abriu este arquivo fora do domínio do Firebase Hosting, isso é esperado. Para testar, publique em um canal de preview do Hosting.");
+      return;
+    }
+
+    $("chip-auth").innerHTML = `Status: <strong>verificando login…</strong>`;
+    firebase.auth().onAuthStateChanged(async (user)=>{
+      state.user=user||null;
+      if(!user){
+        $("chip-auth").innerHTML = `Status: <strong class="err">deslogado</strong>`;
+        setError("Você precisa estar logado para ver conversas. Volte ao painel e faça login.");
+        $("convList").innerHTML = `<div class="small">Faça login para ver conversas.</div>`;
+        return;
+      }
+      $("chip-auth").innerHTML = `Status: <strong>logado</strong> <span class="mono">(${user.uid.slice(0,6)}…)</span>`;
+      await loadContacts();
+    });
+  }
+
+  window.addEventListener("load", ()=>{ try{ boot(); }catch(e){ setError("Falha ao iniciar: "+(e&&e.message?e.message:String(e))); } });
+  </script>
+</body>
+</html>

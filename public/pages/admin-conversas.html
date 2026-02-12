@@ -1,0 +1,918 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Admin • Conversas</title>
+
+  <!-- Padrão visual do projeto (espelhado do admin.html) -->
+  <link rel="stylesheet" href="/assets/styles.css?v=2025-09-10T133807" />
+  <script src="/assets/layout.js?v=2025-09-10T133807" defer></script>
+
+  <!-- Firebase v8 (ordem importa) — espelhado do admin.html -->
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+  <script src="/assets/firebase-init.js?v=2025-09-10T133807"></script>
+
+  <style>
+    :root{
+      --bg:#0b1014; --panel:#0f171d; --panel2:#101b22;
+      --muted:#9fb0bd; --text:#e7eef4;
+      --stroke:rgba(255,255,255,.10); --stroke2:rgba(255,255,255,.14);
+      --accent:#00a884; --accentSoft: rgba(0,168,132,.14);
+      --danger:#ff5d5d; --warn:#ffcc66; --ok:#2ecc71;
+      --shadow: 0 14px 50px rgba(0,0,0,.50);
+      --r:18px;
+      --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono","Courier New", monospace;
+      --sans: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, "Helvetica Neue", Arial, "Noto Sans", "Apple Color Emoji", "Segoe UI Emoji";
+    }
+    *{box-sizing:border-box}
+    body{
+      margin:0;
+      font-family:var(--sans);
+      background: radial-gradient(1200px 700px at 20% -10%, rgba(0,168,132,.12), transparent 55%),
+                  radial-gradient(900px 600px at 90% 10%, rgba(0,168,132,.07), transparent 55%),
+                  var(--bg);
+      color:var(--text);
+    }
+    main.container{max-width:1280px;margin:0 auto;padding:18px 14px 60px}
+    h1{margin:0;font-size:22px;letter-spacing:.2px}
+    .muted{color:var(--muted)}
+    .mono{font-family:var(--mono)}
+    .row{display:flex;gap:12px;align-items:flex-start;justify-content:space-between;flex-wrap:wrap}
+    .header{padding:14px 0 10px;border-bottom:1px solid var(--stroke);margin-bottom:14px}
+    .chip{
+      display:inline-flex;align-items:center;gap:8px;
+      padding:8px 10px;border:1px solid var(--stroke);
+      background:rgba(255,255,255,.04);
+      border-radius:999px;color:var(--muted);font-size:13px;
+    }
+    .chip strong{color:var(--text)}
+    .btn{
+      appearance:none;border:1px solid var(--stroke2);
+      background:rgba(255,255,255,.05);
+      color:var(--text);
+      padding:9px 12px;border-radius:12px;
+      font-weight:700;font-size:13px;cursor:pointer;
+      transition:.12s transform,.12s background,.12s border-color;
+    }
+    .btn:hover{transform:translateY(-1px);border-color:rgba(255,255,255,.22)}
+    .btn:active{transform:translateY(0)}
+    .btn.primary{background:var(--accentSoft);border-color:rgba(0,168,132,.30)}
+    .btn.primary:hover{background:rgba(0,168,132,.18)}
+    .btn.danger{background:rgba(255,93,93,.10);border-color:rgba(255,93,93,.25)}
+    .btn:disabled{opacity:.55;cursor:not-allowed;transform:none}
+
+    .card{
+      background:linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.035));
+      border:1px solid var(--stroke);
+      border-radius:18px;
+      box-shadow: var(--shadow);
+      overflow:hidden;
+    }
+    .card-h{
+      padding:12px 12px;border-bottom:1px solid var(--stroke);
+      display:flex;align-items:center;justify-content:space-between;gap:10px;
+      background:rgba(0,0,0,.16);
+    }
+    .card-h h2{margin:0;font-size:14px;letter-spacing:.2px}
+    .card-h .sub{color:var(--muted);font-size:12.5px}
+    .card-b{padding:12px}
+
+    .kpis{display:grid;grid-template-columns:repeat(4, minmax(0,1fr));gap:10px}
+    @media (max-width: 980px){.kpis{grid-template-columns:repeat(2, minmax(0,1fr))}}
+    .kpi{
+      border:1px solid var(--stroke);
+      border-radius:16px;
+      background:rgba(0,0,0,.18);
+      padding:12px;
+    }
+    .kpi .t{font-size:12px;color:var(--muted)}
+    .kpi .v{font-size:18px;font-weight:900;margin-top:6px}
+    .kpi .h{font-size:12px;color:var(--muted);margin-top:6px}
+
+    .filters{display:flex;flex-wrap:wrap;gap:10px;align-items:end}
+    .field{display:flex;flex-direction:column;gap:6px}
+    label{font-size:12px;color:var(--muted)}
+    input, select{
+      background:rgba(0,0,0,.30);
+      border:1px solid var(--stroke);
+      border-radius:12px;
+      padding:10px 10px;color:var(--text);
+      font-size:13.5px;outline:none;min-width:160px;
+    }
+    input::placeholder{color:rgba(159,176,189,.7)}
+    input:focus, select:focus{border-color:rgba(0,168,132,.35);box-shadow:0 0 0 3px rgba(0,168,132,.10)}
+    .filters .actions{display:flex;gap:10px;align-items:center;margin-left:auto}
+    @media (max-width: 980px){
+      input,select{min-width:unset;width:100%}
+      .filters{flex-direction:column;align-items:stretch}
+      .filters .actions{margin-left:0}
+    }
+
+    .grid{display:grid;grid-template-columns: 380px 1fr;gap:14px;margin-top:14px}
+    @media (max-width: 980px){.grid{grid-template-columns:1fr}}
+
+    .list{display:flex;flex-direction:column;gap:8px;max-height:640px;overflow:auto;padding:12px}
+    .item{
+      border:1px solid var(--stroke);
+      background:rgba(0,0,0,.18);
+      border-radius:14px;padding:10px 10px;
+      cursor:pointer;display:flex;gap:10px;align-items:flex-start;justify-content:space-between;
+      transition:.12s border-color,.12s background;
+    }
+    .item:hover{border-color:rgba(255,255,255,.20);background:rgba(0,0,0,.22)}
+    .item.active{border-color:rgba(0,168,132,.35);background:rgba(0,168,132,.08)}
+    .left{display:flex;gap:10px;align-items:flex-start;min-width:0}
+    .avatar{
+      width:34px;height:34px;border-radius:12px;
+      background:linear-gradient(180deg, rgba(0,168,132,.30), rgba(0,168,132,.06));
+      border:1px solid rgba(0,168,132,.25);
+      display:flex;align-items:center;justify-content:center;
+      font-weight:900;color:#05200f;flex:0 0 auto;
+    }
+    .meta{display:flex;flex-direction:column;gap:3px;min-width:0}
+    .who{font-weight:900;font-size:13.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .prev{color:var(--muted);font-size:12.7px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:240px}
+    .right{text-align:right;display:flex;flex-direction:column;gap:6px;align-items:flex-end}
+    .when{color:var(--muted);font-size:11.5px}
+    .tag{font-size:11px;border:1px solid var(--stroke);padding:3px 8px;border-radius:999px;color:var(--muted);background:rgba(255,255,255,.03)}
+
+    .viewer-wrap{padding:12px}
+    .viewer-toolbar{
+      display:flex;gap:10px;align-items:center;justify-content:space-between;
+      padding:10px 12px;border:1px solid var(--stroke);
+      background:rgba(0,0,0,.18);
+      border-radius:14px;margin-bottom:12px;flex-wrap:wrap
+    }
+    .who2{display:flex;flex-direction:column;gap:2px;min-width:0}
+    .who2 .top{display:flex;gap:10px;align-items:center;min-width:0}
+    .who2 .top strong{font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .who2 .top span{color:var(--muted);font-size:12.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .hint{color:var(--muted);font-size:12px;line-height:1.35}
+    .toggle{display:flex;gap:8px;align-items:center;flex-wrap:wrap;justify-content:flex-end}
+    .seg{display:inline-flex;border:1px solid var(--stroke);border-radius:999px;overflow:hidden;background:rgba(255,255,255,.03)}
+    .seg button{border:0;background:transparent;color:var(--muted);padding:8px 10px;font-weight:900;font-size:12px;cursor:pointer}
+    .seg button.active{color:var(--text);background:rgba(0,168,132,.12)}
+    .seg button:hover{color:var(--text)}
+
+    .phone{margin:0 auto;width:min(420px, 100%);background: linear-gradient(180deg, rgba(255,255,255,.05), rgba(255,255,255,.03));
+      border:1px solid rgba(255,255,255,.14);border-radius:34px;padding:14px;box-shadow: 0 24px 80px rgba(0,0,0,.55);
+    }
+    .phone-inner{border-radius:26px;overflow:hidden;border:1px solid rgba(0,0,0,.65);background:#0e1a12}
+    .phone-top{background:linear-gradient(180deg, rgba(7,94,84,.92), rgba(7,94,84,.78));
+      padding:10px 12px;display:flex;align-items:center;gap:10px;border-bottom:1px solid rgba(255,255,255,.10);
+    }
+    .phone-top .dot{width:34px;height:34px;border-radius:12px;background:rgba(255,255,255,.18);
+      display:flex;align-items:center;justify-content:center;font-weight:900;color:#05200f}
+    .phone-top .name{display:flex;flex-direction:column;min-width:0}
+    .phone-top .name strong{font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .phone-top .name span{font-size:12px;color:rgba(255,255,255,.78);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .phone-chat{background: radial-gradient(800px 500px at 20% 30%, rgba(0,168,132,.08), transparent 45%),
+        radial-gradient(700px 500px at 90% 10%, rgba(0,168,132,.06), transparent 55%), #0e1a12;
+      padding:12px;height:clamp(560px, 68vh, 780px);overflow:auto;
+    }
+    .bubble{max-width:88%;margin:8px 0;padding:10px 10px;border-radius:16px;border:1px solid rgba(0,0,0,.40);
+      line-height:1.25;font-size:13.5px;white-space:pre-wrap;word-wrap:break-word;
+    }
+    .in{background:rgba(255,255,255,.10);color:rgba(255,255,255,.92);margin-right:auto;border-top-left-radius:6px}
+    .out{background:rgba(0,168,132,.18);border-color:rgba(0,168,132,.22);color:#eafff2;margin-left:auto;border-top-right-radius:6px}
+    .bmeta{display:flex;gap:8px;align-items:center;justify-content:flex-end;margin-top:6px;color:rgba(255,255,255,.62);font-size:11px}
+    .ticks{font-size:11px}
+    .mini{font-size:12px;color:var(--muted)}
+
+    .timeline{border:1px solid var(--stroke);border-radius:16px;background:rgba(0,0,0,.18);overflow:hidden}
+    .log{padding:12px 12px;border-bottom:1px solid var(--stroke);display:flex;gap:10px;align-items:flex-start;justify-content:space-between}
+    .log:last-child{border-bottom:0}
+    .log .side{display:flex;flex-direction:column;gap:4px;min-width:0}
+    .log .side .t{font-weight:900;font-size:13.5px}
+    .log .side .m{color:var(--muted);font-size:12.5px;white-space:pre-wrap;word-wrap:break-word}
+    .log .meta2{color:var(--muted);font-size:11.5px;white-space:nowrap;margin-left:10px}
+    details.debug{margin-top:12px;border:1px solid rgba(255,255,255,.12);border-radius:16px;background:rgba(255,255,255,.04);padding:10px}
+    details.debug summary{cursor:pointer;font-weight:900}
+    pre{margin:10px 0 0;white-space:pre-wrap;word-wrap:break-word;background:rgba(0,0,0,.25);border:1px solid var(--stroke);border-radius:12px;padding:10px;color:var(--text)}
+    .err{color:var(--danger)}
+  </style>
+</head>
+
+<body>
+  <main class="container">
+    <div class="header row">
+      <div>
+        <h1>Admin • Conversas</h1>
+        <div class="muted" style="margin-top:6px;max-width:780px">
+          Inbox interno para <strong>depuração</strong> e <strong>observabilidade</strong>. Aqui você enxerga o que aconteceu “na prática”
+          (Vendas e Suporte) e consegue achar rápido erros, promessas indevidas, rotas erradas e quedas de envio.
+        </div>
+      </div>
+      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;justify-content:flex-end">
+        <span class="chip" id="chip-auth">Status: <strong>verificando…</strong></span>
+        <button class="btn" id="btn-refresh">Atualizar</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-h">
+        <div>
+          <h2>Resumo</h2>
+          <div class="sub">Volume e sinais de problema (amostra do período).</div>
+        </div>
+        <div class="sub" id="small-summary"></div>
+      </div>
+      <div class="card-b">
+        <div class="kpis">
+          <div class="kpi">
+            <div class="t">Conversas no período</div>
+            <div class="v" id="kpi-conv">—</div>
+            <div class="h">Contatos únicos (por waKey/telefone).</div>
+          </div>
+          <div class="kpi">
+            <div class="t">Mensagens (inbound)</div>
+            <div class="v" id="kpi-in">—</div>
+            <div class="h">Cliente → Robô</div>
+          </div>
+          <div class="kpi">
+            <div class="t">Mensagens (outbound)</div>
+            <div class="v" id="kpi-out">—</div>
+            <div class="h">Robô → Cliente</div>
+          </div>
+          <div class="kpi">
+            <div class="t">Sinais de erro</div>
+            <div class="v" id="kpi-err">—</div>
+            <div class="h">Falhas/flags detectadas.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top:14px">
+      <div class="card-h">
+        <div>
+          <h2>Filtros</h2>
+          <div class="sub">Período + rota (Vendas/Suporte) + telefone/uid + pesquisa no texto.</div>
+        </div>
+        <div class="sub" id="small-index"></div>
+      </div>
+      <div class="card-b">
+        <div class="filters">
+          <div class="field">
+            <label for="period">Período</label>
+            <select id="period">
+              <option value="today">Hoje</option>
+              <option value="7d" selected>Últimos 7 dias</option>
+              <option value="30d">Últimos 30 dias</option>
+              <option value="custom">Personalizado</option>
+            </select>
+          </div>
+          <div class="field" id="customRange" style="display:none">
+            <label>De</label>
+            <input id="fromDate" type="date" />
+          </div>
+          <div class="field" id="customRange2" style="display:none">
+            <label>Até</label>
+            <input id="toDate" type="date" />
+          </div>
+
+          <div class="field">
+            <label for="route">Rota</label>
+            <select id="route">
+              <option value="all" selected>Vendas + Suporte</option>
+              <option value="sales">Vendas (institucional)</option>
+              <option value="support">Suporte (com UID)</option>
+            </select>
+          </div>
+
+          <div class="field">
+            <label for="qContact">Telefone/waKey (busca)</label>
+            <input id="qContact" type="text" placeholder="Ex: +55 51... / 519..." />
+          </div>
+
+          <div class="field">
+            <label for="qUid">UID (suporte)</label>
+            <input id="qUid" type="text" placeholder="opcional (ex.: 9a1b2c...)" />
+          </div>
+
+          <div class="field">
+            <label for="qText">Pesquisa no texto</label>
+            <input id="qText" type="text" placeholder="Ex: 'pix', 'visita', 'endereço'..." />
+          </div>
+
+          <div class="field">
+            <label for="msgType">Tipo</label>
+            <select id="msgType">
+              <option value="all" selected>Texto + Áudio</option>
+              <option value="text">Só texto</option>
+              <option value="audio">Só áudio</option>
+            </select>
+          </div>
+
+          <div class="actions">
+            <button class="btn primary" id="btn-apply">Aplicar</button>
+            <button class="btn danger" id="btn-clear">Limpar</button>
+          </div>
+        </div>
+
+        <div class="mini" style="margin-top:10px">
+          Dica operacional: se a conversa “sumiu”, normalmente é índice do Firestore ou o evento caiu em outra coleção. Use a rota + período e depois refine.
+        </div>
+      </div>
+    </div>
+
+    <div class="grid">
+      <section class="card">
+        <div class="card-h">
+          <div>
+            <h2>Conversas (Admin)</h2>
+            <div class="sub" id="sub-left">Carregando…</div>
+          </div>
+          <div class="sub"><span class="mono" id="count-left">0</span></div>
+        </div>
+        <div class="list" id="convList">
+          <div class="mini">Carregando…</div>
+        </div>
+      </section>
+
+      <section class="card">
+        <div class="card-h">
+          <div>
+            <h2>Visualização</h2>
+            <div class="sub">Modo: Celular ou Linha do tempo.</div>
+          </div>
+          <div class="sub"><span class="mono" id="count-right">0</span></div>
+        </div>
+
+        <div class="viewer-wrap">
+          <div class="viewer-toolbar">
+            <div class="who2">
+              <div class="top">
+                <strong id="whoName">Selecione uma conversa</strong>
+                <span id="whoPhone"></span>
+              </div>
+              <div class="hint">
+                Esta tela é para <strong>depurar</strong> e <strong>entender o que aconteceu</strong> (Vendas e Suporte).<br/>
+                Use a pesquisa e os filtros para encontrar erros e casos “estranhos” rapidamente.
+              </div>
+            </div>
+
+            <div class="toggle">
+              <div class="seg" role="tablist" aria-label="Modos de exibição">
+                <button id="modePhone" class="active" type="button">📱 Celular</button>
+                <button id="modeTimeline" type="button">📋 Linha do tempo</button>
+              </div>
+              <button class="btn" id="btn-copy-phone" disabled>Copiar telefone</button>
+            </div>
+          </div>
+
+          <div id="viewPhone">
+            <div class="phone">
+              <div class="phone-inner">
+                <div class="phone-top">
+                  <div class="dot" id="phoneDot">MR</div>
+                  <div class="name">
+                    <strong id="phoneTitle">—</strong>
+                    <span id="phoneSub">—</span>
+                  </div>
+                </div>
+                <div class="phone-chat" id="phoneChat">
+                  <div class="mini">Selecione uma conversa à esquerda.</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div id="viewTimeline" style="display:none">
+            <div class="timeline" id="timelineList">
+              <div class="log">
+                <div class="side">
+                  <div class="t">Selecione uma conversa</div>
+                  <div class="m">Aqui você vê tudo em linha do tempo (auditoria).</div>
+                </div>
+                <div class="meta2">—</div>
+              </div>
+            </div>
+          </div>
+
+          <details class="debug" id="debugBox" open>
+            <summary>Debug rápido (para depurar)</summary>
+            <div class="mini" style="margin-top:6px">
+              Mostra os metadados do item selecionado (uid, route, intent, eventKey, flags). Útil quando algo “não bate”.
+            </div>
+            <pre id="debugJson">Selecione uma conversa…</pre>
+          </details>
+
+          <div class="mini err" id="errBox" style="margin-top:10px"></div>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <script type="module">
+    const $ = (id) => document.getElementById(id);
+    const LS_MODE_KEY = "mei_robo_admin_conversas_mode";
+    const LS_LAST_CONTACT = "mei_robo_admin_conversas_last_contact";
+
+    const state = {
+      mode: "phone",
+      contacts: [],
+      active: null,
+      logsCache: new Map(),
+      filter: { period:"7d", route:"all", qContact:"", qUid:"", qText:"", msgType:"all" },
+      counters: { in:0, out:0, err:0 }
+    };
+
+    function setError(msg){ $("errBox").textContent = msg || ""; }
+    function setChip(text, cls){
+      $("chip-auth").innerHTML = `Status: <strong class="${cls||""}">${text}</strong>`;
+    }
+
+    function escapeHtml(s){
+      return String(s||"")
+        .replaceAll("&","&amp;")
+        .replaceAll("<","&lt;")
+        .replaceAll(">","&gt;")
+        .replaceAll('"',"&quot;")
+        .replaceAll("'","&#039;");
+    }
+
+    function fmtPhone(raw){
+      try{
+        const s = String(raw||"").trim();
+        if(!s) return "";
+        const digits = s.replace(/[^\d+]/g,"");
+        if(digits.startsWith("+55")){
+          const n = digits.replace("+55","");
+          if(n.length >= 10){
+            const ddd=n.slice(0,2), rest=n.slice(2);
+            if(rest.length===9) return `+55 (${ddd}) ${rest.slice(0,5)}-${rest.slice(5)}`;
+            if(rest.length===8) return `+55 (${ddd}) ${rest.slice(0,4)}-${rest.slice(4)}`;
+            return `+55 (${ddd}) ${rest}`;
+          }
+        }
+        return s;
+      }catch(e){ return String(raw||"").trim(); }
+    }
+
+    function fmtTs(ts){
+      try{
+        if(!ts) return "—";
+        let d=null;
+        if(typeof ts.toDate==="function") d=ts.toDate();
+        else if(ts instanceof Date) d=ts;
+        else if(typeof ts==="number") d=new Date(ts);
+        else if(typeof ts==="string") d=new Date(ts);
+        if(!d || isNaN(d.getTime())) return "—";
+        const dd=String(d.getDate()).padStart(2,"0");
+        const mm=String(d.getMonth()+1).padStart(2,"0");
+        const hh=String(d.getHours()).padStart(2,"0");
+        const mi=String(d.getMinutes()).padStart(2,"0");
+        return `${dd}/${mm} ${hh}:${mi}`;
+      }catch(e){ return "—"; }
+    }
+
+    function initials(x){
+      const s=String(x||"").trim(); if(!s) return "MR";
+      const parts=s.split(/\s+/).filter(Boolean);
+      if(parts.length===1){
+        const t=parts[0].replace(/[^\p{L}\d]/gu,"");
+        return (t.slice(0,2).toUpperCase() || "MR");
+      }
+      return (parts[0][0]+parts[1][0]).toUpperCase();
+    }
+
+    function isAudio(m){
+      const mt=String(m.msgType||m.type||"").toLowerCase();
+      if(mt.includes("audio")||mt==="voice") return true;
+      return !!(m.audioUrl||m.mediaUrl||(m.media&&m.media.url));
+    }
+    function isText(m){ return !!String(m.text||m.body||m.message||m.replyText||"").trim(); }
+
+    function pick(obj, keys){ for(const k of keys){ if(obj && obj[k]!=null) return obj[k]; } return null; }
+
+    function normalizeMsg(d, directionHint){
+      d=d||{};
+      const ts = pick(d,["ts","timestamp","createdAt","created_at","sentAt","receivedAt","eventAt","at"]);
+      const from = pick(d,["from","fromRaw","from_phone","waFrom","phone","waKey","contact","contactKey","clienteWaKey"]);
+      const to   = pick(d,["to","toRaw","to_phone","waTo"]);
+      const displayName = pick(d,["displayName","contactName","name","nome"]);
+      const msgType = pick(d,["msgType","type","messageType","kind"]);
+      const text = pick(d,["text","body","message","replyText","reply","content"]);
+      const audioUrl = pick(d,["audioUrl","mediaUrl"]);
+      const route = pick(d,["route","intentRoute","mode","handler","routeFinal","routeFinalName"]);
+      const intentFinal = pick(d,["intentFinal","intent","intentAI"]);
+      const eventKey = pick(d,["eventKey","dedupeKey","wamid","id"]);
+      const uid = pick(d,["uid","professionalUid","profUid"]);
+      const overrideReason = pick(d,["overrideReason"]);
+      const err = pick(d,["error","err","errorMessage","failReason"]);
+      const direction = d.direction || directionHint || (d.sentVia||d.sentText||d.sentAudio ? "out":"in");
+      return {ts,from,to,displayName,msgType,text,audioUrl,route,intentFinal,eventKey,uid,overrideReason,err,direction, raw:d};
+    }
+
+    function computeRange(){
+      const p=state.filter.period;
+      const now=new Date();
+      const sod=new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      if(p==="today") return {from:sod,to:now};
+      if(p==="7d") return {from:new Date(now.getTime()-7*864e5),to:now};
+      if(p==="30d") return {from:new Date(now.getTime()-30*864e5),to:now};
+      if(p==="custom"){
+        const fd = $("fromDate").value ? new Date($("fromDate").value+"T00:00:00") : null;
+        const td = $("toDate").value ? new Date($("toDate").value+"T23:59:59") : null;
+        return {from:fd,to:td};
+      }
+      return {from:null,to:null};
+    }
+
+    function setMode(mode){
+      state.mode=mode;
+      localStorage.setItem(LS_MODE_KEY, mode);
+      $("modePhone").classList.toggle("active", mode==="phone");
+      $("modeTimeline").classList.toggle("active", mode==="timeline");
+      $("viewPhone").style.display = (mode==="phone") ? "" : "none";
+      $("viewTimeline").style.display = (mode==="timeline") ? "" : "none";
+    }
+
+    function setActive(key){
+      state.active=key;
+      localStorage.setItem(LS_LAST_CONTACT, key||"");
+      [...document.querySelectorAll(".item")].forEach(el=>el.classList.toggle("active", el.getAttribute("data-key")===key));
+    }
+
+    function matchesContact(c){
+      const q=String(state.filter.qContact||"").trim().toLowerCase();
+      if(!q) return true;
+      const hay=(String(c.displayName||"")+" "+String(c.phone||"")+" "+String(c.key||"")).toLowerCase();
+      return hay.includes(q);
+    }
+
+    function matchesMsg(m){
+      const mt=state.filter.msgType;
+      if(mt==="audio"){ if(!isAudio(m)) return false; }
+      if(mt==="text"){ if(!(isText(m) && !isAudio(m))) return false; }
+      const q = String(state.filter.qText||"").trim().toLowerCase();
+      if(q){
+        const t = String(m.text||"").toLowerCase();
+        if(!t.includes(q)) return false;
+      }
+      return true;
+    }
+
+    function routePass(m){
+      const sel = state.filter.route;
+      if(sel==="all") return true;
+      const r = String(m.route||"").toLowerCase();
+      if(sel==="sales") return (r.includes("sales") || r.includes("lead"));
+      if(sel==="support") return !(r.includes("sales") || r.includes("lead"));
+      return true;
+    }
+
+    function uidPass(m){
+      const q = String(state.filter.qUid||"").trim();
+      if(!q) return true;
+      return String(m.uid||"").includes(q);
+    }
+
+    function renderViewerHeader(contact){
+      const phone = fmtPhone(contact.phone || contact.key);
+      $("whoName").textContent = contact.displayName || phone || "—";
+      $("whoPhone").textContent = phone ? `• ${phone}` : "";
+      $("btn-copy-phone").disabled = !phone;
+      $("phoneTitle").textContent = contact.displayName || "Contato";
+      $("phoneSub").textContent = phone || "—";
+      $("phoneDot").textContent = initials(contact.displayName || phone);
+    }
+
+    function renderConversation(messages){
+      const msgs=(messages||[]).filter(m=>matchesMsg(m)).filter(routePass).filter(uidPass);
+      $("count-right").textContent=String(msgs.length);
+
+      const chat=$("phoneChat");
+      chat.innerHTML = msgs.length ? "" : `<div class="mini">Nada para mostrar com os filtros atuais.</div>`;
+      for(const m of msgs){
+        const isOut = String(m.direction||"").toLowerCase()==="out";
+        const bubble=document.createElement("div");
+        bubble.className="bubble "+(isOut?"out":"in");
+        const t=String(m.text||"").trim();
+        if(isAudio(m) && !t){
+          bubble.innerHTML = `
+            <div class="mini">[Áudio]</div>
+            <div class="bmeta"><span>${escapeHtml(fmtTs(m.ts))}</span>${isOut?`<span class="ticks">✓✓</span>`:""}</div>`;
+        } else {
+          bubble.innerHTML = `
+            <div>${escapeHtml(t || (isAudio(m) ? "[Áudio]" : "—"))}</div>
+            <div class="bmeta"><span>${escapeHtml(fmtTs(m.ts))}</span>${isOut?`<span class="ticks">✓✓</span>`:""}</div>`;
+        }
+        chat.appendChild(bubble);
+      }
+      setTimeout(()=>{ chat.scrollTop=chat.scrollHeight; }, 50);
+
+      const tl=$("timelineList");
+      tl.innerHTML = msgs.length ? "" : `<div class="log"><div class="side"><div class="t">Nada para mostrar</div><div class="m">Ajuste filtros e tente de novo.</div></div><div class="meta2">—</div></div>`;
+      for(const m of msgs){
+        const isOut = String(m.direction||"").toLowerCase()==="out";
+        const dir=isOut?"ROBÔ → cliente":"cliente → ROBÔ";
+        const mt=isAudio(m)?"Áudio":"Texto";
+        const pills = `<span class="tag">${escapeHtml(dir)}</span> <span class="tag">${escapeHtml(mt)}</span>` +
+          (m.route?` <span class="tag">${escapeHtml(m.route)}</span>`:"") +
+          (m.uid?` <span class="tag">uid:${escapeHtml(String(m.uid).slice(0,8))}…</span>`:"") +
+          (m.intentFinal?` <span class="tag">${escapeHtml(m.intentFinal)}</span>`:"") +
+          (m.err?` <span class="tag" style="border-color:rgba(255,93,93,.35);color:#ffb3b3">erro</span>`:"");
+
+        const text=String(m.text||"").trim() || (isAudio(m) ? "[Áudio]" : "—");
+        const row=document.createElement("div");
+        row.className="log";
+        row.innerHTML = `<div class="side"><div class="t">${pills}</div><div class="m">${escapeHtml(text)}</div></div><div class="meta2">${escapeHtml(fmtTs(m.ts))}</div>`;
+        tl.appendChild(row);
+      }
+    }
+
+    async function loadAndRenderConversation(contact){
+      setError("");
+      renderViewerHeader(contact);
+
+      if(state.logsCache.has(contact.key)){
+        const bundle = state.logsCache.get(contact.key);
+        $("debugJson").textContent = JSON.stringify(bundle.debug || {}, null, 2);
+        renderConversation(bundle.messages || []);
+        return;
+      }
+
+      const db = firebase.firestore();
+      const {from,to} = computeRange();
+
+      async function fetchCol(colName, directionHint){
+        let q = db.collection(colName).orderBy("ts","desc").limit(300);
+        if(from) q = q.where("ts",">=", from);
+        if(to) q = q.where("ts","<=", to);
+
+        const candidates = ["waKey","from","fromRaw","contactKey","contact","phone","from_phone","to","toRaw","to_phone"];
+        const results = [];
+        let lastErr=null;
+
+        for(const field of candidates){
+          try{
+            let qq = q.where(field,"==", contact.key);
+            if(state.filter.qUid){
+              qq = qq.where("uid","==", state.filter.qUid.trim());
+            }
+            const snap = await qq.get();
+            snap.forEach(doc=> results.push(normalizeMsg(doc.data(), directionHint)));
+            if(results.length) return results;
+          }catch(e){
+            lastErr=e;
+            continue;
+          }
+        }
+
+        if(lastErr && String(lastErr.message||"").toLowerCase().includes("index")){
+          $("small-index").textContent = "Obs: pode precisar de índice no Firestore para esses filtros.";
+        }
+        return results;
+      }
+
+      let inbound=[], outbox=[];
+      try{ inbound = await fetchCol("platform_wa_logs","in"); }catch(e){}
+      try{ outbox  = await fetchCol("platform_wa_outbox_logs","out"); }catch(e){}
+
+      const merged=[...inbound,...outbox].filter(Boolean).sort((a,b)=>{
+        const da=(typeof a.ts?.toDate==="function")?a.ts.toDate().getTime():new Date(a.ts).getTime();
+        const dbb=(typeof b.ts?.toDate==="function")?b.ts.toDate().getTime():new Date(b.ts).getTime();
+        return da-dbb;
+      });
+
+      const debug = {
+        contactKey: contact.key,
+        displayName: contact.displayName || "",
+        sample: merged.slice(-3).map(x=>({
+          ts: fmtTs(x.ts),
+          dir: x.direction,
+          route: x.route,
+          uid: x.uid || "",
+          intentFinal: x.intentFinal || "",
+          err: x.err || ""
+        }))
+      };
+
+      state.logsCache.set(contact.key, {messages: merged, debug});
+      $("debugJson").textContent = JSON.stringify(debug, null, 2);
+      renderConversation(merged);
+    }
+
+    async function loadContacts(){
+      setError("");
+      $("convList").innerHTML = `<div class="mini">Carregando…</div>`;
+      state.contacts=[]; state.logsCache.clear();
+      state.counters={in:0,out:0,err:0};
+
+      const db = firebase.firestore();
+      const {from,to} = computeRange();
+
+      async function fetchRecent(colName, directionHint){
+        let q = db.collection(colName).orderBy("ts","desc").limit(600);
+        if(from) q = q.where("ts",">=", from);
+        if(to) q = q.where("ts","<=", to);
+
+        if(state.filter.qUid){
+          try{ q = q.where("uid","==", state.filter.qUid.trim()); }catch(e){}
+        }
+        const snap = await q.get();
+        const arr=[]; snap.forEach(doc=>arr.push(normalizeMsg(doc.data(), directionHint)));
+        return arr;
+      }
+
+      let inbound=[], outbox=[];
+      try{ inbound = await fetchRecent("platform_wa_logs","in"); }catch(e){}
+      try{ outbox  = await fetchRecent("platform_wa_outbox_logs","out"); }catch(e){}
+
+      state.counters.in = inbound.length;
+      state.counters.out = outbox.length;
+
+      const all=[...inbound,...outbox].filter(Boolean);
+
+      for(const m of all){
+        if(m.err) state.counters.err++;
+        const raw = m.raw || {};
+        const st = String(raw.status||"").toLowerCase();
+        if(st.includes("fail") || st.includes("error")) state.counters.err++;
+      }
+
+      const filtered = all.filter(routePass).filter(uidPass);
+
+      const map=new Map();
+      for(const m of filtered){
+        let key="";
+        if(String(m.direction||"")==="in") key=String(m.from||"").trim();
+        else key=String(m.to||m.from||"").trim();
+        key = key || String(m.from||m.to||"").trim();
+        if(!key) continue;
+
+        const prev=String(m.text||"").trim() || (isAudio(m)?"[Áudio]":"");
+        const existing=map.get(key);
+        if(!existing){
+          map.set(key,{key,phone:key,displayName:m.displayName||"",lastTs:m.ts,preview:prev,tag:(m.route||m.intentFinal||"conversa")});
+        }else{
+          const a=(typeof m.ts?.toDate==="function")?m.ts.toDate().getTime():new Date(m.ts).getTime();
+          const b=(typeof existing.lastTs?.toDate==="function")?existing.lastTs.toDate().getTime():new Date(existing.lastTs).getTime();
+          if(a>b){
+            existing.lastTs=m.ts;
+            existing.preview=prev||existing.preview;
+            existing.displayName=existing.displayName||m.displayName||"";
+            existing.tag=(m.route||m.intentFinal||existing.tag||"conversa");
+          }
+        }
+      }
+
+      state.contacts=[...map.values()].sort((x,y)=>{
+        const a=(typeof x.lastTs?.toDate==="function")?x.lastTs.toDate().getTime():new Date(x.lastTs).getTime();
+        const b=(typeof y.lastTs?.toDate==="function")?y.lastTs.toDate().getTime():new Date(y.lastTs).getTime();
+        return b-a;
+      });
+
+      $("kpi-conv").textContent = String(state.contacts.length);
+      $("kpi-in").textContent = String(state.counters.in);
+      $("kpi-out").textContent = String(state.counters.out);
+      $("kpi-err").textContent = String(state.counters.err);
+      $("small-summary").textContent = `amostra: ${all.length} msgs`;
+
+      renderContacts();
+
+      const last=localStorage.getItem(LS_LAST_CONTACT)||"";
+      const chosen=state.contacts.find(c=>c.key===last)||state.contacts[0];
+      if(chosen){ setActive(chosen.key); await loadAndRenderConversation(chosen); }
+    }
+
+    function renderContacts(){
+      const list=$("convList"); list.innerHTML="";
+      const items=state.contacts.filter(matchesContact);
+
+      $("count-left").textContent=String(items.length);
+      $("sub-left").textContent = items.length ? "Clique para abrir" : "Sem conversas no período";
+
+      if(!items.length){
+        list.innerHTML = `<div class="mini">Nada aqui com os filtros atuais.</div>`;
+        return;
+      }
+
+      for(const c of items){
+        const el=document.createElement("div");
+        el.className="item"+(state.active===c.key?" active":"");
+        el.setAttribute("data-key", c.key);
+        el.innerHTML = `
+          <div class="left">
+            <div class="avatar">${escapeHtml(initials(c.displayName||c.phone||c.key))}</div>
+            <div class="meta">
+              <div class="who">${escapeHtml(c.displayName||c.phone||c.key)}</div>
+              <div class="prev">${escapeHtml(c.preview||"—")}</div>
+            </div>
+          </div>
+          <div class="right">
+            <div class="when">${escapeHtml(fmtTs(c.lastTs))}</div>
+            <div class="tag">${escapeHtml(String(c.tag||"conversa"))}</div>
+          </div>`;
+        el.addEventListener("click", async ()=>{
+          try{ setActive(c.key); await loadAndRenderConversation(c); }
+          catch(e){ setError("Falha ao abrir conversa: "+(e&&e.message?e.message:String(e))); }
+        });
+        list.appendChild(el);
+      }
+
+      try{
+        const periodLabel = ($("period")?.selectedOptions?.[0]?.textContent || "Período").trim();
+        $("small-index").textContent = `Resumo: ${items.length} conversas (${periodLabel})`;
+      }catch(e){}
+    }
+
+    function wireUI(){
+      $("modePhone").addEventListener("click",()=>setMode("phone"));
+      $("modeTimeline").addEventListener("click",()=>setMode("timeline"));
+
+      $("period").addEventListener("change",()=>{
+        const v=$("period").value;
+        $("customRange").style.display = v==="custom" ? "flex" : "none";
+        $("customRange2").style.display = v==="custom" ? "flex" : "none";
+      });
+
+      $("btn-apply").addEventListener("click", async ()=>{
+        state.filter.period = $("period").value;
+        state.filter.route  = $("route").value;
+        state.filter.qContact = $("qContact").value||"";
+        state.filter.qUid = $("qUid").value||"";
+        state.filter.qText = $("qText").value||"";
+        state.filter.msgType = $("msgType").value;
+        await loadContacts();
+      });
+
+      $("btn-clear").addEventListener("click", async ()=>{
+        $("period").value="7d";
+        $("route").value="all";
+        $("qContact").value="";
+        $("qUid").value="";
+        $("qText").value="";
+        $("msgType").value="all";
+        $("customRange").style.display="none";
+        $("customRange2").style.display="none";
+        $("fromDate").value="";
+        $("toDate").value="";
+        state.filter = { period:"7d", route:"all", qContact:"", qUid:"", qText:"", msgType:"all" };
+        await loadContacts();
+      });
+
+      $("btn-refresh").addEventListener("click", async ()=>{ await loadContacts(); });
+
+      $("btn-copy-phone").addEventListener("click", async ()=>{
+        try{
+          const c=state.contacts.find(x=>x.key===state.active); if(!c) return;
+          const phone=fmtPhone(c.phone||c.key);
+          if(!phone) return;
+          await navigator.clipboard.writeText(phone);
+          $("btn-copy-phone").textContent="Copiado ✅";
+          setTimeout(()=>{ $("btn-copy-phone").textContent="Copiar telefone"; },1200);
+        }catch(e){ setError("Não consegui copiar (permissão do navegador)."); }
+      });
+    }
+
+    function initDefaultDates(){
+      const now=new Date();
+      const fmt=(d)=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
+      $("fromDate").value = fmt(new Date(now.getTime()-7*864e5));
+      $("toDate").value = fmt(now);
+    }
+
+    async function requireAdmin(){
+      const backend = (window.BACKEND_BASE_URL || "https://mei-robo-prod.onrender.com");
+      try{
+        const r = await fetch(`${backend}/admin/ping`, { method:"GET", credentials:"include" });
+        if(r.ok) return true;
+      }catch(e){}
+      return false;
+    }
+
+    async function boot(){
+      wireUI(); initDefaultDates();
+      const saved = localStorage.getItem(LS_MODE_KEY);
+      setMode(saved==="timeline" ? "timeline" : "phone");
+
+      setChip("validando admin…");
+      const ok = await requireAdmin();
+      if(!ok){
+        setChip("sem acesso", "err");
+        setError("Sem acesso admin. Faça login como admin e tente novamente.");
+        try{ location.href = "/pages/login.html"; }catch(e){}
+        return;
+      }
+      setChip("admin OK");
+
+      try{
+        if(!window.firebase || !firebase.apps || !firebase.apps.length){
+          setError("Firebase não inicializou. Verifique /assets/firebase-init.js.");
+          return;
+        }
+      }catch(e){ setError("Erro Firebase: "+(e&&e.message?e.message:String(e))); return; }
+
+      await loadContacts();
+    }
+
+    window.addEventListener("load", ()=>{ boot(); });
+  </script>
+</body>
+</html>
