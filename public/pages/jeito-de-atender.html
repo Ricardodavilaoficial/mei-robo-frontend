@@ -602,29 +602,47 @@
       buildPreview();
     })();
 
-    // Save (sem Firestore ainda): salva rascunho no localStorage e manda pro painel
-    $("#frm").addEventListener("submit", (e)=>{
+    // Save: salva rascunho no localStorage e sincroniza no Firestore (best-effort)
+    $("#frm").addEventListener("submit", async (e)=>{
       e.preventDefault();
 
       const data = {
         operational_mode: getVal("operational_mode"),
         tone: getVal("tone"),
-        humor: getVal("humor"),
+        humor: Number(getVal("humor")),
         confirm_style: getVal("confirm_style"),
         sales_posture: getVal("sales_posture"),
-        savedAt: new Date().toISOString()
+        updatedAt: new Date().toISOString()
       };
 
-      // valida rápido
       for(const k of ["operational_mode","tone","humor","confirm_style","sales_posture"]){
-        if(!data[k]){
+        if(!data[k] && data[k] !== 0){
           toast(`Faltou escolher: <b>${k}</b>.`);
           return;
         }
       }
 
+      // mantém rascunho local
       localStorage.setItem("meiRobo.jeitoAtenderDraft", JSON.stringify(data));
-      toast("Salvo. Indo pro painel… <small>(depois a gente publica isso no Firestore)</small>");
+
+      try{
+        const user = firebase.auth().currentUser;
+        if(user){
+          await firebase.firestore()
+            .collection("profissionais")
+            .doc(user.uid)
+            .set({
+              config: {
+                robotPersona: data
+              }
+            }, { merge: true });
+        }
+      }catch(err){
+        console.error("Erro ao salvar persona:", err);
+        toast("Salvo localmente. Sync online pendente.");
+      }
+
+      toast("Salvo. Indo pro painel…");
       setTimeout(()=>{ window.location.href = "/pages/dashboard.html?jeito=ok"; }, 700);
     });
 
