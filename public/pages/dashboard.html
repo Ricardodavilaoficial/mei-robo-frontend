@@ -140,6 +140,7 @@
           <a class="btn" href="/pages/agenda.html">Abrir Agenda</a>
           <a class="btn" href="/pages/precos.html">Abrir Catálogo</a>
           <a class="btn" href="/pages/orcamentos.html">Orçamentos</a>
+          <a class="btn" href="/pages/jeito-de-atender.html">Jeito de atender</a>
         </div>
         <div class="note" style="margin-top:8px;" aria-live="polite">
           <b>IMPORTANTE:</b> para <b>INICIAR A CONVERSA</b> com alguém, peça que a pessoa mande um <b>“Oi”</b> para o seu número comercial.
@@ -413,6 +414,7 @@
         const qp = new URLSearchParams(location.search);
         const hasFree = qp.has('free');
         const sessionId = qp.get('session_id');
+        const jeitoOk = qp.get('jeito');
         if(hasFree || sessionId){
           arrivalBanner.style.display='block';
           arrivalBanner.textContent = hasFree
@@ -426,6 +428,12 @@
           const url = new URL(location.href);
           url.searchParams.delete('free'); 
           url.searchParams.delete('session_id');
+          history.replaceState({}, '', url.toString());
+        } else if (jeitoOk === 'ok') {
+          arrivalBanner.style.display='block';
+          arrivalBanner.textContent = 'Jeito de atender salvo. Seu MEI Robô vai seguir esse estilo nas conversas.';
+          const url = new URL(location.href);
+          url.searchParams.delete('jeito');
           history.replaceState({}, '', url.toString());
         }
       }catch{}
