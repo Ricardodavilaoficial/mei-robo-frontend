@@ -5,19 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Jeito de atender | MEI Robô</title>
 
-<link rel="canonical" href="https://www.meirobo.com.br/pages/jeito-de-atender.html" />
-<meta property="og:url" content="https://www.meirobo.com.br/pages/jeito-de-atender.html" />
-<meta name="twitter:url" content="https://www.meirobo.com.br/pages/jeito-de-atender.html" />
-<meta name="robots" content="noindex,nofollow,noarchive" />
-
-<link rel="stylesheet" href="/assets/styles.css" />
-<link rel="icon" href="data:,">
-
-<!-- Layout canônico (header/footer dinâmicos) -->
-<script defer src="/assets/layout.js"></script>
-
-<!-- Firebase init (padrão do projeto) -->
-<script src="/assets/firebase-init.js?v=1"></script>
+  <!-- Firebase init (mantém padrão do projeto) -->
+  <script src="/assets/firebase-init.js?v=1"></script>
 
   <style>
     :root{
@@ -215,12 +204,14 @@
   </style>
 </head>
 <body>
-  <div id="app-header"></div>
   <div class="wrap">
     <div class="top">
       <div class="title">
         <h1>Jeito de atender</h1>
         <p>Defina como o MEI Robô conversa com seus clientes no dia a dia. É opcional — se você pular, segue tudo normal.</p>
+      </div>
+      <div class="pill" title="Jeito de atender">
+        ✅ Sem pingue-pongue
       </div>
     </div>
 
@@ -229,15 +220,15 @@
       <div class="card" id="cardForm">
         <div class="hd">
           <h2>Escolhas rápidas (2 min)</h2>
-          <p class="sub">Poucas escolhas aqui → um monte de decisões por trás (sem você configurar “IA”).</p>
+          <p class="sub">Aqui você escolhe o tom principal. O seu MEI Robô já vem pronto pra atender bem em qualquer situação.</p>
         </div>
         <div class="bd">
           <form id="frm">
             <div class="q">
               <div class="qt">
                 <div>
-                  <b>1) Papel principal do robô</b>
-                  <div class="hint">Isso define o “trilho” (economia de token + desempenho).</div>
+                  <b>1) Foco principal do seu MEI Robô</b>
+                  <div class="hint">Escolha onde ele vai caprichar mais no dia a dia do seu negócio.</div>
                 </div>
               </div>
               <div class="opts" data-name="operational_mode">
@@ -245,49 +236,49 @@
                   <input type="radio" name="operational_mode" value="DELIVERY" />
                   <div class="txt">
                     <div class="t">Pedidos / Delivery</div>
-                    <div class="d">Fecha pedido sem ping-pong: confirma tudo em um bloco e registra.</div>
+                    <div class="d">Fecha pedido com clareza e confirma as informações de uma vez.</div>
                   </div>
                 </label>
                 <label class="opt">
                   <input type="radio" name="operational_mode" value="AGENDA" />
                   <div class="txt">
                     <div class="t">Agenda (serviço com horário)</div>
-                    <div class="d">Marca, confirma e deixa tudo por escrito (sem troca infinita).</div>
+                    <div class="d">Organiza agenda e confirma o combinado com clareza.</div>
                   </div>
                 </label>
                 <label class="opt">
                   <input type="radio" name="operational_mode" value="TECNICO" />
                   <div class="txt">
                     <div class="t">Orçamento / Técnico</div>
-                    <div class="d">Coleta só o essencial (foto/medida/endereço) e evita chute.</div>
+                    <div class="d">Pede só o essencial (ex.: foto/medida/endereço) e evita passar valor no chute.</div>
                   </div>
                 </label>
                 <label class="opt">
                   <input type="radio" name="operational_mode" value="TRIAGEM" />
                   <div class="txt">
                     <div class="t">Informações & triagem</div>
-                    <div class="d">Responde direto; se faltar algo, faz 1 pergunta curta.</div>
+                    <div class="d">Responde direto; se faltar algo importante, pergunta de forma simples.</div>
                   </div>
                 </label>
                 <label class="opt">
                   <input type="radio" name="operational_mode" value="CONDOMINIO" />
                   <div class="txt">
                     <div class="t">Condomínio / Chamados</div>
-                    <div class="d">Organiza ocorrências e registra o que foi pedido.</div>
+                    <div class="d">Organiza ocorrências e deixa o pedido bem registrado.</div>
                   </div>
                 </label>
                 <label class="opt">
                   <input type="radio" name="operational_mode" value="EMPRESA" />
                   <div class="txt">
                     <div class="t">Equipe / Empresa</div>
-                    <div class="d">Atendimento geral, repasse e encaminhamento quando necessário.</div>
+                    <div class="d">Atendimento geral, repasse de informação e encaminhamento quando precisar.</div>
                   </div>
                 </label>
                 <label class="opt">
                   <input type="radio" name="operational_mode" value="SUPPORT_BROADCAST" />
                   <div class="txt">
                     <div class="t">Suporte / Secretária (só repassa info)</div>
-                    <div class="d">Responde correto e consistente. Sem puxar conversa e sem vender.</div>
+                    <div class="d">Responde com consistência. Sem enrolação e sem empurrar nada.</div>
                   </div>
                 </label>
               </div>
@@ -343,7 +334,7 @@
               <div class="qt">
                 <div>
                   <b>4) Quando já entendeu, como confirma?</b>
-                  <div class="hint">Anti-interrogatório: confirmação em bloco (sempre).</div>
+                  <div class="hint">Pra não virar pingue-pongue: confirma as informações de uma vez.</div>
                 </div>
               </div>
               <div class="opts" data-name="confirm_style">
@@ -391,7 +382,7 @@
             </div>
 
             <div class="note">
-              Regra fixa: o robô <b>nunca</b> fica perguntando uma coisa por vez. Ele confirma em bloco (máx. 3 perguntas) e, se faltar algo, faz no máximo 1 follow-up.
+              Regra do produto: o seu MEI Robô evita “pingue-pongue”. Ele confirma as informações principais de uma vez e só volta a perguntar se realmente faltar algo importante.
             </div>
           </form>
         </div>
@@ -415,7 +406,7 @@
           </div>
 
           <div class="note">
-            Dica: se você quer desempenho + baixo custo, escolha um trilho bem claro (ex.: <code>Pedidos</code> ou <code>Agenda</code>). O resto a gente ajusta por trás.
+            Dica: escolha o foco que mais acontece no seu dia a dia (ex.: <code>Pedidos</code> ou <code>Agenda</code>). Assim o seu MEI Robô fica ainda mais alinhado com o seu jeito de atender.
           </div>
         </div>
       </div>
@@ -602,47 +593,29 @@
       buildPreview();
     })();
 
-    // Save: salva rascunho no localStorage e sincroniza no Firestore (best-effort)
-    $("#frm").addEventListener("submit", async (e)=>{
+    // Save (sem Firestore ainda): salva rascunho no localStorage e manda pro painel
+    $("#frm").addEventListener("submit", (e)=>{
       e.preventDefault();
 
       const data = {
         operational_mode: getVal("operational_mode"),
         tone: getVal("tone"),
-        humor: Number(getVal("humor")),
+        humor: getVal("humor"),
         confirm_style: getVal("confirm_style"),
         sales_posture: getVal("sales_posture"),
-        updatedAt: new Date().toISOString()
+        savedAt: new Date().toISOString()
       };
 
+      // valida rápido
       for(const k of ["operational_mode","tone","humor","confirm_style","sales_posture"]){
-        if(!data[k] && data[k] !== 0){
+        if(!data[k]){
           toast(`Faltou escolher: <b>${k}</b>.`);
           return;
         }
       }
 
-      // mantém rascunho local
       localStorage.setItem("meiRobo.jeitoAtenderDraft", JSON.stringify(data));
-
-      try{
-        const user = firebase.auth().currentUser;
-        if(user){
-          await firebase.firestore()
-            .collection("profissionais")
-            .doc(user.uid)
-            .set({
-              config: {
-                robotPersona: data
-              }
-            }, { merge: true });
-        }
-      }catch(err){
-        console.error("Erro ao salvar persona:", err);
-        toast("Salvo localmente. Sync online pendente.");
-      }
-
-      toast("Salvo. Indo pro painel…");
+      toast("Salvo. Indo pro painel… <small>(depois a gente publica isso no Firestore)</small>");
       setTimeout(()=>{ window.location.href = "/pages/dashboard.html?jeito=ok"; }, 700);
     });
 
@@ -652,6 +625,5 @@
       // Se quiser apagar, é só limpar localStorage manualmente.
     });
   </script>
-  <div id="app-footer"></div>
 </body>
 </html>

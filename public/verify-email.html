@@ -60,16 +60,13 @@
       try { return new URLSearchParams(location.search).get(k) || ""; }
       catch(_) { return ""; }
     }
-    function safeDecode(s){
-      try { return decodeURIComponent(String(s || "")); } catch(_) { return String(s || ""); }
-    }
 
     // Para onde vamos depois de verificar (mantido apenas como parâmetro; quem avança é o cadastro.html)
     const cont = qs("cont") || "/pages/configuracao.html";
     // Token de verificação gerado pelo backend (vt=...)
     const vt = qs("vt") || "";
     // E-mail opcional vindo no link
-    const emailParam = safeDecode(qs("email") || qs("e") || "");
+    const emailParam = qs("email") || "";
 
     // Backend canônico (Render)
     const API_BASE = "https://mei-robo-prod.onrender.com";
@@ -126,9 +123,7 @@
     // ===== Confirmação via backend usando vt =====
     async function confirmWithBackend(){
       if (!vt) {
-        msg.textContent =
-          "Esse link abriu sem o código de verificação (vt). " +
-          "Volte no seu e-mail e clique no botão do e-mail MAIS RECENTE — ou copie e cole o link inteiro no navegador.";
+        msg.textContent = "Link de verificação inválido ou incompleto. Abra o e-mail mais recente e clique no botão.";
         msg.className = "row err";
         return false;
       }
@@ -137,7 +132,7 @@
       msg.className = "row hint";
 
       try {
-        const body = { vt: vt, cont: cont };
+        const body = { vt: vt };
         if (emailParam) body.email = emailParam;
 
         const res = await fetch(API_BASE.replace(/\/$/,"") + "/api/auth/confirm-email", {
@@ -267,24 +262,21 @@
     document.addEventListener("DOMContentLoaded", function(){
       // Mostra o e-mail se veio no link
       emailSpan.textContent = emailParam || "—";
-      try {
-        console.debug("[verify-email] qs", {
-          has_vt: !!vt,
-          emailParam: emailParam || "",
-          cont: cont || "",
-          search: location.search || ""
-        });
-      } catch(_) {}
 
       renderDebounceTip();
 
       if (vt) {
         // Caso normal vindo do e-mail oficial com vt:
         // esta tela vira apenas INFORMATIVA.
-        intro.textContent = "Confirmando seu e-mail… (se demorar, volte para a aba do cadastro e clique em “Já verifiquei — continuar”)";
+        intro.textContent = "Confirmando seu e-mail…";
 
-        // Não esconder o reenviar: se o link estiver capado/expirado, o usuário consegue pedir outro aqui.
-        try { btn.disabled = true; btn.style.display = "none"; } catch (_) {}
+        // Esconde os botões para não sugerir nenhuma ação extra aqui
+        try {
+          btn.disabled = true;
+          resendBtn.disabled = true;
+          btn.style.display = "none";
+          resendBtn.style.display = "none";
+        } catch (_) {}
 
         // Confirma com o backend e avisa as outras abas
         confirmWithBackend();
@@ -292,14 +284,6 @@
         // Link sem vt (antigo / manual)
         intro.textContent =
           "Abra o link que enviamos para seu e-mail. Se você chegou por esse link, estamos confirmando automaticamente…";
-        // Ajuda prática: quando chega sem vt, o único caminho é reenviar (se estiver logado) ou voltar ao cadastro.
-        try {
-          var hint = document.getElementById("hint-next-step");
-          if (hint) {
-            hint.textContent = "Dica: se esse link abriu “pelado”, peça um novo clique em “Reenviar e-mail” na aba do cadastro e abra o e-mail mais recente.";
-            hint.style.display = "block";
-          }
-        } catch(_) {}
       }
     });
 
@@ -315,3 +299,4 @@
   </script>
 </body>
 </html>
+
