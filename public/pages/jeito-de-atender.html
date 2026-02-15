@@ -600,6 +600,43 @@
         set("sales_posture", "consultivo");
       }
       buildPreview();
+
+      // 🔁 Hidrata do Firestore (fonte real) quando estiver logado.
+      // Regra: se Firestore for mais novo que o draft local (updatedAt), aplica Firestore.
+      try{
+        firebase.auth().onAuthStateChanged(async (user)=>{
+          if(!user) return;
+          try{
+            const snap = await firebase.firestore()
+              .collection("profissionais")
+              .doc(user.uid)
+              .get();
+            const doc = (snap && snap.exists) ? (snap.data() || {}) : {};
+            const cfg = doc.config || {};
+            const p = cfg.jeitoAtenderV1 || cfg.robotPersona || null;
+            if(!p || typeof p !== "object") return;
+
+            const local = JSON.parse(localStorage.getItem("meiRobo.jeitoAtenderDraft") || "null");
+            const localTs = (local && local.updatedAt) ? String(local.updatedAt) : "";
+            const remoteTs = p.updatedAt ? String(p.updatedAt) : "";
+            const remoteIsNewer = (!!remoteTs && (!localTs || remoteTs > localTs));
+
+            if(!local || remoteIsNewer){
+              localStorage.setItem("meiRobo.jeitoAtenderDraft", JSON.stringify(p));
+              set("operational_mode", p.operational_mode || "");
+              set("tone", p.tone || "");
+              set("humor", String((p.humor ?? "")));
+              set("confirm_style", p.confirm_style || "");
+              set("sales_posture", p.sales_posture || "");
+              buildPreview();
+            }
+          }catch(err){
+            console.warn("[jeito] falha ao hidratar do Firestore:", err);
+          }
+        });
+      }catch(e){
+        // sem firebase/auth por algum motivo → segue só com localStorage
+      }
     })();
 
     // Save: salva rascunho no localStorage e sincroniza no Firestore (best-effort)
@@ -633,6 +670,8 @@
             .doc(user.uid)
             .set({
               config: {
+                // ✅ grava no canônico novo e mantém compat legado
+                jeitoAtenderV1: data,
                 robotPersona: data
               }
             }, { merge: true });
