@@ -1276,7 +1276,7 @@ function scheduleCnpjPublicApply(nomeBusca){
         }
 
         const data = await res.json().catch(() => ({}));
-        currentAgendaConfig = normalizeAgendaConfig(data);
+        currentAgendaConfig = normalizeAgendaConfig((data && (data.config || data)) || {});
         preencherAgendaForm(currentAgendaConfig);
         atualizarAgendaResumo(currentAgendaConfig);
         agendaSavedOk = true; // ✅ já existe agenda salva no servidor
